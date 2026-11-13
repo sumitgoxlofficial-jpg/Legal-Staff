@@ -44,11 +44,13 @@
   }
 
   let memory = null;
+  const remote = () => !!(window.LSB && window.LSB.on);
   function load() {
+    if (remote()) { memory = seed(); return memory; }
     try { const raw = localStorage.getItem(KEY); if (raw) { const d = JSON.parse(raw); if (d && d.v === 2) return d; } } catch (e) {}
     const d = seed(); save(d); return d;
   }
-  function save(d) { memory = d; try { localStorage.setItem(KEY, JSON.stringify(d)); return true; } catch (e) { return false; } }
+  function save(d) { memory = d; if (remote()) return true; try { localStorage.setItem(KEY, JSON.stringify(d)); return true; } catch (e) { return false; } }
   function reset() { try { localStorage.removeItem(KEY); } catch (e) {} return load(); }
 
   /* ---------- limitation calculator (rule-based) ---------- */

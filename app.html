@@ -6,7 +6,9 @@
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
 <script src="config.js"></script>
+<script src="vendor/supabase.js"></script>
 <script src="app-store.js"></script>
+<script src="app-backend.js"></script>
 <script src="app-views.js"></script>
 <script src="support.js"></script>
 </head>
@@ -48,7 +50,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <div style="background:#0A0A0A;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;padding:56px;position:relative;overflow:hidden;min-height:420px">
     <img src="assets/ls-logo-white.png" alt="Legal Staff" style="height:min(34vh,260px);width:auto;display:block">
     <div style="font-size:20px;line-height:1.4;text-align:center;max-width:380px;color:#A3A3A3">Every case, order and hearing date in one place.</div>
-    <div style="position:absolute;bottom:24px;left:0;right:0;text-align:center;font-size:12px;color:#7A7A7A">Your data is stored on this device</div>
+    <div style="position:absolute;bottom:24px;left:0;right:0;text-align:center;font-size:12px;color:#7A7A7A">{{ storageLine }}</div>
   </div>
 </div>
 </sc-if>
@@ -826,9 +828,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:10px;border-bottom:2px solid #0A0A0A"><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><img src="assets/ls-mark-black.png" alt="" style="height:20px;display:block"><span style="font-weight:600;font-size:14px;letter-spacing:-.02em;line-height:1;color:#0A0A0A">Legal Staff</span></span><span style="font-size:12px;font-weight:600">Tax invoice</span></div>
                 <div style="display:flex;justify-content:space-between"><span>{{ co.name }} plan · {{ co.cycle }}</span><span>{{ co.base }}</span></div>
                 <div style="display:flex;justify-content:space-between;color:#5E5E5E"><span>IGST @ 18%</span><span>{{ co.gst }}</span></div>
-                <div style="display:flex;justify-content:space-between;font-weight:600;font-size:15px;border-top:1px solid #E5E5E5;padding-top:8px"><span>Paid via Razorpay</span><span>{{ co.total }}</span></div>
+                <div style="display:flex;justify-content:space-between;font-weight:600;font-size:15px;border-top:1px solid #E5E5E5;padding-top:8px"><span>{{ payLabel }}</span><span>{{ co.total }}</span></div>
               </div>
-              <div style="font-size:12px;color:#0A0A0A">Prototype: this payment is simulated. In the live product, the plan activates only after Razorpay's server-side signature and webhook checks pass.</div>
+              <div style="font-size:12px;color:#0A0A0A">{{ payNote }}</div>
               <button onClick="{{ finishPay }}" style="white-space:nowrap;height:36px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Go to dashboard</button>
             </sc-if>
           </div>
@@ -942,7 +944,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 class Component extends DCLogic {
   db = LS.load();
   tplNames = ['Legal notice', 'Petition', 'Section 138 notice', 'Bail application', 'Affidavit', 'Written statement', 'Reply', 'Appeal', 'Revision', 'Agreement'];
-  state = { auth: this.db.session ? 'in' : 'login', screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: '' };
+  dirList = [];
+  state = { auth: LSB.on ? 'boot' : (this.db.session ? 'in' : 'login'), screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: '' };
   SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'courts', 'clients', 'documents', 'evidence', 'research', 'agents', 'team', 'billing', 'portal', 'reports', 'settings'];
 
   componentDidMount() {
@@ -959,9 +962,26 @@ class Component extends DCLogic {
     };
     window.addEventListener('keydown', this.onK);
     this.applyRoute(); this.grow();
-    if (this.state.auth === 'in' && !this.db.firm.name) LSV.onboard(this);
+    if (LSB.on) { this.onF = () => { if (this.state.auth === 'in' && this.db.firmId && !this.state.modalOn && !LSB.pending() && !this.syncT && Date.now() - (this.loadedAt || 0) > 60000) this.reload(); }; window.addEventListener('focus', this.onF);
+      LSB.session().then(s => s ? this.enter(s) : this.setState({ auth: 'login' })).catch(e => { this.setState({ auth: 'login' }); this.toast('Could not reach the server: ' + e.message); }); }
+    else if (this.state.auth === 'in' && !this.db.firm.name) LSV.onboard(this);
   }
-  componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('hashchange', this.onH); window.removeEventListener('keydown', this.onK); this.rec && this.rec.stop(); }
+  /* ---- server mode ---- */
+  async enter(session) {
+    this.sess = session; this.setState({ auth: 'boot' });
+    try { const firms = await LSB.firms();
+      if (firms.length) { await this.reload(firms[0].firm_id); this.afterEnter(); }
+      else { const d = LS.seed(), name = ((session.user.user_metadata || {}).full_name || (session.user.user_metadata || {}).name || '').trim() || session.user.email.split('@')[0]; d.session = { email: session.user.email, provider: 'google' }; d.user.name = name; d.user.email = session.user.email; this.replace(d); this.setState({ auth: 'in' }); LSV.onboard(this); }
+    } catch (e) { this.setState({ auth: 'login' }); this.toast('Could not load your firm: ' + e.message); }
+  }
+  async reload(id) { const d = await LSB.load(id || this.db.firmId, this.sess); this.loadedAt = Date.now(); this.buf = null; this.db = d; LS.save(d); this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1, auth: 'in' })); this.loadQueue(); }
+  afterEnter() { this.grow(); const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
+    if (i >= 0) { this.setState({ plan: i, paid: false, cycle: q.get('cycle') === 'monthly' ? 'monthly' : 'annual' }); history.replaceState(null, '', location.pathname + '#/pricing'); this.applyRoute(); } }
+  async googleSignIn(token, nonce) { const s = await LSB.signInGoogle(token, nonce); await this.enter(s); }
+  async createFirm(v) { try { const id = await LSB.createFirm(v); await this.reload(id); this.toast('Your practice is set up'); this.afterEnter(); } catch (e) { this.toast('Could not create the firm: ' + e.message); LSV.onboard(this); } }
+  loadQueue() { if (!LSB.on) return; LSB.isAdmin().then(a => { this.isAdmin = a; return a ? LSB.queue() : []; }).then(q => { this.dirList = q; this.setState(s => ({ rev: s.rev + 1 })); }).catch(() => {}); }
+  queueSync() { if (!LSB.on || !this.db.firmId) return; clearTimeout(this.syncT); this.syncT = setTimeout(() => { this.syncT = null; LSB.sync(this.db).then(changed => { if (changed) this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); }).catch(e => this.toast('Not saved to the server: ' + e.message)); }, 500); }
+  componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('hashchange', this.onH); window.removeEventListener('keydown', this.onK); this.onF && window.removeEventListener('focus', this.onF); this.rec && this.rec.stop(); }
   grow() { clearTimeout(this.gt); this.setState({ grown: false }); this.gt = setTimeout(() => this.setState({ grown: true }), 60); }
   applyRoute() {
     const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean), screen = this.SCREENS.includes(p[0]) ? p[0] : 'dashboard';
@@ -969,8 +989,8 @@ class Component extends DCLogic {
     if (screen === 'dashboard') this.grow(); window.scrollTo(0, 0);
   }
   go(screen, param, tab) { const hs = '#/' + screen + (param ? '/' + encodeURIComponent(param) : '') + (tab ? '/' + tab : ''); if (location.hash !== hs) location.hash = hs; else this.applyRoute(); }
-  mut(fn, msg) { fn(this.db); if (!LS.save(this.db)) msg = 'Could not save. Browser storage is full or blocked.'; this.setState(s => ({ rev: s.rev + 1 })); if (msg) this.toast(msg); }
-  replace(db, msg) { this.db = db; LS.save(db); this.buf = null; this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); if (msg) this.toast(msg); }
+  mut(fn, msg) { fn(this.db); if (!LS.save(this.db)) msg = 'Could not save. Browser storage is full or blocked.'; this.queueSync(); this.setState(s => ({ rev: s.rev + 1 })); if (msg) this.toast(msg); }
+  replace(db, msg) { if (LSB.on && this.db.firmId) { const o = this.db; Object.assign(db, { firmId: o.firmId, session: o.session, team: o.team, user: o.user, sub: o.sub, isOwner: o.isOwner, firm: db.firm && db.firm.name ? db.firm : o.firm }); } this.db = db; LS.save(db); this.queueSync(); this.buf = null; this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); if (msg) this.toast(msg); }
   modal(fn) { this._modal = fn; this.setState(s => ({ modalOn: !!fn, menu: null, rev: s.rev + 1 })); }
   toast(t) { this.setState({ toast: t }); clearTimeout(this.tt); this.tt = setTimeout(() => this.setState({ toast: '' }), 3200); }
   signIn(email, prof) {
@@ -988,7 +1008,7 @@ class Component extends DCLogic {
       if (!this.db.firm.name) LSV.onboard(this);
     }, 900);
   }
-  signOut() { try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) {} this.mut(db => { db.session = null; }); this.setState({ auth: 'login', menu: null, panel: false }); }
+  signOut() { if (LSB.on) { LSB.signOut(); this.db = LS.seed(); LS.save(this.db); this.dirList = []; } try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) {} this.mut(db => { db.session = null; }); this.setState({ auth: 'login', menu: null, panel: false }); }
   openWeek(date) { this.setState({ weekStart: this.monday(date), daySel: date }); this.go('calendar'); }
   openDraft(i) { this.buf = null; this.setState({ tpl: i, ver: 0 }); this.go('drafting'); }
   monday(s) { const d = LS.parse(s), g = d.getDay(); return LS.addDays(s, g === 0 ? -6 : 1 - g); }
@@ -1041,10 +1061,11 @@ class Component extends DCLogic {
     r.onend = () => this.setState({ dict: false });
     try { r.start(); this.setState({ dict: true }); } catch (e) { this.toast('Could not start dictation.'); }
   }
-  dirApps() { try { const a = JSON.parse(localStorage.getItem('ls.directory.applications') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  dirApps() { if (LSB.on) return this.dirList; try { const a = JSON.parse(localStorage.getItem('ls.directory.applications') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
   setStatus(v, app) {
     const note = this.state.adminNote.trim();
     if (v !== 'verified' && !note) return this.toast('Add a note to the applicant before you ' + (v === 'info' ? 'request more information' : 'reject') + '.');
+    if (LSB.on) { LSB.decide(app.id, v, note).then(() => { this.toast({ verified: 'Profile verified and published', info: 'More information requested from applicant', rejected: 'Application rejected · logged' }[v]); this.setState({ adminNote: '' }); this.loadQueue(); }).catch(e => this.toast('Could not save the decision: ' + e.message)); return; }
     if (app.fromDir) { try { const a = this.dirApps(); const x = a.find(y => y.id === app.id); if (x) { x.status = v; x.note = note; localStorage.setItem('ls.directory.applications', JSON.stringify(a)); } } catch (e) {} }
     this.mut(db => { db.adminStatus[app.id] = v; db.adminNotes[app.id] = note; LSV.logIt(db, `Directory application ${app.enr}: ${v}`); }, { verified: 'Profile verified and published', info: 'More information requested from applicant', rejected: 'Application rejected · logged' }[v]);
     this.setState({ adminNote: '' });
@@ -1101,7 +1122,7 @@ class Component extends DCLogic {
     let modView = V.MODULES[scr] ? h(V.MODULES[scr], { app: this, key: scr }) : null;
     if (s.limitation && !D.lim) { s.limitation = false; modView = h(V.Page, { kicker: 'Legal deadlines', title: 'Limitation tracker', max: 900, actions: [h(V.Btn, { key: 1, onClick: () => V.addDeadline(this) }, '+ Add a deadline'), h(V.Btn, { key: 2, primary: true, onClick: () => V.newLim(this) }, 'New calculation')] },
       h(V.Card, { title: 'Deadlines' }, D.deadlines.slice().sort((a, b) => a.due.localeCompare(b.due)).map(x => h(V.Line, { key: x.id }, h('div', { style: { flex: 1, minWidth: 0 } }, x.title, h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, x.rule + ' · due ' + LS.fmt(x.due) + ' · ' + LS.diffDays(x.due, T) + ' days')), h(V.Btn, { small: true, danger: true, onClick: () => this.mut(db => { db.deadlines = db.deadlines.filter(y => y.id !== x.id); }, 'Deadline removed') }, 'Remove'))), !D.deadlines.length && h(V.Empty, { title: 'No deadlines yet', text: 'Start a limitation calculation for a commercial appeal, or add a deadline with a known last date.' }))); }
-    if (s.admin && !this.dirApps().length) { s.admin = false; modView = emptyPage('Directory moderation', 'Verification queue', ['No applications yet', 'Applications submitted from the public advocate directory appear here for verification.'], [h('a', { key: 1, href: 'directory.html', style: { fontSize: 14 } }, 'Open the public directory')]); }
+    if (s.admin && !this.dirApps().length) { s.admin = false; modView = emptyPage('Directory moderation', 'Verification queue', LSB.on && !this.isAdmin ? ['Not available on this account', 'Only Legal Staff platform administrators can verify directory applications.'] : ['No applications yet', 'Applications submitted from the public advocate directory appear here for verification.'], [h('a', { key: 1, href: 'directory.html', style: { fontSize: 14 } }, 'Open the public directory')]); }
     if (s.brain && !D.cases.length) { s.brain = false; modView = emptyPage('AI Case Brain', 'Ask about a case', ['No cases yet', 'Add a case with its orders and documents, then ask questions about it here.'], [h(V.Btn, { key: 1, primary: true, onClick: () => V.newCase(this) }, '+ New case')]); }
     s.mod = !!modView;
 
@@ -1237,17 +1258,18 @@ class Component extends DCLogic {
       co = { name, cycle: ann ? 'Annual' : 'Monthly', base: inr(base), gst: inr(gst), total: inr(base + gst), renew: ann ? 'every year' : 'every month', next: LS.fmt(renews), renews, gstErr: S.gstErr ? h('div', { style: { fontSize: 12.5, color: '#B42318', marginTop: 6 } }, S.gstErr) : null };
     }
     const pay = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
+      if (LSB.on) { if (this.paying) return; this.paying = true; this.setState({ gstErr: '' }); return LSB.checkout(D, co.name, S.cycle, g).then(() => { if (g) D.firm.gstin = g; this.setState(s => ({ paid: true, rev: s.rev + 1 })); }).catch(e => this.setState({ gstErr: e.message })).finally(() => { this.paying = false; }); }
       this.mut(db => { db.sub.plan = co.name; db.sub.cycle = S.cycle; db.sub.since = T; db.sub.renews = co.renews; db.sub.history.unshift({ plan: co.name + ' · ' + co.cycle, total: co.total, date: T }); if (g) db.firm.gstin = g; V.logIt(db, `Subscription changed to ${co.name} (${co.cycle})`); }); this.setState({ paid: true, gstErr: '' }); };
 
     /* ---- directory admin ---- */
-    const allApps = this.dirApps().map(a => Object.assign({ def: a.status || 'pending', fromDir: true }, a, { id: String(a.id) })).reverse();
+    const allApps = this.dirApps().map(a => Object.assign({ fromDir: true }, a, { def: a.status || 'pending', id: String(a.id) })).reverse();
     const stMap = { pending: ['Pending verification', '#FDECEA', '#B42318'], info: ['Info required', '#EDEDED', '#363636'], verified: ['Verified', '#F0F0EF', '#0A0A0A'], rejected: ['Rejected', '#FDECEA', '#B42318'] };
     const sel = Math.max(0, Math.min(S.sel, allApps.length - 1));
-    const apps = allApps.map((a, i) => { const k = D.adminStatus[a.id] || a.def, sm = stMap[k] || stMap.pending; return { ...a, statusKey: k, status: sm[0], chip: chip(sm[1], sm[2]), go: () => this.setState({ sel: i, adminNote: '' }),
+    const apps = allApps.map((a, i) => { const k = (LSB.on ? '' : D.adminStatus[a.id]) || a.def, sm = stMap[k] || stMap.pending; return { ...a, statusKey: k, status: sm[0], chip: chip(sm[1], sm[2]), go: () => this.setState({ sel: i, adminNote: '' }),
       row: { display: 'flex', gap: 12, width: '100%', textAlign: 'left', border: 0, borderBottom: '1px solid #E5E5E5', padding: '18px 20px', background: sel === i ? '#F0F0EF' : '#FFFFFF', color: '#0A0A0A' } }; });
     const ca = apps[sel] || { id: '', enr: '', fromDir: true, name: '', council: '', year: '', city: '', status: '', chip: {} }, enrOk = /^[A-Z]{1,4}\/\d{1,6}\/\d{4}$/i.test((ca.enr || '').trim());
     const cur = { ...ca, docs: ['Enrolment certificate', 'Certificate of Practice', 'Government photo ID'],
-      lastNote: D.adminNotes[ca.id] ? h('div', { style: { fontSize: 13, color: '#363636', background: '#F5F5F4', borderRadius: 8, padding: '10px 12px' } }, 'Last note sent: ' + D.adminNotes[ca.id]) : null,
+      lastNote: (LSB.on ? ca.note : D.adminNotes[ca.id]) ? h('div', { style: { fontSize: 13, color: '#363636', background: '#F5F5F4', borderRadius: 8, padding: '10px 12px' } }, 'Last note sent: ' + (LSB.on ? ca.note : D.adminNotes[ca.id])) : null,
       checks: [
         { k: 'Enrolment number format', v: enrOk ? 'Matches the State Bar Council pattern' : 'Does not match the usual pattern', style: { color: enrOk ? '#0A0A0A' : '#B42318' } },
         { k: 'Name on certificate matches the application', v: ca.fromDir ? 'Check against the uploaded certificate' : 'Match', style: { color: ca.fromDir ? '#B42318' : '#0A0A0A' } },
@@ -1304,7 +1326,7 @@ class Component extends DCLogic {
         ...({ Dots: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' }, Grid: { backgroundImage: 'linear-gradient(#ECECEC 1px,transparent 1px),linear-gradient(90deg,#ECECEC 1px,transparent 1px)', backgroundSize: '40px 40px' }, Plain: { backgroundImage: 'none' }, Wallpaper: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' } })[st.backdrop] },
       showWall: st.backdrop === 'Wallpaper',
       goDashboard: () => this.go('dashboard'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'), goOrder: () => this.go('orders'),
-      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, syncLine: 'Saved on this device · ' + LS.t12ap(LS.nowHM()),
+      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign-in by Google · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'The plan is activated only after Razorpay confirms the payment on the server.' : 'No server is connected, so this payment is simulated and no money is taken.', payLabel: LSB.on ? 'Paid via Razorpay' : 'Simulated payment',
       briefText, waHello: `Good morning, Adv. ${D.user.name.split(' ').pop()}.`, waLine1: `${todayH.length} hearing${todayH.length === 1 ? '' : 's'} today.` + (tClash.length ? ` ${LS.t12ap(tClash[0][0].time)} clash: ${tClash[0].map(x => shortCourt(x.court).replace('HC ', 'Delhi HC Court ').replace('Saket ', 'Saket Court ')).join(' and ')}.` : ''), waLine2: dl[0] ? `Deadline: ${dl[0].title.split(',')[0]} due ${LS.dayMon(LS.addDays(T, dl[0].days))}.` : 'No limitation deadlines this week.', waTime: LS.t12ap(st.briefingTime),
       briefLines: todayHearings.map(x => ({ time: x.time, title: x.title, meta: `${x.court} · ${x.item}` })), noHearingsToday: todayH.length === 0 ? h('div', { style: { padding: '20px 0', fontSize: 14, color: '#5E5E5E' } }, 'No hearings are listed for today.') : null,
       stats: [

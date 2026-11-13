@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
+<script src="config.js"></script>
+<script src="vendor/supabase.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
@@ -293,7 +295,7 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  state = { cycle: 'annual', faq: 0, aud: 0, w: window.innerWidth, menu: false, modal: null, cf: this.blankForm(), cfErr: {}, cfDone: null };
+  state = { cycle: 'annual', faq: 0, aud: 0, w: window.innerWidth, menu: false, modal: null, cf: this.blankForm(), cfErr: {}, cfDone: null, busy: false };
   blankForm(topic) { return { name: '', email: '', phone: '', firm: '', size: '', topic: topic || 'General question', msg: '', consent: false }; }
   componentDidMount() {
     this.onR = () => this.setState({ w: window.innerWidth });
@@ -317,9 +319,27 @@ class Component extends DCLogic {
     this.setState(st);
   }
   closeModal() { this.clearHash(); this.setState({ modal: null }); }
+  /* ---------- backend (Supabase) — on only when config.js carries a URL and key ---------- */
+  sb() {
+    if (this._sb !== undefined) return this._sb;
+    this._sb = null;
+    try {
+      const c = window.LS_CONFIG || {};
+      if (c.supabaseUrl && c.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function')
+        this._sb = window.supabase.createClient(c.supabaseUrl, c.supabaseKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+    } catch (e) { this._sb = null; }
+    return this._sb;
+  }
+  /* resolves to { data, error } and never rejects; gives up after 20 seconds */
+  call(q) {
+    const timeout = new Promise(res => setTimeout(() => res({ data: null, error: { message: 'The server did not respond in time' } }), 20000));
+    return Promise.race([Promise.resolve().then(() => q).then(r => r || { data: null, error: { message: 'No response from the server' } }, e => ({ data: null, error: { message: (e && e.message) || 'Network error' } })), timeout]);
+  }
+  errText(e) { const m = String((e && e.message) || 'unknown error').replace(/\s+/g, ' ').slice(0, 140); return m.charAt(0).toUpperCase() + m.slice(1).replace(/\.$/, ''); }
   readStore(key) { try { const v = JSON.parse(window.localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
   writeStore(key, val) { try { window.localStorage.setItem(key, JSON.stringify(val)); return true; } catch (e) { return false; } }
-  submitContact() {
+  async submitContact() {
+    if (this.state.busy) return;
     const f = this.state.cf, err = {};
     const name = f.name.trim(), email = f.email.trim(), phone = f.phone.trim(), msg = f.msg.trim();
     if (name.length < 2) err.name = 'Enter your name.';
@@ -328,6 +348,14 @@ class Component extends DCLogic {
     if (msg.length < 10) err.msg = 'Tell us a little more (at least 10 characters).';
     if (!f.consent) err.consent = 'Please tick the box so we can use these details to reply.';
     if (Object.keys(err).length) { this.setState({ cfErr: err }); return; }
+    const sb = this.sb();
+    if (sb) {
+      this.setState({ busy: true, cfErr: {} });
+      const r = await this.call(sb.from('contact_requests').insert({ name, email, phone, firm: f.firm.trim(), team_size: f.size, topic: f.topic, message: msg, source: 'landing' }));
+      if (r.error) { this.setState({ busy: false, cfErr: { form: 'We could not send your request (' + this.errText(r.error) + '). Nothing you typed has been lost. Please try again.' } }); return; }
+      this.setState({ busy: false, cfErr: {}, cfDone: { ref: '', name, email, saved: true, remote: true }, cf: this.blankForm() });
+      return;
+    }
     const list = this.readStore('ls.contact.requests');
     const ref = 'LS-C-' + String(1001 + list.length);
     list.push({ id: ref, name, email, phone, firm: f.firm.trim(), size: f.size, topic: f.topic, message: msg, at: new Date().toISOString() });
@@ -350,8 +378,11 @@ class Component extends DCLogic {
     const sect = (t, d, i) => h('div', { key: i, style: { display: 'flex', flexDirection: 'column', gap: 4 } }, h('div', { style: { fontSize: 16, fontWeight: 600 } }, t), h('div', { style: { fontSize: 15, color: '#363636', textWrap: 'pretty' } }, d));
     let title, eyebrow, body;
     if (kind === 'contact' && S.cfDone) {
-      eyebrow = 'Reference ' + S.cfDone.ref; title = S.cfDone.saved ? 'Request saved' : 'Request not saved';
-      body = [
+      eyebrow = S.cfDone.remote ? 'Contact' : 'Reference ' + S.cfDone.ref; title = S.cfDone.remote ? 'Request received' : S.cfDone.saved ? 'Request saved' : 'Request not saved';
+      body = S.cfDone.remote ? [
+        para(`Thanks, ${S.cfDone.name}. Your request has reached the Legal Staff team and we'll be in touch at ${S.cfDone.email}.`, 0),
+        h('div', { key: 2, style: { display: 'flex', gap: 10, flexWrap: 'wrap', paddingTop: 4 } }, btn('Done', close, true), btn('Send another', () => this.setState({ cfDone: null })))
+      ] : [
         para(S.cfDone.saved ? `Thanks, ${S.cfDone.name}. Your request is recorded and we'll be in touch at ${S.cfDone.email}.` : 'Your browser blocked local storage, so this request could not be recorded. Please allow site data and try again.', 0),
         h('div', { key: 1, style: { background: '#F0F0EF', border: '1px solid #E3E3E2', borderRadius: 8, padding: '12px 16px', fontSize: 14, color: '#2B2B2B' } }, 'There is no mail server behind this site yet: the request is stored in this browser only and no confirmation email is sent.'),
         h('div', { key: 2, style: { display: 'flex', gap: 10, flexWrap: 'wrap', paddingTop: 4 } }, btn('Done', close, true), btn('Send another', () => this.setState({ cfDone: null })))
@@ -372,7 +403,8 @@ class Component extends DCLogic {
               h('input', { type: 'checkbox', checked: S.cf.consent, onChange: e => this.setState({ cf: { ...this.state.cf, consent: e.target.checked }, cfErr: { ...this.state.cfErr, consent: undefined } }), style: { width: 16, height: 16, marginTop: 3, accentColor: '#0A0A0A', flexShrink: 0 } }),
               h('span', null, 'I agree to Legal Staff using these details only to respond to this request (DPDP Act, 2023).')),
             S.cfErr.consent ? h('div', { role: 'alert', style: { fontSize: 13, color: '#B42318' } }, S.cfErr.consent) : null),
-          h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' } }, btn('Cancel', close), btn('Send request', undefined, true)))
+          S.cfErr.form ? h('div', { role: 'alert', style: { background: '#FDECEA', borderRadius: 8, padding: '12px 16px', fontSize: 14, color: '#B42318' } }, S.cfErr.form) : null,
+          h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' } }, btn('Cancel', close), btn(S.busy ? 'Sending…' : 'Send request', undefined, true)))
       ];
     } else if (kind === 'privacy') {
       eyebrow = 'Summary · last updated 1 November 2026'; title = 'Privacy policy';
