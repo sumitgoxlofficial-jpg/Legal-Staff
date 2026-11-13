@@ -9,6 +9,6 @@
    Without them the site keeps data in the browser only. */
 window.LS_CONFIG = {
   googleClientId: '',
-  supabaseUrl: '',
-  supabaseKey: ''
+  supabaseUrl: 'https://ihbbfgzzbpxznbpspyam.supabase.co',
+  supabaseKey: 'sb_publishable_JFuccB-z-0I1zRlzuAi0VA_-84zj94g'
 };
