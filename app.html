@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
+<script src="config.js"></script>
 <script src="app-store.js"></script>
 <script src="app-views.js"></script>
 <script src="support.js"></script>
@@ -47,7 +48,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <div style="background:#0A0A0A;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;padding:56px;position:relative;overflow:hidden;min-height:420px">
     <img src="assets/ls-logo-white.png" alt="Legal Staff" style="height:min(34vh,260px);width:auto;display:block">
     <div style="font-size:20px;line-height:1.4;text-align:center;max-width:380px;color:#A3A3A3">Every case, order and hearing date in one place.</div>
-    <div style="position:absolute;bottom:24px;left:0;right:0;text-align:center;font-size:12px;color:#7A7A7A">Encrypted sign-in · every access is logged</div>
+    <div style="position:absolute;bottom:24px;left:0;right:0;text-align:center;font-size:12px;color:#7A7A7A">Your data is stored on this device</div>
   </div>
 </div>
 </sc-if>
@@ -188,7 +189,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                   <span>{{ waLine2 }}</span>
                   <span style="font-size:12px;color:#5E5E5E;text-align:right">7:30 AM</span>
                 </div>
-                <div style="display:flex;gap:8px"><span style="flex:1;text-align:center;padding:8px;border:1px solid #E5E5E5;border-radius:8px;color:#0A0A0A;font-size:13px">Open briefing</span><span style="flex:1;text-align:center;padding:8px;border:1px solid #E5E5E5;border-radius:8px;color:#0A0A0A;font-size:13px">Assign 10:30</span></div>
+                <div style="display:flex;gap:8px"><span style="flex:1;text-align:center;padding:8px;border:1px solid #E5E5E5;border-radius:8px;color:#0A0A0A;font-size:13px">Open briefing</span><span style="flex:1;text-align:center;padding:8px;border:1px solid #E5E5E5;border-radius:8px;color:#0A0A0A;font-size:13px">View calendar</span></div>
               </div>
             </div>
           </div>
@@ -627,7 +628,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <sc-if value="{{ s.limitation }}" hint-placeholder-val="{{ false }}">
       <div style="display:flex;flex-direction:column;gap:24px;max-width:1240px">
         <div>
-          <div style="font-size:13px;color:#5E5E5E">Legal deadlines · Limitation tracker</div>
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div style="font-size:13px;color:#5E5E5E">Legal deadlines · Limitation tracker</div>{{ lim.newBtns }}</div>
           <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">{{ lim.title }}</h1>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;align-items:start">
@@ -842,7 +843,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div style="font-size:13px;color:#5E5E5E">Super Admin · Directory moderation</div>
             <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">Verification queue</h1>
           </div>
-          <span style="font-size:12px;background:#F0F0EF;color:#2B2B2B;border-radius:8px;padding:5px 12px">Sample applicants. Not real advocates.</span>
+          <span style="font-size:12px;background:#F0F0EF;color:#2B2B2B;border-radius:8px;padding:5px 12px">Applications from the public directory</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;align-items:start">
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;overflow:hidden">
@@ -941,7 +942,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 class Component extends DCLogic {
   db = LS.load();
   tplNames = ['Legal notice', 'Petition', 'Section 138 notice', 'Bail application', 'Affidavit', 'Written statement', 'Reply', 'Appeal', 'Revision', 'Agreement'];
-  state = { auth: this.db.session ? 'in' : 'login', screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: 'c1' };
+  state = { auth: this.db.session ? 'in' : 'login', screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: '' };
   SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'courts', 'clients', 'documents', 'evidence', 'research', 'agents', 'team', 'billing', 'portal', 'reports', 'settings'];
 
   componentDidMount() {
@@ -958,6 +959,7 @@ class Component extends DCLogic {
     };
     window.addEventListener('keydown', this.onK);
     this.applyRoute(); this.grow();
+    if (this.state.auth === 'in' && !this.db.firm.name) LSV.onboard(this);
   }
   componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('hashchange', this.onH); window.removeEventListener('keydown', this.onK); this.rec && this.rec.stop(); }
   grow() { clearTimeout(this.gt); this.setState({ grown: false }); this.gt = setTimeout(() => this.setState({ grown: true }), 60); }
@@ -971,21 +973,29 @@ class Component extends DCLogic {
   replace(db, msg) { this.db = db; LS.save(db); this.buf = null; this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); if (msg) this.toast(msg); }
   modal(fn) { this._modal = fn; this.setState(s => ({ modalOn: !!fn, menu: null, rev: s.rev + 1 })); }
   toast(t) { this.setState({ toast: t }); clearTimeout(this.tt); this.tt = setTimeout(() => this.setState({ toast: '' }), 3200); }
-  signIn(email) {
-    this.mut(db => { db.session = { email, at: Date.now() }; });
+  signIn(email, prof) {
+    this.mut(db => { db.session = Object.assign({ email, at: Date.now() }, prof || {});
+      const old = db.user.name, name = ((prof && prof.name) || '').trim() || old || email.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      if (!old || (prof && prof.provider === 'google')) { db.user.name = name; db.user.title = (/(Partner|Associate|Advocate)/.test(db.user.role) ? 'Adv. ' : '') + name; }
+      if (!db.user.email || (prof && prof.provider === 'google')) db.user.email = email;
+      const u = db.team.find(x => x.name === old) || db.team[0];
+      if (u) Object.assign(u, { name: db.user.name, title: db.user.title, email: db.user.email }); else db.team.push({ id: 'u1', name: db.user.name, title: db.user.title, role: db.user.role, email: db.user.email, status: 'Active' });
+      if (old && old !== db.user.name) { db.tasks.forEach(t => { if (t.who === old) t.who = db.user.name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = db.user.name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? db.user.name : n); }); } });
     this.setState({ auth: 'boot' });
     setTimeout(() => { this.setState({ auth: 'in' }); this.grow();
       const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
       if (i >= 0) { this.setState({ plan: i, paid: false, cycle: q.get('cycle') === 'monthly' ? 'monthly' : 'annual' }); history.replaceState(null, '', location.pathname + '#/pricing'); this.applyRoute(); }
+      if (!this.db.firm.name) LSV.onboard(this);
     }, 900);
   }
-  signOut() { this.mut(db => { db.session = null; }); this.setState({ auth: 'login', menu: null, panel: false }); }
+  signOut() { try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) {} this.mut(db => { db.session = null; }); this.setState({ auth: 'login', menu: null, panel: false }); }
   openWeek(date) { this.setState({ weekStart: this.monday(date), daySel: date }); this.go('calendar'); }
   openDraft(i) { this.buf = null; this.setState({ tpl: i, ver: 0 }); this.go('drafting'); }
   monday(s) { const d = LS.parse(s), g = d.getDay(); return LS.addDays(s, g === 0 ? -6 : 1 - g); }
-  chat(id) { const d = this.db; if (!d.chats[id]) { d.chats[id] = id === 'c1' ? [{ role: 'user', text: 'What was the last order?' }, Object.assign({ role: 'ai' }, LS.answer(d, 'c1', 'last order'))] : []; } return d.chats[id]; }
+  chat(id) { const d = this.db; if (!d.chats[id]) d.chats[id] = []; return d.chats[id]; }
   ask(label) {
-    const id = this.state.brainCase;
+    const id = (this.db.cases.find(x => x.id === this.state.brainCase) || this.db.cases[0] || {}).id;
+    if (!id) return this.toast('Add a case first, then ask about it.');
     this.mut(db => { const a = LS.answer(db, id, label); this.chat(id).push({ role: 'user', text: label }, { role: 'ai', text: a.text, cites: a.cites });
       if (a.brief) { const nh = LSV.nextHearing(db, id); if (nh) nh.brief = true; } });
     this.setState({ q: '' });
@@ -996,7 +1006,7 @@ class Component extends DCLogic {
     const named = d.cases.find(c => c.title.toLowerCase().split(/\s+v\.?\s+|\s+/).filter(w => w.length > 3).some(w => lc.includes(w)));
     const ctx = named || (this.state.screen === 'case' && d.cases.find(c => c.id === this.state.param));
     if (/\btoday\b|hearing/.test(lc) && !named) { const hs = d.hearings.filter(x => x.date === T).sort((a, b) => a.time.localeCompare(b.time)); text = hs.length ? `${hs.length} hearing${hs.length > 1 ? 's' : ''} today:\n` + hs.map(x => `• ${LS.t12ap(x.time)} ${LSV.caseOf(d, x.caseId).title} — ${x.court} (${x.assignee})`).join('\n') : 'No hearings are listed for today.'; go = ['calendar']; }
-    else if (/deadline|limitation/.test(lc)) { const lim = LS.limitation(d.lim); text = [`• ${d.lim.title}: ${LS.fmt(lim.due)}${d.lim.approved ? '' : ' (awaiting approval)'}`, ...d.deadlines.map(x => `• ${x.title}: ${LS.fmt(x.due)}`)].join('\n'); go = ['limitation']; }
+    else if (/deadline|limitation/.test(lc)) { const rows = [...(d.lim ? [`• ${d.lim.title}: ${LS.fmt(LS.limitation(d.lim).due)}${d.lim.approved ? '' : ' (awaiting approval)'}`] : []), ...d.deadlines.map(x => `• ${x.title}: ${LS.fmt(x.due)}`)]; text = rows.length ? rows.join('\n') : 'No deadlines are being tracked yet.'; go = ['limitation']; }
     else if (/overdue|my task|tasks/.test(lc) && !ctx) { const ts = d.tasks.filter(t => !t.done && t.due < T); text = ts.length ? `${ts.length} overdue task${ts.length > 1 ? 's' : ''}:\n` + ts.map(t => `• ${t.t} — ${t.who}, ${LS.dayMon(t.due)}`).join('\n') : 'No tasks are overdue.'; go = ['workspace']; }
     else if (/invoice|fee|outstanding|unpaid/.test(lc)) { const u = d.invoices.filter(i => !i.paid); text = `${u.length} invoices are unpaid, ${LS.inr(u.reduce((a, i) => a + i.amount, 0))} before GST.`; go = ['billing']; }
     else if (ctx) { const a = LS.answer(d, ctx.id, q); text = ctx.title + '\n' + a.text; go = ['case', ctx.id]; }
@@ -1004,19 +1014,19 @@ class Component extends DCLogic {
     this.mut(db => { db.copilot.push({ q, text, go }); db.copilot = db.copilot.slice(-6); }); this.setState({ cq: '' });
   }
   tplHtml(i) {
-    const d = this.db, c = d.cases[d.cases.findIndex(x => x.id === 'c1')] || d.cases[0] || {}, T = LS.dmy(LS.today()), u = d.user.title, f = d.firm;
+    const d = this.db, T = LS.dmy(LS.today()), u = d.user.title, f = d.firm;
     const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const sign = `<div style="margin-top:24px">${esc(u)}<br>${esc(f.name)}, ${esc(f.city)}</div>`, date = `<div style="text-align:right">Date: ${T}</div>`;
     const court = (t, a, b, ra, rb) => `<div style="text-align:center;font-weight:600">${t}</div><div style="text-align:center;margin-top:4px">[Case type and number]</div><div style="margin-top:16px">${a} ..... ${ra}</div><div>versus</div><div>${b} ..... ${rb}</div>`;
     const P = { 0: `${date}<div style="margin-top:12px"><b>BY REGD. A.D. / SPEED POST / EMAIL</b></div><div style="margin-top:12px">To,<br>[Name of the addressee]<br>[Address]</div><div style="margin-top:16px"><b>Subject: Legal notice for [cause]</b></div><p>Under instructions from and on behalf of my client, [name and address of client], I serve you with the following notice:</p><p>1. [State the relationship between the parties and the material facts.]</p><p>2. [State the breach or default complained of, with dates.]</p><p>3. You are called upon to [state the demand] within fifteen days of receiving this notice, failing which my client will take legal proceedings at your risk as to costs and consequences.</p><p>A copy of this notice is kept in my office for record.</p>${sign}`,
-      1: `${court('IN THE HIGH COURT OF DELHI AT NEW DELHI', '[Name of petitioner]', '[Name of respondent]', 'Petitioner', 'Respondent')}<div style="margin-top:16px"><b>PETITION UNDER [PROVISION] SEEKING [RELIEF]</b></div><p>The petitioner respectfully submits:</p><p>1. That the petitioner is [description and standing].</p><p>2. That the facts giving rise to this petition are: [facts in order of date].</p><p>3. That the petitioner has no other equally efficacious remedy, and no similar petition has been filed before any other court.</p><p><b>PRAYER</b></p><p>It is therefore prayed that this Hon'ble Court may be pleased to: (a) [principal relief]; (b) pass any other order it deems fit.</p><div style="margin-top:16px">New Delhi<br>Dated: ${T}</div>${sign}`,
-      2: `${date}<div style="margin-top:12px"><b>BY REGD. A.D. / SPEED POST / EMAIL</b></div><div style="margin-top:12px">To,<br>M/s Meridian Exports LLP<br>Plot 44, Sector 63, Noida, Uttar Pradesh 201301</div><div style="margin-top:16px"><b>Subject: Legal notice under Section 138 of the Negotiable Instruments Act, 1881 for dishonour of Cheque No. 004512</b></div><p>Under instructions from and on behalf of my client, M/s Kapoor Textiles Pvt. Ltd., I serve you with the following notice:</p><p>1. You issued Cheque No. 004512 dated ${LS.dmy(LS.addDays(LS.today(), -40))} for ₹18,40,000, drawn on HDFC Bank, Noida branch, to part-discharge an admitted liability for goods supplied.</p><p>2. My client presented the cheque. It was returned unpaid on ${LS.dmy(LS.addDays(LS.today(), -14))} with the remark "<span style="background:#F0F0EF">Funds Insufficient</span>", as stated in the return memo of the same date.</p><p>3. You are called upon to pay ₹18,40,000 within fifteen days of receiving this notice. If you fail to pay, my client will start proceedings under Section 138 at your risk as to costs and consequences.</p>${sign}`,
+      1: `${court('IN THE HIGH COURT OF [STATE]', '[Name of petitioner]', '[Name of respondent]', 'Petitioner', 'Respondent')}<div style="margin-top:16px"><b>PETITION UNDER [PROVISION] SEEKING [RELIEF]</b></div><p>The petitioner respectfully submits:</p><p>1. That the petitioner is [description and standing].</p><p>2. That the facts giving rise to this petition are: [facts in order of date].</p><p>3. That the petitioner has no other equally efficacious remedy, and no similar petition has been filed before any other court.</p><p><b>PRAYER</b></p><p>It is therefore prayed that this Hon'ble Court may be pleased to: (a) [principal relief]; (b) pass any other order it deems fit.</p><div style="margin-top:16px">New Delhi<br>Dated: ${T}</div>${sign}`,
+      2: `${date}<div style="margin-top:12px"><b>BY REGD. A.D. / SPEED POST / EMAIL</b></div><div style="margin-top:12px">To,<br>[Name of the drawer]<br>[Address]</div><div style="margin-top:16px"><b>Subject: Legal notice under Section 138 of the Negotiable Instruments Act, 1881 for dishonour of Cheque No. [number]</b></div><p>Under instructions from and on behalf of my client, [name of client], I serve you with the following notice:</p><p>1. You issued Cheque No. [number] dated [date] for ₹[amount], drawn on [bank and branch], to discharge a legally enforceable liability for [nature of liability].</p><p>2. My client presented the cheque. It was returned unpaid on [dd.mm.yyyy] with the remark "[reason]", as stated in the return memo of the same date.</p><p>3. You are called upon to pay ₹[amount] within fifteen days of receiving this notice. If you fail to pay, my client will start proceedings under Section 138 at your risk as to costs and consequences.</p>${sign}`,
       3: `${court('IN THE COURT OF THE SESSIONS JUDGE, [DISTRICT]', '[Name of applicant]', 'State', 'Applicant', 'Respondent')}<div style="margin-top:16px"><b>APPLICATION FOR REGULAR BAIL UNDER SECTION 483 OF THE BHARATIYA NAGARIK SURAKSHA SANHITA, 2023</b></div><div>FIR No. [number] · P.S. [police station] · Offences under [sections]</div><p>The applicant respectfully submits:</p><p>1. That the applicant was arrested on [date] and has been in custody since then.</p><p>2. That the applicant has been falsely implicated. [Grounds on merits.]</p><p>3. That the applicant has roots in society, is not a flight risk, and undertakes not to tamper with evidence or influence witnesses.</p><p>4. That the applicant will abide by any condition this Hon'ble Court imposes.</p><p><b>PRAYER</b></p><p>It is prayed that the applicant be released on regular bail in the above FIR.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
       4: `<div style="text-align:center;font-weight:600">AFFIDAVIT</div><p>I, [name], aged [age] years, son/daughter of [parent's name], resident of [address], do solemnly affirm and state as follows:</p><p>1. That I am the [party] in the above matter and am conversant with its facts.</p><p>2. That the contents of the accompanying [pleading] are true to my knowledge and belief, and nothing material has been concealed.</p><p>3. That the annexures are true copies of their originals.</p><div style="margin-top:24px;text-align:right">DEPONENT</div><p><b>VERIFICATION</b></p><p>Verified at [place] on ${T} that the contents of this affidavit are true to my knowledge and belief. No part of it is false and nothing material has been concealed.</p><div style="margin-top:24px;text-align:right">DEPONENT</div>`,
       5: `${court('IN THE COURT OF [COURT]', '[Name of plaintiff]', '[Name of defendant]', 'Plaintiff', 'Defendant')}<div style="margin-top:16px"><b>WRITTEN STATEMENT ON BEHALF OF THE DEFENDANT</b></div><p><b>PRELIMINARY OBJECTIONS</b></p><p>1. That the suit is not maintainable because [ground].</p><p>2. That the plaint discloses no cause of action against the defendant.</p><p><b>REPLY ON MERITS</b></p><p>1. Para 1 of the plaint is [admitted / denied]. [Para-wise reply.]</p><p>2. Each allegation not specifically admitted is denied.</p><p><b>PRAYER</b></p><p>It is prayed that the suit be dismissed with costs.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}<p><b>VERIFICATION</b></p><p>Verified at [place] on ${T} that the contents of paras [numbers] are true to my knowledge and the rest are believed to be true on legal advice.</p>`,
-      6: `${court('IN THE HIGH COURT OF DELHI AT NEW DELHI', esc((c.parties && c.parties[0] || {}).name || '[Name]'), esc((c.parties && c.parties[1] || {}).name || '[Name]'), 'Plaintiff', 'Defendant')}<div style="margin-top:16px"><b>REPLY ON BEHALF OF THE [PARTY] TO THE APPLICATION UNDER [PROVISION]</b></div><p>The [party] respectfully submits:</p><p>1. That the application is misconceived and liable to be dismissed because [ground].</p><p>2. [Para-wise reply to the application.]</p><p>3. That the balance of convenience lies with the [party].</p><p><b>PRAYER</b></p><p>It is prayed that the application be dismissed with costs.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
-      7: `${court('IN THE HIGH COURT OF DELHI AT NEW DELHI · COMMERCIAL APPELLATE DIVISION', '[Name of appellant]', '[Name of respondent]', 'Appellant', 'Respondent')}<div style="margin-top:16px"><b>APPEAL UNDER SECTION 13(1A) OF THE COMMERCIAL COURTS ACT, 2015 AGAINST THE JUDGMENT AND DECREE DATED ${LS.dmy(d.lim.judgment)}</b></div><p>The appellant respectfully submits:</p><p>1. That this appeal is against the judgment and decree dated ${LS.dmy(d.lim.judgment)} in CS(COMM) 88/2023. A certified copy is annexed.</p><p>2. <b>Brief facts:</b> [facts]</p><p>3. <b>Grounds:</b> (A) The court below erred in [ground]. (B) [Further grounds.]</p><p>4. <b>Limitation:</b> The appeal is within sixty days of the judgment after excluding the time taken to obtain the certified copy.</p><p><b>PRAYER</b></p><p>It is prayed that the impugned judgment and decree be set aside.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
-      8: `${court('IN THE HIGH COURT OF DELHI AT NEW DELHI', '[Name of petitioner]', '[Name of respondent]', 'Petitioner', 'Respondent')}<div style="margin-top:16px"><b>REVISION PETITION UNDER [SECTION 115 CPC / SECTION 438 BNSS] AGAINST THE ORDER DATED [DATE]</b></div><p>The petitioner respectfully submits:</p><p>1. That the impugned order was passed by [court] in [case number].</p><p>2. That the court below exercised jurisdiction illegally or with material irregularity because [ground].</p><p>3. That the order, if allowed to stand, will cause a failure of justice.</p><p><b>PRAYER</b></p><p>It is prayed that the records be called for and the impugned order be set aside.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
+      6: `${court('IN THE [COURT]', '[Name of plaintiff]', '[Name of defendant]', 'Plaintiff', 'Defendant')}<div style="margin-top:16px"><b>REPLY ON BEHALF OF THE [PARTY] TO THE APPLICATION UNDER [PROVISION]</b></div><p>The [party] respectfully submits:</p><p>1. That the application is misconceived and liable to be dismissed because [ground].</p><p>2. [Para-wise reply to the application.]</p><p>3. That the balance of convenience lies with the [party].</p><p><b>PRAYER</b></p><p>It is prayed that the application be dismissed with costs.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
+      7: `${court('IN THE HIGH COURT OF [STATE] · COMMERCIAL APPELLATE DIVISION', '[Name of appellant]', '[Name of respondent]', 'Appellant', 'Respondent')}<div style="margin-top:16px"><b>APPEAL UNDER SECTION 13(1A) OF THE COMMERCIAL COURTS ACT, 2015 AGAINST THE JUDGMENT AND DECREE DATED [DATE]</b></div><p>The appellant respectfully submits:</p><p>1. That this appeal is against the judgment and decree dated [date] in [case number]. A certified copy is annexed.</p><p>2. <b>Brief facts:</b> [facts]</p><p>3. <b>Grounds:</b> (A) The court below erred in [ground]. (B) [Further grounds.]</p><p>4. <b>Limitation:</b> The appeal is within sixty days of the judgment after excluding the time taken to obtain the certified copy.</p><p><b>PRAYER</b></p><p>It is prayed that the impugned judgment and decree be set aside.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
+      8: `${court('IN THE HIGH COURT OF [STATE]', '[Name of petitioner]', '[Name of respondent]', 'Petitioner', 'Respondent')}<div style="margin-top:16px"><b>REVISION PETITION UNDER [SECTION 115 CPC / SECTION 438 BNSS] AGAINST THE ORDER DATED [DATE]</b></div><p>The petitioner respectfully submits:</p><p>1. That the impugned order was passed by [court] in [case number].</p><p>2. That the court below exercised jurisdiction illegally or with material irregularity because [ground].</p><p>3. That the order, if allowed to stand, will cause a failure of justice.</p><p><b>PRAYER</b></p><p>It is prayed that the records be called for and the impugned order be set aside.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
       9: `<div style="text-align:center;font-weight:600">AGREEMENT</div><p>This Agreement is made at ${esc(f.city)} on ${T} between:</p><p><b>[First party]</b>, having its office at [address] (the "First Party"); and</p><p><b>[Second party]</b>, having its office at [address] (the "Second Party").</p><p>1. <b>Scope.</b> [Describe what each party will do.]</p><p>2. <b>Consideration.</b> The [party] will pay ₹[amount] on [terms].</p><p>3. <b>Term and termination.</b> This Agreement runs for [period]. Either party may end it with [notice period] written notice.</p><p>4. <b>Confidentiality.</b> Each party will keep the other's information confidential.</p><p>5. <b>Disputes.</b> Disputes will be referred to a sole arbitrator under the Arbitration and Conciliation Act, 1996, seated at ${esc(f.city)}.</p><p>6. <b>Governing law.</b> The laws of India apply.</p><div style="margin-top:24px">For the First Party &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; For the Second Party</div>` };
     return P[i];
   }
@@ -1058,7 +1068,7 @@ class Component extends DCLogic {
     const icon = (k, sz) => h('svg', { width: sz || 18, height: sz || 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: (sz || 18) <= 16 ? 1.6 : 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }, h('path', { d: IC[k] }));
     const chip = (bg, fg) => ({ fontSize: 12, fontWeight: 500, background: bg, color: fg, borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap', alignSelf: 'flex-start' });
     const caseOf = id => V.caseOf(D, id), clashGroups = V.clashes(D), clashIds = new Set(clashGroups.flat().map(x => x.id));
-    const lim = LS.limitation(D.lim), limFilled = !!D.lim.ready;
+    const LM = D.lim || { title: '', caseId: '', judgment: T, applied: T, ready: '', approved: true, approvedAt: '', sent: false }, lim = LS.limitation(LM), limFilled = !!LM.ready;
     const pendOrders = D.orders.filter(o => !o.confirmed && o.nextDate);
     const todayH = D.hearings.filter(x => x.date === T).sort((a, b) => a.time.localeCompare(b.time));
     const alerts = st.inapp ? V.alerts(D, this) : [];
@@ -1069,7 +1079,7 @@ class Component extends DCLogic {
     /* ---- navigation ---- */
     const navDef = [
       ['Overview', [['Dashboard', 'dashboard', 'dashboard'], ['My Workspace', 'workspace', 'user']]],
-      ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', D.lim.approved ? 0 : 1]]],
+      ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', LM.approved ? 0 : 1]]],
       ['AI', [['AI Case Brain', 'brain', 'spark'], ['AI Drafting Studio', 'drafting', 'pen'], ['AI Legal Research', 'research', 'search'], ['AI Agents', 'agents', 'cpu']]],
       ['Firm', [['Team', 'team', 'team'], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Directory Admin', 'admin', 'shield'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
     ];
@@ -1083,9 +1093,17 @@ class Component extends DCLogic {
     const sideStyle = { width: mobile ? 280 : (st.collapsed ? 76 : 256), transition: 'width .18s ease', flexShrink: 0, background: '#FAFAF9', borderRight: '1px solid #E5E5E5', flexDirection: 'column', overflowY: 'hidden', height: '100vh', top: 0, zIndex: 50,
       position: mobile ? 'fixed' : 'sticky', left: 0, display: (!mobile || S.drawer) ? 'flex' : 'none', filter: st.sidebar === 'Ink' ? 'invert(1) hue-rotate(180deg)' : 'none', boxShadow: mobile ? '0 20px 60px rgba(32,30,29,.25)' : 'none' };
     const panelStyle = { width: mobile ? '100%' : 360, flexShrink: 0, background: '#FFFFFF', borderLeft: '1px solid #E5E5E5', display: 'flex', flexDirection: 'column', height: '100vh', top: 0, position: mobile ? 'fixed' : 'sticky', right: 0, zIndex: 55 };
-    const s = {}; ['dashboard', 'cases', 'case', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin'].forEach(k => s[k] = S.screen === k);
-    s.mod = !!V.MODULES[S.screen];
-    const modView = s.mod ? h(V.MODULES[S.screen], { app: this, key: S.screen }) : null;
+    let scr = S.screen; if (scr === 'case' && !D.cases.some(x => x.id === S.param)) scr = 'cases'; if (scr === 'order' && !D.orders.some(x => x.id === S.param)) scr = 'orders';
+    const s = {}; ['dashboard', 'cases', 'case', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin'].forEach(k => s[k] = scr === k);
+
+
+    const emptyPage = (kicker, title, text, btns) => h(V.Page, { kicker, title, max: 760 }, h(V.Card, null, h(V.Empty, { title: text[0], text: text[1] }), h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', paddingBottom: 12 } }, btns)));
+    let modView = V.MODULES[scr] ? h(V.MODULES[scr], { app: this, key: scr }) : null;
+    if (s.limitation && !D.lim) { s.limitation = false; modView = h(V.Page, { kicker: 'Legal deadlines', title: 'Limitation tracker', max: 900, actions: [h(V.Btn, { key: 1, onClick: () => V.addDeadline(this) }, '+ Add a deadline'), h(V.Btn, { key: 2, primary: true, onClick: () => V.newLim(this) }, 'New calculation')] },
+      h(V.Card, { title: 'Deadlines' }, D.deadlines.slice().sort((a, b) => a.due.localeCompare(b.due)).map(x => h(V.Line, { key: x.id }, h('div', { style: { flex: 1, minWidth: 0 } }, x.title, h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, x.rule + ' · due ' + LS.fmt(x.due) + ' · ' + LS.diffDays(x.due, T) + ' days')), h(V.Btn, { small: true, danger: true, onClick: () => this.mut(db => { db.deadlines = db.deadlines.filter(y => y.id !== x.id); }, 'Deadline removed') }, 'Remove'))), !D.deadlines.length && h(V.Empty, { title: 'No deadlines yet', text: 'Start a limitation calculation for a commercial appeal, or add a deadline with a known last date.' }))); }
+    if (s.admin && !this.dirApps().length) { s.admin = false; modView = emptyPage('Directory moderation', 'Verification queue', ['No applications yet', 'Applications submitted from the public advocate directory appear here for verification.'], [h('a', { key: 1, href: 'directory.html', style: { fontSize: 14 } }, 'Open the public directory')]); }
+    if (s.brain && !D.cases.length) { s.brain = false; modView = emptyPage('AI Case Brain', 'Ask about a case', ['No cases yet', 'Add a case with its orders and documents, then ask questions about it here.'], [h(V.Btn, { key: 1, primary: true, onClick: () => V.newCase(this) }, '+ New case')]); }
+    s.mod = !!modView;
 
     /* ---- cases ---- */
     const SC = { active: ['Active', '#F0F0EF', '#0A0A0A'], pending: ['Pending', '#FDECEA', '#B42318'], disposed: ['Disposed', '#EDEDED', '#363636'], archived: ['Archived', '#EDEDED', '#363636'] };
@@ -1123,7 +1141,7 @@ class Component extends DCLogic {
     const tabEmpty = { orders: caseOrders.length ? null : emptyBox('No orders in this case yet.'), hearings: hearingHistory.length ? null : emptyBox('No hearings recorded.'), documents: docs.length ? null : emptyBox('No documents in this case.'), timeline: timeline.length ? null : emptyBox('No activity yet.') };
 
     /* ---- order review ---- */
-    const O = D.orders.find(o => o.id === S.param) || pendOrders[0] || D.orders[0] || { id: '', caseId: '', paras: [], points: [], date: T };
+    const O = D.orders.find(o => o.id === S.param) || { id: '', caseId: '', paras: [], points: [], date: T };
     const oc = caseOf(O.caseId), oConf = !!O.confirmed, oDate = O.nextDate || '';
     const nextDateLabel = oDate ? LS.longDate(oDate) : 'No date found';
     const rem = oDate ? `${LS.dayMon(LS.addDays(oDate, -st.remindDays))} and ${LS.dayMon(oDate)}, ${LS.t12ap(st.briefingTime)} IST` : '';
@@ -1162,12 +1180,13 @@ class Component extends DCLogic {
     const dayHearings = D.hearings.filter(x => x.date === daySel).sort((a, b) => a.time.localeCompare(b.time)).map(hv);
 
     /* ---- limitation ---- */
-    const limO = { title: D.lim.title, readyInput: this.readyDraft || LS.addDays(D.lim.applied, 14), setReady: e => { this.readyDraft = e.target.value; this.setState({ dr: Date.now() }); },
+    const limO = { title: LM.title, readyInput: this.readyDraft || LS.addDays(LM.applied, 14), setReady: e => { this.readyDraft = e.target.value; this.setState({ dr: Date.now() }); },
       dueLabel: LS.longDate(lim.due), daysLabel: lim.daysLeft >= 0 ? `${lim.daysLeft} day${lim.daysLeft === 1 ? '' : 's'}` : `${-lim.daysLeft} day${lim.daysLeft === -1 ? '' : 's'} late`, daysWord: lim.daysLeft >= 0 ? 'remaining' : 'past the last date',
-      sendLabel: D.lim.sent ? 'Sent to Neha for review ✓' : 'Send to Neha for review', send: () => { if (D.lim.sent) return this.toast('Already sent. A review task is open.'); const rv = (D.team.find(u => /Neha/.test(u.name)) || D.team.find(u => u.name !== me) || { name: me }).name; this.mut(db => { db.lim.sent = true; db.tasks.push({ id: LS.uid('t'), caseId: db.lim.caseId, t: 'Review limitation calculation: ' + db.lim.title, who: rv, due: LS.addDays(T, 1), done: false }); V.logIt(db, 'Limitation calculation sent to ' + rv + ' for review', db.lim.caseId); }, 'Review task created for ' + rv); },
-      approvedBy: 'Approved by ' + D.user.title, approvedText: D.lim.approved ? `on ${D.lim.approvedAt}. Alerts set for ${[3, 1, 0].map(n => LS.dayMon(LS.addDays(lim.due, -n))).join(', ')}. Logged in the calculation history.` : '',
-      changeEl: limFilled ? h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 } }, !D.lim.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lim.ready = ''; }) }, 'Change the certified-copy date'), D.lim.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lim.approved = false; db.lim.approvedAt = ''; }, 'Approval withdrawn') }, 'Withdraw approval')) : null };
-    const fillMissing = () => { const v = limO.readyInput; if (!LS.valid(v)) return this.toast('Enter a valid date.'); if (v < D.lim.applied) return this.toast('The copy cannot be ready before it was applied for (' + LS.dmy(D.lim.applied) + ').'); if (v > T) return this.toast('That date is in the future.'); this.mut(db => { db.lim.ready = v; }); };
+      sendLabel: LM.sent ? 'Sent for review ✓' : 'Send to a colleague for review', send: () => { if (LM.sent) return this.toast('Already sent. A review task is open.'); const rvu = D.team.find(u => u.name !== me && u.status !== 'Suspended'); if (!rvu) { this.toast('Invite a colleague in Team first.'); return this.go('team'); } const rv = rvu.name; this.mut(db => { db.lim.sent = true; db.tasks.push({ id: LS.uid('t'), caseId: db.lim.caseId, t: 'Review limitation calculation: ' + db.lim.title, who: rv, due: LS.addDays(T, 1), done: false }); V.logIt(db, 'Limitation calculation sent to ' + rv + ' for review', db.lim.caseId); }, 'Review task created for ' + rv); },
+      approvedBy: 'Approved by ' + D.user.title, approvedText: LM.approved ? `on ${LM.approvedAt}. Alerts set for ${[3, 1, 0].map(n => LS.dayMon(LS.addDays(lim.due, -n))).join(', ')}. Logged in the calculation history.` : '',
+      newBtns: h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(V.Btn, { onClick: () => V.newLim(this) }, 'New calculation'), h(V.Btn, { onClick: () => V.addDeadline(this) }, '+ Add a deadline')),
+      changeEl: limFilled ? h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 } }, !LM.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lim.ready = ''; }) }, 'Change the certified-copy date'), LM.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lim.approved = false; db.lim.approvedAt = ''; }, 'Approval withdrawn') }, 'Withdraw approval')) : null };
+    const fillMissing = () => { const v = limO.readyInput; if (!LS.valid(v)) return this.toast('Enter a valid date.'); if (v < LM.applied) return this.toast('The copy cannot be ready before it was applied for (' + LS.dmy(LM.applied) + ').'); if (v > T) return this.toast('That date is in the future.'); this.mut(db => { db.lim.ready = v; }); };
 
     /* ---- brain ---- */
     const bc = D.cases.find(x => x.id === S.brainCase) || D.cases[0] || { id: '' }, chat = bc.id ? this.chat(bc.id) : [];
@@ -1187,7 +1206,7 @@ class Component extends DCLogic {
     const ph = (plain.match(/\[[^\]]+\]/g) || []).length, dm = (d1, d2) => { const p = x => x.slice(6) + '-' + x.slice(3, 5) + '-' + x.slice(0, 2); return LS.diffDays(p(d1), p(d2)); };
     const chk = [ph ? ['•', `${ph} placeholder${ph > 1 ? 's' : ''} in [brackets] still to be filled in`] : ['✓', 'No unfilled placeholders'], /\b\d{2}\.\d{2}\.\d{4}\b/.test(plain) ? ['✓', 'The document is dated'] : ['•', 'No date found in the document'], plain.includes(D.user.name) ? ['✓', 'Signature block is present'] : ['•', `The signature block for ${D.user.title} is missing`]];
     if (S.tpl === 2 || S.tpl === 0) chk.push(/fifteen days|15 days/i.test(plain) ? ['✓', 'The 15-day payment period is stated'] : ['•', 'The 15-day period for compliance is not stated']);
-    if (S.tpl === 2) { const r = /returned unpaid on (\d{2}\.\d{2}\.\d{4})/.exec(plain), dt = /Date:\s*(\d{2}\.\d{2}\.\d{4})/.exec(plain); if (r && dt) { const n = dm(dt[1], r[1]); chk.push(n <= 30 && n >= 0 ? ['✓', `Notice is within 30 days of the return memo dated ${r[1]}, as s.138(b) requires`] : ['•', `Notice is dated ${n} days after the return memo. Section 138(b) allows 30 days.`]); } else chk.push(['•', 'Could not find the return memo date to check the 30-day period']); chk.push(['•', 'The bank branch address is not in the case file. Please verify it.']); }
+    if (S.tpl === 2) { const r = /returned unpaid on (\d{2}\.\d{2}\.\d{4})/.exec(plain), dt = /Date:\s*(\d{2}\.\d{2}\.\d{4})/.exec(plain); if (r && dt) { const n = dm(dt[1], r[1]); chk.push(n <= 30 && n >= 0 ? ['✓', `Notice is within 30 days of the return memo dated ${r[1]}, as s.138(b) requires`] : ['•', `Notice is dated ${n} days after the return memo. Section 138(b) allows 30 days.`]); } else chk.push(['•', 'Could not find the return memo date to check the 30-day period']);  }
     const draft = { title: S.tpl === 2 ? 'Legal notice, s.138 NI Act' : this.tplNames[S.tpl], footer: `Draft ${vlist[vi].v.split(' ')[0]} · Prepared on Legal Staff · ${plain.trim().split(/\s+/).length} words`,
       body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length + ':' + S.rev0, ref: el => { this.ed = el; }, contentEditable: true, suppressContentEditableWarning: true, spellCheck: true, style: { position: 'relative', outline: 'none' }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
       checks: h(React.Fragment, null, chk.map(([m, t], i) => h('div', { key: i, style: { color: m === '✓' ? '#0A0A0A' : '#B42318' } }, m + ' ' + t))),
@@ -1221,18 +1240,12 @@ class Component extends DCLogic {
       this.mut(db => { db.sub.plan = co.name; db.sub.cycle = S.cycle; db.sub.since = T; db.sub.renews = co.renews; db.sub.history.unshift({ plan: co.name + ' · ' + co.cycle, total: co.total, date: T }); if (g) db.firm.gstin = g; V.logIt(db, `Subscription changed to ${co.name} (${co.cycle})`); }); this.setState({ paid: true, gstErr: '' }); };
 
     /* ---- directory admin ---- */
-    const APPS = [
-      { id: 'a1', name: 'Sample Applicant — A. Sharma', enr: 'D/2841/2016', council: 'Bar Council of Delhi', date: '10 Nov', year: '2016', city: 'New Delhi', def: 'pending' },
-      { id: 'a2', name: 'Sample Applicant — K. Reddy', enr: 'TS/1123/2019', council: 'Bar Council of Telangana', date: '10 Nov', year: '2019', city: 'Hyderabad', def: 'pending' },
-      { id: 'a3', name: 'Sample Applicant — M. Fernandes', enr: 'MAH/4410/2012', council: 'Bar Council of Maharashtra & Goa', date: '8 Nov', year: '2012', city: 'Mumbai', def: 'info' },
-      { id: 'a4', name: 'Sample Applicant — S. Banerjee', enr: 'WB/905/2020', council: 'Bar Council of West Bengal', date: '7 Nov', year: '2020', city: 'Kolkata', def: 'pending' }
-    ];
-    const allApps = [...this.dirApps().map(a => Object.assign({ def: a.status || 'pending', fromDir: true }, a, { id: String(a.id) })).reverse(), ...APPS];
+    const allApps = this.dirApps().map(a => Object.assign({ def: a.status || 'pending', fromDir: true }, a, { id: String(a.id) })).reverse();
     const stMap = { pending: ['Pending verification', '#FDECEA', '#B42318'], info: ['Info required', '#EDEDED', '#363636'], verified: ['Verified', '#F0F0EF', '#0A0A0A'], rejected: ['Rejected', '#FDECEA', '#B42318'] };
-    const sel = Math.min(S.sel, allApps.length - 1);
+    const sel = Math.max(0, Math.min(S.sel, allApps.length - 1));
     const apps = allApps.map((a, i) => { const k = D.adminStatus[a.id] || a.def, sm = stMap[k] || stMap.pending; return { ...a, statusKey: k, status: sm[0], chip: chip(sm[1], sm[2]), go: () => this.setState({ sel: i, adminNote: '' }),
       row: { display: 'flex', gap: 12, width: '100%', textAlign: 'left', border: 0, borderBottom: '1px solid #E5E5E5', padding: '18px 20px', background: sel === i ? '#F0F0EF' : '#FFFFFF', color: '#0A0A0A' } }; });
-    const ca = apps[sel], enrOk = /^[A-Z]{1,4}\/\d{1,6}\/\d{4}$/i.test((ca.enr || '').trim());
+    const ca = apps[sel] || { id: '', enr: '', fromDir: true, name: '', council: '', year: '', city: '', status: '', chip: {} }, enrOk = /^[A-Z]{1,4}\/\d{1,6}\/\d{4}$/i.test((ca.enr || '').trim());
     const cur = { ...ca, docs: ['Enrolment certificate', 'Certificate of Practice', 'Government photo ID'],
       lastNote: D.adminNotes[ca.id] ? h('div', { style: { fontSize: 13, color: '#363636', background: '#F5F5F4', borderRadius: 8, padding: '10px 12px' } }, 'Last note sent: ' + D.adminNotes[ca.id]) : null,
       checks: [
@@ -1245,7 +1258,7 @@ class Component extends DCLogic {
     /* ---- dashboard numbers ---- */
     const NUM = ['No', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'], word = n => NUM[n] || String(n), cap = x => x[0].toUpperCase() + x.slice(1);
     const complexes = new Set(todayH.map(x => x.court.split(' · ')[0])).size, tClash = clashGroups.filter(g => g[0].date === T);
-    const dl = [{ days: lim.daysLeft, title: 'Commercial appeal, CS(COMM) 88/2023', rule: 'CCA s.13(1A)', due: LS.fmt(lim.due), status: D.lim.approved ? 'Approved' : 'Needs approval' }, ...D.deadlines.map(x => ({ days: LS.diffDays(x.due, T), title: x.title, rule: x.rule, due: LS.fmt(x.due), status: x.approved ? 'Approved' : 'Needs approval' }))].sort((a, b) => a.days - b.days);
+    const dl = [...(D.lim ? [{ days: lim.daysLeft, title: LM.title, rule: 'CCA s.13(1A)', due: LS.fmt(lim.due), status: LM.approved ? 'Approved' : 'Needs approval' }] : []), ...D.deadlines.map(x => ({ days: LS.diffDays(x.due, T), title: x.title, rule: x.rule, due: LS.fmt(x.due), status: x.approved ? 'Approved' : 'Needs approval' }))].sort((a, b) => a.days - b.days);
     const dl7 = dl.filter(x => x.days <= 7 && x.days >= 0), odT = D.tasks.filter(V.overdue), live = D.cases.filter(x => x.status === 'active' || x.status === 'pending');
     const briefText = (todayH.length ? `You have ${word(todayH.length)} hearing${todayH.length > 1 ? 's' : ''} today in ${word(complexes)} court complex${complexes > 1 ? 'es' : ''}.` : 'You have no hearings today.') + (tClash.length ? ` ${cap(word(tClash[0].length))} of them, at ${LS.t12ap(tClash[0][0].time)} in ${[...new Set(tClash[0].map(x => x.court.split(' · ')[0]))].join(' and ')}, are at the same time.` : '') + (dl7.length ? ` ${cap(word(dl7.length))} limitation deadline${dl7.length > 1 ? 's fall' : ' falls'} in the next ${dl7[dl7.length - 1].days || 1} days.` : '') + (pendOrders.length ? ` ${cap(word(pendOrders.length))} order${pendOrders.length > 1 ? 's need' : ' needs'} a next date confirmed.` : '');
     const hc = Array.from({ length: 14 }, (_, i) => { const ds = LS.addDays(T, i); return { ds, n: D.hearings.filter(x => x.date === ds).length, clash: clashGroups.some(g => g[0].date === ds) }; });
@@ -1260,7 +1273,7 @@ class Component extends DCLogic {
     const dropFixed = (pos, kids) => h(V.Drop, { onClose: () => this.setState({ menu: null }), style: Object.assign({ position: 'fixed' }, pos) }, kids);
     const overlay = h(React.Fragment, null,
       S.menu === 'alerts' && dropFixed({ top: 52, right: mobile ? 8 : 150, width: 340, maxWidth: 'calc(100vw - 16px)' }, [h('div', { key: 'h', style: { padding: '8px 10px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: '#6B6B6B', fontWeight: 600 } }, alerts.length ? 'Alerts' : (st.inapp ? 'No alerts' : 'In-app alerts are switched off')), ...alerts.map((a, i) => h(V.Item, { key: i, onClick: () => { this.setState({ menu: null }); a.go(); } }, a.text)), !st.inapp && h(V.Item, { key: 's', onClick: () => this.go('settings') }, 'Open notification settings')]),
-      S.menu === 'firm' && dropFixed({ top: 106, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.firm.address }, D.firm.name), h(V.Item, { key: 2, onClick: () => this.go('pricing'), sub: 'Renews ' + LS.fmt(D.sub.renews) }, D.sub.plan + ' plan'), h(V.Item, { key: 3, onClick: () => this.go('team') }, 'Team and roles'), h(V.Item, { key: 4, onClick: () => this.go('billing') }, 'Billing & Finance')]),
+      S.menu === 'firm' && dropFixed({ top: 106, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.firm.address }, D.firm.name), h(V.Item, { key: 2, onClick: () => this.go('pricing'), sub: D.sub.plan ? 'Renews ' + LS.fmt(D.sub.renews) : 'Choose a plan' }, D.sub.plan ? D.sub.plan + ' plan' : 'No plan yet'), h(V.Item, { key: 3, onClick: () => this.go('team') }, 'Team and roles'), h(V.Item, { key: 4, onClick: () => this.go('billing') }, 'Billing & Finance')]),
       S.menu === 'user' && dropFixed({ bottom: 64, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.session ? D.session.email : D.user.email }, 'Profile and settings'), h(V.Item, { key: 2, onClick: () => this.go('workspace') }, 'My Workspace'), h(V.Item, { key: 3, onClick: () => { this.setState({ menu: null }); V.help(this); } }, 'Help and shortcuts'), h(V.Item, { key: 4, onClick: () => this.signOut() }, 'Sign out')]),
       S.modalOn && this._modal ? this._modal() : null);
     const results = S.searchOpen ? V.searchAll(D, S.search) : [];
@@ -1271,7 +1284,7 @@ class Component extends DCLogic {
     return {
       expanded: exp, collapsed: !exp, notMobile: !mobile, toggleCollapse: () => this.mut(db => { db.settings.collapsed = !db.settings.collapsed; }), collapseLabel: st.collapsed ? '»' : '« Collapse sidebar',
       showLogin: S.auth === 'login', booting: S.auth === 'boot', loginForm: h(V.LoginForm, { app: this }),
-      firmName: D.firm.name, firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')), firmLine: D.sub.plan + ' plan · ' + D.firm.city, firmAddress: D.firm.address, firmMenu: openMenu('firm'),
+      firmName: D.firm.name || 'Your practice', firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')) || 'LS', firmLine: [D.sub.plan ? D.sub.plan + ' plan' : 'No plan yet', D.firm.city].filter(Boolean).join(' · '), firmAddress: D.firm.address, firmMenu: openMenu('firm'),
       userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userEmail: D.user.email, userMenu: openMenu('user'),
       searchQ: S.search, setSearch: e => this.setState({ search: e.target.value, searchOpen: true }), searchFocus: () => this.setState({ searchOpen: true, menu: null }), searchBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 150), searchKey: e => { if (e.key === 'Enter' && results[0]) pick(results[0]); }, searchDrop,
       newCase: () => V.newCase(this), importCnr: () => V.importCnr(this), help: () => V.help(this), alertsMenu: openMenu('alerts'), alertCount: alerts.length, hasAlerts: alerts.length > 0, overlay,
@@ -1292,13 +1305,13 @@ class Component extends DCLogic {
       showWall: st.backdrop === 'Wallpaper',
       goDashboard: () => this.go('dashboard'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'), goOrder: () => this.go('orders'),
       todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, syncLine: 'Saved on this device · ' + LS.t12ap(LS.nowHM()),
-      briefText, waHello: `Good morning, Adv. ${D.user.name.split(' ').pop()}.`, waLine1: `${todayH.length} hearing${todayH.length === 1 ? '' : 's'} today.` + (tClash.length ? ` ${LS.t12ap(tClash[0][0].time)} clash: ${tClash[0].map(x => shortCourt(x.court).replace('HC ', 'Delhi HC Court ').replace('Saket ', 'Saket Court ')).join(' and ')}.` : ''), waLine2: dl[0] ? `Limitation: ${dl[0].title.split(',')[0].toLowerCase()} due ${LS.dayMon(LS.addDays(T, dl[0].days))}.` : 'No limitation deadlines this week.', waTime: LS.t12ap(st.briefingTime),
+      briefText, waHello: `Good morning, Adv. ${D.user.name.split(' ').pop()}.`, waLine1: `${todayH.length} hearing${todayH.length === 1 ? '' : 's'} today.` + (tClash.length ? ` ${LS.t12ap(tClash[0][0].time)} clash: ${tClash[0].map(x => shortCourt(x.court).replace('HC ', 'Delhi HC Court ').replace('Saket ', 'Saket Court ')).join(' and ')}.` : ''), waLine2: dl[0] ? `Deadline: ${dl[0].title.split(',')[0]} due ${LS.dayMon(LS.addDays(T, dl[0].days))}.` : 'No limitation deadlines this week.', waTime: LS.t12ap(st.briefingTime),
       briefLines: todayHearings.map(x => ({ time: x.time, title: x.title, meta: `${x.court} · ${x.item}` })), noHearingsToday: todayH.length === 0 ? h('div', { style: { padding: '20px 0', fontSize: 14, color: '#5E5E5E' } }, 'No hearings are listed for today.') : null,
       stats: [
-        { label: "Today's hearings", value: String(todayH.length), note: tClash.length ? `${tClash.length} time conflict${tClash.length > 1 ? 's' : ''}` : 'No clashes', noteStyle: { fontSize: 13, color: tClash.length ? '#B42318' : '#5E5E5E', marginTop: 6 }, sp: [3, 5, 2, 4, 6, 3, Math.max(1, todayH.length)] },
-        { label: 'Active cases', value: String(D.cases.filter(x => x.status === 'active').length), note: `${D.cases.filter(x => x.status === 'pending').length} pending filing`, noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: [8, 9, 10, 11, 11, 12, 13] },
-        { label: 'Deadlines in 7 days', value: String(dl7.length), note: `${dl.filter(x => x.status !== 'Approved').length} awaiting approval`, noteStyle: { fontSize: 13, color: '#0A0A0A', marginTop: 6 }, sp: [1, 3, 2, 2, 4, 3, Math.max(1, dl7.length)] },
-        { label: 'Overdue tasks', value: String(odT.length), note: odT.length ? `across ${new Set(odT.map(t => t.who)).size} team members` : 'All tasks on time', noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: [8, 7, 7, 6, 6, 5, Math.max(1, odT.length)] }
+        { label: "Today's hearings", value: String(todayH.length), note: tClash.length ? `${tClash.length} time conflict${tClash.length > 1 ? 's' : ''}` : 'No clashes', noteStyle: { fontSize: 13, color: tClash.length ? '#B42318' : '#5E5E5E', marginTop: 6 }, sp: Array(7).fill(todayH.length) },
+        { label: 'Active cases', value: String(D.cases.filter(x => x.status === 'active').length), note: `${D.cases.filter(x => x.status === 'pending').length} pending filing`, noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: Array(7).fill(D.cases.filter(x => x.status === 'active').length) },
+        { label: 'Deadlines in 7 days', value: String(dl7.length), note: `${dl.filter(x => x.status !== 'Approved').length} awaiting approval`, noteStyle: { fontSize: 13, color: '#0A0A0A', marginTop: 6 }, sp: Array(7).fill(dl7.length) },
+        { label: 'Overdue tasks', value: String(odT.length), note: odT.length ? `across ${new Set(odT.map(t => t.who)).size} team members` : 'All tasks on time', noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: Array(7).fill(odT.length) }
       ].map(x => { const mx = Math.max(...x.sp), mn = Math.min(...x.sp) * 0.6; return { ...x, spark: x.sp.map((v, i) => ({ style: { width: 5, borderRadius: 1.5, background: i === 6 ? '#0A0A0A' : '#D4D4D4', height: grown ? Math.max(3, Math.round(((v - mn) / (mx - mn || 1)) * 28)) : 0, transition: `height .6s cubic-bezier(.2,.7,.2,1) ${i * 40}ms` } })) }; }),
       hearChart: hc.map((x, i) => { const dt = LS.parse(x.ds), wk = dt.getDay() === 0 || dt.getDay() === 6; return { label: x.n || '', dow: 'SMTWTFS'[dt.getDay()], date: dt.getDate(),
         bar: { width: '100%', maxWidth: 22, borderRadius: '3px 3px 0 0', background: x.clash ? '#B42318' : (i === 0 ? '#0A0A0A' : '#2B2B2B'), opacity: x.n ? 1 : 0, height: grown ? Math.max(x.n ? 8 : 0, Math.round(x.n / hcMax * 100)) : 0, transition: `height .7s cubic-bezier(.2,.7,.2,1) ${i * 35}ms` },
@@ -1330,12 +1343,12 @@ class Component extends DCLogic {
       limFacts: [
         { label: 'Type of proceeding', value: 'Appeal against decree of Commercial Court (District Judge level)' },
         { label: 'Applicable provision', value: 'Commercial Courts Act, 2015, s.13(1A): 60 days' },
-        { label: 'Triggering event', value: 'Judgment and decree pronounced on ' + LS.dmy(D.lim.judgment) },
-        { label: 'Certified copy applied for', value: LS.dmy(D.lim.applied) },
-        ...(limFilled ? [{ label: 'Certified copy ready for delivery', value: LS.dmy(D.lim.ready) + ' (added by you)' }] : [])
+        { label: 'Matter', value: LM.title }, { label: 'Triggering event', value: 'Judgment and decree pronounced on ' + LS.dmy(LM.judgment) },
+        { label: 'Certified copy applied for', value: LS.dmy(LM.applied) },
+        ...(limFilled ? [{ label: 'Certified copy ready for delivery', value: LS.dmy(LM.ready) + ' (added by you)' }] : [])
       ],
       missingOpen: !limFilled, missingFilled: limFilled, fillMissing,
-      derivation: lim.rows, approved: D.lim.approved, notApproved: !D.lim.approved, approve: () => this.mut(db => { db.lim.approved = true; db.lim.approvedAt = LS.fmt(T) + ' at ' + LS.nowHM() + ' IST'; V.logIt(db, 'Limitation date ' + LS.dmy(lim.due) + ' approved by ' + db.user.name, db.lim.caseId); }, 'Limitation date approved · alerts set'),
+      derivation: lim.rows, approved: LM.approved, notApproved: !LM.approved, approve: () => this.mut(db => { db.lim.approved = true; db.lim.approvedAt = LS.fmt(T) + ' at ' + LS.nowHM() + ' IST'; V.logIt(db, 'Limitation date ' + LS.dmy(lim.due) + ' approved by ' + db.user.name, db.lim.caseId); }, 'Limitation date approved · alerts set'),
       msgs, suggestions, brainScope, chatEmpty: chat.length ? null : h('div', { style: { color: '#5E5E5E', fontSize: 14, padding: '24px 0' } }, 'Ask a question about this case, or pick a suggestion below.'), draftQ: S.q, setQ: e => this.setState({ q: e.target.value }), sendQ: () => S.q.trim() && this.ask(S.q.trim()), qKey: e => { if (e.key === 'Enter' && S.q.trim()) this.ask(S.q.trim()); },
       templates, versions, draft,
       toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate (Hindi · English · Hinglish)',
