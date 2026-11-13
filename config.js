@@ -8,7 +8,7 @@
    With supabaseUrl and supabaseKey set, data is stored on the server and shared across devices and team members.
    Without them the site keeps data in the browser only. */
 window.LS_CONFIG = {
-  googleClientId: '',
+  googleClientId: '193914695188-svjia0mrfburuh84pdbqf1e9uukuc6el.apps.googleusercontent.com',
   supabaseUrl: 'https://ihbbfgzzbpxznbpspyam.supabase.co',
   supabaseKey: 'sb_publishable_JFuccB-z-0I1zRlzuAi0VA_-84zj94g'
 };
