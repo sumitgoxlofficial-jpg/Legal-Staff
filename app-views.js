@@ -143,13 +143,15 @@
   }
   function onboard(app) {
     const d = app.db;
-    app.modal(() => h(Modal, { title: 'Set up your practice', sub: 'These details appear on your letterhead, invoices and briefings. You can change them later in Settings.', onClose: () => app.modal(null) },
-      h(Form, { init: { name: d.user.name, role: d.user.role || 'Advocate', firm: d.firm.name, city: d.firm.city, address: d.firm.address }, submit: 'Start using Legal Staff',
+    const must = window.LSB && LSB.on && !d.firmId;
+    app.modal(() => h(Modal, { title: 'Set up your practice', sub: 'These details appear on your letterhead, invoices and briefings. You can change them later in Settings.', onClose: () => must ? app.toast('Set up your practice to continue, or sign out from the account menu.') : app.modal(null) },
+      h(Form, { init: { name: d.user.name, role: d.user.role || 'Advocate', firm: d.firm.name || app.pendingFirm || '', city: d.firm.city, address: d.firm.address }, submit: 'Start using Legal Staff',
         fields: [{ k: 'name', label: 'Your full name', req: true, half: true }, { k: 'role', label: 'Designation', type: 'select', options: ['Advocate', 'Managing Partner', 'Partner', 'Associate', 'Junior Advocate', 'Paralegal', 'Office Manager'], half: true }, { k: 'firm', label: 'Firm or chamber name', req: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'address', label: 'Office address', half: true }],
         onSubmit: v => { if (window.LSB && LSB.on && !app.db.firmId) { app.modal(null); return app.createFirm(v); } app.mut(db => { const name = v.name.trim(), old = db.user.name; db.user.name = name; db.user.role = v.role; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + name;
           db.firm.name = v.firm.trim(); db.firm.city = v.city.trim(); db.firm.address = (v.address || '').trim() || v.city.trim();
           const u = db.team.find(x => x.email === db.user.email) || db.team[0]; if (u) Object.assign(u, { name, title: db.user.title, role: v.role }); else db.team.push({ id: 'u1', name, title: db.user.title, role: v.role, email: db.user.email, status: 'Active' });
-          if (old && old !== name) { db.tasks.forEach(t => { if (t.who === old) t.who = name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? name : n); }); } }, 'Your practice is set up'); app.modal(null); } })));
+          if (old && old !== name) { db.tasks.forEach(t => { if (t.who === old) t.who = name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? name : n); }); } }, 'Your practice is set up'); app.modal(null); } }),
+      must && h('div', { style: { fontSize: 13, color: K.mut, borderTop: '1px solid ' + K.line, paddingTop: 12 } }, 'Signed in as ' + ((d.session && d.session.email) || d.user.email) + '. ', h('a', { href: '#', onClick: e => { e.preventDefault(); app.modal(null); app.signOut(); } }, 'Sign out'))));
   }
   function newLim(app) {
     const d = app.db, T = L.today();

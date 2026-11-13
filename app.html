@@ -954,7 +954,7 @@ class Component extends DCLogic {
     this.onK = e => {
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); const i = document.getElementById('ls-search'); i && i.focus(); return; }
-      if (e.key === 'Escape') { if (this.state.modalOn) this.modal(null); else if (this.state.menu || this.state.searchOpen) this.setState({ menu: null, searchOpen: false }); else if (this.state.panel) this.setState({ panel: false }); return; }
+      if (e.key === 'Escape') { if (this.state.modalOn) { if (!(LSB.on && this.state.auth === 'in' && !this.db.firmId)) this.modal(null); } else if (this.state.menu || this.state.searchOpen) this.setState({ menu: null, searchOpen: false }); else if (this.state.panel) this.setState({ panel: false }); return; }
       if (typing || e.ctrlKey || e.metaKey || e.altKey || this.state.auth !== 'in' || this.state.modalOn) return;
       const k = e.key.toLowerCase();
       if (this.gk && Date.now() - this.gk < 1200) { this.gk = 0; const to = { d: 'dashboard', c: 'cases', h: 'calendar' }[k]; if (to) { e.preventDefault(); this.go(to); } return; }
@@ -978,7 +978,7 @@ class Component extends DCLogic {
   afterEnter() { this.grow(); const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
     if (i >= 0) { this.setState({ plan: i, paid: false, cycle: q.get('cycle') === 'monthly' ? 'monthly' : 'annual' }); history.replaceState(null, '', location.pathname + '#/pricing'); this.applyRoute(); } }
   async googleSignIn(token, nonce) { const s = await LSB.signInGoogle(token, nonce); await this.enter(s); }
-  async createFirm(v) { try { const id = await LSB.createFirm(v); await this.reload(id); this.toast('Your practice is set up'); this.afterEnter(); } catch (e) { this.toast('Could not create the firm: ' + e.message); LSV.onboard(this); } }
+  async createFirm(v) { this.setState({ auth: 'boot' }); try { const id = await LSB.createFirm(v); await this.reload(id); this.toast('Your practice is set up'); this.afterEnter(); } catch (e) { Object.assign(this.db.user, { name: v.name, role: v.role }); Object.assign(this.db.firm, { name: '', city: v.city, address: v.address || '' }); this.pendingFirm = v.firm; this.setState({ auth: 'in' }); this.toast('Could not create the firm: ' + e.message); LSV.onboard(this); } }
   loadQueue() { if (!LSB.on) return; LSB.isAdmin().then(a => { this.isAdmin = a; return a ? LSB.queue() : []; }).then(q => { this.dirList = q; this.setState(s => ({ rev: s.rev + 1 })); }).catch(() => {}); }
   queueSync() { if (!LSB.on || !this.db.firmId) return; clearTimeout(this.syncT); this.syncT = setTimeout(() => { this.syncT = null; LSB.sync(this.db).then(changed => { if (changed) this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); }).catch(e => this.toast('Not saved to the server: ' + e.message)); }, 500); }
   componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('hashchange', this.onH); window.removeEventListener('keydown', this.onK); this.onF && window.removeEventListener('focus', this.onF); this.rec && this.rec.stop(); }
