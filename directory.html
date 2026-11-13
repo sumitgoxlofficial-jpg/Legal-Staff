@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
+<script src="config.js"></script>
+<script src="vendor/supabase.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
@@ -22,6 +24,10 @@ a:hover{color:#2B2B2B}
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit}
 a,button{transition:background-color .2s,color .2s,border-color .2s,transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s}
+@keyframes lsFade{from{opacity:0}to{opacity:1}}
+@keyframes lsRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+:focus-visible{outline:2px solid #0A0A0A;outline-offset:2px}
+header :focus-visible{outline-color:#fff}
 @keyframes lsDrift{0%{background-position:0 0}100%{background-position:64px 64px}}
 </style>
 </helmet>
@@ -35,10 +41,10 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
     </button>
     <div style="flex:1"></div>
     <nav style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
-      <button onClick="{{ goResults }}" style="border:0;background:none;padding:8px 12px;font-size:14px;color:#C9C9C9">Find an advocate</button>
-      <button onClick="{{ goHomeBrowse }}" style="border:0;background:none;padding:8px 12px;font-size:14px;color:#C9C9C9">Browse</button>
-      <button onClick="{{ goRegister }}" style="border:0;background:none;padding:8px 12px;font-size:14px;color:#C9C9C9">For advocates</button>
-      <button style="white-space:nowrap;height:38px;padding:0 16px;border:1px solid #fff;background:#fff;border-radius:8px;font-size:14px;color:#0A0A0A">Log in</button>
+      <button onClick="{{ goAll }}" style="{{ navStyle.results }}" style-hover="color:#fff">Find an advocate</button>
+      <button onClick="{{ goHomeBrowse }}" style="{{ navStyle.home }}" style-hover="color:#fff">Browse</button>
+      <button onClick="{{ goAdvocates }}" style="{{ navStyle.register }}" style-hover="color:#fff">For advocates</button>
+      <button onClick="{{ openLogin }}" style="white-space:nowrap;height:38px;padding:0 16px;border:1px solid #fff;background:#fff;border-radius:8px;font-size:14px;color:#0A0A0A" style-hover="background:#E5E5E5">Log in</button>
     </nav>
   </div>
 </header>
@@ -56,31 +62,31 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
       </div>
       <div data-reveal="" data-delay="180" style="background:#FFFFFF;border-radius:14px;padding:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px;box-shadow:0 24px 64px rgba(0,0,0,.18)">
         <div style="display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:8px;background:#F5F5F4">
-          <label style="font-size:11px;color:#5E5E5E;font-weight:600">Looking for</label>
-          <input placeholder="Advocate name or type of matter" style="border:0;background:transparent;outline:none;font-size:15px;color:#0A0A0A;padding:2px 0">
+          <label for="dq" style="font-size:11px;color:#5E5E5E;font-weight:600">Looking for</label>
+          <input id="dq" value="{{ q }}" onChange="{{ setQ }}" onKeyDown="{{ qKey }}" placeholder="Advocate name or type of matter" style="border:0;background:transparent;outline:none;font-size:15px;color:#0A0A0A;padding:2px 0;min-width:0">
         </div>
         <div style="display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:8px;background:#F5F5F4">
           <label style="font-size:11px;color:#5E5E5E;font-weight:600">State / City</label>
-          <select style="border:0;background:transparent;outline:none;font-size:15px;color:#0A0A0A;padding:2px 0"><option>Delhi · New Delhi</option><option>Maharashtra · Mumbai</option><option>Karnataka · Bengaluru</option><option>Tamil Nadu · Chennai</option><option>West Bengal · Kolkata</option></select>
+          {{ locSelect }}
         </div>
         <div style="display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:8px;background:#F5F5F4">
           <label style="font-size:11px;color:#5E5E5E;font-weight:600">District</label>
-          <select style="border:0;background:transparent;outline:none;font-size:15px;color:#0A0A0A;padding:2px 0"><option>Any district</option><option>South</option><option>South West</option><option>Central</option><option>Shahdara</option></select>
+          {{ distSelect }}
         </div>
         <div style="display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:8px;background:#F5F5F4">
           <label style="font-size:11px;color:#5E5E5E;font-weight:600">Practice area</label>
-          <select style="border:0;background:transparent;outline:none;font-size:15px;color:#0A0A0A;padding:2px 0"><option>Any practice area</option><option>Civil</option><option>Criminal</option><option>Family</option><option>Property</option><option>Consumer</option></select>
+          {{ areaSelect }}
         </div>
-        <button onClick="{{ goResults }}" style="min-height:58px;border:0;border-radius:8px;background:#0A0A0A;color:#fff;font-size:16px;font-weight:600" style-hover="background:#2B2B2B">Search</button>
+        <button onClick="{{ doSearch }}" style="min-height:58px;border:0;border-radius:8px;background:#0A0A0A;color:#fff;font-size:16px;font-weight:600" style-hover="background:#2B2B2B">Search</button>
       </div>
     </div>
   </section>
 
-  <section style="max-width:1240px;margin:0 auto;padding:72px 24px 24px;display:flex;flex-direction:column;gap:24px">
+  <section id="browse" style="scroll-margin-top:64px;max-width:1240px;margin:0 auto;padding:72px 24px 24px;display:flex;flex-direction:column;gap:24px">
     <h2 data-reveal="" style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:30px;margin:0">Browse by practice area</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:12px">
       <sc-for list="{{ areas }}" as="a" hint-placeholder-count="12">
-        <button data-reveal="" data-delay="{{ a.delay }}" data-dist="14" onClick="{{ goResults }}" style="text-align:left;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;padding:18px 20px;color:#0A0A0A;display:flex;flex-direction:column;gap:4px" style-hover="border-color:#0A0A0A;background:#FFFFFF;box-shadow:0 8px 20px rgba(0,0,0,.08)">
+        <button data-reveal="" data-delay="{{ a.delay }}" data-dist="14" onClick="{{ a.go }}" style="text-align:left;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;padding:18px 20px;color:#0A0A0A;display:flex;flex-direction:column;gap:4px" style-hover="border-color:#0A0A0A;background:#FFFFFF;box-shadow:0 8px 20px rgba(0,0,0,.08)">
           <span style="font-size:16px;font-weight:500">{{ a.name }}</span>
           <span style="font-size:13px;color:#5E5E5E">{{ a.eg }}</span>
         </button>
@@ -95,7 +101,7 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
         <div style="font-size:12px;color:#5E5E5E;font-weight:600;margin-bottom:12px">States &amp; UTs</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
           <sc-for list="{{ states }}" as="st" hint-placeholder-count="12">
-            <button onClick="{{ goResults }}" style="white-space:nowrap;height:36px;padding:0 14px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:18px;font-size:14px;color:#363636" style-hover="border-color:#0A0A0A;color:#0A0A0A">{{ st }}</button>
+            <button onClick="{{ st.go }}" style="white-space:nowrap;height:36px;padding:0 14px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:18px;font-size:14px;color:#363636" style-hover="border-color:#0A0A0A;color:#0A0A0A">{{ st.name }}</button>
           </sc-for>
         </div>
       </div>
@@ -103,7 +109,7 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
         <div style="font-size:12px;color:#5E5E5E;font-weight:600;margin-bottom:12px">Courts</div>
         <div style="display:flex;flex-direction:column">
           <sc-for list="{{ courts }}" as="c" hint-placeholder-count="5">
-            <button onClick="{{ goResults }}" style="text-align:left;border:0;border-top:1px solid #E5E5E5;background:none;padding:12px 0;font-size:15px;color:#0A0A0A;transition:padding .25s;display:flex;justify-content:space-between" style-hover="padding-left:6px"><span>{{ c }}</span><span style="color:#0A0A0A">→</span></button>
+            <button onClick="{{ c.go }}" style="text-align:left;border:0;border-top:1px solid #E5E5E5;background:none;padding:12px 0;font-size:15px;color:#0A0A0A;transition:padding .25s;display:flex;justify-content:space-between" style-hover="padding-left:6px"><span>{{ c.name }}</span><span style="color:#0A0A0A">→</span></button>
           </sc-for>
         </div>
       </div>
@@ -131,7 +137,10 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
       <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:28px;margin:0">Are you an enrolled advocate?</h2>
       <p style="margin:8px 0 0;color:#5E5E5E">Applying for a directory profile is separate from a Legal Staff practice software subscription.</p>
     </div>
-    <button onClick="{{ goRegister }}" style="white-space:nowrap;height:48px;padding:0 22px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:15px;font-weight:500" style-hover="background:#2B2B2B">Apply for a profile</button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button onClick="{{ goRegister }}" style="white-space:nowrap;height:48px;padding:0 22px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:15px;font-weight:500" style-hover="background:#2B2B2B">Apply for a profile</button>
+      <button onClick="{{ goStatus }}" style="white-space:nowrap;height:48px;padding:0 22px;background:#FFFFFF;color:#0A0A0A;border:1px solid #0A0A0A;border-radius:8px;font-size:15px;font-weight:500" style-hover="background:#F5F5F4">Check application status</button>
+    </div>
   </section>
 </sc-if>
 
@@ -139,25 +148,29 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
   <div data-reveal="" data-dist="12" style="max-width:1240px;margin:0 auto;padding:36px 24px 72px;display:flex;flex-direction:column;gap:24px">
     <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px">
       <div>
-        <div style="font-size:13px;color:#5E5E5E">Delhi · New Delhi · Civil</div>
+        <div style="font-size:13px;color:#5E5E5E">{{ resSummary }}</div>
         <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:32px;margin:6px 0 0">Verified advocates</h1>
       </div>
-      <div style="font-size:13px;color:#5E5E5E">Sorted alphabetically. Directory results are never ranked.</div>
+      <div style="font-size:13px;color:#5E5E5E;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span>{{ resCount }} · Directory results are never ranked.</span>{{ sortSelect }}</div>
     </div>
-    <div style="background:#F0F0EF;border:1px solid #E3E3E2;border-radius:8px;padding:12px 16px;font-size:14px;color:#2B2B2B">Design preview: these are sample profiles, not real advocates.</div>
+    {{ resToolbar }}
     <div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start">
+<sc-if value="{{ hasAside }}" hint-placeholder-val="{{ true }}">
       <aside style="flex:1 1 240px;max-width:300px;display:flex;flex-direction:column;gap:22px">
         <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
           <div>
             <div style="font-size:12px;color:#5E5E5E;font-weight:600;margin-bottom:10px">{{ f.title }}</div>
             <div style="display:flex;flex-direction:column;gap:8px">
               <sc-for list="{{ f.opts }}" as="o" hint-placeholder-count="3">
-                <label style="display:flex;gap:10px;align-items:center;font-size:14px;color:#363636"><input type="checkbox" style="width:16px;height:16px;accent-color:#0A0A0A">{{ o }}</label>
+                <label style="display:flex;gap:10px;align-items:center;font-size:14px;color:#363636;cursor:pointer"><input type="checkbox" checked="{{ o.on }}" onChange="{{ o.toggle }}" style="width:16px;height:16px;accent-color:#0A0A0A;flex-shrink:0"><span style="flex:1;min-width:0">{{ o.label }}</span><span style="font-size:12px;color:#8A8A8A;font-variant-numeric:tabular-nums">{{ o.n }}</span></label>
               </sc-for>
+              {{ f.more }}
             </div>
           </div>
         </sc-for>
+        {{ clearBtn }}
       </aside>
+      </sc-if>
       <div style="flex:3 1 480px;display:flex;flex-direction:column;gap:14px;min-width:0">
         <sc-for list="{{ people }}" as="p" hint-placeholder-count="4">
           <div data-reveal="" data-delay="{{ p.delay }}" data-dist="16" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px 24px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;transition:border-color .2s,box-shadow .25s" style-hover="border-color:#0A0A0A;box-shadow:0 8px 24px rgba(0,0,0,.06)">
@@ -165,20 +178,17 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
             <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px">
               <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                 <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:21px;font-weight:600">{{ p.name }}</div>
-                <span style="font-size:12px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:2px 10px;font-weight:500">Enrolment verified</span>
+                <span style="font-size:12px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:2px 10px;font-weight:500">Enrolment verified</span>{{ p.you }}
               </div>
               <div style="font-size:13px;color:#5E5E5E;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums">{{ p.enr }} · {{ p.council }} · since {{ p.year }}</div>
               <div style="font-size:14px;color:#363636">{{ p.areas }}</div>
               <div style="font-size:13px;color:#5E5E5E">{{ p.courts }} · {{ p.langs }}</div>
             </div>
-            <button onClick="{{ goProfile }}" style="white-space:nowrap;height:40px;padding:0 16px;border:1px solid #0A0A0A;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A;align-self:center" style-hover="background:#0A0A0A;color:#fff">View profile</button>
+            <button onClick="{{ p.go }}" style="white-space:nowrap;height:40px;padding:0 16px;border:1px solid #0A0A0A;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A;align-self:center" style-hover="background:#0A0A0A;color:#fff">View profile</button>
           </div>
         </sc-for>
-        <div style="display:flex;justify-content:center;gap:6px;padding-top:10px">
-          <button style="width:38px;height:38px;border-radius:8px;border:0;background:#0A0A0A;color:#fff;font-size:14px">1</button>
-          <button style="width:38px;height:38px;border-radius:8px;border:1px solid #E5E5E5;background:#FFFFFF;color:#0A0A0A;font-size:14px">2</button>
-          <button style="width:38px;height:38px;border-radius:8px;border:1px solid #E5E5E5;background:#FFFFFF;color:#0A0A0A;font-size:14px">3</button>
-        </div>
+        {{ emptyState }}
+        {{ pager }}
       </div>
     </div>
   </div>
@@ -186,36 +196,35 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
 
 <sc-if value="{{ s.profile }}" hint-placeholder-val="{{ false }}">
   <div data-reveal="" data-dist="12" style="max-width:1240px;margin:0 auto;padding:36px 24px 72px;display:flex;flex-direction:column;gap:24px">
-    <div style="font-size:13px;color:#5E5E5E;display:flex;gap:8px;flex-wrap:wrap"><button onClick="{{ goResults }}" style="border:0;background:none;padding:0;color:#5E5E5E;font-size:13px">Delhi</button><span>/</span><span>Civil</span><span>/</span><span style="color:#0A0A0A">Sample Advocate — A. Sharma</span></div>
-    <div style="background:#F0F0EF;border:1px solid #E3E3E2;border-radius:8px;padding:12px 16px;font-size:14px;color:#2B2B2B">Design preview: this is a sample profile, not a real advocate.</div>
+    <div style="font-size:13px;color:#5E5E5E;display:flex;gap:8px;flex-wrap:wrap"><button onClick="{{ prof.goAll }}" style="border:0;background:none;padding:0;color:#5E5E5E;font-size:13px;text-decoration:underline;text-underline-offset:2px">All advocates</button><span>/</span><button onClick="{{ prof.goState }}" style="border:0;background:none;padding:0;color:#5E5E5E;font-size:13px;text-decoration:underline;text-underline-offset:2px">{{ prof.state }}</button><span>/</span><button onClick="{{ prof.goArea }}" style="border:0;background:none;padding:0;color:#5E5E5E;font-size:13px;text-decoration:underline;text-underline-offset:2px">{{ prof.area0 }}</button><span>/</span><span style="color:#0A0A0A">{{ prof.name }}</span></div>
     <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
       <div style="flex:2 1 520px;min-width:0;display:flex;flex-direction:column;gap:28px">
         <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
-          <div style="width:96px;height:96px;border-radius:50%;background:#F0F0EF;color:#0A0A0A;display:flex;align-items:center;justify-content:center;font-family:'Instrument Sans',system-ui,sans-serif;font-size:34px;font-weight:600">AS</div>
+          <div style="width:96px;height:96px;border-radius:50%;background:#F0F0EF;color:#0A0A0A;display:flex;align-items:center;justify-content:center;font-family:'Instrument Sans',system-ui,sans-serif;font-size:34px;font-weight:600;flex-shrink:0">{{ prof.ini }}</div>
           <div>
-            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:36px;margin:0;line-height:1.15">Sample Advocate — A. Sharma</h1>
+            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:36px;margin:0;line-height:1.15">{{ prof.name }}</h1>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-              <span style="font-size:13px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 12px;font-weight:500">Enrolment verified · 2 Oct 2026</span>
-              <span style="font-size:13px;background:#F5F5F4;color:#363636;border-radius:8px;padding:3px 12px">New Delhi</span>
+              <span style="font-size:13px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 12px;font-weight:500">{{ prof.verified }}</span>
+              <span style="font-size:13px;background:#F5F5F4;color:#363636;border-radius:8px;padding:3px 12px">{{ prof.place }}</span>
             </div>
           </div>
         </div>
         <section style="border-top:1px solid #E5E5E5;padding-top:22px">
           <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px"><h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:20px;font-weight:600;margin:0">Professional enrolment</h2><span style="display:flex;align-items:center;gap:6px;font-size:12px;color:#0A0A0A;font-weight:600">Verified by Legal Staff</span></div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px">
-            <div><div style="font-size:13px;color:#5E5E5E">Enrolment number</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:15px">D/2841/2016</div></div>
-            <div><div style="font-size:13px;color:#5E5E5E">State Bar Council</div><div>Bar Council of Delhi</div></div>
-            <div><div style="font-size:13px;color:#5E5E5E">Year of enrolment</div><div>2016</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Enrolment number</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:15px">{{ prof.enr }}</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">State Bar Council</div><div>{{ prof.council }}</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Year of enrolment</div><div>{{ prof.year }}</div></div>
           </div>
         </section>
         <section style="border-top:1px solid #E5E5E5;padding-top:22px">
           <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px"><h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:20px;font-weight:600;margin:0">Practice</h2><span style="font-size:12px;color:#5E5E5E">Declared by the advocate</span></div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px">
-            <div><div style="font-size:13px;color:#5E5E5E">Practice areas</div><div>Civil, Property, Consumer</div></div>
-            <div><div style="font-size:13px;color:#5E5E5E">Courts</div><div>Delhi High Court; Saket District Courts</div></div>
-            <div><div style="font-size:13px;color:#5E5E5E">Languages</div><div>Hindi, English, Punjabi</div></div>
-            <div><div style="font-size:13px;color:#5E5E5E">Qualifications</div><div>B.A. LL.B. (Hons.), LL.M.</div></div>
-            <div><div style="font-size:13px;color:#5E5E5E">Chamber</div><div>Saket District Courts, New Delhi</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Practice areas</div><div>{{ prof.areas }}</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Courts</div><div>{{ prof.courts }}</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Languages</div><div>{{ prof.langs }}</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Qualifications</div><div>{{ prof.quals }}</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Chamber</div><div>{{ prof.chamber }}</div></div>
           </div>
         </section>
         <div style="font-size:13px;color:#5E5E5E;text-wrap:pretty">This page shows factual information only. It is not an advertisement, solicitation or recommendation. Legal Staff does not rate advocates, assign matters or take any share of fees.</div>
@@ -227,22 +236,28 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
           <div style="font-size:14px;color:#5E5E5E">The advocate sees your request and decides whether to reply.</div>
           <sc-for list="{{ contactFields }}" as="f" hint-placeholder-count="5">
             <div style="display:flex;flex-direction:column;gap:5px">
-              <label style="font-size:13px;color:#363636">{{ f.label }}</label>
-              <input placeholder="{{ f.ph }}" style="height:42px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px">
+              <label for="{{ f.id }}" style="font-size:13px;color:#363636">{{ f.label }}</label>
+              {{ f.control }}
+              <sc-if value="{{ f.bad }}" hint-placeholder-val="{{ false }}"><div role="alert" style="font-size:12px;color:#B42318">{{ f.err }}</div></sc-if>
             </div>
           </sc-for>
           <div style="display:flex;flex-direction:column;gap:5px">
-            <label style="font-size:13px;color:#363636">Brief description</label>
-            <textarea placeholder="Describe your matter in a few lines. Don't share confidential documents here." style="min-height:90px;border:1px solid #E5E5E5;border-radius:8px;padding:10px 12px;font-size:14px;resize:vertical"></textarea>
+            <label for="cf-desc" style="font-size:13px;color:#363636">Brief description</label>
+            <textarea id="cf-desc" value="{{ cDesc.value }}" onChange="{{ cDesc.set }}" placeholder="Describe your matter in a few lines. Don't share confidential documents here." style="{{ cDesc.style }}"></textarea>
+            <sc-if value="{{ cDesc.bad }}" hint-placeholder-val="{{ false }}"><div role="alert" style="font-size:12px;color:#B42318">{{ cDesc.err }}</div></sc-if>
           </div>
           <label style="display:flex;gap:10px;font-size:13px;color:#363636;align-items:flex-start"><input type="checkbox" checked="{{ consent }}" onChange="{{ toggleConsent }}" style="width:16px;height:16px;margin-top:2px;accent-color:#0A0A0A"><span>I consent to Legal Staff sharing these details with this advocate only, for the purpose of my contact request (DPDP Act, 2023).</span></label>
-          <button onClick="{{ send }}" style="{{ sendBtn }}">Send request</button>
+          <sc-if value="{{ consentBad }}" hint-placeholder-val="{{ false }}"><div role="alert" style="font-size:12px;color:#B42318">{{ consentErr }}</div></sc-if>
+          <button onClick="{{ send }}" style="{{ sendBtn }}">{{ sendLabel }}</button>
         </sc-if>
         <sc-if value="{{ sent }}" hint-placeholder-val="{{ false }}">
-          <div style="font-size:12px;color:#5E5E5E;font-weight:600">Request sent</div>
-          <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:22px;font-weight:600;margin:0">The advocate has your request</h2>
-          <div style="font-size:14px;color:#363636">They may contact you directly. Legal Staff does not assign matters or take part in fee arrangements. You can withdraw your request and consent from the link in your confirmation email.</div>
-          <button onClick="{{ resetSend }}" style="white-space:nowrap;height:42px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A">Done</button>
+          <div style="font-size:12px;color:#5E5E5E;font-weight:600">{{ enq.head }}</div>
+          <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:22px;font-weight:600;margin:0">Your contact request is recorded</h2>
+          <div style="font-size:14px;color:#363636">{{ enq.summary }}</div>
+          <div style="font-size:14px;color:#363636">{{ enq.note }}</div>
+          <div style="font-size:13px;color:#5E5E5E">{{ enq.foot }}</div>
+          <button onClick="{{ goResults }}" style="white-space:nowrap;height:42px;border:0;background:#0A0A0A;border-radius:8px;font-size:14px;color:#fff;font-weight:500" style-hover="background:#2B2B2B">Back to results</button>
+          <button onClick="{{ resetSend }}" style="white-space:nowrap;height:42px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A" style-hover="border-color:#0A0A0A">{{ enq.withdraw }}</button>
         </sc-if>
       </aside>
     </div>
@@ -253,12 +268,12 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
   <div style="max-width:880px;margin:0 auto;padding:44px 24px 72px;display:flex;flex-direction:column;gap:28px">
     <div>
       <div style="font-size:12px;color:#5E5E5E;font-weight:600">Advocate registration</div>
-      <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:34px;margin:8px 0 0">Apply for a directory profile</h1>
+      <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:34px;margin:8px 0 0">{{ regTitle }}</h1>
       <p style="margin:8px 0 0;color:#5E5E5E">Your profile is published only after your enrolment is verified. A directory profile doesn't include the Legal Staff practice software.</p>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       <sc-for list="{{ steps }}" as="st" hint-placeholder-count="5">
-        <div style="{{ st.style }}"><span style="{{ st.num }}">{{ st.n }}</span>{{ st.label }}</div>
+        <button onClick="{{ st.go }}" style="{{ st.style }}"><span style="{{ st.num }}">{{ st.n }}</span>{{ st.label }}</button>
       </sc-for>
     </div>
     <section data-reveal="" data-dist="12" style="border:1px solid #E5E5E5;border-radius:14px;padding:clamp(20px,4vw,30px);display:flex;flex-direction:column;gap:18px">
@@ -269,10 +284,11 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
             <div style="border:1.5px dashed #C4C4C4;border-radius:8px;padding:22px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;background:#FFFFFF">
               <div style="font-weight:500">{{ d.t }}</div>
               <div style="font-size:13px;color:#5E5E5E">{{ d.d }}</div>
-              <button style="margin-top:6px;height:36px;padding:0 14px;border:1px solid #0A0A0A;background:#FFFFFF;border-radius:8px;font-size:13px;color:#0A0A0A">Upload PDF or image</button>
+              {{ d.control }}
             </div>
           </sc-for>
         </div>
+        <div style="font-size:13px;color:#5E5E5E">PDF, JPG or PNG, up to 5 MB each. Files are not uploaded to a server yet: only the file name and size are recorded.</div>
       </sc-if>
       <sc-if value="{{ isReview }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;flex-direction:column">
@@ -280,21 +296,23 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
             <div style="display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid #E5E5E5;font-size:14px;flex-wrap:wrap"><span style="color:#5E5E5E">{{ r.k }}</span><span>{{ r.v }}</span></div>
           </sc-for>
         </div>
-        <label style="display:flex;gap:10px;font-size:13px;color:#363636;align-items:flex-start"><input type="checkbox" style="width:16px;height:16px;margin-top:2px;accent-color:#0A0A0A"><span>I confirm these details are accurate. My profile will contain no testimonials, claims of results or other promotional content.</span></label>
+        <label style="display:flex;gap:10px;font-size:13px;color:#363636;align-items:flex-start"><input type="checkbox" checked="{{ confirmOn }}" onChange="{{ toggleConfirm }}" style="width:16px;height:16px;margin-top:2px;accent-color:#0A0A0A;flex-shrink:0"><span>I confirm these details are accurate. My profile will contain no testimonials, claims of results or other promotional content.</span></label>
       </sc-if>
       <sc-if value="{{ isForm }}" hint-placeholder-val="{{ true }}">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
           <sc-for list="{{ stepFields }}" as="f" hint-placeholder-count="4">
-            <div style="display:flex;flex-direction:column;gap:5px">
-              <label style="font-size:13px;color:#363636">{{ f.label }}</label>
-              <input placeholder="{{ f.ph }}" style="height:44px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px">
+            <div style="{{ f.wrap }}">
+              <label for="{{ f.id }}" style="font-size:13px;color:#363636">{{ f.label }}</label>
+              {{ f.control }}
+              <sc-if value="{{ f.bad }}" hint-placeholder-val="{{ false }}"><div role="alert" style="font-size:12px;color:#B42318">{{ f.err }}</div></sc-if>
             </div>
           </sc-for>
         </div>
       </sc-if>
+      <sc-if value="{{ stepBad }}" hint-placeholder-val="{{ false }}"><div role="alert" style="font-size:13px;color:#B42318">{{ stepErr }}</div></sc-if>
       <div style="display:flex;justify-content:space-between;gap:10px;padding-top:8px;border-top:1px solid #E5E5E5;margin-top:4px">
-        <button onClick="{{ back }}" style="white-space:nowrap;height:44px;padding:0 18px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A">Back</button>
-        <button onClick="{{ next }}" style="white-space:nowrap;height:44px;padding:0 20px;border:0;background:#0A0A0A;color:#fff;border-radius:8px;font-size:14px;font-weight:500">{{ nextLabel }}</button>
+        <button onClick="{{ back }}" style="white-space:nowrap;height:44px;padding:0 18px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A" style-hover="border-color:#0A0A0A">{{ backLabel }}</button>
+        <button onClick="{{ next }}" style="white-space:nowrap;height:44px;padding:0 20px;border:0;background:#0A0A0A;color:#fff;border-radius:8px;font-size:14px;font-weight:500" style-hover="background:#2B2B2B">{{ nextLabel }}</button>
       </div>
     </section>
   </div>
@@ -304,9 +322,12 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
   <div style="max-width:880px;margin:0 auto;padding:44px 24px 72px;display:flex;flex-direction:column;gap:24px">
     <div>
       <div style="font-size:12px;color:#5E5E5E;font-weight:600">Directory account</div>
-      <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:34px;margin:8px 0 0">Your application is under review</h1>
-      <p style="margin:8px 0 0;color:#5E5E5E">Reference LS-DIR-2026-04812 · submitted 11 Nov 2026. Most applications are reviewed within 3 working days.</p>
+      <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:34px;margin:8px 0 0">{{ stat.title }}</h1>
+      <p style="margin:8px 0 0;color:#5E5E5E">{{ stat.sub }}</p>
     </div>
+    {{ stat.noteBox }}
+    {{ stat.actions }}
+    <sc-if value="{{ stat.has }}" hint-placeholder-val="{{ true }}">
     <section style="border:1px solid #E5E5E5;border-radius:14px;padding:28px 30px;display:flex;flex-direction:column">
       <sc-for list="{{ track }}" as="t" hint-placeholder-count="4">
         <div data-reveal="" data-delay="{{ t.delay }}" data-dist="10" style="display:flex;gap:18px">
@@ -322,10 +343,11 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
       </sc-for>
     </section>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
-      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Profile visibility</div><div style="font-weight:500;margin-top:4px">Hidden until verified</div></div>
-      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Contact requests</div><div style="font-weight:500;margin-top:4px">Open after you're published</div></div>
-      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Practice software</div><div style="font-weight:500;margin-top:4px">Not included. <a href="index.html">See plans</a></div></div>
+      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Profile visibility</div><div style="font-weight:500;margin-top:4px">{{ stat.visibility }}</div></div>
+      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Contact requests</div><div style="font-weight:500;margin-top:4px">{{ stat.requests }}</div></div>
+      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Practice software</div><div style="font-weight:500;margin-top:4px">Not included. <a href="index.html#pricing">See plans</a></div></div>
     </div>
+    </sc-if>
   </div>
 </sc-if>
 </main>
@@ -333,18 +355,180 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
 <footer style="background:#0A0A0A;color:#fff">
   <div style="max-width:1240px;margin:0 auto;padding:32px 24px;display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between;font-size:13px;color:#A3A3A3">
     <div style="max-width:640px;display:flex;flex-direction:column;gap:14px"><img src="assets/ls-logo-white.png" alt="Legal Staff" style="height:84px;width:auto;align-self:flex-start"><div style="text-wrap:pretty">Legal Staff Directory shows verified, factual professional information so the public can find advocates themselves. It does not rank, rate or promote advocates, and there is no paid placement.</div></div>
-    <div style="display:flex;gap:18px;flex-wrap:wrap"><a href="#" style="color:#A3A3A3">Privacy</a><a href="#" style="color:#A3A3A3">Terms</a><a href="#" style="color:#A3A3A3">Report a profile</a><a href="index.html" style="color:#A3A3A3">Practice software</a></div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap"><a href="#privacy" onClick="{{ openPrivacy }}" style="color:#A3A3A3">Privacy</a><a href="#terms" onClick="{{ openTerms }}" style="color:#A3A3A3">Terms</a><a href="#report" onClick="{{ openReport }}" style="color:#A3A3A3">Report a profile</a><a href="index.html" style="color:#A3A3A3">Practice software</a><a href="app.html" style="color:#A3A3A3">Software sign in</a></div>
   </div>
 </footer>
+{{ modal }}
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  state = { screen: 'home', step: 0, sent: false, consent: false };
-  go(screen) { this.setState({ screen }); window.scrollTo(0, 0); }
-  componentDidMount() { setTimeout(() => this.reveal(), 30); }
-  componentDidUpdate(pp, ps) { if (ps.screen !== this.state.screen || ps.step !== this.state.step || ps.sent !== this.state.sent) setTimeout(() => this.reveal(), 0); }
-  componentWillUnmount() { this.io && this.io.disconnect(); }
+  state = {
+    screen: 'home', step: 0, q: '', loc: '', district: '', area: '', court: '',
+    fDistrict: [], fCourt: [], fLang: [], fYears: [], sort: 'az', page: 1, profileId: null,
+    cf: this.blankContact(), cfErr: {}, enquiries: [],
+    app: this.blankApp(), appErr: {}, editingId: null, apps: [], mine: {}, viewId: null,
+    profiles: [], pState: 'idle', pErr: '', busy: '', statusErr: '', lookupEnr: '', modal: null, more: {}, lookup: '', lookupMsg: '', rf: { profile: '', reason: '', details: '', email: '' }, rfErr: {}, rfDone: null
+  };
+  K = { apps: 'ls.directory.applications', mine: 'ls.directory.myApplications', enq: 'ls.directory.enquiries', rep: 'ls.directory.reports' };
+  AREAS = [['Civil', 'Recovery, injunctions, contracts'], ['Criminal', 'Bail, trials, quashing'], ['Family', 'Divorce, custody, maintenance'], ['Property', 'Title, partition, tenancy'], ['Consumer', 'Deficiency of service, refunds'], ['Labour & Employment', 'Wages, termination, PF'], ['Tax', 'GST, income tax appeals'], ['Corporate & Commercial', 'Commercial suits, company law'], ['Arbitration', 'Section 9, 11, 34 proceedings'], ['Constitutional & Writs', 'Writ petitions, service matters'], ['Cyber', 'IT Act, online fraud'], ['Banking & Recovery', 'DRT, SARFAESI, cheque bounce']];
+  COUNCILS = [['Delhi', 'Bar Council of Delhi'], ['Maharashtra', 'Bar Council of Maharashtra & Goa'], ['Karnataka', 'Karnataka State Bar Council'], ['Tamil Nadu', 'Bar Council of Tamil Nadu & Puducherry'], ['Uttar Pradesh', 'Bar Council of Uttar Pradesh'], ['West Bengal', 'Bar Council of West Bengal'], ['Telangana', 'Bar Council of Telangana'], ['Gujarat', 'Bar Council of Gujarat'], ['Rajasthan', 'Bar Council of Rajasthan'], ['Kerala', 'Bar Council of Kerala'], ['Punjab', 'Bar Council of Punjab & Haryana'], ['Madhya Pradesh', 'State Bar Council of Madhya Pradesh'],
+    ['Andhra Pradesh', 'Bar Council of Andhra Pradesh'], ['Assam', 'Bar Council of Assam, Nagaland, Mizoram, Arunachal Pradesh & Sikkim'], ['Bihar', 'Bihar State Bar Council'], ['Chhattisgarh', 'State Bar Council of Chhattisgarh'], ['Himachal Pradesh', 'Bar Council of Himachal Pradesh'], ['Jammu & Kashmir', 'Bar Council of Jammu & Kashmir and Ladakh'], ['Jharkhand', 'Jharkhand State Bar Council'], ['Odisha', 'Odisha State Bar Council'], ['Uttarakhand', 'Bar Council of Uttarakhand']];
+  PAGE = 6;
+
+  blankContact() { return { name: '', contact: '', city: '', category: '', language: '', desc: '', consent: false }; }
+  blankApp() { return { name: '', email: '', mobile: '', city: '', enr: '', council: '', year: '', cop: '', areas: [], courts: '', district: '', langs: '', quals: '', chamber: '', docs: {}, confirm: false }; }
+
+  /* ---------- storage ---------- */
+  read(key, fallback) { try { const v = JSON.parse(window.localStorage.getItem(key)); return v == null ? fallback : v; } catch (e) { return fallback; } }
+  write(key, val) { try { window.localStorage.setItem(key, JSON.stringify(val)); return true; } catch (e) { return false; } }
+  readApps() { const v = this.read(this.K.apps, []); return Array.isArray(v) ? v.filter(a => a && typeof a === 'object') : []; }
+  readMine() { const v = this.read(this.K.mine, {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
+  readList(key) { const v = this.read(key, []); return Array.isArray(v) ? v : []; }
+  loadStore() {
+    if (this.sb()) { this.setState({ mine: this.readMine(), enquiries: this.readList(this.K.enq) }); this.refreshStatus(); return; }
+    this.setState({ apps: this.readApps(), mine: this.readMine(), enquiries: this.readList(this.K.enq) });
+  }
+  /* ---------- backend (Supabase) — on only when config.js carries a URL and key ---------- */
+  sb() {
+    if (this._sb !== undefined) return this._sb;
+    this._sb = null;
+    try {
+      const c = window.LS_CONFIG || {};
+      if (c.supabaseUrl && c.supabaseKey && window.supabase && typeof window.supabase.createClient === 'function')
+        this._sb = window.supabase.createClient(c.supabaseUrl, c.supabaseKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+    } catch (e) { this._sb = null; }
+    return this._sb;
+  }
+  /* resolves to { data, error } and never rejects; gives up after 20 seconds */
+  call(q) {
+    const timeout = new Promise(res => setTimeout(() => res({ data: null, error: { message: 'The server did not respond in time' } }), 20000));
+    return Promise.race([Promise.resolve().then(() => q).then(r => r || { data: null, error: { message: 'No response from the server' } }, e => ({ data: null, error: { message: (e && e.message) || 'Network error' } })), timeout]);
+  }
+  errText(e) { const m = String((e && e.message) || 'unknown error').replace(/\s+/g, ' ').slice(0, 140); return m.charAt(0).toUpperCase() + m.slice(1).replace(/\.$/, ''); }
+  rowToApp(x) {
+    const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; let date = '';
+    try { const d = new Date(x.created_at); if (!isNaN(d)) date = d.getDate() + ' ' + mon[d.getMonth()]; } catch (e) {}
+    return { id: x.id, name: x.name, enr: x.enr, council: x.council, year: x.year, city: x.city, status: x.status, note: x.note || '', date, created_at: x.created_at };
+  }
+  async loadProfiles() {
+    const sb = this.sb(); if (!sb) return;
+    this.setState({ pState: 'loading', pErr: '' });
+    const r = await this.call(sb.rpc('directory_profiles'));
+    if (r.error || !Array.isArray(r.data)) { this.setState({ pState: 'error', pErr: this.errText(r.error || { message: 'Unexpected response' }) }); return; }
+    this.setState({ pState: 'ready', profiles: r.data.filter(x => x && x.id != null) });
+  }
+  /* backend on: re-read the status of every application this browser remembers (reference + enrolment number) */
+  async refreshStatus() {
+    const sb = this.sb(); if (!sb) return;
+    const mine = this.readMine(), ids = Object.keys(mine).filter(id => mine[id] && mine[id].enr);
+    if (!ids.length) { this.setState({ apps: [], mine, statusErr: '' }); return; }
+    this.setState({ busy: this.state.busy || 'status' });
+    const rows = []; let err = '';
+    for (const id of ids) {
+      const r = await this.call(sb.rpc('directory_status', { p_ref: id, p_enr: mine[id].enr }));
+      if (r.error) { err = this.errText(r.error); break; }
+      (Array.isArray(r.data) ? r.data : []).forEach(x => rows.push(this.rowToApp(x)));
+    }
+    const busy = this.state.busy === 'status' ? '' : this.state.busy;
+    if (err) this.setState({ statusErr: err, busy }); else this.setState({ apps: rows, mine, statusErr: '', busy });
+  }
+
+  /* ---------- data ---------- */
+  data() { return []; }
+  splitList(v) { return (Array.isArray(v) ? v.join(',') : String(v || '')).split(/[,;\n]+/).map(x => x.trim()).filter(Boolean); }
+  /* only applications that a moderator has verified are listed */
+  people() {
+    const S = this.state, councilState = {}; this.COUNCILS.forEach(([st, c]) => councilState[c] = st);
+    const src = this.sb() ? S.profiles : S.apps.filter(a => a.status === 'verified' && a.id != null);
+    const own = src.map(a => {
+      const d = (this.sb() ? a.details : S.mine[a.id]) || {}, nm = String(a.name || 'Advocate');
+      const parts = nm.split(/\s+/).filter(Boolean);
+      return { id: String(a.id), own: !!S.mine[a.id], sortKey: (parts[parts.length - 1] || nm) + ' ' + nm, ini: ((parts[0] || 'A')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase(), name: nm,
+        state: councilState[a.council] || 'Other', city: a.city || d.city || '', district: d.district || '', enr: String(a.enr || ''), council: String(a.council || ''), year: String(a.year || ''),
+        areas: Array.isArray(d.areas) ? d.areas : this.splitList(d.areas), courts: this.splitList(d.courts), langs: this.splitList(d.langs), quals: d.quals || '—', chamber: d.chamber || '—', verifiedOn: '' };
+    });
+    return own;
+  }
+  courtMatch(p, label) {
+    if (label === 'District Courts') return p.courts.some(c => !/Supreme Court|High Court|Consumer|DRT|Tribunal/.test(c));
+    if (label === 'Consumer Commissions') return p.courts.some(c => /Consumer/.test(c));
+    if (label === 'Debts Recovery Tribunals') return p.courts.some(c => /DRT|Debts Recovery/.test(c));
+    return p.courts.indexOf(label) >= 0;
+  }
+  yearBand(p) { const n = new Date().getFullYear() - (+p.year || 0); return n < 5 ? '0–5' : (n < 10 ? '5–10' : '10+'); }
+  /* everything matching the search criteria, before the sidebar filters */
+  baseSet() {
+    const S = this.state, eg = {}; this.AREAS.forEach(([n, e]) => eg[n] = e);
+    const [st, city] = S.loc.split('|');
+    const toks = S.q.toLowerCase().split(/\s+/).filter(Boolean);
+    return this.people().filter(p => {
+      if (st && p.state !== st) return false;
+      if (city && p.city !== city) return false;
+      if (S.area && p.areas.indexOf(S.area) < 0) return false;
+      if (S.court && !this.courtMatch(p, S.court)) return false;
+      if (toks.length) {
+        const hay = [p.name, p.state, p.city, p.district, p.enr, p.council, p.areas.join(' '), p.areas.map(a => eg[a] || '').join(' '), p.courts.join(' '), p.langs.join(' ')].join(' ').toLowerCase();
+        if (!toks.every(t => hay.indexOf(t) >= 0)) return false;
+      }
+      return true;
+    });
+  }
+  filtered(base) {
+    const S = this.state, any = (sel, vals) => !sel.length || vals.some(v => sel.indexOf(v) >= 0);
+    const out = base.filter(p => any(S.fDistrict, [p.district]) && any(S.fCourt, p.courts) && any(S.fLang, p.langs) && any(S.fYears, [this.yearBand(p)]));
+    const by = { az: (a, b) => a.sortKey.localeCompare(b.sortKey), za: (a, b) => b.sortKey.localeCompare(a.sortKey), old: (a, b) => (+a.year - +b.year) || a.sortKey.localeCompare(b.sortKey), new: (a, b) => (+b.year - +a.year) || a.sortKey.localeCompare(b.sortKey) };
+    return out.sort(by[S.sort] || by.az);
+  }
+
+  /* ---------- navigation ---------- */
+  hashFor(S) { return S.screen === 'results' ? '#results' : S.screen === 'profile' ? '#profile/' + S.profileId : S.screen === 'register' ? '#apply' : S.screen === 'status' ? '#status' : ''; }
+  nav(patch, opts) {
+    const next = { ...this.state, ...patch }, hash = this.hashFor(next);
+    try { if ((window.location.hash || '') !== hash) window.history.pushState(null, '', window.location.pathname + window.location.search + hash); } catch (e) {}
+    this.setState(patch);
+    if (!(opts && opts.keepScroll)) window.scrollTo(0, 0);
+  }
+  go(screen) { this.nav({ screen }); }
+  search(patch) { this.nav({ screen: 'results', page: 1, fDistrict: [], fCourt: [], fLang: [], fYears: [], ...patch }); }
+  searchAll() { this.search({ q: '', loc: '', district: '', area: '', court: '' }); }
+  openProfile(id) { this.nav({ screen: 'profile', profileId: id, cf: this.blankContact(), cfErr: {} }); }
+  startApply() { this.nav({ screen: 'register', step: 0, app: this.blankApp(), appErr: {}, editingId: null }); }
+  browse() {
+    this.nav({ screen: 'home' }, { keepScroll: true });
+    setTimeout(() => { const el = document.getElementById('browse'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 60);
+  }
+  fromHash() {
+    const h = (window.location.hash || '').slice(1);
+    if (h === 'results') this.setState({ screen: 'results' });
+    else if (h.indexOf('profile/') === 0) { const id = decodeURIComponent(h.slice(8)); this.setState(this.people().some(p => p.id === id) || (this.sb() && this.state.pState !== 'ready') ? { screen: 'profile', profileId: id } : { screen: 'results' }); }
+    else if (h === 'apply') this.setState({ screen: 'register' });
+    else if (h === 'status') this.setState({ screen: 'status' });
+    else if (h === 'browse') { this.setState({ screen: 'home' }); setTimeout(() => { const el = document.getElementById('browse'); if (el) el.scrollIntoView(); }, 60); return; }
+    else if (h === '' || h === 'home') this.setState({ screen: 'home' });
+    else return;
+    window.scrollTo(0, 0);
+  }
+
+  componentDidMount() {
+    this.onPop = () => this.fromHash();
+    this.onStore = () => this.loadStore();
+    this.onKey = e => { if (e.key === 'Escape' && this.state.modal) this.setState({ modal: null }); };
+    window.addEventListener('popstate', this.onPop); window.addEventListener('hashchange', this.onPop);
+    window.addEventListener('storage', this.onStore); window.addEventListener('focus', this.onStore); window.addEventListener('keydown', this.onKey);
+    this.loadStore();
+    if (this.sb()) this.loadProfiles();
+    setTimeout(() => { if (window.location.hash) this.fromHash(); this.reveal(); }, 30);
+  }
+  componentDidUpdate() {
+    clearTimeout(this._rt); this._rt = setTimeout(() => this.reveal(), 0);
+    try { document.documentElement.style.overflow = this.state.modal ? 'hidden' : ''; } catch (e) {}
+  }
+  componentWillUnmount() {
+    window.removeEventListener('popstate', this.onPop); window.removeEventListener('hashchange', this.onPop);
+    window.removeEventListener('storage', this.onStore); window.removeEventListener('focus', this.onStore); window.removeEventListener('keydown', this.onKey);
+    clearTimeout(this._rt); this.io && this.io.disconnect();
+  }
   reveal() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
     const ease = 'cubic-bezier(.2,.7,.2,1)';
@@ -357,58 +541,466 @@ class Component extends DCLogic {
       this.io.observe(el);
     });
   }
-  renderVals() {
+
+  /* ---------- contact request ---------- */
+  isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); }
+  async sendEnquiry(p) {
+    if (this.state.busy) return;
+    const f = this.state.cf, err = {}, contact = f.contact.trim();
+    if (f.name.trim().length < 2) err.name = 'Enter your name.';
+    if (!contact) err.contact = 'Enter a phone number or email address.';
+    else if (contact.indexOf('@') >= 0 ? !this.isEmail(contact) : contact.replace(/\D/g, '').length < 10) err.contact = 'Enter a valid email, or a phone number with at least 10 digits.';
+    if (!f.city.trim()) err.city = 'Enter your city.';
+    if (!f.category) err.category = 'Choose the closest category.';
+    if (f.desc.trim().length < 20) err.desc = 'Describe the matter in at least 20 characters.';
+    if (!f.consent) err.consent = 'Your consent is needed before your details can be shared.';
+    if (Object.keys(err).length) { this.setState({ cfErr: err }); return; }
+    const sb = this.sb();
+    if (sb) {
+      const isMail = contact.indexOf('@') >= 0;
+      this.setState({ busy: 'enq', cfErr: {} });
+      const r = await this.call(sb.from('directory_enquiries').insert({ application_id: p.id, name: f.name.trim(), email: isMail ? contact : '', phone: isMail ? '' : contact, category: f.category, language: f.language || p.langs[0] || 'English', message: f.desc.trim() + '\n\nCity: ' + f.city.trim() }));
+      if (r.error) { this.setState({ busy: '', cfErr: { consent: 'Your request could not be sent (' + this.errText(r.error) + '). Your details are still in the form. Please try again.' } }); return; }
+      const mem = this.readList(this.K.enq);
+      mem.push({ id: 'R-' + Date.now(), remote: true, advocateId: p.id, advocateName: p.name, name: f.name.trim(), contact, city: f.city.trim(), category: f.category, at: new Date().toISOString() });
+      this.write(this.K.enq, mem);
+      this.setState({ busy: '', enquiries: mem, cf: this.blankContact(), cfErr: {} });
+      return;
+    }
+    const list = this.readList(this.K.enq);
+    const n = list.reduce((m, e) => Math.max(m, +String(e.id || '').split('-').pop() || 0), 1000) + 1;
+    list.push({ id: 'LS-ENQ-' + n, advocateId: p.id, advocateName: p.name, name: f.name.trim(), contact, city: f.city.trim(), category: f.category, language: f.language || p.langs[0] || 'English', description: f.desc.trim(), consent: true, at: new Date().toISOString() });
+    if (!this.write(this.K.enq, list)) { this.setState({ cfErr: { consent: 'This browser blocked local storage, so the request could not be saved.' } }); return; }
+    this.setState({ enquiries: list, cf: this.blankContact(), cfErr: {} });
+  }
+  withdrawEnquiry(id) { const list = this.readList(this.K.enq).filter(e => e.id !== id); this.write(this.K.enq, list); this.setState({ enquiries: list }); }
+
+  /* ---------- application ---------- */
+  validateStep(i) {
+    const a = this.state.app, err = {}, yr = new Date().getFullYear();
+    if (i === 0) {
+      if (a.name.trim().length < 3) err.name = 'Enter your full name as on the enrolment certificate.';
+      if (!this.isEmail(a.email.trim())) err.email = 'Enter a valid email address.';
+      if (!/^[6-9]\d{9}$/.test(a.mobile.replace(/\D/g, '').replace(/^(91|0)(?=\d{10}$)/, ''))) err.mobile = 'Enter a 10-digit Indian mobile number.';
+      if (!a.city.trim()) err.city = 'Enter the city you practise in.';
+    } else if (i === 1) {
+      const enr = a.enr.trim().toUpperCase();
+      if (!/^[A-Z]{1,5}\/\d{1,6}\/\d{4}$/.test(enr)) err.enr = 'Use the format on your certificate, e.g. D/1234/2016.';
+      else if ((this.sb() ? this.state.profiles.concat(this.state.apps) : this.readApps()).some(x => x.id !== this.state.editingId && String(x.enr).toUpperCase() === enr && x.status !== 'rejected')) err.enr = 'An application or profile with this enrolment number is already on file.';
+      if (!a.council) err.council = 'Choose your State Bar Council.';
+      if (!/^\d{4}$/.test(a.year.trim()) || +a.year < 1950 || +a.year > yr) err.year = 'Enter a year between 1950 and ' + yr + '.';
+      else if (!err.enr && enr.split('/').pop() !== a.year.trim()) err.year = 'This does not match the year in your enrolment number.';
+    } else if (i === 2) {
+      if (!a.areas.length) err.areas = 'Choose at least one practice area.';
+      if (!a.courts.trim()) err.courts = 'List at least one court.';
+      if (!a.district.trim()) err.district = 'Enter your district.';
+      if (!a.langs.trim()) err.langs = 'List at least one language.';
+      if (!a.quals.trim()) err.quals = 'Enter your law degree.';
+    } else if (i === 3) {
+      if (!a.docs.cert) err.cert = 'Your enrolment certificate is required.';
+      if (!a.docs.id) err.id = 'A government photo ID is required.';
+    } else if (i === 4) {
+      if (!a.confirm) err.confirm = 'Please confirm that the details are accurate.';
+    }
+    return err;
+  }
+  nextStep() {
+    const S = this.state, err = this.validateStep(S.step);
+    if (Object.keys(err).length) { this.setState({ appErr: err }); return; }
+    if (S.step < 4) { this.setState({ step: S.step + 1, appErr: {} }); window.scrollTo(0, 0); return; }
+    for (let i = 0; i < 4; i++) { const e = this.validateStep(i); if (Object.keys(e).length) { this.setState({ step: i, appErr: e }); return; } }
+    this.submitApp();
+  }
+  async submitApp() {
+    if (this.state.busy) return;
+    const S = this.state, a = S.app, now = new Date(), sb = this.sb();
+    if (sb) {
+      const core = { name: a.name.trim(), enr: a.enr.trim().toUpperCase(), council: a.council, year: a.year.trim(), city: a.city.trim() };
+      const details = { areas: a.areas, courts: a.courts.trim(), district: a.district.trim(), langs: a.langs.trim(), quals: a.quals.trim(), chamber: a.chamber.trim(), cop: a.cop.trim(), documents: Object.keys(a.docs).map(k => ({ kind: k, name: a.docs[k].name, size: a.docs[k].size })) };
+      const fail = (msg, patch) => this.setState({ busy: '', appErr: { confirm: msg }, ...(patch || {}) });
+      const keep = ' Everything you entered is still here. Please try again.';
+      this.setState({ busy: 'app', appErr: {} });
+      let id = S.editingId, row;
+      if (id) {
+        const r = await this.call(sb.rpc('directory_resubmit', { p_ref: id, p_enr: core.enr, p_name: core.name, p_council: core.council, p_year: core.year, p_city: core.city, p_email: a.email.trim(), p_mobile: a.mobile.trim(), p_details: details }));
+        if (r.error) return fail('Your update could not be sent (' + this.errText(r.error) + ').' + keep);
+        if (r.data !== true) return fail('This application can no longer be updated. It may already have been reviewed, so go back and refresh its status.');
+        row = { ...(S.apps.find(x => x.id === id) || {}), id, ...core, status: 'pending', note: '' };
+      } else {
+        const mk = () => 'LS-DIR-' + now.getFullYear() + '-' + String(Math.floor(Math.random() * 100000)).padStart(5, '0');
+        let r;
+        for (let i = 0; i < 3; i++) {
+          id = mk();
+          r = await this.call(sb.from('directory_applications').insert({ id, ...core, email: a.email.trim(), mobile: a.mobile.trim(), details }));
+          if (!(r.error && String(r.error.code) === '23505' && /pkey/i.test(String(r.error.message) + String(r.error.details || '')))) break;
+        }
+        if (r.error && String(r.error.code) === '23505') return this.setState({ busy: '', step: 1, appErr: { enr: 'An application with this enrolment number already exists.' } });
+        if (r.error) return fail('Your application could not be submitted (' + this.errText(r.error) + ').' + keep);
+        row = this.rowToApp({ id, ...core, status: 'pending', note: '', created_at: now.toISOString() });
+      }
+      const mine = this.readMine(), prev = mine[id] || {};
+      mine[id] = { enr: core.enr, email: a.email.trim(), mobile: a.mobile.trim(), city: core.city, cop: details.cop, areas: a.areas, courts: details.courts, district: details.district, langs: details.langs, quals: details.quals, chamber: details.chamber, docs: a.docs, submittedAt: prev.submittedAt || now.toISOString(), updatedAt: now.toISOString() };
+      const remembered = this.write(this.K.mine, mine);
+      this.nav({ screen: 'status', busy: '', apps: this.state.apps.filter(x => x.id !== id).concat(row), mine, viewId: id, editingId: null, app: this.blankApp(), appErr: {}, step: 0, statusErr: remembered ? '' : 'Your application was submitted, but this browser blocked local storage, so note your reference ' + id + ' to check its status later' });
+      return;
+    }
+    const apps = this.readApps(), mine = this.readMine();
+    const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const core = { name: a.name.trim(), enr: a.enr.trim().toUpperCase(), council: a.council, year: a.year.trim(), city: a.city.trim() };
+    let id = S.editingId;
+    const idx = id ? apps.findIndex(x => x.id === id) : -1;
+    if (idx >= 0) apps[idx] = { ...apps[idx], ...core, status: 'pending', note: '' };
+    else {
+      const n = apps.concat(Object.keys(mine).map(k => ({ id: k }))).reduce((m, x) => { const v = /^LS-DIR-\d{4}-(\d+)$/.exec(String(x.id)); return v ? Math.max(m, +v[1]) : m; }, 4812) + 1;
+      id = 'LS-DIR-' + now.getFullYear() + '-' + String(n).padStart(5, '0');
+      apps.push({ id, ...core, date: now.getDate() + ' ' + mon[now.getMonth()], status: 'pending', note: '' });
+    }
+    const prev = mine[id] || {};
+    mine[id] = { enr: core.enr, email: a.email.trim(), mobile: a.mobile.trim(), city: core.city, cop: a.cop.trim(), areas: a.areas, courts: a.courts.trim(), district: a.district.trim(), langs: a.langs.trim(), quals: a.quals.trim(), chamber: a.chamber.trim(), docs: a.docs, submittedAt: prev.submittedAt || now.toISOString(), updatedAt: now.toISOString() };
+    if (!this.write(this.K.apps, apps) || !this.write(this.K.mine, mine)) { this.setState({ appErr: { confirm: 'This browser blocked local storage, so the application could not be saved.' } }); return; }
+    this.nav({ screen: 'status', apps, mine, viewId: id, editingId: null, app: this.blankApp(), appErr: {}, step: 0 });
+  }
+  editApp(id) {
+    const S = this.state, x = S.apps.find(a => a.id === id), d = S.mine[id] || {};
+    if (!x) return;
+    this.nav({ screen: 'register', step: 0, editingId: id, appErr: {}, app: { ...this.blankApp(), name: x.name || '', enr: x.enr || '', council: x.council || '', year: String(x.year || ''), city: x.city || '', email: d.email || '', mobile: d.mobile || '', cop: d.cop || '', areas: d.areas || [], courts: d.courts || '', district: d.district || '', langs: d.langs || '', quals: d.quals || '', chamber: d.chamber || '', docs: d.docs || {} } });
+  }
+  currentApp() {
     const S = this.state;
+    if (S.viewId) { const x = S.apps.find(a => a.id === S.viewId); if (x) return x; }
+    const ids = Object.keys(S.mine).filter(id => S.apps.some(a => a.id === id)).sort((a, b) => String(S.mine[b].submittedAt || '').localeCompare(String(S.mine[a].submittedAt || '')));
+    return ids.length ? S.apps.find(a => a.id === ids[0]) : null;
+  }
+  async doLookup() {
+    const sb = this.sb();
+    if (sb) {
+      if (this.state.busy) return;
+      const ref = this.state.lookup.trim().toUpperCase(), enr = this.state.lookupEnr.trim().toUpperCase();
+      if (!ref || !enr) { this.setState({ lookupMsg: 'Enter both your reference and your enrolment number.' }); return; }
+      this.setState({ busy: 'lookup', lookupMsg: '' });
+      const r = await this.call(sb.rpc('directory_status', { p_ref: ref, p_enr: enr }));
+      if (r.error) { this.setState({ busy: '', lookupMsg: 'The status could not be checked (' + this.errText(r.error) + '). Please try again.' }); return; }
+      const x = Array.isArray(r.data) ? r.data[0] : null;
+      if (!x) { this.setState({ busy: '', lookupMsg: 'No application matches that reference and enrolment number.' }); return; }
+      const mine = this.readMine(); mine[x.id] = { ...(mine[x.id] || {}), enr: x.enr }; this.write(this.K.mine, mine);
+      this.nav({ screen: 'status', busy: '', mine, apps: this.state.apps.filter(a => a.id !== x.id).concat(this.rowToApp(x)), viewId: x.id, modal: null, lookup: '', lookupEnr: '', lookupMsg: '' });
+      return;
+    }
+    const v = this.state.lookup.trim().toUpperCase(), apps = this.readApps();
+    if (!v) { this.setState({ lookupMsg: 'Enter your reference or enrolment number.' }); return; }
+    const x = apps.find(a => String(a.id).toUpperCase() === v || String(a.enr).toUpperCase() === v);
+    if (!x) { this.setState({ lookupMsg: 'No application with that reference or enrolment number was found in this browser.' }); return; }
+    this.nav({ screen: 'status', apps, viewId: x.id, modal: null, lookup: '', lookupMsg: '' });
+  }
+  async submitReport() {
+    if (this.state.busy) return;
+    const f = this.state.rf, err = {};
+    if (!f.profile) err.profile = 'Choose the profile you are reporting.';
+    if (!f.reason) err.reason = 'Choose a reason.';
+    if (f.details.trim().length < 15) err.details = 'Give at least 15 characters of detail so a moderator can check.';
+    if (!this.isEmail(f.email.trim())) err.email = 'Enter a valid email address.';
+    if (Object.keys(err).length) { this.setState({ rfErr: err }); return; }
+    const sb = this.sb();
+    if (sb) {
+      this.setState({ busy: 'rep', rfErr: {} });
+      const r = await this.call(sb.from('profile_reports').insert({ application_id: f.profile, reason: f.reason, details: f.details.trim(), email: f.email.trim() }));
+      if (r.error) { this.setState({ busy: '', rfErr: { form: 'Your report could not be sent (' + this.errText(r.error) + '). Nothing you typed has been lost. Please try again.' } }); return; }
+      this.setState({ busy: '', rfErr: {}, rfDone: { ref: '', saved: true, remote: true }, rf: { profile: '', reason: '', details: '', email: '' } });
+      return;
+    }
+    const list = this.readList(this.K.rep), p = this.people().find(x => x.id === f.profile);
+    const ref = 'LS-REP-' + (1001 + list.length);
+    list.push({ id: ref, profileId: f.profile, profileName: p ? p.name : '', reason: f.reason, details: f.details.trim(), email: f.email.trim(), at: new Date().toISOString() });
+    const saved = this.write(this.K.rep, list);
+    this.setState({ rfErr: {}, rfDone: { ref, saved }, rf: { profile: '', reason: '', details: '', email: '' } });
+  }
+
+  /* ---------- modal ---------- */
+  renderModal() {
+    const S = this.state, h = React.createElement, kind = S.modal;
+    if (!kind) return null;
+    const close = () => this.setState({ modal: null });
+    const inp = bad => ({ height: 44, width: '100%', border: '1px solid ' + (bad ? '#B42318' : '#E5E5E5'), background: '#FFFFFF', borderRadius: 8, padding: '0 12px', fontSize: 14, color: '#0A0A0A' });
+    const btn = (label, onClick, dark, key) => h('button', { key, type: 'button', onClick, style: { height: 44, padding: '0 18px', borderRadius: 8, fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', border: dark ? 0 : '1px solid #E5E5E5', background: dark ? '#0A0A0A' : '#FFFFFF', color: dark ? '#fff' : '#0A0A0A' } }, label);
+    const errEl = t => t ? h('div', { role: 'alert', style: { fontSize: 12, color: '#B42318' } }, t) : null;
+    const para = (t, k) => h('p', { key: k, style: { margin: 0, fontSize: 14, color: '#363636', textWrap: 'pretty' } }, t);
+    const sect = (t, d, k) => h('div', { key: k, style: { display: 'flex', flexDirection: 'column', gap: 3 } }, h('div', { style: { fontWeight: 600, fontSize: 15 } }, t), h('div', { style: { fontSize: 14, color: '#363636', textWrap: 'pretty' } }, d));
+    const note = (t, k) => h('div', { key: k, style: { background: '#F0F0EF', border: '1px solid #E3E3E2', borderRadius: 8, padding: '12px 16px', fontSize: 14, color: '#2B2B2B' } }, t);
+    const card = (k, title, desc, ...kids) => h('div', { key: k, style: { border: '1px solid #E5E5E5', borderRadius: 14, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 } }, h('div', { style: { fontWeight: 600, fontSize: 16 } }, title), h('div', { style: { fontSize: 14, color: '#5E5E5E' } }, desc), ...kids);
+    let eyebrow, title, body;
+    if (kind === 'login') {
+      const cur = this.currentApp();
+      eyebrow = 'Log in'; title = 'Which account are you looking for?';
+      body = [
+        card('d', 'Directory account', cur ? 'An application from this browser is on file: ' + cur.id + '.' : this.sb() ? 'Advocates who have applied for a profile can check their application here. Enter the reference you were given (e.g. LS-DIR-2026-04813) together with your enrolment number.' : 'Advocates who have applied for a profile can check their application here. Enter your reference (e.g. LS-DIR-2026-04813) or enrolment number.',
+          cur ? h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, btn('View application status', () => this.nav({ screen: 'status', modal: null }), true))
+            : h('form', { noValidate: true, onSubmit: e => { e.preventDefault(); this.doLookup(); }, style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+              h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+                h('input', { 'aria-label': 'Reference or enrolment number', value: S.lookup, onChange: e => this.setState({ lookup: e.target.value, lookupMsg: '' }), placeholder: this.sb() ? 'Reference' : 'Reference or enrolment number', style: { ...inp(!!S.lookupMsg), flex: '1 1 200px', width: 'auto' } }),
+                this.sb() ? h('input', { 'aria-label': 'Enrolment number', value: S.lookupEnr, onChange: e => this.setState({ lookupEnr: e.target.value, lookupMsg: '' }), placeholder: 'Enrolment number', style: { ...inp(!!S.lookupMsg), flex: '1 1 160px', width: 'auto' } }) : null,
+                h('button', { type: 'submit', style: { height: 44, padding: '0 18px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: 0, background: '#0A0A0A', color: '#fff', whiteSpace: 'nowrap' } }, S.busy === 'lookup' ? 'Checking…' : 'Check status')),
+              errEl(S.lookupMsg),
+              h('div', { style: { fontSize: 13, color: '#5E5E5E' } }, 'Not applied yet? ', h('a', { href: '#apply', onClick: e => { e.preventDefault(); this.setState({ modal: null }); this.startApply(); } }, 'Apply for a profile'), '.'))),
+        card('s', 'Practice software', 'Legal Staff subscribers sign in to their workspace separately from the directory.',
+          h('a', { href: 'app.html', style: { alignSelf: 'flex-start', height: 44, padding: '0 18px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: '1px solid #0A0A0A', color: '#0A0A0A', display: 'flex', alignItems: 'center', textDecoration: 'none' } }, 'Sign in to Legal Staff')),
+        h('div', { key: 'n', style: { fontSize: 13, color: '#5E5E5E' } }, 'Members of the public do not need an account to search the directory or request contact.')
+      ];
+    } else if (kind === 'report' && S.rfDone) {
+      eyebrow = S.rfDone.remote ? 'Report a profile' : 'Reference ' + S.rfDone.ref; title = S.rfDone.remote ? 'Report received' : S.rfDone.saved ? 'Report saved' : 'Report not saved';
+      body = S.rfDone.remote ? [para('Thank you. Your report has been recorded for moderator review. Reports are confidential and the advocate is not told who made them.', 'p'), h('div', { key: 'b', style: { display: 'flex', gap: 10 } }, btn('Done', close, true))] : [para(S.rfDone.saved ? 'Thank you. Your report is recorded for moderator review. Reports are confidential and the advocate is not told who made them.' : 'This browser blocked local storage, so the report could not be recorded. Please allow site data and try again.', 'p'),
+        note('There is no server behind this site yet: the report is stored in this browser only and no email is sent.', 'n'),
+        h('div', { key: 'b', style: { display: 'flex', gap: 10 } }, btn('Done', close, true))];
+    } else if (kind === 'report') {
+      const set = k => e => this.setState({ rf: { ...this.state.rf, [k]: e.target.value }, rfErr: { ...this.state.rfErr, [k]: undefined } });
+      const fld = (k, label, control) => h('div', { key: k, style: { display: 'flex', flexDirection: 'column', gap: 5 } }, h('label', { htmlFor: 'rf-' + k, style: { fontSize: 13, color: '#363636' } }, label), control, errEl(S.rfErr[k]));
+      const ppl = this.people().slice().sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      eyebrow = 'Report a profile'; title = ppl.length ? 'Tell us what is wrong' : 'No profiles are listed yet';
+      body = !ppl.length ? [para('There are no published profiles to report at the moment. Profiles appear once an advocate\'s enrolment has been verified.', 'p'), h('div', { key: 'b', style: { display: 'flex', gap: 10 } }, btn('Close', close, true))] : [para('Use this if a profile shows inaccurate details, belongs to someone who is not an enrolled advocate, or contains promotional content.', 'p'),
+        h('form', { key: 'f', noValidate: true, onSubmit: e => { e.preventDefault(); this.submitReport(); }, style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+          fld('profile', 'Profile', h('select', { id: 'rf-profile', value: S.rf.profile, onChange: set('profile'), style: inp(S.rfErr.profile) }, h('option', { value: '' }, 'Select a profile'), ppl.map(p => h('option', { key: p.id, value: p.id }, p.name + ' · ' + p.city)))),
+          fld('reason', 'Reason', h('select', { id: 'rf-reason', value: S.rf.reason, onChange: set('reason'), style: inp(S.rfErr.reason) }, ['', 'Details are inaccurate', 'Not an enrolled advocate', 'Promotional or misleading content', 'Impersonation', 'Something else'].map(o => h('option', { key: o, value: o }, o || 'Select a reason')))),
+          fld('details', 'What should a moderator check?', h('textarea', { id: 'rf-details', value: S.rf.details, onChange: set('details'), placeholder: 'Describe the problem. Don\'t include confidential case details.', style: { ...inp(S.rfErr.details), height: 'auto', minHeight: 90, padding: '10px 12px', resize: 'vertical' } })),
+          fld('email', 'Your email', h('input', { id: 'rf-email', type: 'email', value: S.rf.email, onChange: set('email'), placeholder: 'you@example.com', style: inp(S.rfErr.email) })),
+          S.rfErr.form ? h('div', { role: 'alert', style: { background: '#FDECEA', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#B42318' } }, S.rfErr.form) : null,
+          h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, btn('Cancel', close), h('button', { type: 'submit', style: { height: 44, padding: '0 18px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: 0, background: '#0A0A0A', color: '#fff' } }, S.busy === 'rep' ? 'Sending…' : 'Submit report')))];
+    } else if (kind === 'privacy') {
+      eyebrow = 'Summary · last updated 1 November 2026'; title = 'Directory privacy';
+      body = [para('A plain-language summary of how the Legal Staff Directory handles personal data, written with reference to the Digital Personal Data Protection Act, 2023.', 'p'),
+        sect('Searching', 'You can search and view profiles without an account. Searches are not linked to your identity.', 1),
+        sect('Contact requests', 'The details you enter are shared only with the advocate you chose, for that request, and only with your consent. You can withdraw the request and your consent at any time.', 2),
+        sect('Advocate applications', 'Enrolment details and documents are used only to verify enrolment. Documents are never shown on a profile; published profiles show the enrolment number, State Bar Council, year and the practice details the advocate declared.', 3),
+        sect('Where data is kept', this.sb() ? 'Applications, contact requests and reports are stored on Legal Staff servers and can be read only by Legal Staff moderators. Your browser also remembers your own reference so you can check your status. Verification documents are not uploaded yet.' : 'Requests, reports and applications are stored in your own browser (local storage) and are not sent to a server.', 4)];
+    } else {
+      eyebrow = 'Summary · last updated 1 November 2026'; title = 'Directory terms';
+      body = [para('A plain-language summary of the rules for using the Legal Staff Directory.', 'p'),
+        sect('Factual listings only', 'Profiles show verified enrolment details and information declared by the advocate. In keeping with Bar Council of India rules, there are no rankings, ratings, testimonials, claims of results or paid placements.', 1),
+        sect('No recommendation', 'A listing is not an advertisement, solicitation or recommendation. Legal Staff does not assign matters, give legal advice or take any share of fees.', 2),
+        sect('For advocates', 'You must hold a valid enrolment with a State Bar Council and keep your details accurate. Profiles can be suspended if details are inaccurate or enrolment lapses.', 3),
+        sect('For the public', 'Any engagement is directly between you and the advocate. Do not share confidential documents in a contact request.', 4),
+        sect('Separate from the software', 'A directory profile does not include the Legal Staff practice software, which needs its own paid subscription.', 5)];
+    }
+    return h('div', { role: 'dialog', 'aria-modal': true, 'aria-label': title, onMouseDown: e => { if (e.target === e.currentTarget) close(); }, style: { position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(10,10,10,.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'clamp(12px,4vw,48px) clamp(12px,4vw,24px)', overflowY: 'auto', animation: 'lsFade .2s ease-out' } },
+      h('div', { style: { width: '100%', maxWidth: 580, background: '#FFFFFF', borderRadius: 14, boxShadow: '0 24px 64px rgba(0,0,0,.3)', padding: 'clamp(20px,4vw,28px)', display: 'flex', flexDirection: 'column', gap: 16, fontSize: 15, lineHeight: 1.5, color: '#0A0A0A', animation: 'lsRise .3s cubic-bezier(.2,.7,.2,1)' } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' } },
+          h('div', { style: { minWidth: 0 } },
+            h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600 } }, eyebrow),
+            h('h2', { style: { fontWeight: 600, fontSize: 24, lineHeight: 1.2, letterSpacing: '-.02em', margin: '6px 0 0' } }, title)),
+          h('button', { type: 'button', onClick: close, 'aria-label': 'Close', style: { width: 38, height: 38, flexShrink: 0, border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, fontSize: 20, lineHeight: 1, color: '#0A0A0A', padding: 0 } }, '×')),
+        ...body));
+  }
+
+  renderVals() {
+    const S = this.state, h = React.createElement;
     const s = {}; ['home', 'results', 'profile', 'register', 'status'].forEach(k => s[k] = S.screen === k);
+    const all = this.people();
+    const uniq = arr => arr.filter((v, i) => v && arr.indexOf(v) === i);
+    const fmtDate = iso => { try { const d = new Date(iso); if (isNaN(d)) return ''; return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }); } catch (e) { return ''; } };
+
+    /* ----- search controls ----- */
+    const bare = { border: 0, background: 'transparent', outline: 'none', fontSize: 15, color: '#0A0A0A', padding: '2px 0', width: '100%', minWidth: 0 };
+    const states = uniq(all.map(p => p.state));
+    const locOpts = [['', 'Any state or city']];
+    uniq(this.COUNCILS.map(c => c[0]).concat(states)).forEach(st => { const cities = uniq(all.filter(p => p.state === st).map(p => p.city)); locOpts.push([st, cities.length ? st + ' · All cities' : st]); cities.forEach(c => locOpts.push([st + '|' + c, st + ' · ' + c])); });
+    const [locState, locCity] = S.loc.split('|');
+    const inLoc = all.filter(p => (!locState || p.state === locState) && (!locCity || p.city === locCity));
+    const distOpts = locState ? uniq(inLoc.map(p => p.district)).sort() : [];
+    const sel = (id, label, value, opts, onChange, style, disabled) => h('select', { id, 'aria-label': label, value, disabled: !!disabled, onChange: e => onChange(e.target.value), style }, opts.map(o => h('option', { key: o[0], value: o[0] }, o[1])));
+    const areaOpts = [['', 'Any practice area']].concat(this.AREAS.map(([n]) => [n, n]));
+    const live = S.screen === 'results';
+    const setLoc = v => this.setState({ loc: v, district: '', ...(live ? { page: 1, fDistrict: [] } : {}) });
+    const setArea = v => this.setState({ area: v, ...(live ? { page: 1 } : {}) });
+    const doSearch = () => this.search({ fDistrict: S.district ? [S.district] : [] });
+
+    /* ----- results ----- */
+    const base = this.baseSet(), list = this.filtered(base);
+    const pages = Math.max(1, Math.ceil(list.length / this.PAGE)), page = Math.min(S.page, pages);
+    const pageRows = list.slice((page - 1) * this.PAGE, page * this.PAGE);
+    const toggle = (key, v) => () => { const cur = this.state[key]; this.setState({ [key]: cur.indexOf(v) >= 0 ? cur.filter(x => x !== v) : cur.concat(v), page: 1 }); };
+    const facet = (title, key, valuesOf, order) => {
+      const counts = {}; base.forEach(p => uniq(valuesOf(p)).forEach(v => counts[v] = (counts[v] || 0) + 1));
+      let opts = uniq(Object.keys(counts).concat(S[key]));
+      opts = order ? order.filter(o => opts.indexOf(o) >= 0) : opts.sort();
+      const total = opts.length, open = !!S.more[key];
+      if (total > 7 && !open) opts = opts.filter((o, i) => i < 6 || S[key].indexOf(o) >= 0);
+      return { title, opts: opts.map(o => ({ label: o, n: counts[o] || 0, on: S[key].indexOf(o) >= 0, toggle: toggle(key, o) })),
+        more: total > 7 ? h('button', { type: 'button', 'aria-expanded': open, onClick: () => this.setState({ more: { ...this.state.more, [key]: !open } }), style: { border: 0, background: 'none', padding: 0, fontSize: 13, color: '#5E5E5E', textDecoration: 'underline', textUnderlineOffset: 2, alignSelf: 'flex-start' } }, open ? 'Show fewer' : 'Show all ' + total) : null };
+    };
+    const filters = [facet('District', 'fDistrict', p => [p.district]), facet('Court', 'fCourt', p => p.courts), facet('Language', 'fLang', p => p.langs), facet('Years since enrolment', 'fYears', p => [this.yearBand(p)], ['0–5', '5–10', '10+'])].filter(f => f.opts.length);
+    const nFilters = S.fDistrict.length + S.fCourt.length + S.fLang.length + S.fYears.length;
+    const anyCriteria = !!(S.q || S.loc || S.area || S.court || nFilters);
+    const summary = [locState ? (locCity ? locState + ' · ' + locCity : locState) : 'All India', S.area || 'All practice areas', S.court, S.q ? '“' + S.q + '”' : ''].filter(Boolean).join(' · ');
+    const pill = { display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 14px', borderRadius: 8, background: '#F5F5F4', minWidth: 0 };
+    const lab = { fontSize: 11, color: '#5E5E5E', fontWeight: 600 };
+    const chip = (key, label, onRemove) => h('button', { key, type: 'button', onClick: onRemove, 'aria-label': 'Remove filter: ' + label, style: { whiteSpace: 'nowrap', height: 32, padding: '0 12px', border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 16, fontSize: 13, color: '#363636', display: 'flex', alignItems: 'center', gap: 8 } }, label, h('span', { 'aria-hidden': true, style: { color: '#5E5E5E' } }, '×'));
+    const chips = [];
+    if (S.court) chips.push(chip('court', 'Court: ' + S.court, () => this.setState({ court: '', page: 1 })));
+    [['fDistrict', 'District'], ['fCourt', 'Court'], ['fLang', 'Language'], ['fYears', 'Years']].forEach(([k, t]) => S[k].forEach(v => chips.push(chip(k + v, t + ': ' + v, toggle(k, v)))));
+    const clearAll = () => this.setState({ q: '', loc: '', district: '', area: '', court: '', fDistrict: [], fCourt: [], fLang: [], fYears: [], page: 1 });
+    const resToolbar = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,200px),1fr))', gap: 8 } },
+        h('div', { style: pill }, h('label', { htmlFor: 'rq', style: lab }, 'Looking for'), h('input', { id: 'rq', value: S.q, onChange: e => this.setState({ q: e.target.value, page: 1 }), placeholder: 'Advocate name or type of matter', style: bare })),
+        h('div', { style: pill }, h('label', { htmlFor: 'rloc', style: lab }, 'State / City'), sel('rloc', 'State or city', S.loc, locOpts, setLoc, bare)),
+        h('div', { style: pill }, h('label', { htmlFor: 'rarea', style: lab }, 'Practice area'), sel('rarea', 'Practice area', S.area, areaOpts, setArea, bare))),
+      chips.length ? h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } }, ...chips) : null);
+    const linkBtn = { border: 0, background: 'none', padding: 0, fontSize: 14, color: '#0A0A0A', textDecoration: 'underline', textUnderlineOffset: 2, alignSelf: 'flex-start' };
+    const pageBtn = (label, n, on, disabled, aria) => h('button', { key: aria || label, type: 'button', disabled, 'aria-label': aria || 'Page ' + label, 'aria-current': on ? 'page' : undefined, onClick: () => { this.setState({ page: n }); window.scrollTo(0, 0); }, style: { minWidth: 38, height: 38, padding: '0 10px', borderRadius: 8, border: on ? 0 : '1px solid #E5E5E5', background: on ? '#0A0A0A' : '#FFFFFF', color: on ? '#fff' : (disabled ? '#C4C4C4' : '#0A0A0A'), fontSize: 14, cursor: disabled ? 'default' : 'pointer' } }, label);
+    const pager = pages > 1 ? h('nav', { 'aria-label': 'Pages', style: { display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: 6, paddingTop: 10 } },
+      pageBtn('←', page - 1, false, page === 1, 'Previous page'), ...Array.from({ length: pages }, (_, i) => pageBtn(String(i + 1), i + 1, i + 1 === page, false)), pageBtn('→', page + 1, false, page === pages, 'Next page')) : null;
+    const applyBtn = h('button', { type: 'button', onClick: () => this.startApply(), style: { marginTop: 6, height: 44, padding: '0 18px', border: 0, background: '#0A0A0A', borderRadius: 8, fontSize: 14, fontWeight: 500, color: '#fff' } }, 'Apply for a profile');
+    const on = !!this.sb(), box = { border: '1px solid #E5E5E5', borderRadius: 14, padding: 'clamp(28px,5vw,48px) clamp(20px,4vw,36px)', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' };
+    const emptyState = list.length ? null : on && (S.pState === 'loading' || S.pState === 'idle') ? h('div', { role: 'status', style: box },
+      h('div', { style: { fontSize: 20, fontWeight: 600 } }, 'Loading the directory…'), h('div', { style: { fontSize: 14, color: '#5E5E5E' } }, 'Fetching verified profiles.'))
+      : on && S.pState === 'error' ? h('div', { role: 'alert', style: box },
+        h('div', { style: { fontSize: 20, fontWeight: 600 } }, 'The directory could not be loaded'),
+        h('div', { style: { fontSize: 14, color: '#5E5E5E', maxWidth: 520 } }, 'We could not reach the server (' + S.pErr + '). Check your connection and try again.'),
+        h('button', { type: 'button', onClick: () => this.loadProfiles(), style: { marginTop: 6, height: 40, padding: '0 16px', border: '1px solid #0A0A0A', background: '#FFFFFF', borderRadius: 8, fontSize: 14, color: '#0A0A0A' } }, 'Try again'))
+      : !all.length ? h('div', { style: { border: '1px solid #E5E5E5', borderRadius: 14, padding: 'clamp(28px,5vw,48px) clamp(20px,4vw,36px)', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' } },
+      h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600 } }, 'Directory'),
+      h('div', { style: { fontSize: 24, fontWeight: 600, letterSpacing: '-.02em', lineHeight: 1.2 } }, 'No advocates are listed yet'),
+      h('div', { style: { fontSize: 15, color: '#5E5E5E', maxWidth: 560, textWrap: 'pretty' } }, 'A profile appears here only after an advocate applies and a moderator has verified their enrolment. Are you an enrolled advocate? Apply for a profile and track its review from this page.'),
+      h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, applyBtn, h('button', { type: 'button', onClick: () => this.nav({ screen: 'status', viewId: null }), style: { marginTop: 6, height: 44, padding: '0 18px', border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, fontSize: 14, color: '#0A0A0A' } }, 'Check application status'))) : h('div', { style: { border: '1px solid #E5E5E5', borderRadius: 14, padding: '36px 24px', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' } },
+      h('div', { style: { fontSize: 20, fontWeight: 600 } }, 'No advocates match these criteria'),
+      h('div', { style: { fontSize: 14, color: '#5E5E5E', maxWidth: 520 } }, 'Try a different location or practice area, remove a filter, or search by a type of matter such as “bail”, “divorce” or “cheque bounce”.'),
+      h('button', { type: 'button', onClick: clearAll, style: { marginTop: 6, height: 40, padding: '0 16px', border: '1px solid #0A0A0A', background: '#FFFFFF', borderRadius: 8, fontSize: 14, color: '#0A0A0A' } }, 'Clear search and filters'));
+
+    /* ----- profile ----- */
+    const P = all.find(p => p.id === S.profileId) || { id: '', ini: '', name: '', state: '', city: '', district: '', enr: '', council: '', year: '', areas: [], courts: [], langs: [], quals: '', chamber: '', verifiedOn: '' };
+    if (!P.id && s.profile) { s.profile = false; s.results = true; }
+    const enq = S.enquiries.find(e => e.advocateId === P.id) || null;
+    const fieldStyle = (bad, hgt) => ({ height: hgt || 42, width: '100%', border: '1px solid ' + (bad ? '#B42318' : '#E5E5E5'), background: '#FFFFFF', borderRadius: 8, padding: '0 12px', fontSize: 14, color: '#0A0A0A' });
+    const setCf = (k, v) => this.setState({ cf: { ...this.state.cf, [k]: v }, cfErr: { ...this.state.cfErr, [k]: undefined } });
+    const cfField = (k, label, ph, opts) => ({ id: 'cf-' + k, label, err: S.cfErr[k] || '', bad: !!S.cfErr[k],
+      control: opts ? sel('cf-' + k, label, S.cf[k], opts, v => setCf(k, v), fieldStyle(S.cfErr[k]))
+        : h('input', { id: 'cf-' + k, value: S.cf[k], onChange: e => setCf(k, e.target.value), placeholder: ph, style: fieldStyle(S.cfErr[k]) }) });
+
+    /* ----- application ----- */
+    const A = S.app, E = S.appErr;
+    const setApp = (k, v) => this.setState({ app: { ...this.state.app, [k]: v }, appErr: { ...this.state.appErr, [k]: undefined } });
+    const wrap = full => ({ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0, gridColumn: full ? '1 / -1' : 'auto' });
+    const appField = (k, label, ph, extra) => ({ id: 'ap-' + k, label, err: E[k] || '', bad: !!E[k], wrap: wrap(false),
+      control: h('input', { id: 'ap-' + k, value: A[k], onChange: e => setApp(k, e.target.value), placeholder: ph, style: fieldStyle(E[k], 44), ...(extra || {}) }) });
+    const areaChips = { id: 'ap-areas', label: 'Practice areas (choose all that apply)', err: E.areas || '', bad: !!E.areas, wrap: wrap(true),
+      control: h('div', { id: 'ap-areas', role: 'group', 'aria-label': 'Practice areas', style: { display: 'flex', flexWrap: 'wrap', gap: 8 } }, this.AREAS.map(([n]) => { const on = A.areas.indexOf(n) >= 0;
+        return h('button', { key: n, type: 'button', 'aria-pressed': on, onClick: () => setApp('areas', on ? A.areas.filter(x => x !== n) : A.areas.concat(n)), style: { whiteSpace: 'nowrap', height: 36, padding: '0 14px', border: '1px solid ' + (on ? '#0A0A0A' : '#E5E5E5'), background: on ? '#0A0A0A' : '#FFFFFF', borderRadius: 18, fontSize: 14, color: on ? '#fff' : '#363636' } }, n); })) };
+    const councilField = { id: 'ap-council', label: 'State Bar Council', err: E.council || '', bad: !!E.council, wrap: wrap(false),
+      control: sel('ap-council', 'State Bar Council', A.council, [['', 'Select your State Bar Council']].concat(this.COUNCILS.map(([, c]) => [c, c]).sort((a, b) => a[1].localeCompare(b[1]))), v => setApp('council', v), fieldStyle(E.council, 44)) };
     const stepDefs = [
-      ['Personal', 'Personal details', [['Full name (as on enrolment certificate)', 'e.g. Anjali Sharma'], ['Email', 'you@example.com'], ['Mobile', '+91'], ['City', 'New Delhi']]],
-      ['Enrolment', 'Enrolment details', [['Enrolment number', 'e.g. D/1234/2016'], ['State Bar Council', 'Bar Council of Delhi'], ['Year of enrolment', '2016'], ['Certificate of Practice number', 'Optional']]],
-      ['Practice', 'Practice information', [['Practice areas', 'Civil, Property'], ['Courts', 'Delhi High Court'], ['State / District', 'Delhi · South'], ['Languages', 'Hindi, English'], ['Qualifications', 'B.A. LL.B.'], ['Chamber address (optional)', '']]],
+      ['Personal', 'Personal details', [appField('name', 'Full name (as on enrolment certificate)', 'Your full name'), appField('email', 'Email', 'you@example.com', { type: 'email' }), appField('mobile', 'Mobile', '+91', { type: 'tel' }), appField('city', 'City', 'New Delhi')]],
+      ['Enrolment', 'Enrolment details', [appField('enr', on && S.editingId ? 'Enrolment number (cannot be changed on a resubmission)' : 'Enrolment number', 'e.g. D/1234/2016', on && S.editingId ? { disabled: true } : null), councilField, appField('year', 'Year of enrolment', '2016', { inputMode: 'numeric', maxLength: 4 }), appField('cop', 'Certificate of Practice number', 'Optional')]],
+      ['Practice', 'Practice information', [areaChips, appField('courts', 'Courts', 'Delhi High Court, Saket District Courts'), appField('district', 'District', 'e.g. South'), appField('langs', 'Languages', 'Hindi, English'), appField('quals', 'Qualifications', 'B.A. LL.B.'), appField('chamber', 'Chamber address (optional)', '')]],
       ['Documents', 'Verification documents', []],
       ['Review', 'Review and submit', []]
     ];
     const cur = stepDefs[S.step];
     const steps = stepDefs.map(([label], i) => {
       const done = i < S.step, on = i === S.step;
-      return { label, n: done ? '✓' : String(i + 1), style: { display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', fontSize: 13, padding: '6px 14px 6px 6px', borderRadius: 8, border: '1px solid #E5E5E5', background: on ? '#0A0A0A' : '#FFFFFF', color: on ? '#fff' : (done ? '#0A0A0A' : '#5E5E5E') },
+      return { label, n: done ? '✓' : String(i + 1), go: () => { if (done) this.setState({ step: i, appErr: {} }); },
+        style: { display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', fontSize: 13, padding: '6px 14px 6px 6px', borderRadius: 8, border: '1px solid #E5E5E5', background: on ? '#0A0A0A' : '#FFFFFF', color: on ? '#fff' : (done ? '#0A0A0A' : '#5E5E5E'), cursor: done ? 'pointer' : 'default' },
         num: { width: 22, height: 22, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, background: on ? '#E3E3E2' : (done ? '#F0F0EF' : '#F5F5F4'), color: on ? '#0A0A0A' : (done ? '#0A0A0A' : '#5E5E5E') } };
     });
-    const people = [
-      ['AS', 'Sample Advocate — A. Sharma', 'D/2841/2016', 'Bar Council of Delhi', '2016', 'Civil · Property · Consumer', 'Delhi High Court, Saket', 'Hindi, English, Punjabi'],
-      ['RK', 'Sample Advocate — R. Khan', 'D/1190/2011', 'Bar Council of Delhi', '2011', 'Civil · Arbitration', 'Delhi High Court', 'English, Urdu, Hindi'],
-      ['PN', 'Sample Advocate — P. Nair', 'D/3302/2018', 'Bar Council of Delhi', '2018', 'Civil · Family', 'Tis Hazari, Dwarka', 'Malayalam, English, Hindi'],
-      ['VS', 'Sample Advocate — V. Singh', 'D/0877/2009', 'Bar Council of Delhi', '2009', 'Civil · Banking & Recovery', 'Delhi High Court, DRT', 'Hindi, English']
-    ].map(([ini, name, enr, council, year, areas, courts, langs], i) => ({ ini, name, enr, council, year, areas, courts, langs, delay: 120 + i * 90 }));
-    const track = [
-      ['Application submitted', '11 Nov 2026, 11:20 IST', 'done'],
-      ['Document check', 'A moderator is checking your enrolment certificate and ID', 'now'],
-      ['Bar Council roll check', 'Your enrolment number is matched against the State Bar Council record', 'todo'],
-      ['Decision', 'Verified and published, or more information requested', 'todo']
-    ].map(([t, d, st], i) => ({ t, d, delay: i * 120, mark: st === 'done' ? '✓' : '', dot: { width: 22, height: 22, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, marginTop: 1,
-      background: st === 'done' ? '#0A0A0A' : (st === 'now' ? '#E3E3E2' : '#FFFFFF'), color: '#fff', border: st === 'todo' ? '1.5px solid #C4C4C4' : 0 } }));
+    const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+    const pickFile = k => e => {
+      const f = e.target.files && e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      if (!/\.(pdf|jpe?g|png)$/i.test(f.name)) { this.setState({ appErr: { ...this.state.appErr, [k]: 'Choose a PDF, JPG or PNG file.' } }); return; }
+      if (f.size > 5 * 1048576) { this.setState({ appErr: { ...this.state.appErr, [k]: 'That file is ' + kb(f.size) + '. The limit is 5 MB.' } }); return; }
+      this.setState({ app: { ...this.state.app, docs: { ...this.state.app.docs, [k]: { name: f.name, size: f.size } } }, appErr: { ...this.state.appErr, [k]: undefined } });
+    };
+    const smallBtn = (label, onClick, key) => h('button', { key, type: 'button', onClick, style: { height: 36, padding: '0 14px', border: '1px solid #0A0A0A', background: '#FFFFFF', borderRadius: 8, fontSize: 13, color: '#0A0A0A' } }, label);
+    const docSlots = [['cert', 'Enrolment certificate', 'Issued by your State Bar Council · required'], ['cop', 'Certificate of Practice', 'If issued · optional'], ['id', 'Government photo ID', 'Aadhaar (masked), PAN or passport · required']].map(([k, t, d]) => {
+      const f = A.docs[k], open = () => { const el = document.getElementById('doc-' + k); if (el) el.click(); };
+      return { t, d, control: h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', marginTop: 6, maxWidth: '100%' } },
+        h('input', { id: 'doc-' + k, type: 'file', accept: '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png', onChange: pickFile(k), 'aria-label': t, style: { display: 'none' } }),
+        f ? h('div', { style: { fontSize: 13, color: '#0A0A0A', fontWeight: 500, overflowWrap: 'anywhere' } }, '✓ ' + f.name + ' · ' + kb(f.size)) : null,
+        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, smallBtn(f ? 'Replace file' : 'Upload PDF or image', open, 'u'),
+          f ? h('button', { key: 'r', type: 'button', onClick: () => { const docs = { ...this.state.app.docs }; delete docs[k]; setApp('docs', docs); }, style: { height: 36, padding: '0 12px', border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, fontSize: 13, color: '#5E5E5E' } }, 'Remove') : null),
+        E[k] ? h('div', { role: 'alert', style: { fontSize: 12, color: '#B42318' } }, E[k]) : null) };
+    });
+    const nDocs = Object.keys(A.docs).length;
+    const stepErr = S.step === 4 ? (E.confirm || '') : '';
+
+    /* ----- status ----- */
+    const app = this.currentApp(), det = app ? S.mine[app.id] : null;
+    const status = app ? (['pending', 'info', 'verified', 'rejected'].indexOf(app.status) >= 0 ? app.status : 'pending') : null;
+    const T = { pending: ['done', 'now', 'todo', 'todo'], info: ['done', 'now', 'todo', 'todo'], verified: ['done', 'done', 'done', 'done'], rejected: ['done', 'done', 'done', 'done'] }[status || 'pending'];
+    const submitted = app ? ((det && fmtDate(det.submittedAt)) || fmtDate(app.created_at) || (app.date || '')) : '';
+    const track = !app ? [] : [
+      ['Application submitted', submitted || 'Received'],
+      [status === 'info' ? 'Document check — more information requested' : 'Document check', status === 'info' ? 'The moderator needs something from you before continuing. See the note above.' : (T[1] === 'done' ? 'Enrolment certificate and ID checked by a moderator' : 'A moderator is checking your enrolment certificate and ID')],
+      ['Bar Council roll check', (T[2] === 'done' ? 'Enrolment number ' + app.enr + ' checked against the ' : 'Your enrolment number is matched against the ') + (app.council || 'State Bar Council') + ' record'],
+      ['Decision', status === 'verified' ? 'Verified. Your profile is published in the directory.' : status === 'rejected' ? 'Not approved. See the moderator\'s note above.' : 'Verified and published, or more information requested']
+    ].map(([t, d], i) => ({ t, d, delay: i * 120, mark: T[i] === 'done' ? (status === 'rejected' && i === 3 ? '×' : '✓') : '', dot: { width: 22, height: 22, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, marginTop: 1, flexShrink: 0,
+      background: T[i] === 'done' ? (status === 'rejected' && i === 3 ? '#B42318' : '#0A0A0A') : (T[i] === 'now' ? '#E3E3E2' : '#FFFFFF'), color: '#fff', border: T[i] === 'todo' ? '1.5px solid #C4C4C4' : 0 } }));
+    const act = (label, onClick, dark, key) => h('button', { key, type: 'button', onClick, style: { whiteSpace: 'nowrap', height: 44, padding: '0 18px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: dark ? 0 : '1px solid #E5E5E5', background: dark ? '#0A0A0A' : '#FFFFFF', color: dark ? '#fff' : '#0A0A0A' } }, label);
+    const actions = [];
+    if (!app) actions.push(act('Apply for a profile', () => this.startApply(), true, 'a'), act('Find my application', () => this.setState({ modal: 'login', lookup: '', lookupMsg: '' }), false, 'l'));
+    else {
+      if (status === 'verified') actions.push(act('View your profile', () => this.openProfile(app.id), true, 'v'));
+      if (status === 'info' && det) actions.push(act('Update and resubmit', () => this.editApp(app.id), true, 'e'));
+      if (status === 'rejected') actions.push(act('Start a new application', () => this.startApply(), true, 'n'));
+      actions.push(act(S.busy === 'status' ? 'Refreshing…' : 'Refresh status', () => this.loadStore(), false, 'r'));
+    }
+    const nReq = app ? S.enquiries.filter(e => e.advocateId === app.id).length : 0;
+    const stat = {
+      has: !!app,
+      title: !app ? (S.statusErr ? 'Your application could not be loaded' : 'No application found') : { pending: 'Your application is under review', info: 'More information is needed', verified: 'Your profile is verified and published', rejected: 'Your application was not approved' }[status],
+      sub: !app ? (S.statusErr ? 'The server could not be reached, so the status of your application is not shown. Try again in a moment.' : on ? 'This browser does not remember a directory application. Apply for a profile, or look up an existing application with its reference and enrolment number.' : '') || 'There is no directory application saved in this browser. Apply for a profile, or look up an existing application by its reference or enrolment number.'
+        : 'Reference ' + app.id + (app.name ? ' · ' + app.name : '') + (app.date ? ' · submitted ' + app.date : '') + '. ' + { pending: 'Most applications are reviewed within 3 working days.', info: 'Review is paused until you respond.', verified: 'Only the verified enrolment details and the practice details you declared are shown.', rejected: 'You can apply again once the issue below is resolved.' }[status],
+      noteBox: S.statusErr ? h('div', { role: 'alert', style: { background: '#FDECEA', borderRadius: 8, padding: '14px 16px', fontSize: 14, color: '#B42318', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' } }, h('span', null, (app ? 'The latest status could not be loaded (' : 'Status check failed (') + S.statusErr + ').'), h('button', { type: 'button', onClick: () => { this.setState({ statusErr: '' }); this.loadStore(); }, style: { height: 36, padding: '0 14px', border: '1px solid #B42318', background: '#FFFFFF', borderRadius: 8, fontSize: 13, color: '#B42318' } }, 'Try again')) : app && app.note ? h('div', { style: { background: '#F0F0EF', border: '1px solid #E3E3E2', borderRadius: 8, padding: '14px 16px', fontSize: 14, color: '#2B2B2B', display: 'flex', flexDirection: 'column', gap: 4 } }, h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600 } }, 'Note from the moderator'), h('div', { style: { overflowWrap: 'anywhere' } }, String(app.note))) : null,
+      actions: h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, ...actions),
+      visibility: status === 'verified' ? 'Published in search' : status === 'rejected' ? 'Not published' : 'Hidden until verified',
+      requests: status === 'verified' ? (nReq ? nReq + ' received in this browser' : 'Open · none received yet') : 'Open after you\'re published'
+    };
+
     const g = 'rgba(255,255,255,.07)';
+    const navBtn = on => ({ border: 0, background: 'none', padding: '8px 12px', fontSize: 14, color: on ? '#fff' : '#C9C9C9' });
+    const openM = kind => e => { if (e && e.preventDefault) e.preventDefault(); this.setState({ modal: kind, lookup: '', lookupMsg: '', rfDone: null, rfErr: {}, ...(kind === 'report' && S.screen === 'profile' ? { rf: { ...S.rf, profile: P.id } } : {}) }); };
     return {
-      heroGrid: React.createElement('div', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: `linear-gradient(${g} 1px,transparent 1px),linear-gradient(90deg,${g} 1px,transparent 1px)`, backgroundSize: '64px 64px', WebkitMaskImage: 'radial-gradient(ellipse 70% 80% at 30% 20%,#000,transparent)', maskImage: 'radial-gradient(ellipse 70% 80% at 30% 20%,#000,transparent)', animation: 'lsDrift 12s linear infinite' } }),
-      s,
-      goHome: () => this.go('home'), goHomeBrowse: () => this.go('home'), goResults: () => this.go('results'), goProfile: () => this.go('profile'), goRegister: () => this.setState({ screen: 'register', step: 0 }, () => window.scrollTo(0, 0)),
-      areas: [['Civil', 'Recovery, injunctions, contracts'], ['Criminal', 'Bail, trials, quashing'], ['Family', 'Divorce, custody, maintenance'], ['Property', 'Title, partition, tenancy'], ['Consumer', 'Deficiency of service, refunds'], ['Labour & Employment', 'Wages, termination, PF'], ['Tax', 'GST, income tax appeals'], ['Corporate & Commercial', 'Commercial suits, company law'], ['Arbitration', 'Section 9, 11, 34 proceedings'], ['Constitutional & Writs', 'Writ petitions, service matters'], ['Cyber', 'IT Act, online fraud'], ['Banking & Recovery', 'DRT, SARFAESI, cheque bounce']].map(([name, eg], i) => ({ name, eg, delay: (i % 4) * 60 + Math.floor(i / 4) * 80 })),
-      states: ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Uttar Pradesh', 'West Bengal', 'Telangana', 'Gujarat', 'Rajasthan', 'Kerala', 'Punjab', 'Madhya Pradesh'],
-      courts: ['Supreme Court of India', 'High Court of Delhi', 'Bombay High Court', 'Madras High Court', 'District Courts', 'Consumer Commissions', 'Debts Recovery Tribunals'],
+      heroGrid: h('div', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: `linear-gradient(${g} 1px,transparent 1px),linear-gradient(90deg,${g} 1px,transparent 1px)`, backgroundSize: '64px 64px', WebkitMaskImage: 'radial-gradient(ellipse 70% 80% at 30% 20%,#000,transparent)', maskImage: 'radial-gradient(ellipse 70% 80% at 30% 20%,#000,transparent)', animation: 'lsDrift 12s linear infinite' } }),
+      s, modal: this.renderModal(),
+      navStyle: { results: navBtn(s.results || s.profile), home: navBtn(false), register: navBtn(s.register || s.status) },
+      goHome: () => this.go('home'), goHomeBrowse: () => this.browse(), goAll: () => this.searchAll(), goResults: () => this.nav({ screen: 'results' }),
+      goRegister: () => this.startApply(), goStatus: () => this.nav({ screen: 'status', viewId: null }),
+      goAdvocates: () => (this.currentApp() ? this.nav({ screen: 'status' }) : this.startApply()),
+      openLogin: openM('login'), openPrivacy: openM('privacy'), openTerms: openM('terms'), openReport: openM('report'),
+      q: S.q, setQ: e => this.setState({ q: e.target.value }), qKey: e => { if (e.key === 'Enter') doSearch(); }, doSearch,
+      locSelect: sel('dloc', 'State or city', S.loc, locOpts, setLoc, bare),
+      distSelect: sel('ddist', 'District', S.district, [['', !locState ? 'Choose a state first' : (distOpts.length ? 'Any district' : 'No districts listed yet')]].concat(distOpts.map(d => [d, d])), v => this.setState({ district: v }), { ...bare, color: distOpts.length ? '#0A0A0A' : '#8A8A8A' }, !distOpts.length),
+      areaSelect: sel('darea', 'Practice area', S.area, areaOpts, setArea, bare),
+      areas: this.AREAS.map(([name, eg], i) => ({ name, eg, delay: (i % 4) * 60 + Math.floor(i / 4) * 80, go: () => this.search({ q: '', loc: '', district: '', court: '', area: name }) })),
+      states: ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Uttar Pradesh', 'West Bengal', 'Telangana', 'Gujarat', 'Rajasthan', 'Kerala', 'Punjab', 'Madhya Pradesh'].map(name => ({ name, go: () => this.search({ q: '', loc: name, district: '', court: '', area: '' }) })),
+      courts: ['Supreme Court of India', 'High Court of Delhi', 'Bombay High Court', 'Madras High Court', 'District Courts', 'Consumer Commissions', 'Debts Recovery Tribunals'].map(name => ({ name, go: () => this.search({ q: '', loc: '', district: '', area: '', court: name }) })),
       howSteps: [{ n: '1', t: 'Advocate applies', d: 'They submit their enrolment number, State Bar Council and supporting documents.' }, { n: '2', t: 'Enrolment checked', d: 'A moderator checks the documents against the Bar Council record. Every decision is logged.' }, { n: '3', t: 'Profile published', d: 'Only verified profiles appear in search. Declared details are labelled as declared.' }],
-      filters: [{ title: 'District', opts: ['South', 'South West', 'Central', 'New Delhi'] }, { title: 'Court', opts: ['Delhi High Court', 'Saket', 'Tis Hazari', 'Dwarka'] }, { title: 'Language', opts: ['Hindi', 'English', 'Punjabi', 'Urdu'] }, { title: 'Years since enrolment', opts: ['0–5', '5–10', '10+'] }],
-      people,
-      contactFields: [{ label: 'Your name', ph: 'Full name' }, { label: 'Phone or email', ph: '+91 or email' }, { label: 'City', ph: 'New Delhi' }, { label: 'Matter category', ph: 'e.g. Property dispute' }, { label: 'Preferred language', ph: 'Hindi' }],
-      consent: S.consent, toggleConsent: () => this.setState({ consent: !S.consent }),
-      sendBtn: { height: 46, border: 0, borderRadius: 8, fontSize: 15, fontWeight: 500, background: S.consent ? '#0A0A0A' : '#C4C4C4', color: '#fff', cursor: S.consent ? 'pointer' : 'not-allowed' },
-      send: () => S.consent && this.setState({ sent: true }), sent: S.sent, notSent: !S.sent, resetSend: () => this.setState({ sent: false, consent: false }),
-      steps, stepTitle: cur[1], stepFields: cur[2].map(([label, ph]) => ({ label, ph })),
-      isForm: S.step < 3, isDocs: S.step === 3, isReview: S.step === 4,
-      docSlots: [{ t: 'Enrolment certificate', d: 'Issued by your State Bar Council' }, { t: 'Certificate of Practice', d: 'If issued' }, { t: 'Government photo ID', d: 'Aadhaar (masked), PAN or passport' }],
-      reviewRows: [{ k: 'Name', v: 'Anjali Sharma' }, { k: 'Enrolment', v: 'D/1234/2016 · Bar Council of Delhi' }, { k: 'Practice areas', v: 'Civil, Property' }, { k: 'Courts', v: 'Delhi High Court' }, { k: 'Documents', v: '3 uploaded' }],
-      back: () => S.step > 0 ? this.setState({ step: S.step - 1 }) : this.go('home'),
-      next: () => S.step < 4 ? this.setState({ step: S.step + 1 }) : this.go('status'),
-      nextLabel: S.step < 4 ? 'Continue' : 'Submit for verification',
-      track
+      resSummary: summary, resCount: on && S.pState !== 'ready' ? (S.pState === 'error' ? 'Not loaded' : 'Loading') : list.length === 1 ? '1 advocate' : (list.length || 'No') + ' advocates', resToolbar, hasAside: filters.length > 0 || anyCriteria,
+      sortSelect: !all.length ? null : sel('rsort', 'Sort order', S.sort, [['az', 'Name A–Z'], ['za', 'Name Z–A'], ['old', 'Enrolment year, earliest first'], ['new', 'Enrolment year, latest first']], v => this.setState({ sort: v, page: 1 }), { height: 34, border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, padding: '0 8px', fontSize: 13, color: '#0A0A0A' }),
+      filters, clearBtn: anyCriteria ? h('button', { type: 'button', onClick: clearAll, style: linkBtn }, 'Clear search and filters') : null,
+      people: pageRows.map((p, i) => ({ ini: p.ini, name: p.name, enr: p.enr, council: p.council, year: p.year, areas: p.areas.join(' · '), courts: p.courts.join(', '), langs: p.langs.join(', '), delay: 60 + i * 70, go: () => this.openProfile(p.id),
+        you: p.own ? h('span', { style: { fontSize: 12, background: '#0A0A0A', color: '#fff', borderRadius: 8, padding: '2px 10px', fontWeight: 500 } }, 'Your profile') : null })),
+      emptyState, pager,
+      prof: { ini: P.ini, name: P.name, state: P.state, area0: P.areas[0] || 'All practice areas', place: [P.city, P.district && P.district !== P.city ? P.district + ' district' : ''].filter(Boolean).join(' · '),
+        verified: 'Enrolment verified' + (P.verifiedOn ? ' · ' + P.verifiedOn : ''), enr: P.enr, council: P.council, year: P.year, areas: P.areas.join(', ') || '—', courts: P.courts.join('; ') || '—', langs: P.langs.join(', ') || '—', quals: P.quals, chamber: P.chamber,
+        goAll: () => this.searchAll(), goState: () => this.search({ q: '', loc: P.state, district: '', court: '', area: '' }), goArea: () => this.search({ q: '', loc: P.state, district: '', court: '', area: P.areas[0] || '' }) },
+      contactFields: [cfField('name', 'Your name', 'Full name'), cfField('contact', 'Phone or email', '+91 or email'), cfField('city', 'City', P.city || 'New Delhi'),
+        cfField('category', 'Matter category', '', [['', 'Select a category']].concat(this.AREAS.map(([n, e]) => [n, n + ' — ' + e.toLowerCase()])).concat([['Not sure', 'Not sure']])),
+        cfField('language', 'Preferred language', '', (P.langs.length ? P.langs : ['English']).map(l => [l, l]))],
+      cDesc: { value: S.cf.desc, set: e => setCf('desc', e.target.value), err: S.cfErr.desc || '', bad: !!S.cfErr.desc, style: { minHeight: 90, border: '1px solid ' + (S.cfErr.desc ? '#B42318' : '#E5E5E5'), borderRadius: 8, padding: '10px 12px', fontSize: 14, resize: 'vertical' } },
+      consent: S.cf.consent, toggleConsent: () => setCf('consent', !S.cf.consent), consentErr: S.cfErr.consent || '', consentBad: !!S.cfErr.consent,
+      sendLabel: S.busy === 'enq' ? 'Sending…' : 'Send request',
+      sendBtn: { height: 46, border: 0, borderRadius: 8, fontSize: 15, fontWeight: 500, background: S.cf.consent ? '#0A0A0A' : '#C4C4C4', color: '#fff', cursor: 'pointer' },
+      send: () => this.sendEnquiry(P), sent: !!enq, notSent: !enq, resetSend: () => enq && this.withdrawEnquiry(enq.id),
+      enq: enq ? { head: enq.remote ? 'Request recorded' : 'Request saved · ' + enq.id, withdraw: enq.remote ? 'Remove from this browser' : 'Withdraw request',
+        foot: 'Legal Staff does not assign matters or take part in fee arrangements. ' + (enq.remote ? 'Removing it below only clears this confirmation from your browser; to withdraw the request itself, contact Legal Staff.' : 'You can withdraw your request and consent at any time.'), summary: `${enq.name} · ${enq.contact} · ${enq.category} · saved ${fmtDate(enq.at)}`,
+        note: enq.remote ? 'Your request has been recorded for the Legal Staff team to pass on to the advocate. There is no automatic email to the advocate yet.' : 'Your request is saved in this browser. There is no server behind this site yet, so no email or message is sent to the advocate.' } : { head: '', withdraw: '', foot: '', summary: '', note: '' },
+      regTitle: S.editingId ? 'Update your application' : 'Apply for a directory profile',
+      steps, stepTitle: cur[1], stepFields: cur[2], isForm: S.step < 3, isDocs: S.step === 3, isReview: S.step === 4, docSlots,
+      reviewRows: [{ k: 'Name', v: A.name.trim() || '—' }, { k: 'Contact', v: [A.email.trim(), A.mobile.trim(), A.city.trim()].filter(Boolean).join(' · ') || '—' }, { k: 'Enrolment', v: [A.enr.trim().toUpperCase(), A.council, A.year.trim()].filter(Boolean).join(' · ') || '—' },
+        { k: 'Practice areas', v: A.areas.join(', ') || '—' }, { k: 'Courts', v: A.courts.trim() || '—' }, { k: 'District', v: A.district.trim() || '—' }, { k: 'Languages', v: A.langs.trim() || '—' }, { k: 'Qualifications', v: A.quals.trim() || '—' },
+        { k: 'Documents', v: nDocs ? nDocs + ' attached: ' + Object.keys(A.docs).map(k => A.docs[k].name).join(', ') : 'None attached' }],
+      confirmOn: A.confirm, toggleConfirm: () => setApp('confirm', !A.confirm), stepErr, stepBad: !!stepErr,
+      back: () => { if (S.step > 0) { this.setState({ step: S.step - 1, appErr: {} }); window.scrollTo(0, 0); } else if (S.editingId) this.nav({ screen: 'status' }); else this.go('home'); },
+      backLabel: S.step > 0 ? 'Back' : 'Cancel', next: () => this.nextStep(),
+      nextLabel: S.busy === 'app' ? 'Submitting…' : S.step < 4 ? 'Continue' : (S.editingId ? 'Resubmit for verification' : 'Submit for verification'),
+      track, stat
     };
   }
 }

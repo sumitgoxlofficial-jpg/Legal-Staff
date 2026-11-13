@@ -1,8 +1,8 @@
 /* Legal Staff — local data store and utilities.
-   Everything is kept in the browser (localStorage + IndexedDB for uploaded files). There is no server. */
+   The app starts empty. Everything is kept in the browser (localStorage + IndexedDB for uploaded files). There is no server. */
 (function () {
   'use strict';
-  const KEY = 'ls.app.v1';
+  const KEY = 'ls.app.v2';
   const pad = n => String(n).padStart(2, '0');
   const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   const parse = s => new Date(s + 'T00:00:00');
@@ -26,146 +26,12 @@
   const short = n => { const p = (n || '').replace(/^Adv\.\s*/, '').split(/\s+/); return p.length > 1 ? p[0][0] + '. ' + p[p.length - 1] : (n || ''); };
 
   function seed() {
-    const T = nextWorking(today());
-    const wd = n => n >= 0 ? nextWorking(addDays(T, n)) : prevWorking(addDays(T, n));
-    const C = (id, title, no, court, purpose, stage, status, team, clientId, x) => Object.assign({ id, title, full: title, no, cnr: '', court, forum: court, bench: '', purpose, stage, status, team, clientId, summary: '', summaryMeta: '', parties: [], issues: [], missing: [], args: '' }, x || {});
-    const R = 'Rohan Iyer', N = 'Neha Bhatia', K = 'Karan Sood';
-    const cases = [
-      C('c1', 'Kapoor Textiles v. Meridian Exports', 'CS(COMM) 219/2024', 'Delhi HC · Court 34', 'Reply to I.A.', 'Pleadings', 'active', [R, N, K], 'cl1', {
-        full: 'Kapoor Textiles Pvt. Ltd. v. Meridian Exports LLP', cnr: 'DLHC010219122024', forum: 'High Court of Delhi · Commercial Division', bench: "Hon'ble Ms. Justice R. Menon",
-        summary: `The plaintiff wants to recover ₹1.86 crore for unpaid invoices for fabric supplied between March and August 2023 [Plaint ¶6–11]. The defendant says the goods were defective and has filed a counter-claim [WS ¶4]. Summary judgment under Order XIII-A CPC is pending in I.A. 6612/2026 [I.A. 6612/2026]. On ${dmy(wd(-7))} the court gave the defendant two weeks to reply and listed the matter for ${dmy(wd(7))} [Order ${dmy(wd(-7))} ¶3–4].`,
-        summaryMeta: 'AI-generated · approved by R. Iyer, ' + fmt(wd(-6)),
-        parties: [{ role: 'Plaintiff (our client)', name: 'Kapoor Textiles Pvt. Ltd.', note: 'Through Mr. Vivek Kapoor, Director' }, { role: 'Defendant', name: 'Meridian Exports LLP', note: 'Counsel: Adv. S. Malhotra' }],
-        issues: ['Whether the goods were rejected within a reasonable time (Sale of Goods Act, 1930 s.42)', 'Whether the defendant has any real prospect of defending the claim (Order XIII-A CPC)', 'Whether the counter-claim is maintainable without pre-institution mediation (s.12A, Commercial Courts Act)'],
-        missing: ['The certified copy of the counter-claim, cited in WS ¶4.', 'The pre-institution mediation non-starter report, cited in Plaint ¶2.'],
-        args: 'The plaintiff argued that the dues were admitted in the email of 12.09.2023. The defendant argues the goods were defective and rejected. No date of rejection is pleaded.',
-        brief: { background: 'a recovery suit for ₹1.86 crore for fabric supplied and not paid for.', press: ['the defendant has not filed a reply, if that is still the case', 'they raised no objection to quality within the s.42 period', 'they have no real prospect of a defence under Order XIII-A'], carry: 'the delivery challans, the ledger statement and the email of 12.09.2023 acknowledging the dues.' }
-      }),
-      C('c2', 'State v. Arjun Verma', 'Bail Appln. 1123/2026', 'Saket · Court 412', 'Arguments', 'Arguments', 'active', [R], 'cl2', { parties: [{ role: 'Applicant (our client)', name: 'Arjun Verma', note: '' }, { role: 'Respondent', name: 'State (NCT of Delhi)', note: 'Through the APP' }] }),
-      C('c3', 'Sharma v. Delhi Development Authority', 'W.P.(C) 4821/2025', 'Delhi HC · Court 9', 'Rejoinder', 'Pleadings', 'active', [N], 'cl3', { parties: [{ role: 'Petitioner (our client)', name: 'R. K. Sharma', note: '' }, { role: 'Respondent', name: 'Delhi Development Authority', note: '' }] }),
-      C('c4', 'Mehta v. Mehta', 'HMA 88/2025', 'Family Court, Dwarka', 'Mediation', 'Mediation', 'active', [R], 'cl4'),
-      C('c5', 'Gupta v. ICICI Lombard', 'FA 412/2025', 'Delhi HC · Court 21', 'Admission', 'Arguments', 'active', [N], 'cl5'),
-      C('c6', 'Khanna v. Rao Builders', 'CS 1180/2024', 'Saket · Court 207', 'Written statement', 'Pending filing', 'pending', [R], 'cl6'),
-      C('c7', 'Appeal against decree, CS(COMM) 88/2023', 'To be filed', 'Delhi HC', 'Filing due ' + dayMon(wd(6)), 'Pending filing', 'pending', [R], 'cl1'),
-      C('c8', 'Bansal v. Union of India', 'W.P.(C) 9932/2026', 'Delhi HC · Court 34', 'Notice', 'Pleadings', 'active', [R, N], 'cl7'),
-      C('c9', 'Arora v. Arora', 'HMA 41/2022', 'Family Court, Saket', 'Decree passed', 'Disposed', 'disposed', [R], 'cl8'),
-      C('c10', 'Verma Steel v. Punjab National Bank', 'OA 318/2025', 'DRT-II, Delhi', 'Cross-examination', 'Evidence', 'active', [N], 'cl9'),
-      C('c11', 'Malhotra v. Skyline Developers', 'CC 204/2025', 'Delhi State Consumer Commission', 'Final arguments', 'Arguments', 'active', [R, K], 'cl10'),
-      C('c12', 'Singh v. State (NCT of Delhi)', 'CRL.A. 771/2024', 'Delhi HC · Court 12', 'Judgment awaited', 'Reserved for orders', 'active', [R], 'cl11'),
-      C('c13', 'Oberoi Foods v. FreshKart Retail', 'ARB.P. 96/2026', 'Delhi HC · Court 40', 'Reply', 'Pleadings', 'active', [N], 'cl12'),
-      C('c14', 'Nair v. Nair', 'Ex. 55/2025', 'Tis Hazari · Court 118', 'Objections', 'Execution', 'active', [K, R], 'cl13'),
-      C('c15', 'In re: Estate of late H. Chopra', 'TEST.CAS. 14/2023', 'Delhi HC · Court 7', "Petitioner's evidence", 'Evidence', 'active', [N], 'cl14'),
-      C('c16', 'Jain Traders v. Sunrise Logistics', 'CS 402/2021', 'Rohini · Court 305', 'Settled', 'Disposed', 'archived', [R], 'cl15')
-    ];
-    const H = (caseId, date, time, court, item, purpose, assignee, x) => Object.assign({ id: uid('h'), caseId, date, time, court, item, purpose, assignee, outcome: '', brief: false }, x || {});
-    const hearings = [
-      H('c8', T, '10:30', 'Delhi HC · Court 34', 'Item 14', 'Notice', R, { last: 'Notice issued; respondents to file counter-affidavit' }),
-      H('c2', T, '10:30', 'Saket · Court 412', 'Item 6', 'Arguments', R, { last: 'Status report called from the IO' }),
-      H('c3', T, '12:00', 'Delhi HC · Court 9', 'Item 31', 'Rejoinder', N, { brief: true, last: 'Counter-affidavit taken on record' }),
-      H('c4', T, '14:15', 'Family Court, Dwarka', 'Item 3', 'Mediation', R, { last: 'Parties referred to mediation centre' }),
-      H('c5', wd(-2), '11:00', 'Delhi HC · Court 21', 'Item 22', 'Admission', N, { outcome: 'Adjourned at the request of the respondent.' }),
-      H('c6', wd(-1), '10:30', 'Saket · Court 207', 'Item 9', 'Written statement', R, { outcome: 'Time sought to file written statement.' }),
-      H('c13', wd(1), '10:30', 'Delhi HC · Court 40', 'Item 18', 'Reply', N), H('c10', wd(2), '11:00', 'DRT-II, Delhi', 'Item 4', 'Cross-examination', N),
-      H('c11', wd(5), '10:30', 'Delhi State Consumer Commission', 'Item 12', 'Final arguments', R), H('c14', wd(5), '14:00', 'Tis Hazari · Court 118', 'Item 7', 'Objections', K),
-      H('c12', wd(6), '10:30', 'Delhi HC · Court 12', 'Item 2', 'Judgment', R), H('c15', wd(7), '11:00', 'Delhi HC · Court 7', 'Item 26', "Petitioner's evidence", N),
-      H('c6', wd(8), '10:30', 'Saket · Court 207', 'Item 11', 'Written statement', R), H('c3', wd(9), '12:00', 'Delhi HC · Court 9', 'Item 19', 'Rejoinder', N),
-      H('c2', wd(12), '10:30', 'Saket · Court 412', 'Item 5', 'Arguments', R), H('c13', wd(13), '14:00', 'Delhi HC · Court 40', 'Item 30', 'Reply', N),
-      H('c5', wd(28), '11:00', 'Delhi HC · Court 21', 'Item 15', 'Admission', N),
-      H('c1', wd(-7), '10:30', 'Delhi HC · Court 34', 'Item 11', 'Reply to I.A.', R, { outcome: `Defendant given 2 weeks. Next date ${dmy(wd(7))}.` }),
-      H('c1', wd(-35), '10:30', 'Delhi HC · Court 34', 'Item 20', 'Directions', R, { outcome: 'Notice issued on I.A. 6612/2026.' }),
-      H('c1', wd(-81), '10:30', 'Delhi HC · Court 34', 'Item 8', 'Admission/denial', R, { outcome: "Directions given. Date changed at the court's instance." }),
-      H('c1', wd(-180), '10:30', 'Delhi HC · Court 34', 'Item 16', 'Completion of pleadings', R, { outcome: 'WS taken on record.' })
-    ];
-    const od = wd(-7), nd = wd(7);
-    const orders = [
-      { id: 'o1', caseId: 'c1', date: od, source: 'Manual upload · ' + dayMon(T) + ', 10:42', official: false, file: `Order_${dmy(od).replace(/\./g, '-')}.pdf · 2 pages · OCR complete`, coram: "HON'BLE MS. JUSTICE R. MENON", court: 'IN THE HIGH COURT OF DELHI AT NEW DELHI', cause: 'CS(COMM) 219/2024 & I.A. 6612/2026', p1: 'KAPOOR TEXTILES PVT. LTD. ..... Plaintiff', p2: 'MERIDIAN EXPORTS LLP ..... Defendant',
-        paras: ['Learned counsel for the defendant seeks time to file reply to I.A. 6612/2026 under Order XIII-A CPC.', `Learned counsel for the plaintiff opposes, submitting that the application was served on ${dmy(wd(-28))}.`, "In the interest of justice, two weeks' time is granted to the defendant to file reply. Rejoinder, if any, be filed before the next date.", `List on ${dmy(nd)}.`],
-        points: ['The defendant asked for time to reply to the summary judgment application, I.A. 6612/2026.', `The plaintiff objected. The application had been served on ${dmy(wd(-28))}.`, "The defendant has two weeks to file a reply. The plaintiff's rejoinder is due before the next date.", `The matter is listed for ${dmy(nd)}.`],
-        summary: `Defendant given 2 weeks to reply to I.A. 6612/2026. Next date: ${dmy(nd)}.`, nextDate: nd, nextFrom: `from ¶4, "List on ${dmy(nd)}"`, confirmed: false },
-      { id: 'o2', caseId: 'c3', date: wd(-5), source: 'eCourts · fetched ' + dayMon(wd(-4)) + ', 06:10', official: true, paras: ['Counter-affidavit filed by the respondent is taken on record.', 'Rejoinder, if any, be filed within four weeks.', `List on ${dmy(T)}.`], summary: 'Counter-affidavit taken on record. Rejoinder in 4 weeks.', nextDate: T, confirmed: true },
-      { id: 'o3', caseId: 'c2', date: wd(-8), source: 'Manual upload · ' + dayMon(wd(-8)) + ', 17:20', official: false, paras: ['Status report is called from the Investigating Officer.', 'Interim protection to continue till the next date.', `List on ${dmy(T)}.`], summary: 'Status report called from the IO. Interim protection continued.', nextDate: T, confirmed: true },
-      { id: 'o4', caseId: 'c1', date: wd(-35), source: 'eCourts · fetched ' + fmt(wd(-34)) + ', 06:05', official: true, paras: ['Notice issued on I.A. 6612/2026 (Order XIII-A).'], summary: 'Notice issued on I.A. 6612/2026 (Order XIII-A).', nextDate: od, confirmed: true },
-      { id: 'o5', caseId: 'c1', date: wd(-81), source: 'eCourts · fetched ' + fmt(wd(-80)) + ', 06:02', official: true, paras: ['Pleadings are complete. Admission/denial of documents is directed.'], summary: 'Pleadings complete. Admission/denial of documents directed.', nextDate: wd(-35), confirmed: true },
-      { id: 'o6', caseId: 'c1', date: wd(-180), source: 'Manual upload · ' + fmt(wd(-179)), official: false, paras: ['Written statement taken on record.'], summary: 'Written statement taken on record.', nextDate: wd(-81), confirmed: true }
-    ];
-    const tasks = [
-      { id: 't1', caseId: 'c1', t: 'Draft rejoinder to reply in I.A. 6612/2026', who: N, due: wd(6), done: false },
-      { id: 't2', caseId: 'c1', t: 'Collect original delivery challans from client', who: K, due: wd(3), done: false },
-      { id: 't3', caseId: 'c1', t: 'Send hearing update to client', who: R, due: wd(8), done: false },
-      { id: 't4', caseId: 'c6', t: 'File written statement', who: R, due: wd(-2), done: false },
-      { id: 't5', caseId: 'c3', t: 'Finalise rejoinder affidavit', who: N, due: wd(-1), done: false },
-      { id: 't6', caseId: 'c2', t: 'Obtain copy of status report', who: K, due: wd(-3), done: false },
-      { id: 't7', caseId: 'c10', t: 'Prepare cross-examination questions for bank witness', who: N, due: wd(-1), done: false },
-      { id: 't8', caseId: 'c14', t: 'Serve objections on decree-holder', who: K, due: wd(-4), done: false },
-      { id: 't9', caseId: 'c11', t: 'Compile written submissions', who: R, due: wd(4), done: false }
-    ];
-    const D = (id, caseId, kind, ext, name, meta, v, x) => Object.assign({ id, caseId, kind, ext, name, meta, v, added: T }, x || {});
-    const docs = [
-      D('d1', 'c1', 'document', 'PDF', 'Order dated ' + dmy(od), 'Court order · manual upload · OCR indexed', 'v1'),
-      D('d2', 'c1', 'document', 'PDF', 'Plaint with annexures', 'Pleading · 84 pages · OCR indexed', 'v2'),
-      D('d3', 'c1', 'document', 'PDF', 'Written statement and counter-claim', 'Pleading · 41 pages', 'v1'),
-      D('d4', 'c1', 'document', 'DOCX', 'Rejoinder to I.A. 6612/2026 (draft)', 'Draft · Neha Bhatia', 'v4'),
-      D('d5', 'c1', 'evidence', 'XLS', 'Ledger statement FY 2023-24', 'Evidence · from client', 'v1', { exhibit: 'Ex. P-4', custody: 'Received from Mr. Vivek Kapoor by email' }),
-      D('d6', 'c1', 'evidence', 'PDF', 'Email of 12.09.2023 acknowledging dues', 'Evidence · s.63 BSA certificate pending', 'v1', { exhibit: 'Ex. P-7', custody: 'Printed from client mailbox; certificate to be obtained' }),
-      D('d7', 'c1', 'evidence', 'PDF', 'Delivery challans (24 nos.)', 'Evidence · originals with client', 'v1', { exhibit: 'Ex. P-2 (colly.)', custody: 'Copies on file; originals to be collected' }),
-      D('d8', 'c3', 'document', 'PDF', 'Writ petition with annexures', 'Pleading · 62 pages', 'v1'),
-      D('d9', 'c2', 'document', 'PDF', 'Bail application', 'Pleading · 18 pages', 'v2'),
-      D('d10', 'c6', 'document', 'DOCX', 'Written statement (draft)', 'Draft · Rohan Iyer', 'v2')
-    ];
-    const CL = (id, name, contact, phone, email, city, type) => ({ id, name, contact, phone, email, city, type, notes: '', portal: false, share: { dates: true, orders: true, invoices: false } });
-    const clients = [
-      CL('cl1', 'Kapoor Textiles Pvt. Ltd.', 'Vivek Kapoor, Director', '+91 98100 00101', 'vivek@kapoortextiles.example', 'New Delhi', 'Company'),
-      CL('cl2', 'Arjun Verma', 'Self', '+91 98100 00102', 'arjun.verma@mail.example', 'New Delhi', 'Individual'),
-      CL('cl3', 'R. K. Sharma', 'Self', '+91 98100 00103', 'rk.sharma@mail.example', 'New Delhi', 'Individual'),
-      CL('cl4', 'Anita Mehta', 'Self', '+91 98100 00104', 'anita.mehta@mail.example', 'Gurugram', 'Individual'),
-      CL('cl5', 'Suresh Gupta', 'Self', '+91 98100 00105', 's.gupta@mail.example', 'Noida', 'Individual'),
-      CL('cl6', 'Rao Builders', 'P. Rao, Partner', '+91 98100 00106', 'accounts@raobuilders.example', 'New Delhi', 'Firm'),
-      CL('cl7', 'Deepak Bansal', 'Self', '+91 98100 00107', 'd.bansal@mail.example', 'New Delhi', 'Individual'),
-      CL('cl8', 'Kavita Arora', 'Self', '+91 98100 00108', 'k.arora@mail.example', 'New Delhi', 'Individual'),
-      CL('cl9', 'Verma Steel Pvt. Ltd.', 'Mohit Verma, MD', '+91 98100 00109', 'legal@vermasteel.example', 'Faridabad', 'Company'),
-      CL('cl10', 'Sunil Malhotra', 'Self', '+91 98100 00110', 'sunil.m@mail.example', 'New Delhi', 'Individual'),
-      CL('cl11', 'Harpreet Singh', 'Through brother', '+91 98100 00111', 'h.singh@mail.example', 'New Delhi', 'Individual'),
-      CL('cl12', 'Oberoi Foods Pvt. Ltd.', 'Legal department', '+91 98100 00112', 'legal@oberoifoods.example', 'Gurugram', 'Company'),
-      CL('cl13', 'Lakshmi Nair', 'Self', '+91 98100 00113', 'l.nair@mail.example', 'New Delhi', 'Individual'),
-      CL('cl14', 'Rhea Chopra', 'Self', '+91 98100 00114', 'rhea.c@mail.example', 'New Delhi', 'Individual'),
-      CL('cl15', 'Jain Traders', 'A. Jain, Proprietor', '+91 98100 00115', 'jaintraders@mail.example', 'New Delhi', 'Firm')
-    ];
-    clients[0].portal = true;
-    const team = [
-      { id: 'u1', name: R, title: 'Adv. Rohan Iyer', role: 'Managing Partner', email: 'rohan@iyerassociates.in', status: 'Active' },
-      { id: 'u2', name: N, title: 'Adv. Neha Bhatia', role: 'Junior Advocate', email: 'neha@iyerassociates.in', status: 'Active' },
-      { id: 'u3', name: K, title: 'Karan Sood', role: 'Paralegal', email: 'karan@iyerassociates.in', status: 'Active' },
-      { id: 'u4', name: 'Aditi Rao', title: 'Aditi Rao', role: 'Office Manager', email: 'aditi@iyerassociates.in', status: 'Active' }
-    ];
-    let invNo = 140;
-    const I = (clientId, caseId, off, amount, paid, desc) => ({ id: uid('i'), no: 'IA/26-27/' + (++invNo), clientId, caseId, date: addDays(T, off), amount, paid, paidOn: paid ? addDays(T, off + 6) : '', desc });
-    const invoices = [
-      I('cl9', 'c10', -160, 390000, true, 'Professional fees — DRT proceedings'), I('cl12', 'c13', -128, 440000, true, 'Retainer — arbitration petition'),
-      I('cl1', 'c1', -98, 360000, true, 'Professional fees — I.A. 6612/2026'), I('cl10', 'c11', -95, 85000, false, 'Appearance fees — consumer complaint'),
-      I('cl14', 'c15', -66, 520000, true, 'Professional fees — testamentary case'), I('cl12', 'c13', -38, 460000, true, 'Professional fees — reply and hearing'),
-      I('cl6', 'c6', -36, 120000, false, 'Drafting — written statement'), I('cl13', 'c14', -34, 60000, false, 'Appearance fees — execution'),
-      I('cl1', 'c1', -9, 300000, true, 'Professional fees — summary judgment'), I('cl9', 'c10', -8, 180000, true, 'Appearance fees — cross-examination'),
-      I('cl3', 'c3', -6, 95000, false, 'Drafting — rejoinder'), I('cl2', 'c2', -5, 75000, false, 'Appearance fees — bail application'),
-      I('cl7', 'c8', -3, 110000, false, 'Drafting and filing — writ petition'), I('cl1', 'c7', -2, 62500, false, 'Court fee and filing — commercial appeal')
-    ];
-    const log = [
-      { ts: T + ' 10:52', caseId: '', x: 'Neha Bhatia edited the s.138 notice draft (v3)' },
-      { ts: T + ' 10:42', caseId: 'c1', x: `Order of ${dmy(od)} uploaded by Rohan Iyer. Next date extracted.` },
-      { ts: T + ' 07:30', caseId: '', x: 'Daily briefing sent to 4 team members' },
-      { ts: wd(-6) + ' 16:10', caseId: 'c1', x: 'AI case summary approved by Rohan Iyer' },
-      { ts: od + ' 11:20', caseId: 'c1', x: 'Hearing: defendant given 2 weeks to reply' },
-      { ts: wd(-28) + ' 12:00', caseId: 'c1', x: 'I.A. 6612/2026 served on defendant' },
-      { ts: wd(-35) + ' 11:00', caseId: 'c1', x: 'Notice issued on summary judgment application' },
-      { ts: '2024-03-12 10:00', caseId: 'c1', x: 'Suit instituted' }
-    ];
     return {
-      v: 1, anchor: T, session: null, cases, hearings, orders, tasks, docs, clients, team, invoices, log,
-      firm: { name: 'Iyer & Associates', city: 'New Delhi', address: 'Saket District Courts, New Delhi', gstin: '' },
-      user: { name: 'Rohan Iyer', title: 'Adv. Rohan Iyer', role: 'Managing Partner', email: 'rohan@iyerassociates.in', phone: '' },
-      sub: { plan: 'Firm', cycle: 'annual', since: T, renews: addDays(T, 365), history: [] },
-      lim: { title: 'Commercial appeal against decree in CS(COMM) 88/2023', caseId: 'c7', judgment: wd(-68), applied: addDays(wd(-68), 4), ready: '', approved: false, approvedAt: '', sent: false },
-      deadlines: [{ id: 'dl2', caseId: 'c6', title: 'Written statement, CS 1180/2024', rule: 'Order VIII r.1 CPC', due: addDays(T, 19), approved: true }],
-      chats: {}, copilot: [], drafts: {}, notes: '', research: [], watch: [],
+      v: 2, anchor: today(), session: null, cases: [], hearings: [], orders: [], tasks: [], docs: [], clients: [], team: [], invoices: [], log: [],
+      firm: { name: '', city: '', address: '', gstin: '' },
+      user: { name: '', title: '', role: 'Advocate', email: '', phone: '' },
+      sub: { plan: '', cycle: 'annual', since: '', renews: '', history: [] },
+      lim: null, deadlines: [], chats: {}, copilot: [], drafts: {}, notes: '', research: [], watch: [],
       agents: [
         { id: 'briefing', name: 'Daily briefing', what: "Compiles today's hearings, clashes and deadlines for every team member.", when: 'Every day, 7:30 AM IST', on: true, runs: [] },
         { id: 'sentinel', name: 'Deadline sentinel', what: 'Checks limitation deadlines and overdue tasks and raises alerts.', when: 'Every day, 6:00 AM IST', on: true, runs: [] },
@@ -178,11 +44,13 @@
   }
 
   let memory = null;
+  const remote = () => !!(window.LSB && window.LSB.on);
   function load() {
-    try { const raw = localStorage.getItem(KEY); if (raw) { const d = JSON.parse(raw); if (d && d.v === 1) return d; } } catch (e) {}
+    if (remote()) { memory = seed(); return memory; }
+    try { const raw = localStorage.getItem(KEY); if (raw) { const d = JSON.parse(raw); if (d && d.v === 2) return d; } } catch (e) {}
     const d = seed(); save(d); return d;
   }
-  function save(d) { memory = d; try { localStorage.setItem(KEY, JSON.stringify(d)); return true; } catch (e) { return false; } }
+  function save(d) { memory = d; if (remote()) return true; try { localStorage.setItem(KEY, JSON.stringify(d)); return true; } catch (e) { return false; } }
   function reset() { try { localStorage.removeItem(KEY); } catch (e) {} return load(); }
 
   /* ---------- limitation calculator (rule-based) ---------- */
