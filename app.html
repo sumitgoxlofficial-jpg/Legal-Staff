@@ -100,20 +100,20 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 </aside>
 
 <div style="flex:1;min-width:0;display:flex;flex-direction:column">
-  <header style="position:sticky;top:0;z-index:20;background:color-mix(in srgb,#FFFFFF 94%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px;padding:0 24px;height:56px">
+  <header style="position:sticky;top:0;z-index:20;background:color-mix(in srgb,#FFFFFF 94%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px;padding:0 clamp(10px,3vw,24px);height:56px">
     <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}">
       <button onClick="{{ openDrawer }}" style="border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;height:36px;width:44px;font-size:18px;color:#0A0A0A">≡</button>
     </sc-if>
-    <div style="position:relative;flex:1;max-width:520px;display:flex;align-items:center;gap:10px;background:#F5F5F4;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;height:36px">
+    <div style="position:relative;flex:1 1 60px;min-width:0;max-width:520px;display:flex;align-items:center;gap:10px;background:#F5F5F4;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;height:36px">
       <input id="ls-search" value="{{ searchQ }}" onChange="{{ setSearch }}" onFocus="{{ searchFocus }}" onBlur="{{ searchBlur }}" onKeyDown="{{ searchKey }}" placeholder="Search cases, CNR, parties, documents…" style="border:0;background:transparent;outline:none;flex:1;font-size:14px;color:#0A0A0A;min-width:0">
       <span style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:11px;color:#7A7A7A;border:1px solid #E5E5E5;border-radius:8px;padding:1px 5px">⌘K</span>
       {{ searchDrop }}
     </div>
     <div style="flex:1"></div>
-    <button onClick="{{ newCase }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500;white-space:nowrap">+ New case</button>
+    <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><button onClick="{{ newCase }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500;white-space:nowrap">+ New case</button></sc-if>
     <button onClick="{{ alertsMenu }}" style="white-space:nowrap;height:36px;padding:0 12px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A;display:flex;align-items:center;gap:6px">Alerts <sc-if value="{{ hasAlerts }}" hint-placeholder-val="{{ true }}"><span style="background:#B42318;color:#fff;border-radius:8px;font-size:11px;padding:0 6px;font-weight:600">{{ alertCount }}</span></sc-if></button>
     <button onClick="{{ togglePanel }}" style="{{ copilotBtn }}">Copilot</button>
-    <button onClick="{{ help }}" title="Help and shortcuts" style="height:36px;width:40px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;color:#5E5E5E;font-size:13.5px;font-weight:600">?</button>
+    <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><button onClick="{{ help }}" title="Help and shortcuts" style="height:36px;width:40px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;color:#5E5E5E;font-size:13.5px;font-weight:600">?</button></sc-if>
   </header>
   <sc-if value="{{ hasCrumbs }}" hint-placeholder-val="{{ false }}">
     <div style="{{ crumbBar }}">
