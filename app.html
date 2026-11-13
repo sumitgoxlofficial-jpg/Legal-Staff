@@ -5,11 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
+<script src="app-store.js"></script>
+<script src="app-views.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
 <x-dc>
 <helmet>
+<title>Legal Staff</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/png" href="assets/ls-favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,6 +24,8 @@ a{color:#0A0A0A;text-decoration:underline;text-underline-offset:2px}
 a:hover{color:#2B2B2B}
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #0A0A0A;outline-offset:2px}
+@media print{body *{visibility:hidden!important}.ls-print,.ls-print *{visibility:visible!important}.ls-print{position:absolute!important;left:0;top:0;width:100%;border:0!important}}
 </style>
 </helmet>
 <div style="display:flex;min-height:100vh;background:#F5F5F4;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:15px;line-height:1.5">
@@ -37,13 +42,7 @@ input,select,textarea{font-family:inherit}
       <h1 style="font-size:38px;line-height:1.12;margin:0;letter-spacing:-.01em">Sign in to your practice</h1>
       <div style="font-size:16px;color:#5E5E5E">Your cases, orders and hearing dates, as you left them.</div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:18px;max-width:440px">
-      <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:14px;color:#363636">Work email</label><input placeholder="rohan@iyerassociates.in" style="height:46px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;padding:0 14px;font-size:15px;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A"></div>
-      <div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;gap:10px"><label style="font-size:14px;color:#363636">Password</label><a href="#" style="font-size:14px">Forgot password?</a></div><input type="password" placeholder="••••••••••" style="height:46px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;padding:0 14px;font-size:15px;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A"></div>
-      <button onClick="{{ signIn }}" style="height:48px;border:0;border-radius:8px;background:#0A0A0A;color:#fff;font-size:16px;font-weight:600" style-hover="background:#2B2B2B">Sign in</button>
-      <button onClick="{{ signIn }}" style="height:48px;border:1px solid #0A0A0A;border-radius:8px;background:transparent;color:#0A0A0A;font-size:15px" style-hover="background:#F0F0EF">Get a one-time code on WhatsApp</button>
-      <div style="font-size:13px;color:#5E5E5E">New to Legal Staff? <a href="index.html#pricing">Choose a plan</a></div>
-    </div>
+    {{ loginForm }}
   </div>
   <div style="background:#0A0A0A;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;padding:56px;position:relative;overflow:hidden;min-height:420px">
     <img src="assets/ls-logo-white.png" alt="Legal Staff" style="height:min(34vh,260px);width:auto;display:block">
@@ -65,11 +64,11 @@ input,select,textarea{font-family:inherit}
     <sc-if value="{{ collapsed }}" hint-placeholder-val="{{ false }}"><img src="assets/ls-mark-black.png" alt="Legal Staff" style="height:32px;display:block;margin:0 auto"></sc-if>
   </div>
   <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}">
-  <button style="flex-shrink:0;margin:12px 10px 4px;padding:8px 10px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;display:flex;align-items:center;gap:10px;text-align:left">
-    <div style="width:28px;height:28px;border-radius:6px;background:#0A0A0A;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:14px">IA</div>
+  <button onClick="{{ firmMenu }}" style="flex-shrink:0;margin:12px 10px 4px;padding:8px 10px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;display:flex;align-items:center;gap:10px;text-align:left">
+    <div style="width:28px;height:28px;border-radius:6px;background:#0A0A0A;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:14px">{{ firmInit }}</div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:600;color:#0A0A0A">Iyer &amp; Associates</div>
-      <div style="font-size:12px;color:#5E5E5E">Firm plan · New Delhi</div>
+      <div style="font-size:13px;font-weight:600;color:#0A0A0A">{{ firmName }}</div>
+      <div style="font-size:12px;color:#5E5E5E">{{ firmLine }}</div>
     </div>
     <div style="color:#5E5E5E;font-size:12px">▾</div>
   </button>
@@ -92,12 +91,12 @@ input,select,textarea{font-family:inherit}
   <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}">
     <button onClick="{{ toggleCollapse }}" style="flex-shrink:0;margin:0 12px 10px;height:36px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;font-size:13px;color:#5E5E5E;display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap">{{ collapseLabel }}</button>
   </sc-if>
-  <div style="flex-shrink:0;padding:12px 18px;border-top:1px solid #E5E5E5;display:flex;align-items:center;gap:10px;overflow:hidden">
-    <div style="width:34px;height:34px;border-radius:50%;background:#F0F0EF;color:#0A0A0A;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px">RI</div>
+  <button onClick="{{ userMenu }}" title="Account" style="flex-shrink:0;padding:12px 18px;border:0;border-top:1px solid #E5E5E5;background:none;text-align:left;width:100%;color:#0A0A0A;display:flex;align-items:center;gap:10px;overflow:hidden">
+    <div style="width:34px;height:34px;border-radius:50%;background:#F0F0EF;color:#0A0A0A;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0">{{ userInit }}</div>
     <div>
-      <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}"><div style="font-size:13px;font-weight:600;white-space:nowrap">Adv. Rohan Iyer</div><div style="font-size:12px;color:#5E5E5E">Managing Partner</div></sc-if>
+      <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}"><div style="font-size:13px;font-weight:600;white-space:nowrap">{{ userName }}</div><div style="font-size:12px;color:#5E5E5E;white-space:nowrap">{{ userRole }}</div></sc-if>
     </div>
-  </div>
+  </button>
 </aside>
 
 <div style="flex:1;min-width:0;display:flex;flex-direction:column">
@@ -105,15 +104,16 @@ input,select,textarea{font-family:inherit}
     <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}">
       <button onClick="{{ openDrawer }}" style="border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;height:36px;width:44px;font-size:18px;color:#0A0A0A">≡</button>
     </sc-if>
-    <div style="flex:1;max-width:520px;display:flex;align-items:center;gap:10px;background:#F5F5F4;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;height:36px">
-      <input placeholder="Search cases, CNR, parties, documents…" style="border:0;background:transparent;outline:none;flex:1;font-size:14px;color:#0A0A0A;min-width:0">
+    <div style="position:relative;flex:1;max-width:520px;display:flex;align-items:center;gap:10px;background:#F5F5F4;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;height:36px">
+      <input id="ls-search" value="{{ searchQ }}" onChange="{{ setSearch }}" onFocus="{{ searchFocus }}" onBlur="{{ searchBlur }}" onKeyDown="{{ searchKey }}" placeholder="Search cases, CNR, parties, documents…" style="border:0;background:transparent;outline:none;flex:1;font-size:14px;color:#0A0A0A;min-width:0">
       <span style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:11px;color:#7A7A7A;border:1px solid #E5E5E5;border-radius:8px;padding:1px 5px">⌘K</span>
+      {{ searchDrop }}
     </div>
     <div style="flex:1"></div>
-    <button onClick="{{ goCase }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500;white-space:nowrap">+ New case</button>
-    <button style="white-space:nowrap;height:36px;padding:0 12px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A;display:flex;align-items:center;gap:6px">Alerts <span style="background:#B42318;color:#fff;border-radius:8px;font-size:11px;padding:0 6px;font-weight:600">3</span></button>
+    <button onClick="{{ newCase }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500;white-space:nowrap">+ New case</button>
+    <button onClick="{{ alertsMenu }}" style="white-space:nowrap;height:36px;padding:0 12px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A;display:flex;align-items:center;gap:6px">Alerts <sc-if value="{{ hasAlerts }}" hint-placeholder-val="{{ true }}"><span style="background:#B42318;color:#fff;border-radius:8px;font-size:11px;padding:0 6px;font-weight:600">{{ alertCount }}</span></sc-if></button>
     <button onClick="{{ togglePanel }}" style="{{ copilotBtn }}">Copilot</button>
-    <button title="Help and shortcuts" style="height:36px;width:40px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;color:#5E5E5E;font-size:13.5px;font-weight:600">?</button>
+    <button onClick="{{ help }}" title="Help and shortcuts" style="height:36px;width:40px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;color:#5E5E5E;font-size:13.5px;font-weight:600">?</button>
   </header>
   <sc-if value="{{ hasCrumbs }}" hint-placeholder-val="{{ false }}">
     <div style="{{ crumbBar }}">
@@ -138,11 +138,11 @@ input,select,textarea{font-family:inherit}
       <div style="display:flex;flex-direction:column;gap:28px;max-width:1240px">
         <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:4px">
           <div>
-            <div style="font-size:13px;color:#5E5E5E;letter-spacing:.02em">Wednesday, 11 November 2026</div>
-            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.02em;font-size:24px;line-height:1.15;margin:6px 0 0;">Good morning, Rohan</h1>
+            <div style="font-size:13px;color:#5E5E5E;letter-spacing:.02em">{{ todayLong }}</div>
+            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.02em;font-size:24px;line-height:1.15;margin:6px 0 0;">{{ greeting }}</h1>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <span style="font-size:13px;color:#0A0A0A;background:#F0F0EF;border-radius:8px;padding:5px 12px;white-space:nowrap">All court sources synced · 6:10 AM</span>
+            <span style="font-size:13px;color:#0A0A0A;background:#F0F0EF;border-radius:8px;padding:5px 12px;white-space:nowrap">{{ syncLine }}</span>
           </div>
         </div>
 
@@ -160,7 +160,7 @@ input,select,textarea{font-family:inherit}
           <img aria-hidden="true" src="assets/ls-mark-black.png" alt="" style="position:absolute;right:-40px;bottom:-60px;height:300px;opacity:.04;pointer-events:none">
           <div style="display:flex;flex-direction:column;gap:14px;position:relative">
             <div style="display:flex;align-items:center;gap:10px"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">Morning court intelligence · 7:30 AM</span></div>
-            <p style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:19px;line-height:1.5;font-weight:500;letter-spacing:-.01em;margin:0;text-wrap:pretty">You have four hearings today in two court complexes. Two of them, at 10:30 AM in Delhi High Court and Saket, are at the same time. One limitation deadline falls in the next 6 days.</p>
+            <p style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:19px;line-height:1.5;font-weight:500;letter-spacing:-.01em;margin:0;text-wrap:pretty">{{ briefText }}</p>
             <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
               <button onClick="{{ goBrain }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:600" style-hover="background:#2B2B2B">Prepare hearing briefs</button>
               <button onClick="{{ goLimitation }}" style="white-space:nowrap;height:36px;padding:0 16px;background:transparent;color:#0A0A0A;border:1px solid #0A0A0A;border-radius:8px;font-size:13.5px" style-hover="background:#F0F0EF">Review deadline</button>
@@ -175,7 +175,7 @@ input,select,textarea{font-family:inherit}
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:12px;position:relative">
-            <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">Sent to your WhatsApp</div>
+            <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">WhatsApp briefing preview</div>
             <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden;max-width:380px">
               <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #E5E5E5">
                 <span style="width:36px;height:36px;border-radius:50%;background:#0A0A0A;display:flex;align-items:center;justify-content:center;flex-shrink:0"><img src="assets/ls-mark-white.png" alt="" style="height:20px"></span>
@@ -183,9 +183,9 @@ input,select,textarea{font-family:inherit}
               </div>
               <div style="padding:14px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.5">
                 <div style="background:#FFFFFF;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px">
-                  <b>Good morning, Adv. Iyer.</b>
-                  <span>4 hearings today. 10:30 AM clash: Delhi HC Court 34 and Saket Court 412.</span>
-                  <span>Limitation: commercial appeal due 17 Nov.</span>
+                  <b>{{ waHello }}</b>
+                  <span>{{ waLine1 }}</span>
+                  <span>{{ waLine2 }}</span>
                   <span style="font-size:12px;color:#5E5E5E;text-align:right">7:30 AM</span>
                 </div>
                 <div style="display:flex;gap:8px"><span style="flex:1;text-align:center;padding:8px;border:1px solid #E5E5E5;border-radius:8px;color:#0A0A0A;font-size:13px">Open briefing</span><span style="flex:1;text-align:center;padding:8px;border:1px solid #E5E5E5;border-radius:8px;color:#0A0A0A;font-size:13px">Assign 10:30</span></div>
@@ -230,13 +230,13 @@ input,select,textarea{font-family:inherit}
                 <div style="{{ d.dayStyle }}"><span>{{ d.dow }}</span><span>{{ d.date }}</span></div>
               </sc-for>
             </div>
-            <div style="font-size:13px;color:#5E5E5E">37 hearings scheduled · clashes on 11 and 18 Nov</div>
+            <div style="font-size:13px;color:#5E5E5E">{{ hearNote }}</div>
           </section>
 
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;display:flex;flex-direction:column;gap:18px">
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
               <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">Active cases by stage</h2>
-              <span style="font-size:13px;color:#5E5E5E">86 cases</span>
+              <span style="font-size:13px;color:#5E5E5E">{{ stageCount }}</span>
             </div>
             <div style="display:flex;height:14px;border-radius:4px;overflow:hidden;gap:2px;background:#FFFFFF">
               <sc-for list="{{ stages }}" as="g" hint-placeholder-count="6">
@@ -263,7 +263,7 @@ input,select,textarea{font-family:inherit}
               <button onClick="{{ goCalendar }}" style="border:0;background:none;color:#0A0A0A;font-size:13px;font-weight:500">View calendar →</button>
             </div>
             <sc-for list="{{ todayHearings }}" as="h" hint-placeholder-count="4">
-              <button onClick="{{ goCase }}" style="display:flex;gap:16px;width:100%;text-align:left;background:none;border:0;border-top:1px solid #E5E5E5;padding:16px 0;color:#0A0A0A">
+              <button onClick="{{ h.go }}" style="display:flex;gap:16px;width:100%;text-align:left;background:none;border:0;border-top:1px solid #E5E5E5;padding:16px 0;color:#0A0A0A">
                 <div style="width:62px;flex-shrink:0">
                   <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:14px;font-weight:500">{{ h.time }}</div>
                   <div style="font-size:12px;color:#5E5E5E">{{ h.item }}</div>
@@ -289,7 +289,7 @@ input,select,textarea{font-family:inherit}
                   <div style="font-size:13px;color:#5E5E5E;margin-top:2px">Order dated {{ o.date }} · {{ o.source }}</div>
                   <div style="font-size:14px;color:#363636;margin-top:6px;text-wrap:pretty">{{ o.summary }}</div>
                 </div>
-                <button onClick="{{ goOrder }}" style="{{ o.btnStyle }}">{{ o.btn }}</button>
+                <button onClick="{{ o.go }}" style="{{ o.btnStyle }}">{{ o.btn }}</button>
               </div>
             </sc-for>
           </section>
@@ -297,7 +297,7 @@ input,select,textarea{font-family:inherit}
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
             <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0 0 12px">Limitation deadlines</h2>
             <sc-for list="{{ deadlines }}" as="d" hint-placeholder-count="3">
-              <button onClick="{{ goLimitation }}" style="display:flex;gap:16px;align-items:center;width:100%;text-align:left;background:none;border:0;border-top:1px solid #E5E5E5;padding:16px 0;color:#0A0A0A">
+              <button onClick="{{ d.go }}" style="display:flex;gap:16px;align-items:center;width:100%;text-align:left;background:none;border:0;border-top:1px solid #E5E5E5;padding:16px 0;color:#0A0A0A">
                 <div style="{{ d.dayStyle }}"><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:22px;font-weight:600;line-height:1">{{ d.days }}</div><div style="font-size:11px">days</div></div>
                 <div style="flex:1;min-width:0">
                   <div style="font-size:15px;font-weight:500">{{ d.title }}</div>
@@ -309,10 +309,10 @@ input,select,textarea{font-family:inherit}
           </section>
 
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;display:flex;flex-direction:column;gap:18px">
-            <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">Fees · November</h2>
+            <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">Fees · {{ feeMonth }}</h2>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-              <div><div style="font-size:13px;color:#5E5E5E">Collected</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600">₹4,80,000</div></div>
-              <div><div style="font-size:13px;color:#5E5E5E">Outstanding</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600;color:#0A0A0A">₹3,42,500</div></div>
+              <div><div style="font-size:13px;color:#5E5E5E">Collected</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600">{{ feeCollected }}</div></div>
+              <div><div style="font-size:13px;color:#5E5E5E">Outstanding</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600;color:#0A0A0A">{{ feeOutstanding }}</div></div>
             </div>
             <div style="display:flex;flex-direction:column;gap:8px">
               <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;align-items:end;height:96px">
@@ -330,7 +330,7 @@ input,select,textarea{font-family:inherit}
               </div>
               <div style="display:flex;gap:14px;font-size:12px;color:#5E5E5E"><span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:#0A0A0A"></span>Collected</span><span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:#C4C4C4"></span>Outstanding</span></div>
             </div>
-            <div style="font-size:13px;color:#5E5E5E">7 invoices unpaid · 2 overdue by more than 30 days</div>
+            <div style="font-size:13px;color:#5E5E5E"><button onClick="{{ goBilling }}" style="border:0;background:none;padding:0;color:inherit;font-size:inherit;text-decoration:underline;text-underline-offset:2px">{{ feeNote }}</button></div>
             <div style="border-top:1px solid #E5E5E5;padding-top:14px">
               <div style="font-size:13px;font-weight:600;margin-bottom:8px">Recent activity</div>
               <sc-for list="{{ activity }}" as="a" hint-placeholder-count="3">
@@ -347,11 +347,11 @@ input,select,textarea{font-family:inherit}
         <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between">
           <div>
             <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:0">Cases</h1>
-            <div style="font-size:14px;color:#5E5E5E;margin-top:4px">86 cases across 9 courts · click a row to open the case workspace</div>
+            <div style="font-size:14px;color:#5E5E5E;margin-top:4px">{{ casesSub }}</div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Import by CNR</button>
-            <button onClick="{{ goCase }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">+ New case</button>
+            <button onClick="{{ importCnr }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Import by CNR</button>
+            <button onClick="{{ newCase }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">+ New case</button>
           </div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
@@ -371,7 +371,7 @@ input,select,textarea{font-family:inherit}
               <span>Case</span><span>Court</span><span>Next hearing</span><span>Stage</span><span>Assigned</span><span>Status</span>
             </div>
             <sc-for list="{{ caseRows }}" as="r" hint-placeholder-count="8">
-              <button onClick="{{ goCase }}" style="display:grid;grid-template-columns:minmax(260px,2.3fr) 1.4fr 1fr 1fr 1fr 120px;gap:16px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid #E5E5E5;background:#FFFFFF;padding:16px 22px;color:#0A0A0A;font-size:13.5px" style-hover="background:#FFFFFF">
+              <button onClick="{{ r.go }}" style="display:grid;grid-template-columns:minmax(260px,2.3fr) 1.4fr 1fr 1fr 1fr 120px;gap:16px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid #E5E5E5;background:#FFFFFF;padding:16px 22px;color:#0A0A0A;font-size:13.5px" style-hover="background:#FAFAF9">
                 <span style="min-width:0"><span style="display:block;font-weight:500;font-size:15px">{{ r.title }}</span><span style="display:block;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:12px;color:#5E5E5E">{{ r.no }}</span></span>
                 <span style="color:#363636">{{ r.court }}</span>
                 <span style="{{ r.dateStyle }}">{{ r.next }}</span>
@@ -393,28 +393,29 @@ input,select,textarea{font-family:inherit}
 
     <sc-if value="{{ s.case }}" hint-placeholder-val="{{ false }}">
       <div style="display:flex;flex-direction:column;gap:24px;max-width:1240px">
-        <div style="font-size:13px;color:#5E5E5E;display:flex;gap:8px"><button onClick="{{ goCases }}" style="border:0;background:none;padding:0;color:#5E5E5E;font-size:13px">Cases</button><span>/</span><span style="color:#0A0A0A">CS(COMM) 219/2024</span></div>
+        <div style="font-size:13px;color:#5E5E5E;display:flex;gap:8px"><button onClick="{{ goCases }}" style="border:0;background:none;padding:0;color:#5E5E5E;font-size:13px">Cases</button><span>/</span><span style="color:#0A0A0A">{{ c.no }}</span></div>
         <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;justify-content:space-between">
           <div style="flex:1;min-width:280px">
-            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;line-height:1.2;margin:0;text-wrap:pretty">Kapoor Textiles Pvt. Ltd. v. Meridian Exports LLP</h1>
+            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;line-height:1.2;margin:0;text-wrap:pretty">{{ c.full }}</h1>
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">
-              <span style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:4px 10px;white-space:nowrap">CS(COMM) 219/2024</span>
-              <span style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:4px 10px;white-space:nowrap">CNR DLHC010219122024</span>
-              <span style="font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:4px 10px;white-space:nowrap">High Court of Delhi · Commercial Division</span>
-              <span style="font-size:13px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:4px 10px;white-space:nowrap;font-weight:500">Active · Pleadings</span>
+              <span style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:4px 10px;white-space:nowrap">{{ c.no }}</span>
+              <span style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:4px 10px;white-space:nowrap">{{ c.cnrLabel }}</span>
+              <span style="font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:4px 10px;white-space:nowrap">{{ c.forum }}</span>
+              <span style="font-size:13px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:4px 10px;white-space:nowrap;font-weight:500">{{ c.statusLine }}</span>
             </div>
           </div>
           <div style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:20px 22px;min-width:280px;display:flex;flex-direction:column;gap:12px">
             <div style="font-size:12px;color:#5E5E5E">Next hearing</div>
-            <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:24px;font-weight:600">{{ nextDateLabel }}</div>
-            <div style="font-size:13px;color:#5E5E5E">Court 34 · Hon'ble Ms. Justice R. Menon</div>
+            <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:24px;font-weight:600">{{ c.nextLabel }}</div>
+            <div style="font-size:13px;color:#5E5E5E">{{ c.benchLine }}</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button onClick="{{ goOrder }}" style="white-space:nowrap;height:38px;padding:0 14px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Open latest order</button>
-              <button onClick="{{ goBrain }}" style="white-space:nowrap;height:38px;padding:0 14px;background:#FFFFFF;color:#0A0A0A;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px">Hearing brief</button>
+              <button onClick="{{ c.openOrder }}" style="white-space:nowrap;height:38px;padding:0 14px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">{{ c.orderLabel }}</button>
+              <button onClick="{{ c.brief }}" style="white-space:nowrap;height:38px;padding:0 14px;background:#FFFFFF;color:#0A0A0A;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px">Hearing brief</button>
             </div>
           </div>
         </div>
 
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">{{ c.actions }}</div>
         <div style="display:flex;gap:4px;border-bottom:1px solid #E5E5E5;overflow-x:auto">
           <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="6">
             <button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
@@ -426,40 +427,30 @@ input,select,textarea{font-family:inherit}
             <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;grid-column:1/-1">
               <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center">
                 <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">Case summary</h2>
-                <span style="font-size:12px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 10px;font-weight:500">AI-generated · approved by R. Iyer, 5 Nov 2026</span>
+                <span style="font-size:12px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 10px;font-weight:500">{{ c.summaryMeta }}</span>
               </div>
-              <p style="font-size:15px;line-height:1.7;color:#363636;margin:14px 0 0;max-width:880px;text-wrap:pretty">The plaintiff wants to recover ₹1.86 crore for unpaid invoices for fabric supplied between March and August 2023 <a href="#">[Plaint ¶6–11]</a>. The defendant says the goods were defective and has filed a counter-claim <a href="#">[WS ¶4]</a>. Summary judgment under Order XIII-A CPC is pending in I.A. 6612/2026 <a href="#">[I.A. 6612/2026]</a>. On 04.11.2026 the court gave the defendant two weeks to reply and listed the matter for 18.11.2026 <a href="#">[Order 04.11.2026 ¶3–4]</a>.</p>
+              <p style="font-size:15px;line-height:1.7;color:#363636;margin:14px 0 0;max-width:880px;text-wrap:pretty">{{ c.summaryEl }}</p>
             </section>
             <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
               <h3 style="font-size:13px;color:#5E5E5E;margin:0 0 14px;font-weight:600">Parties</h3>
               <div style="display:flex;flex-direction:column;gap:14px">
-                <div><div style="font-size:12px;color:#5E5E5E">Plaintiff (our client)</div><div style="font-weight:500">Kapoor Textiles Pvt. Ltd.</div><div style="font-size:13px;color:#5E5E5E">Through Mr. Vivek Kapoor, Director</div></div>
-                <div><div style="font-size:12px;color:#5E5E5E">Defendant</div><div style="font-weight:500">Meridian Exports LLP</div><div style="font-size:13px;color:#5E5E5E">Counsel: Adv. S. Malhotra</div></div>
+                <sc-for list="{{ c.parties }}" as="p" hint-placeholder-count="2"><div><div style="font-size:12px;color:#5E5E5E">{{ p.role }}</div><div style="font-weight:500">{{ p.name }}</div><div style="font-size:13px;color:#5E5E5E">{{ p.note }}</div></div></sc-for>{{ c.partiesEmpty }}
               </div>
             </section>
             <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
               <h3 style="font-size:13px;color:#5E5E5E;margin:0 0 14px;font-weight:600">Legal issues</h3>
               <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:#363636">
-                <li>Whether the goods were rejected within a reasonable time (Sale of Goods Act, 1930 s.42)</li>
-                <li>Whether the defendant has any real prospect of defending the claim (Order XIII-A CPC)</li>
-                <li>Whether the counter-claim is maintainable without pre-institution mediation (s.12A, Commercial Courts Act)</li>
-              </ol>
+                <sc-for list="{{ c.issues }}" as="i" hint-placeholder-count="3"><li>{{ i }}</li></sc-for>
+              </ol>{{ c.issuesEmpty }}
             </section>
             <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
               <h3 style="font-size:13px;color:#5E5E5E;margin:0 0 14px;font-weight:600">Pending tasks</h3>
-              <sc-for list="{{ caseTasks }}" as="k" hint-placeholder-count="3">
-                <div style="display:flex;gap:12px;padding:10px 0;border-top:1px solid #E5E5E5;font-size:14px">
-                  <span style="width:16px;height:16px;border:1.5px solid #9E9E9E;border-radius:8px;flex-shrink:0;margin-top:3px"></span>
-                  <div style="flex:1">{{ k.t }}<div style="font-size:12px;color:#5E5E5E">{{ k.who }} · {{ k.due }}</div></div>
-                </div>
-              </sc-for>
+              {{ c.tasksEl }}
             </section>
             <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
               <h3 style="font-size:13px;color:#5E5E5E;margin:0 0 14px;font-weight:600">Assigned advocates</h3>
               <div style="display:flex;flex-direction:column;gap:12px;font-size:14px">
-                <div style="display:flex;justify-content:space-between"><span>Adv. Rohan Iyer</span><span style="color:#5E5E5E">Lead · Managing Partner</span></div>
-                <div style="display:flex;justify-content:space-between"><span>Adv. Neha Bhatia</span><span style="color:#5E5E5E">Junior Advocate</span></div>
-                <div style="display:flex;justify-content:space-between"><span>Karan Sood</span><span style="color:#5E5E5E">Paralegal</span></div>
+                <sc-for list="{{ c.advocates }}" as="a" hint-placeholder-count="3"><div style="display:flex;justify-content:space-between;gap:12px"><span>{{ a.name }}</span><span style="color:#5E5E5E">{{ a.role }}</span></div></sc-for>
               </div>
             </section>
           </div>
@@ -472,9 +463,9 @@ input,select,textarea{font-family:inherit}
                 <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:14px;width:100px">{{ o.date }}</div>
                 <div style="flex:1;min-width:220px;font-size:14px;color:#363636">{{ o.summary }}</div>
                 <div style="font-size:12px;color:#5E5E5E;width:220px">{{ o.source }}</div>
-                <button onClick="{{ goOrder }}" style="white-space:nowrap;height:34px;padding:0 12px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13px;color:#0A0A0A">Open</button>
+                <button onClick="{{ o.go }}" style="white-space:nowrap;height:34px;padding:0 12px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13px;color:#0A0A0A">Open</button>
               </div>
-            </sc-for>
+            </sc-for>{{ tabEmpty.orders }}
           </section>
         </sc-if>
 
@@ -486,7 +477,7 @@ input,select,textarea{font-family:inherit}
                 <div style="width:150px;color:#5E5E5E">{{ h.purpose }}</div>
                 <div style="flex:1;min-width:220px;color:#363636">{{ h.outcome }}</div>
               </div>
-            </sc-for>
+            </sc-for>{{ tabEmpty.hearings }}
           </section>
         </sc-if>
 
@@ -496,9 +487,9 @@ input,select,textarea{font-family:inherit}
               <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:16px 0;border-bottom:1px solid #E5E5E5;font-size:14px">
                 <div style="width:40px;height:48px;border:1px solid #E5E5E5;border-radius:8px;background:#FFFFFF;display:flex;align-items:flex-end;justify-content:center;font-size:10px;color:#0A0A0A;font-weight:600;padding-bottom:4px">{{ d.ext }}</div>
                 <div style="flex:1;min-width:200px"><div style="font-weight:500">{{ d.name }}</div><div style="font-size:12px;color:#5E5E5E">{{ d.meta }}</div></div>
-                <div style="font-size:12px;color:#5E5E5E">{{ d.v }}</div>
+                <div style="font-size:12px;color:#5E5E5E">{{ d.v }}</div>{{ d.act }}
               </div>
-            </sc-for>
+            </sc-for>{{ tabEmpty.documents }}
           </section>
         </sc-if>
 
@@ -515,7 +506,7 @@ input,select,textarea{font-family:inherit}
                   <div style="font-size:14px;margin-top:2px">{{ e.x }}</div>
                 </div>
               </div>
-            </sc-for>
+            </sc-for>{{ tabEmpty.timeline }}
           </section>
         </sc-if>
       </div>
@@ -524,7 +515,7 @@ input,select,textarea{font-family:inherit}
     <sc-if value="{{ s.order }}" hint-placeholder-val="{{ false }}">
       <div style="display:flex;flex-direction:column;gap:24px;max-width:1240px">
         <div>
-          <div style="font-size:13px;color:#5E5E5E">Kapoor Textiles v. Meridian Exports · CS(COMM) 219/2024</div>
+          <div style="font-size:13px;color:#5E5E5E">{{ ord.caseLine }}</div>
           <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">Review court order</h1>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
@@ -535,41 +526,26 @@ input,select,textarea{font-family:inherit}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:20px;align-items:start">
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;overflow:hidden">
             <div style="padding:14px 20px;border-bottom:1px solid #E5E5E5;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px">
-              <span style="font-weight:500">Order_04-11-2026.pdf · 2 pages · OCR complete</span>
-              <span style="color:#0A0A0A">Manually uploaded. Not an official retrieval.</span>
+              <span style="font-weight:500">{{ ord.file }}</span>
+              <span style="color:#0A0A0A">{{ ord.sourceNote }}</span>
             </div>
             <div style="padding:32px 36px;position:relative;overflow:hidden;background:#FFFFFF;font-family:'Instrument Sans',system-ui,sans-serif;font-size:15px;line-height:1.75;color:#1A1A1A">
-              <div style="text-align:center;font-weight:600;letter-spacing:.04em">IN THE HIGH COURT OF DELHI AT NEW DELHI</div>
-              <div style="text-align:center;margin-top:4px">CS(COMM) 219/2024 &amp; I.A. 6612/2026</div>
-              <div style="margin-top:18px">KAPOOR TEXTILES PVT. LTD. ..... Plaintiff</div>
-              <div>versus</div>
-              <div>MERIDIAN EXPORTS LLP ..... Defendant</div>
-              <div style="margin-top:14px">CORAM: HON'BLE MS. JUSTICE R. MENON</div>
-              <div style="margin-top:4px">O R D E R · 04.11.2026</div>
-              <p style="margin:14px 0 0"><b>1.</b> Learned counsel for the defendant seeks time to file reply to I.A. 6612/2026 under Order XIII-A CPC.</p>
-              <p style="margin:8px 0 0"><b>2.</b> Learned counsel for the plaintiff opposes, submitting that the application was served on 14.10.2026.</p>
-              <p style="margin:8px 0 0"><b>3.</b> In the interest of justice, two weeks' time is granted to the defendant to file reply. Rejoinder, if any, be filed before the next date.</p>
-              <p style="margin:8px 0 0;background:#F0F0EF;outline:2px solid #E3E3E2;border-radius:2px"><b>4.</b> List on 18.11.2026.</p>
+              {{ ord.docEl }}
             </div>
           </section>
           <div style="display:flex;flex-direction:column;gap:20px">
             <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
                 <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">AI summary</h2>
-                <span style="font-size:12px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 10px;font-weight:500">Draft · needs your review</span>
+                <span style="font-size:12px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 10px;font-weight:500">{{ ord.sumChip }}</span>
               </div>
-              <ul style="margin:14px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:10px;font-size:14px;line-height:1.6;color:#363636">
-                <li>The defendant asked for time to reply to the summary judgment application, I.A. 6612/2026. <a href="#">¶1</a></li>
-                <li>The plaintiff objected. The application had been served on 14.10.2026. <a href="#">¶2</a></li>
-                <li>The defendant has two weeks to file a reply. The plaintiff's rejoinder is due before the next date. <a href="#">¶3</a></li>
-                <li>The matter is listed for 18.11.2026. <a href="#">¶4</a></li>
-              </ul>
+              {{ ord.pointsEl }}
             </section>
             <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;display:flex;flex-direction:column;gap:14px">
               <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">Extracted next date</div>
               <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
                 <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:30px;font-weight:600">{{ nextDateLabel }}</div>
-                <div style="font-size:13px;color:#5E5E5E">from ¶4, "List on 18.11.2026"</div>
+                <div style="font-size:13px;color:#5E5E5E">{{ ord.nextFrom }}</div>
               </div>
               <sc-if value="{{ editDate }}" hint-placeholder-val="{{ false }}">
                 <input type="date" value="{{ nextDate }}" onChange="{{ setDate }}" style="height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:15px;max-width:220px">
@@ -585,7 +561,7 @@ input,select,textarea{font-family:inherit}
                 <div style="background:#F0F0EF;border-radius:8px;padding:16px 18px;color:#2B2B2B;font-size:14px;display:flex;flex-direction:column;gap:6px">
                   <div style="font-weight:600">Added to calendar. Hearing history updated.</div>
                   <div>Reminders scheduled for {{ reminderLine }}, by WhatsApp, email and in-app.</div>
-                  <div style="display:flex;gap:14px;margin-top:4px"><button onClick="{{ goCalendar }}" style="border:0;background:none;padding:0;color:#2B2B2B;font-weight:600;font-size:13.5px;text-decoration:underline">View in calendar</button><button onClick="{{ undoConfirm }}" style="border:0;background:none;padding:0;color:#2B2B2B;font-size:13.5px;text-decoration:underline">Undo</button></div>
+                  <div style="display:flex;gap:14px;margin-top:4px"><button onClick="{{ viewInCalendar }}" style="border:0;background:none;padding:0;color:#2B2B2B;font-weight:600;font-size:13.5px;text-decoration:underline">View in calendar</button><button onClick="{{ undoConfirm }}" style="border:0;background:none;padding:0;color:#2B2B2B;font-size:13.5px;text-decoration:underline">Undo</button></div>
                 </div>
               </sc-if>
             </section>
@@ -599,22 +575,19 @@ input,select,textarea{font-family:inherit}
         <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between">
           <div>
             <div style="font-size:13px;color:#5E5E5E">Hearings</div>
-            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">9 – 14 November 2026</h1>
+            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">{{ weekTitle }}</h1>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            {{ calNav }}
             <div style="display:flex;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:3px">
               <sc-for list="{{ calViews }}" as="v" hint-placeholder-count="2">
                 <button onClick="{{ v.go }}" style="{{ v.style }}">{{ v.label }}</button>
               </sc-for>
             </div>
-            <span style="font-size:13px;color:#0A0A0A;background:#F0F0EF;border-radius:8px;padding:5px 12px">Google Calendar synced</span>
-            <button style="white-space:nowrap;height:38px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Export .ics</button>
+            <button onClick="{{ exportIcs }}" style="white-space:nowrap;height:38px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Export .ics</button>
           </div>
         </div>
-        <div style="background:#FDECEA;color:#8F1D13;border-radius:8px;padding:14px 18px;font-size:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-          <b>Conflict, Wed 11 Nov at 10:30 AM.</b> Kapoor Textiles (Delhi HC, Court 34) and State v. Arjun Verma (Saket, Court 412) are at the same time. Assign one of them to a colleague.
-          <button style="white-space:nowrap;height:32px;padding:0 12px;background:#FFFFFF;border:1px solid #F4B8B1;border-radius:8px;font-size:13px;color:#8F1D13">Assign to Neha Bhatia</button>
-        </div>
+        <sc-if value="{{ hasConflict }}" hint-placeholder-val="{{ true }}"><div style="background:#FDECEA;color:#8F1D13;border-radius:8px;padding:14px 18px;font-size:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center"><span><b>{{ conflict.head }}</b> {{ conflict.text }}</span><button onClick="{{ conflict.assign }}" style="white-space:nowrap;height:32px;padding:0 12px;background:#FFFFFF;border:1px solid #F4B8B1;border-radius:8px;font-size:13px;color:#8F1D13">{{ conflict.btn }}</button></div></sc-if>
         <sc-if value="{{ weekView }}" hint-placeholder-val="{{ true }}">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
             <sc-for list="{{ week }}" as="d" hint-placeholder-count="6">
@@ -626,7 +599,7 @@ input,select,textarea{font-family:inherit}
                 </div>
                 <div style="display:flex;flex-direction:column;gap:8px;padding-top:12px">
                   <sc-for list="{{ d.events }}" as="e" hint-placeholder-count="1">
-                    <button onClick="{{ goCase }}" style="{{ e.style }}">
+                    <button onClick="{{ e.go }}" style="{{ e.style }}">
                       <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:12px;opacity:.85">{{ e.time }} · {{ e.court }}</div>
                       <div style="font-size:13px;font-weight:500;margin-top:3px">{{ e.title }}</div>
                       <div style="font-size:12px;opacity:.8">{{ e.no }}</div>
@@ -639,13 +612,13 @@ input,select,textarea{font-family:inherit}
         </sc-if>
         <sc-if value="{{ dayView }}" hint-placeholder-val="{{ false }}">
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:8px 26px">
-            <sc-for list="{{ todayHearings }}" as="h" hint-placeholder-count="4">
+            <sc-for list="{{ dayHearings }}" as="h" hint-placeholder-count="4">
               <div style="display:flex;flex-wrap:wrap;gap:20px;padding:20px 0;border-bottom:1px solid #E5E5E5">
                 <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:16px;width:80px">{{ h.time }}</div>
                 <div style="flex:1;min-width:220px"><div style="font-weight:500;font-size:16px">{{ h.title }}</div><div style="font-size:13px;color:#5E5E5E">{{ h.no }} · {{ h.court }} · {{ h.item }}</div><div style="font-size:14px;color:#363636;margin-top:6px">Last order: {{ h.last }}</div></div>
-                <button onClick="{{ goBrain }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13px;color:#0A0A0A;align-self:center">Hearing brief</button>
+                <button onClick="{{ h.brief }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13px;color:#0A0A0A;align-self:center">Hearing brief</button>
               </div>
-            </sc-for>
+            </sc-for>{{ dayEmpty }}
           </section>
         </sc-if>
       </div>
@@ -655,7 +628,7 @@ input,select,textarea{font-family:inherit}
       <div style="display:flex;flex-direction:column;gap:24px;max-width:1240px">
         <div>
           <div style="font-size:13px;color:#5E5E5E">Legal deadlines · Limitation tracker</div>
-          <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">Commercial appeal against decree in CS(COMM) 88/2023</h1>
+          <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">{{ lim.title }}</h1>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;align-items:start">
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;display:flex;flex-direction:column;gap:18px">
@@ -666,12 +639,13 @@ input,select,textarea{font-family:inherit}
                 <div style="border:1px solid #E5E5E5;border-radius:8px;padding:10px 12px;font-size:14px;background:#FFFFFF">{{ f.value }}</div>
               </div>
             </sc-for>
-            <sc-if value="{{ missingOpen }}" hint-placeholder-val="{{ true }}">
+            {{ lim.changeEl }}
+              <sc-if value="{{ missingOpen }}" hint-placeholder-val="{{ true }}">
               <div style="border:1px solid #E3E3E2;background:#F0F0EF;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px">
                 <div style="font-size:14px;font-weight:600;color:#2B2B2B">One fact is missing</div>
                 <div style="font-size:14px;color:#363636">On what date was the certified copy ready for delivery? Section 12(2) excludes the time needed to get the copy, so I need this date. I won't assume it.</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
-                  <input type="date" value="2026-09-22" style="height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 10px;font-size:14px">
+                  <input type="date" value="{{ lim.readyInput }}" onChange="{{ lim.setReady }}" style="height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 10px;font-size:14px">
                   <button onClick="{{ fillMissing }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Use this date</button>
                 </div>
               </div>
@@ -699,19 +673,19 @@ input,select,textarea{font-family:inherit}
               <div style="background:#0A0A0A;color:#fff;border-radius:12px;padding:20px 22px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
                 <div>
                   <div style="font-size:12px;color:#E3E3E2">Last date to file</div>
-                  <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600">Tue, 17 November 2026</div>
+                  <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600">{{ lim.dueLabel }}</div>
                 </div>
-                <div style="text-align:right"><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600;color:#F2B8AE">6 days</div><div style="font-size:12px;color:#E3E3E2">remaining</div></div>
+                <div style="text-align:right"><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600;color:#F2B8AE">{{ lim.daysLabel }}</div><div style="font-size:12px;color:#E3E3E2">{{ lim.daysWord }}</div></div>
               </div>
               <div style="font-size:13px;color:#5E5E5E;text-wrap:pretty">This is a computed suggestion, not legal advice. Before relying on it, check for condonation under s.5, any legal disability under s.6, and the court's own notified holidays.</div>
               <sc-if value="{{ notApproved }}" hint-placeholder-val="{{ true }}">
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
                   <button onClick="{{ approve }}" style="white-space:nowrap;height:36px;padding:0 18px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">Approve and set alerts</button>
-                  <button style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;color:#0A0A0A;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px">Send to Neha for review</button>
+                  <button onClick="{{ lim.send }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;color:#0A0A0A;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px">{{ lim.sendLabel }}</button>
                 </div>
               </sc-if>
               <sc-if value="{{ approved }}" hint-placeholder-val="{{ false }}">
-                <div style="background:#F0F0EF;color:#2B2B2B;border-radius:8px;padding:14px 16px;font-size:14px"><b>Approved by Adv. Rohan Iyer</b> on 11 Nov 2026 at 11:04 IST. Alerts set for 14, 16 and 17 Nov. Logged in the calculation history.</div>
+                <div style="background:#F0F0EF;color:#2B2B2B;border-radius:8px;padding:14px 16px;font-size:14px"><b>{{ lim.approvedBy }}</b> {{ lim.approvedText }}</div>
               </sc-if>
             </sc-if>
           </section>
@@ -726,7 +700,7 @@ input,select,textarea{font-family:inherit}
             <div style="font-size:13px;color:#5E5E5E">AI Case Brain</div>
             <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">Ask about this case</h1>
           </div>
-          <div style="font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:8px 12px">Scope: <b>CS(COMM) 219/2024</b> · 14 documents</div>
+          <div style="font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:8px 12px">{{ brainScope }}</div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;gap:18px">
           <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="2">
@@ -739,6 +713,7 @@ input,select,textarea{font-family:inherit}
               </div>
             </div>
           </sc-for>
+          <div id="ls-chat-end">{{ chatEmpty }}</div>
         </div>
         <div style="position:sticky;bottom:0;background:#F5F5F4;padding:12px 0 4px;display:flex;flex-direction:column;gap:10px">
           <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -760,12 +735,13 @@ input,select,textarea{font-family:inherit}
         <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-end">
           <div>
             <div style="font-size:13px;color:#5E5E5E">AI Drafting Studio</div>
-            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">Legal notice, s.138 NI Act</h1>
+            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">{{ draft.title }}</h1>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button onClick="{{ toggleDict }}" style="{{ dictBtn }}">{{ dictLabel }}</button>
-            <button style="white-space:nowrap;height:36px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Export DOCX</button>
-            <button style="white-space:nowrap;height:36px;padding:0 14px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Export PDF</button>
+            {{ draft.saveBtn }}
+            <button onClick="{{ draft.docx }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Export DOCX</button>
+            <button onClick="{{ draft.pdf }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Export PDF</button>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;align-items:start">
@@ -776,27 +752,15 @@ input,select,textarea{font-family:inherit}
             </sc-for>
           </section>
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:48px 52px;position:relative;overflow:hidden;grid-column:span 2;min-width:0;font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;line-height:1.8;color:#1A1A1A">
-            <div contenteditable="false" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:16px;margin-bottom:20px;border-bottom:2px solid #0A0A0A;position:relative"><div style="line-height:1.4"><div style="font-size:20px;font-weight:600">Iyer &amp; Associates</div><div style="font-size:13px;color:#5E5E5E">Advocates · Saket District Courts, New Delhi</div></div><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><img src="assets/ls-mark-black.png" alt="" style="height:20px;display:block"><span style="font-weight:600;font-size:14px;letter-spacing:-.02em;line-height:1;color:#0A0A0A">Legal Staff</span></span></div>
-            <div contenteditable="true" style="position:relative;outline:none">
-            <div style="text-align:right">Date: 11.11.2026</div>
-            <div style="margin-top:12px"><b>BY REGD. A.D. / SPEED POST / EMAIL</b></div>
-            <div style="margin-top:12px">To,<br>M/s Meridian Exports LLP<br>Plot 44, Sector 63, Noida, Uttar Pradesh 201301</div>
-            <div style="margin-top:16px"><b>Subject: Legal notice under Section 138 of the Negotiable Instruments Act, 1881 for dishonour of Cheque No. 004512</b></div>
-            <p>Under instructions from and on behalf of my client, M/s Kapoor Textiles Pvt. Ltd., I serve you with the following notice:</p>
-            <p>1. You issued Cheque No. 004512 dated 02.10.2026 for ₹18,40,000, drawn on HDFC Bank, Noida branch, to part-discharge an admitted liability for goods supplied.</p>
-            <p>2. My client presented the cheque. It was returned unpaid on 28.10.2026 with the remark "<span style="background:#F0F0EF">Funds Insufficient</span>", as stated in the return memo of the same date.</p>
-            <p>3. You are called upon to pay ₹18,40,000 within fifteen days of receiving this notice. If you fail to pay, my client will start proceedings under Section 138 at your risk as to costs and consequences.</p>
-            <div style="margin-top:24px">Adv. Rohan Iyer<br>Iyer &amp; Associates, New Delhi</div>
-            </div>
-            <div contenteditable="false" style="margin-top:36px;padding-top:12px;border-top:1px solid #E5E5E5;display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:#5E5E5E;position:relative;font-family:'Instrument Sans',system-ui,sans-serif"><span>Draft v3 · Prepared on Legal Staff · Page 1 of 1</span></div>
+            <div contenteditable="false" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:16px;margin-bottom:20px;border-bottom:2px solid #0A0A0A;position:relative"><div style="line-height:1.4"><div style="font-size:20px;font-weight:600">{{ firmName }}</div><div style="font-size:13px;color:#5E5E5E">Advocates · {{ firmAddress }}</div></div><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><img src="assets/ls-mark-black.png" alt="" style="height:20px;display:block"><span style="font-weight:600;font-size:14px;letter-spacing:-.02em;line-height:1;color:#0A0A0A">Legal Staff</span></span></div>
+            {{ draft.body }}
+            <div contenteditable="false" style="margin-top:36px;padding-top:12px;border-top:1px solid #E5E5E5;display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:#5E5E5E;position:relative;font-family:'Instrument Sans',system-ui,sans-serif"><span>{{ draft.footer }}</span></div>
           </section>
           <section style="display:flex;flex-direction:column;gap:16px">
             <div style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:20px">
               <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600;margin-bottom:10px">AI checks</div>
               <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:#363636">
-                <div>✓ Notice is within 30 days of the return memo dated 28.10.2026, as s.138(b) requires</div>
-                <div>✓ The 15-day payment period is stated</div>
-                <div style="color:#2B2B2B">• The bank branch address is not in the case file. Please verify it.</div>
+                {{ draft.checks }}
               </div>
             </div>
             <div style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:20px">
@@ -849,14 +813,14 @@ input,select,textarea{font-family:inherit}
                 <div style="display:flex;justify-content:space-between;color:#5E5E5E"><span>GST @ 18%</span><span>{{ co.gst }}</span></div>
                 <div style="display:flex;justify-content:space-between;border-top:1px solid #E5E5E5;padding-top:12px;font-weight:600;font-size:16px"><span>Total</span><span>{{ co.total }}</span></div>
               </div>
-              <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:13px;color:#5E5E5E">GSTIN (optional)</label><input placeholder="07AAAAA0000A1Z5" style="height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums"></div>
+              <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:13px;color:#5E5E5E">GSTIN (optional)</label><input value="{{ gstin }}" onChange="{{ setGstin }}" placeholder="07AAAAA0000A1Z5" style="height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums">{{ co.gstErr }}</div>
               <button onClick="{{ pay }}" style="white-space:nowrap;height:36px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">Pay {{ co.total }} with Razorpay</button>
               <div style="font-size:12px;color:#5E5E5E;text-align:center">Auto-renews {{ co.renew }}. You can cancel any time from Settings → Subscriptions.</div>
             </sc-if>
             <sc-if value="{{ paid }}" hint-placeholder-val="{{ false }}">
               <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">Payment verified</div>
               <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">Your {{ co.name }} plan is active</h2>
-              <div style="font-size:14px;color:#363636">The invoice has been emailed to rohan@iyerassociates.in. Next renewal: {{ co.next }}.</div>
+              <div style="font-size:14px;color:#363636">The invoice has been saved for {{ userEmail }}. Next renewal: {{ co.next }}.</div>
               <div style="background:#FFFFFF;border-radius:12px;padding:20px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:10px;font-size:13px">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:10px;border-bottom:2px solid #0A0A0A"><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><img src="assets/ls-mark-black.png" alt="" style="height:20px;display:block"><span style="font-weight:600;font-size:14px;letter-spacing:-.02em;line-height:1;color:#0A0A0A">Legal Staff</span></span><span style="font-size:12px;font-weight:600">Tax invoice</span></div>
                 <div style="display:flex;justify-content:space-between"><span>{{ co.name }} plan · {{ co.cycle }}</span><span>{{ co.base }}</span></div>
@@ -915,7 +879,8 @@ input,select,textarea{font-family:inherit}
                 <div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #E5E5E5;font-size:14px"><span>{{ c.k }}</span><span style="{{ c.style }}">{{ c.v }}</span></div>
               </sc-for>
             </div>
-            <textarea placeholder="Note to applicant (required to reject or request more information)" style="min-height:80px;border:1px solid #E5E5E5;border-radius:8px;padding:12px;font-size:14px;resize:vertical"></textarea>
+            {{ cur.lastNote }}
+            <textarea value="{{ adminNote }}" onChange="{{ setAdminNote }}" placeholder="Note to applicant (required to reject or request more information)" style="min-height:80px;border:1px solid #E5E5E5;border-radius:8px;padding:12px;font-size:14px;resize:vertical"></textarea>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
               <button onClick="{{ verify }}" style="white-space:nowrap;height:36px;padding:0 18px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">Verify and publish</button>
               <button onClick="{{ askInfo }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;color:#0A0A0A;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px">Request more information</button>
@@ -927,16 +892,11 @@ input,select,textarea{font-family:inherit}
       </div>
     </sc-if>
 
-    <sc-if value="{{ s.mod }}" hint-placeholder-val="{{ false }}">
-      <div style="max-width:640px;margin:80px auto;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center">
-        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">Module</div>
-        <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:0">{{ modLabel }}</h1>
-        <div style="font-size:15px;color:#5E5E5E">This module isn't designed yet. It's in the sidebar so you can check the navigation.</div>
-        <button onClick="{{ goDashboard }}" style="margin-top:8px;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Back to dashboard</button>
-      </div>
-    </sc-if>
+    <sc-if value="{{ s.mod }}" hint-placeholder-val="{{ false }}">{{ modView }}</sc-if>
   </main>
 </div>
+
+{{ overlay }}
 
 <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
   <div style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:80;background:#0A0A0A;color:#fff;border-radius:8px;padding:12px 18px;font-size:14px;display:flex;gap:12px;align-items:center;box-shadow:0 24px 64px rgba(0,0,0,.18);max-width:calc(100vw - 32px)">{{ toast }}</div>
@@ -950,21 +910,21 @@ input,select,textarea{font-family:inherit}
     </div>
     <div style="padding:20px 22px;display:flex;flex-direction:column;gap:24px;overflow:auto;flex:1">
       <div style="display:flex;gap:8px;background:#F5F5F4;border:1px solid #E5E5E5;border-radius:8px;padding:6px 6px 6px 12px">
-        <input placeholder="Ask Copilot…" style="flex:1;border:0;background:transparent;outline:none;font-size:14px;min-width:0">
-        <button onClick="{{ goBrain }}" style="white-space:nowrap;height:32px;padding:0 12px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13px">Ask</button>
+        <input value="{{ cq }}" onChange="{{ setCq }}" onKeyDown="{{ cqKey }}" placeholder="Ask Copilot…" style="flex:1;border:0;background:transparent;outline:none;font-size:14px;min-width:0">
+        <button onClick="{{ copilotAsk }}" style="white-space:nowrap;height:32px;padding:0 12px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13px">Ask</button>
       </div>
+      {{ copilotMsgs }}
       <div>
         <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600;margin-bottom:8px">Suggestions</div>
         <div style="display:flex;flex-direction:column;gap:8px;font-size:14px">
-          <button onClick="{{ goOrder }}" style="text-align:left;background:#F0F0EF;border:1px solid #E3E3E2;border-radius:8px;padding:12px;color:#363636;font-size:13.5px">A new order in Kapoor Textiles has a next date that needs your confirmation.</button>
-          <button onClick="{{ goCalendar }}" style="text-align:left;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:12px;color:#363636;font-size:13.5px">Two hearings clash at 10:30 AM today. Assign one to Neha Bhatia?</button>
+          {{ copilotSugs }}
         </div>
       </div>
       <div>
-        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600;margin-bottom:8px">Today's tasks</div>
-        <sc-for list="{{ caseTasks }}" as="k" hint-placeholder-count="3">
+        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600;margin-bottom:8px">Your open tasks</div>
+        <sc-for list="{{ panelTasks }}" as="k" hint-placeholder-count="3">
           <div style="font-size:14px;padding:8px 0;border-top:1px solid #E5E5E5">{{ k.t }}<div style="font-size:12px;color:#5E5E5E">{{ k.due }}</div></div>
-        </sc-for>
+        </sc-for>{{ panelTasksEmpty }}
       </div>
       <div>
         <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600;margin-bottom:8px">Limitation alerts</div>
@@ -977,32 +937,112 @@ input,select,textarea{font-family:inherit}
 </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;sidebar&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Light&quot;,&quot;Ink&quot;],&quot;default&quot;:&quot;Light&quot;,&quot;tsType&quot;:&quot;'Light'|'Ink'&quot;,&quot;section&quot;:&quot;Look&quot;},&quot;backdrop&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Wallpaper&quot;,&quot;Dots&quot;,&quot;Grid&quot;,&quot;Plain&quot;],&quot;default&quot;:&quot;Wallpaper&quot;,&quot;tsType&quot;:&quot;'Wallpaper'|'Dots'|'Grid'|'Plain'&quot;,&quot;section&quot;:&quot;Look&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Comfortable&quot;,&quot;Compact&quot;],&quot;default&quot;:&quot;Comfortable&quot;,&quot;tsType&quot;:&quot;'Comfortable'|'Compact'&quot;,&quot;section&quot;:&quot;Layout&quot;}}">
+<script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  state = { auth: 'login', screen: 'dashboard', modLabel: '', panel: false, drawer: false, w: window.innerWidth, tab: 'overview', confirmed: false, editDate: false, nextDate: '2026-11-18', missingFilled: false, approved: false, collapsed: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, sel: 0, statuses: ['pending', 'pending', 'info', 'pending'], calView: 'week', dict: false, ver: 0, tpl: 2, q: '',
-    msgs: [
-      { role: 'user', text: 'What was the last order?' },
-      { role: 'ai', text: 'The last order is dated 04.11.2026, by Hon\'ble Ms. Justice R. Menon. The defendant was given two weeks to reply to I.A. 6612/2026, the summary judgment application under Order XIII-A CPC. Your rejoinder is due before the next date. The matter is listed on 18.11.2026.', cites: ['Order 04.11.2026 ¶3', 'Order 04.11.2026 ¶4'] }
-    ] };
-  componentDidMount() { this.onR = () => this.setState({ w: window.innerWidth }); window.addEventListener('resize', this.onR); this.grow(); }
-  componentWillUnmount() { window.removeEventListener('resize', this.onR); }
-  grow() { clearTimeout(this.gt); this.setState({ grown: false }); this.gt = setTimeout(() => this.setState({ grown: true }), 60); }
-  go(screen, modLabel) { this.setState({ screen, modLabel: modLabel || '', drawer: false }); if (screen === 'dashboard') this.grow(); const m = document.querySelector('main'); window.scrollTo(0, 0); }
-  ask(label) {
-    const A = {
-      'Prepare a hearing brief': { text: 'Hearing brief for 18.11.2026\n\nBackground: a recovery suit for ₹1.86 crore for fabric supplied and not paid for.\nLast order: the defendant was given 2 weeks to reply to I.A. 6612/2026.\nWhat to press: (1) the defendant has not filed a reply, if that is still the case; (2) they raised no objection to quality within the s.42 period; (3) they have no real prospect of a defence under Order XIII-A.\nTo carry: the delivery challans, the ledger statement and the email of 12.09.2023 acknowledging the dues.\n\nThis is a draft. Please review it before relying on it.', cites: ['Plaint ¶6–11', 'Order 04.11.2026', 'Email 12.09.2023'] },
-      'What documents are missing?': { text: 'Two documents are referred to but are not in the case file:\n1. The certified copy of the counter-claim, cited in WS ¶4.\n2. The pre-institution mediation non-starter report, cited in Plaint ¶2.', cites: ['WS ¶4', 'Plaint ¶2'] },
-      'What tasks are pending?': { text: 'Three tasks are open:\n• Draft the rejoinder to the reply in I.A. 6612/2026. Neha Bhatia, due 17 Nov.\n• Collect the original delivery challans from the client. Karan Sood, due 14 Nov.\n• Send the hearing update to the client after 18 Nov. Rohan Iyer.', cites: ['Tasks'] },
-      'What arguments were raised?': { text: 'The plaintiff argued that the dues were admitted in the email of 12.09.2023. The defendant argues the goods were defective and rejected. No date of rejection is pleaded.', cites: ['Plaint ¶9', 'WS ¶4–7'] }
+  db = LS.load();
+  tplNames = ['Legal notice', 'Petition', 'Section 138 notice', 'Bail application', 'Affidavit', 'Written statement', 'Reply', 'Appeal', 'Revision', 'Agreement'];
+  state = { auth: this.db.session ? 'in' : 'login', screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: 'c1' };
+  SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'courts', 'clients', 'documents', 'evidence', 'research', 'agents', 'team', 'billing', 'portal', 'reports', 'settings'];
+
+  componentDidMount() {
+    this.onR = () => this.setState({ w: window.innerWidth }); window.addEventListener('resize', this.onR);
+    this.onH = () => this.applyRoute(); window.addEventListener('hashchange', this.onH);
+    this.onK = e => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); const i = document.getElementById('ls-search'); i && i.focus(); return; }
+      if (e.key === 'Escape') { if (this.state.modalOn) this.modal(null); else if (this.state.menu || this.state.searchOpen) this.setState({ menu: null, searchOpen: false }); else if (this.state.panel) this.setState({ panel: false }); return; }
+      if (typing || e.ctrlKey || e.metaKey || e.altKey || this.state.auth !== 'in' || this.state.modalOn) return;
+      const k = e.key.toLowerCase();
+      if (this.gk && Date.now() - this.gk < 1200) { this.gk = 0; const to = { d: 'dashboard', c: 'cases', h: 'calendar' }[k]; if (to) { e.preventDefault(); this.go(to); } return; }
+      if (k === 'g') this.gk = Date.now(); else if (k === 'n') { e.preventDefault(); LSV.newCase(this); } else if (k === '?') LSV.help(this);
     };
-    const a = A[label] || { text: 'The documents in this case don\'t answer that clearly. I can search the 14 indexed documents for related passages, or mark it as an open question for the hearing.', cites: [] };
-    this.setState(s => ({ msgs: [...s.msgs, { role: 'user', text: label }, { role: 'ai', ...a }], q: '' }));
+    window.addEventListener('keydown', this.onK);
+    this.applyRoute(); this.grow();
   }
-  toastMsg(t) { this.setState({ toast: t }); clearTimeout(this.tt); this.tt = setTimeout(() => this.setState({ toast: '' }), 3200); }
-  setStatus(v) { const L = { verified: 'Profile verified and published', info: 'More information requested from applicant', rejected: 'Application rejected · logged' }; this.toastMsg(L[v]); this.setState(s => { const st = [...s.statuses]; st[s.sel] = v; return { statuses: st }; }); }
+  componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('hashchange', this.onH); window.removeEventListener('keydown', this.onK); this.rec && this.rec.stop(); }
+  grow() { clearTimeout(this.gt); this.setState({ grown: false }); this.gt = setTimeout(() => this.setState({ grown: true }), 60); }
+  applyRoute() {
+    const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean), screen = this.SCREENS.includes(p[0]) ? p[0] : 'dashboard';
+    this.setState({ screen, param: p[1] ? decodeURIComponent(p[1]) : '', tab: p[2] || 'overview', drawer: false, menu: null, searchOpen: false, editDate: false });
+    if (screen === 'dashboard') this.grow(); window.scrollTo(0, 0);
+  }
+  go(screen, param, tab) { const hs = '#/' + screen + (param ? '/' + encodeURIComponent(param) : '') + (tab ? '/' + tab : ''); if (location.hash !== hs) location.hash = hs; else this.applyRoute(); }
+  mut(fn, msg) { fn(this.db); if (!LS.save(this.db)) msg = 'Could not save. Browser storage is full or blocked.'; this.setState(s => ({ rev: s.rev + 1 })); if (msg) this.toast(msg); }
+  replace(db, msg) { this.db = db; LS.save(db); this.buf = null; this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); if (msg) this.toast(msg); }
+  modal(fn) { this._modal = fn; this.setState(s => ({ modalOn: !!fn, menu: null, rev: s.rev + 1 })); }
+  toast(t) { this.setState({ toast: t }); clearTimeout(this.tt); this.tt = setTimeout(() => this.setState({ toast: '' }), 3200); }
+  signIn(email) {
+    this.mut(db => { db.session = { email, at: Date.now() }; });
+    this.setState({ auth: 'boot' });
+    setTimeout(() => { this.setState({ auth: 'in' }); this.grow();
+      const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
+      if (i >= 0) { this.setState({ plan: i, paid: false, cycle: q.get('cycle') === 'monthly' ? 'monthly' : 'annual' }); history.replaceState(null, '', location.pathname + '#/pricing'); this.applyRoute(); }
+    }, 900);
+  }
+  signOut() { this.mut(db => { db.session = null; }); this.setState({ auth: 'login', menu: null, panel: false }); }
+  openWeek(date) { this.setState({ weekStart: this.monday(date), daySel: date }); this.go('calendar'); }
+  openDraft(i) { this.buf = null; this.setState({ tpl: i, ver: 0 }); this.go('drafting'); }
+  monday(s) { const d = LS.parse(s), g = d.getDay(); return LS.addDays(s, g === 0 ? -6 : 1 - g); }
+  chat(id) { const d = this.db; if (!d.chats[id]) { d.chats[id] = id === 'c1' ? [{ role: 'user', text: 'What was the last order?' }, Object.assign({ role: 'ai' }, LS.answer(d, 'c1', 'last order'))] : []; } return d.chats[id]; }
+  ask(label) {
+    const id = this.state.brainCase;
+    this.mut(db => { const a = LS.answer(db, id, label); this.chat(id).push({ role: 'user', text: label }, { role: 'ai', text: a.text, cites: a.cites });
+      if (a.brief) { const nh = LSV.nextHearing(db, id); if (nh) nh.brief = true; } });
+    this.setState({ q: '' });
+    setTimeout(() => { const el = document.getElementById('ls-chat-end'); el && el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 50);
+  }
+  copilot(q) {
+    const d = this.db, lc = q.toLowerCase(), T = LS.today(); let text = '', go = null;
+    const named = d.cases.find(c => c.title.toLowerCase().split(/\s+v\.?\s+|\s+/).filter(w => w.length > 3).some(w => lc.includes(w)));
+    const ctx = named || (this.state.screen === 'case' && d.cases.find(c => c.id === this.state.param));
+    if (/\btoday\b|hearing/.test(lc) && !named) { const hs = d.hearings.filter(x => x.date === T).sort((a, b) => a.time.localeCompare(b.time)); text = hs.length ? `${hs.length} hearing${hs.length > 1 ? 's' : ''} today:\n` + hs.map(x => `• ${LS.t12ap(x.time)} ${LSV.caseOf(d, x.caseId).title} — ${x.court} (${x.assignee})`).join('\n') : 'No hearings are listed for today.'; go = ['calendar']; }
+    else if (/deadline|limitation/.test(lc)) { const lim = LS.limitation(d.lim); text = [`• ${d.lim.title}: ${LS.fmt(lim.due)}${d.lim.approved ? '' : ' (awaiting approval)'}`, ...d.deadlines.map(x => `• ${x.title}: ${LS.fmt(x.due)}`)].join('\n'); go = ['limitation']; }
+    else if (/overdue|my task|tasks/.test(lc) && !ctx) { const ts = d.tasks.filter(t => !t.done && t.due < T); text = ts.length ? `${ts.length} overdue task${ts.length > 1 ? 's' : ''}:\n` + ts.map(t => `• ${t.t} — ${t.who}, ${LS.dayMon(t.due)}`).join('\n') : 'No tasks are overdue.'; go = ['workspace']; }
+    else if (/invoice|fee|outstanding|unpaid/.test(lc)) { const u = d.invoices.filter(i => !i.paid); text = `${u.length} invoices are unpaid, ${LS.inr(u.reduce((a, i) => a + i.amount, 0))} before GST.`; go = ['billing']; }
+    else if (ctx) { const a = LS.answer(d, ctx.id, q); text = ctx.title + '\n' + a.text; go = ['case', ctx.id]; }
+    else { const r = LSV.searchAll(d, q); if (r.length) { text = 'I found:\n' + r.slice(0, 5).map(x => `• ${x.kind}: ${x.label} — ${x.sub}`).join('\n'); go = r[0].to; } else text = 'I could not find that in your cases, clients or documents. Ask about today’s hearings, deadlines, overdue tasks, invoices, or name a case.'; }
+    this.mut(db => { db.copilot.push({ q, text, go }); db.copilot = db.copilot.slice(-6); }); this.setState({ cq: '' });
+  }
+  tplHtml(i) {
+    const d = this.db, c = d.cases[d.cases.findIndex(x => x.id === 'c1')] || d.cases[0] || {}, T = LS.dmy(LS.today()), u = d.user.title, f = d.firm;
+    const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const sign = `<div style="margin-top:24px">${esc(u)}<br>${esc(f.name)}, ${esc(f.city)}</div>`, date = `<div style="text-align:right">Date: ${T}</div>`;
+    const court = (t, a, b, ra, rb) => `<div style="text-align:center;font-weight:600">${t}</div><div style="text-align:center;margin-top:4px">[Case type and number]</div><div style="margin-top:16px">${a} ..... ${ra}</div><div>versus</div><div>${b} ..... ${rb}</div>`;
+    const P = { 0: `${date}<div style="margin-top:12px"><b>BY REGD. A.D. / SPEED POST / EMAIL</b></div><div style="margin-top:12px">To,<br>[Name of the addressee]<br>[Address]</div><div style="margin-top:16px"><b>Subject: Legal notice for [cause]</b></div><p>Under instructions from and on behalf of my client, [name and address of client], I serve you with the following notice:</p><p>1. [State the relationship between the parties and the material facts.]</p><p>2. [State the breach or default complained of, with dates.]</p><p>3. You are called upon to [state the demand] within fifteen days of receiving this notice, failing which my client will take legal proceedings at your risk as to costs and consequences.</p><p>A copy of this notice is kept in my office for record.</p>${sign}`,
+      1: `${court('IN THE HIGH COURT OF DELHI AT NEW DELHI', '[Name of petitioner]', '[Name of respondent]', 'Petitioner', 'Respondent')}<div style="margin-top:16px"><b>PETITION UNDER [PROVISION] SEEKING [RELIEF]</b></div><p>The petitioner respectfully submits:</p><p>1. That the petitioner is [description and standing].</p><p>2. That the facts giving rise to this petition are: [facts in order of date].</p><p>3. That the petitioner has no other equally efficacious remedy, and no similar petition has been filed before any other court.</p><p><b>PRAYER</b></p><p>It is therefore prayed that this Hon'ble Court may be pleased to: (a) [principal relief]; (b) pass any other order it deems fit.</p><div style="margin-top:16px">New Delhi<br>Dated: ${T}</div>${sign}`,
+      2: `${date}<div style="margin-top:12px"><b>BY REGD. A.D. / SPEED POST / EMAIL</b></div><div style="margin-top:12px">To,<br>M/s Meridian Exports LLP<br>Plot 44, Sector 63, Noida, Uttar Pradesh 201301</div><div style="margin-top:16px"><b>Subject: Legal notice under Section 138 of the Negotiable Instruments Act, 1881 for dishonour of Cheque No. 004512</b></div><p>Under instructions from and on behalf of my client, M/s Kapoor Textiles Pvt. Ltd., I serve you with the following notice:</p><p>1. You issued Cheque No. 004512 dated ${LS.dmy(LS.addDays(LS.today(), -40))} for ₹18,40,000, drawn on HDFC Bank, Noida branch, to part-discharge an admitted liability for goods supplied.</p><p>2. My client presented the cheque. It was returned unpaid on ${LS.dmy(LS.addDays(LS.today(), -14))} with the remark "<span style="background:#F0F0EF">Funds Insufficient</span>", as stated in the return memo of the same date.</p><p>3. You are called upon to pay ₹18,40,000 within fifteen days of receiving this notice. If you fail to pay, my client will start proceedings under Section 138 at your risk as to costs and consequences.</p>${sign}`,
+      3: `${court('IN THE COURT OF THE SESSIONS JUDGE, [DISTRICT]', '[Name of applicant]', 'State', 'Applicant', 'Respondent')}<div style="margin-top:16px"><b>APPLICATION FOR REGULAR BAIL UNDER SECTION 483 OF THE BHARATIYA NAGARIK SURAKSHA SANHITA, 2023</b></div><div>FIR No. [number] · P.S. [police station] · Offences under [sections]</div><p>The applicant respectfully submits:</p><p>1. That the applicant was arrested on [date] and has been in custody since then.</p><p>2. That the applicant has been falsely implicated. [Grounds on merits.]</p><p>3. That the applicant has roots in society, is not a flight risk, and undertakes not to tamper with evidence or influence witnesses.</p><p>4. That the applicant will abide by any condition this Hon'ble Court imposes.</p><p><b>PRAYER</b></p><p>It is prayed that the applicant be released on regular bail in the above FIR.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
+      4: `<div style="text-align:center;font-weight:600">AFFIDAVIT</div><p>I, [name], aged [age] years, son/daughter of [parent's name], resident of [address], do solemnly affirm and state as follows:</p><p>1. That I am the [party] in the above matter and am conversant with its facts.</p><p>2. That the contents of the accompanying [pleading] are true to my knowledge and belief, and nothing material has been concealed.</p><p>3. That the annexures are true copies of their originals.</p><div style="margin-top:24px;text-align:right">DEPONENT</div><p><b>VERIFICATION</b></p><p>Verified at [place] on ${T} that the contents of this affidavit are true to my knowledge and belief. No part of it is false and nothing material has been concealed.</p><div style="margin-top:24px;text-align:right">DEPONENT</div>`,
+      5: `${court('IN THE COURT OF [COURT]', '[Name of plaintiff]', '[Name of defendant]', 'Plaintiff', 'Defendant')}<div style="margin-top:16px"><b>WRITTEN STATEMENT ON BEHALF OF THE DEFENDANT</b></div><p><b>PRELIMINARY OBJECTIONS</b></p><p>1. That the suit is not maintainable because [ground].</p><p>2. That the plaint discloses no cause of action against the defendant.</p><p><b>REPLY ON MERITS</b></p><p>1. Para 1 of the plaint is [admitted / denied]. [Para-wise reply.]</p><p>2. Each allegation not specifically admitted is denied.</p><p><b>PRAYER</b></p><p>It is prayed that the suit be dismissed with costs.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}<p><b>VERIFICATION</b></p><p>Verified at [place] on ${T} that the contents of paras [numbers] are true to my knowledge and the rest are believed to be true on legal advice.</p>`,
+      6: `${court('IN THE HIGH COURT OF DELHI AT NEW DELHI', esc((c.parties && c.parties[0] || {}).name || '[Name]'), esc((c.parties && c.parties[1] || {}).name || '[Name]'), 'Plaintiff', 'Defendant')}<div style="margin-top:16px"><b>REPLY ON BEHALF OF THE [PARTY] TO THE APPLICATION UNDER [PROVISION]</b></div><p>The [party] respectfully submits:</p><p>1. That the application is misconceived and liable to be dismissed because [ground].</p><p>2. [Para-wise reply to the application.]</p><p>3. That the balance of convenience lies with the [party].</p><p><b>PRAYER</b></p><p>It is prayed that the application be dismissed with costs.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
+      7: `${court('IN THE HIGH COURT OF DELHI AT NEW DELHI · COMMERCIAL APPELLATE DIVISION', '[Name of appellant]', '[Name of respondent]', 'Appellant', 'Respondent')}<div style="margin-top:16px"><b>APPEAL UNDER SECTION 13(1A) OF THE COMMERCIAL COURTS ACT, 2015 AGAINST THE JUDGMENT AND DECREE DATED ${LS.dmy(d.lim.judgment)}</b></div><p>The appellant respectfully submits:</p><p>1. That this appeal is against the judgment and decree dated ${LS.dmy(d.lim.judgment)} in CS(COMM) 88/2023. A certified copy is annexed.</p><p>2. <b>Brief facts:</b> [facts]</p><p>3. <b>Grounds:</b> (A) The court below erred in [ground]. (B) [Further grounds.]</p><p>4. <b>Limitation:</b> The appeal is within sixty days of the judgment after excluding the time taken to obtain the certified copy.</p><p><b>PRAYER</b></p><p>It is prayed that the impugned judgment and decree be set aside.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
+      8: `${court('IN THE HIGH COURT OF DELHI AT NEW DELHI', '[Name of petitioner]', '[Name of respondent]', 'Petitioner', 'Respondent')}<div style="margin-top:16px"><b>REVISION PETITION UNDER [SECTION 115 CPC / SECTION 438 BNSS] AGAINST THE ORDER DATED [DATE]</b></div><p>The petitioner respectfully submits:</p><p>1. That the impugned order was passed by [court] in [case number].</p><p>2. That the court below exercised jurisdiction illegally or with material irregularity because [ground].</p><p>3. That the order, if allowed to stand, will cause a failure of justice.</p><p><b>PRAYER</b></p><p>It is prayed that the records be called for and the impugned order be set aside.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
+      9: `<div style="text-align:center;font-weight:600">AGREEMENT</div><p>This Agreement is made at ${esc(f.city)} on ${T} between:</p><p><b>[First party]</b>, having its office at [address] (the "First Party"); and</p><p><b>[Second party]</b>, having its office at [address] (the "Second Party").</p><p>1. <b>Scope.</b> [Describe what each party will do.]</p><p>2. <b>Consideration.</b> The [party] will pay ₹[amount] on [terms].</p><p>3. <b>Term and termination.</b> This Agreement runs for [period]. Either party may end it with [notice period] written notice.</p><p>4. <b>Confidentiality.</b> Each party will keep the other's information confidential.</p><p>5. <b>Disputes.</b> Disputes will be referred to a sole arbitrator under the Arbitration and Conciliation Act, 1996, seated at ${esc(f.city)}.</p><p>6. <b>Governing law.</b> The laws of India apply.</p><div style="margin-top:24px">For the First Party &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; For the Second Party</div>` };
+    return P[i];
+  }
+  clean(html) { return String(html).replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+="[^"]*"/gi, '').replace(/\son\w+='[^']*'/gi, ''); }
+  dictate() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (this.state.dict) { this.rec && this.rec.stop(); return this.setState({ dict: false }); }
+    if (!SR) return this.toast('Dictation needs a browser with speech recognition, such as Chrome.');
+    const r = this.rec = new SR(); r.lang = 'en-IN'; r.continuous = true; r.interimResults = false;
+    r.onresult = e => { const t = [...e.results].slice(e.resultIndex).filter(x => x.isFinal).map(x => x[0].transcript).join(' ').trim(); if (t && this.ed) { const p = document.createElement('p'); p.textContent = t; this.ed.appendChild(p); this.buf = this.ed.innerHTML; this.setState({ dr: Date.now() }); } };
+    r.onerror = e => { this.setState({ dict: false }); this.toast(e.error === 'not-allowed' ? 'Microphone permission was refused.' : 'Dictation stopped: ' + e.error); };
+    r.onend = () => this.setState({ dict: false });
+    try { r.start(); this.setState({ dict: true }); } catch (e) { this.toast('Could not start dictation.'); }
+  }
+  dirApps() { try { const a = JSON.parse(localStorage.getItem('ls.directory.applications') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  setStatus(v, app) {
+    const note = this.state.adminNote.trim();
+    if (v !== 'verified' && !note) return this.toast('Add a note to the applicant before you ' + (v === 'info' ? 'request more information' : 'reject') + '.');
+    if (app.fromDir) { try { const a = this.dirApps(); const x = a.find(y => y.id === app.id); if (x) { x.status = v; x.note = note; localStorage.setItem('ls.directory.applications', JSON.stringify(a)); } } catch (e) {} }
+    this.mut(db => { db.adminStatus[app.id] = v; db.adminNotes[app.id] = note; LSV.logIt(db, `Directory application ${app.enr}: ${v}`); }, { verified: 'Profile verified and published', info: 'More information requested from applicant', rejected: 'Application rejected · logged' }[v]);
+    this.setState({ adminNote: '' });
+  }
+
   renderVals() {
-    const S = this.state, mobile = S.w < 900, grown = !!S.grown || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    const exp = mobile || !S.collapsed;
+    const S = this.state, D = this.db, h = React.createElement, V = LSV, T = LS.today(), mobile = S.w < 900, grown = !!S.grown || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const st = D.settings, exp = mobile || !st.collapsed, me = D.user.name;
     const IC = {
       dashboard: 'M3 3h7v9H3z M14 3h7v5h-7z M14 12h7v9h-7z M3 16h7v5H3z', user: 'M20 21a8 8 0 0 0-16 0 M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z',
       case: 'M3 7h18v13H3z M8 7V4h8v3 M3 12h18', order: 'M14 3H6v18h12V7z M14 3v4h4 M9 13h6 M9 17h6', court: 'M3 21h18 M5 21V10 M19 21V10 M9 21V10 M15 21V10 M2 10l10-6 10 6z',
@@ -1015,66 +1055,147 @@ class Component extends DCLogic {
       card: 'M2 6h20v13H2z M2 10h20 M6 15h4', gear: 'M4 6h10 M18 6h2 M16 4v4 M4 12h4 M12 12h8 M10 10v4 M4 18h12 M18 16v4', shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4',
       upload: 'M12 16V4 M7 9l5-5 5 5 M4 20h16'
     };
-    const icon = (k, sz) => React.createElement('svg', { width: sz || 18, height: sz || 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: (sz || 18) <= 16 ? 1.6 : 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('path', { d: IC[k] }));
+    const icon = (k, sz) => h('svg', { width: sz || 18, height: sz || 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: (sz || 18) <= 16 ? 1.6 : 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }, h('path', { d: IC[k] }));
+    const chip = (bg, fg) => ({ fontSize: 12, fontWeight: 500, background: bg, color: fg, borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap', alignSelf: 'flex-start' });
+    const caseOf = id => V.caseOf(D, id), clashGroups = V.clashes(D), clashIds = new Set(clashGroups.flat().map(x => x.id));
+    const lim = LS.limitation(D.lim), limFilled = !!D.lim.ready;
+    const pendOrders = D.orders.filter(o => !o.confirmed && o.nextDate);
+    const todayH = D.hearings.filter(x => x.date === T).sort((a, b) => a.time.localeCompare(b.time));
+    const alerts = st.inapp ? V.alerts(D, this) : [];
+    const shortCourt = c => c.replace('Delhi HC · Court ', 'HC ').replace('Saket · Court ', 'Saket ').replace('Tis Hazari · Court ', 'THC ');
+    const hv = x => { const c = caseOf(x.caseId), clash = clashIds.has(x.id); return { time: LS.t12(x.time), item: x.item || '—', title: c.title, no: c.no, court: x.court, last: x.last || (D.orders.filter(o => o.caseId === x.caseId).sort((a, b) => b.date.localeCompare(a.date))[0] || {}).summary || 'No order on file', tag: clash ? 'Conflict' : (x.brief ? 'Brief ready' : (x.purpose || 'Hearing')), tagStyle: clash ? chip('#FDECEA', '#B42318') : (x.brief ? chip('#F0F0EF', '#0A0A0A') : chip('#EDEDED', '#363636')), go: () => this.go('case', x.caseId), brief: () => { this.setState({ brainCase: x.caseId }); this.go('brain'); setTimeout(() => this.ask('Prepare a hearing brief'), 80); } }; };
+    const todayHearings = todayH.map(hv);
+
+    /* ---- navigation ---- */
     const navDef = [
-      ['Overview', [['Dashboard', 'dashboard', 'dashboard'], ['My Workspace', null, 'user']]],
-      ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'order', 'order', S.confirmed ? 0 : 1], ['Court Intelligence', null, 'court'], ['Hearings', 'calendar', 'cal', 4], ['Clients CRM', null, 'users'], ['Documents', null, 'folder'], ['Evidence', null, 'archive'], ['Legal Deadlines', 'limitation', 'clock', S.approved ? 0 : 1]]],
-      ['AI', [['AI Case Brain', 'brain', 'spark'], ['AI Drafting Studio', 'drafting', 'pen'], ['AI Legal Research', null, 'search'], ['AI Agents', null, 'cpu']]],
-      ['Firm', [['Team', null, 'team'], ['Billing & Finance', null, 'rupee'], ['Client Portal', null, 'globe'], ['Reports', null, 'chart'], ['Subscription', 'pricing', 'card'], ['Settings', null, 'gear']]]
+      ['Overview', [['Dashboard', 'dashboard', 'dashboard'], ['My Workspace', 'workspace', 'user']]],
+      ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', D.lim.approved ? 0 : 1]]],
+      ['AI', [['AI Case Brain', 'brain', 'spark'], ['AI Drafting Studio', 'drafting', 'pen'], ['AI Legal Research', 'research', 'search'], ['AI Agents', 'agents', 'cpu']]],
+      ['Firm', [['Team', 'team', 'team'], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Directory Admin', 'admin', 'shield'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
     ];
     const nav = navDef.map(([title, items]) => ({ title, items: items.map(([label, key, ic, badge]) => {
-      const active = key ? (S.screen === key || (key === 'cases' && S.screen === 'case')) : (S.screen === 'mod' && S.modLabel === label);
-      return { label, go: () => key ? this.go(key) : this.go('mod', label), icon: icon(ic, 16), hasBadge: !!badge && exp, badge,
+      const active = S.screen === key || (key === 'cases' && S.screen === 'case') || (key === 'orders' && S.screen === 'order');
+      return { label, go: () => this.go(key), icon: icon(ic, 16), hasBadge: !!badge && exp, badge,
         badgeStyle: { fontSize: 11, fontWeight: 600, minWidth: 18, height: 18, borderRadius: 9, padding: '0 5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums', background: '#0A0A0A', color: '#fff' },
         iconBox: { display: 'flex', color: active ? '#0A0A0A' : '#8A8A8A', flexShrink: 0 },
         style: { display: 'flex', alignItems: 'center', justifyContent: exp ? 'flex-start' : 'center', gap: 10, width: '100%', height: 34, textAlign: 'left', border: active ? '1px solid #E5E5E5' : '1px solid transparent', borderRadius: 7, padding: exp ? '0 10px' : 0, fontSize: 13.5, letterSpacing: '-.005em', background: active ? '#FFFFFF' : 'transparent', boxShadow: active ? '0 1px 2px rgba(0,0,0,.06)' : 'none', color: active ? '#0A0A0A' : '#3D3D3D', fontWeight: active ? 600 : 450 } };
     }) }));
-    const sideStyle = { width: mobile ? 280 : (S.collapsed ? 76 : 256), transition: 'width .18s ease', flexShrink: 0, background: '#FAFAF9', borderRight: '1px solid #E5E5E5', flexDirection: 'column', overflowY: 'hidden', height: '100vh', top: 0, zIndex: 50,
-      position: mobile ? 'fixed' : 'sticky', left: 0, display: (!mobile || S.drawer) ? 'flex' : 'none', filter: (this.props.sidebar ?? 'Light') === 'Ink' ? 'invert(1) hue-rotate(180deg)' : 'none', boxShadow: mobile ? '0 20px 60px rgba(32,30,29,.25)' : 'none' };
+    const sideStyle = { width: mobile ? 280 : (st.collapsed ? 76 : 256), transition: 'width .18s ease', flexShrink: 0, background: '#FAFAF9', borderRight: '1px solid #E5E5E5', flexDirection: 'column', overflowY: 'hidden', height: '100vh', top: 0, zIndex: 50,
+      position: mobile ? 'fixed' : 'sticky', left: 0, display: (!mobile || S.drawer) ? 'flex' : 'none', filter: st.sidebar === 'Ink' ? 'invert(1) hue-rotate(180deg)' : 'none', boxShadow: mobile ? '0 20px 60px rgba(32,30,29,.25)' : 'none' };
     const panelStyle = { width: mobile ? '100%' : 360, flexShrink: 0, background: '#FFFFFF', borderLeft: '1px solid #E5E5E5', display: 'flex', flexDirection: 'column', height: '100vh', top: 0, position: mobile ? 'fixed' : 'sticky', right: 0, zIndex: 55 };
-    const s = {}; ['dashboard', 'cases', 'case', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'mod'].forEach(k => s[k] = S.screen === k);
-    const chip = (bg, fg) => ({ fontSize: 12, fontWeight: 500, background: bg, color: fg, borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap', alignSelf: 'flex-start' });
-    const d = new Date(S.nextDate + 'T00:00:00');
-    const fmt = (x, o) => x.toLocaleDateString('en-IN', o || { day: 'numeric', month: 'short', year: 'numeric' });
-    const nextDateLabel = isNaN(d) ? '—' : fmt(d, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
-    const rem = isNaN(d) ? '' : `${fmt(new Date(d.getTime() - 2 * 864e5), { day: 'numeric', month: 'short' })} and ${fmt(d, { day: 'numeric', month: 'short' })}, 7:30 AM IST`;
+    const s = {}; ['dashboard', 'cases', 'case', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin'].forEach(k => s[k] = S.screen === k);
+    s.mod = !!V.MODULES[S.screen];
+    const modView = s.mod ? h(V.MODULES[S.screen], { app: this, key: S.screen }) : null;
 
-    const todayHearings = [
-      { time: '10:30', item: 'Item 14', title: 'Kapoor Textiles v. Meridian Exports', no: 'CS(COMM) 219/2024', court: 'Delhi HC · Court 34', tag: 'Conflict', tagStyle: chip('#FDECEA', '#B42318'), last: 'Defendant given 2 weeks to reply to I.A. 6612/2026' },
-      { time: '10:30', item: 'Item 6', title: 'State v. Arjun Verma', no: 'Bail Appln. 1123/2026', court: 'Saket · Court 412', tag: 'Conflict', tagStyle: chip('#FDECEA', '#B42318'), last: 'Status report called from the IO' },
-      { time: '12:00', item: 'Item 31', title: 'Sharma v. Delhi Development Authority', no: 'W.P.(C) 4821/2025', court: 'Delhi HC · Court 9', tag: 'Brief ready', tagStyle: chip('#F0F0EF', '#0A0A0A'), last: 'Counter-affidavit taken on record' },
-      { time: '2:15', item: 'Item 3', title: 'Mehta v. Mehta', no: 'HMA 88/2025', court: 'Family Court, Dwarka', tag: 'Mediation', tagStyle: chip('#EDEDED', '#363636'), last: 'Parties referred to mediation centre' }
-    ];
-    const week = [
-      ['Mon', 9, '', [['11:00', 'HC 21', 'Gupta v. ICICI Lombard', 'FA 412/2025']]],
-      ['Tue', 10, '', [['10:30', 'Saket 207', 'Khanna v. Rao Builders', 'CS 1180/2024'], ['2:00', 'HC 9', 'Sharma v. DDA', 'W.P.(C) 4821/2025']]],
-      ['Wed', 11, 'Today', todayHearings.map(h => [h.time, h.court.replace('Delhi HC · Court ', 'HC ').replace('Saket · Court ', 'Saket '), h.title, h.no, h.tag === 'Conflict'])],
-      ['Thu', 12, '', [['10:30', 'HC 34', 'Bansal v. Union of India', 'W.P.(C) 9932/2026']]],
-      ['Fri', 13, '', []],
-      ['Sat', 14, 'Court holiday', []]
-    ].map(([dow, n, note, ev]) => ({ dow, n, note,
-      colStyle: { background: n === 11 ? '#FFFFFF' : (n === 14 ? '#E5E5E5' : '#FFFFFF'), border: n === 11 ? '1.5px solid #0A0A0A' : '1px solid #E5E5E5', borderRadius: 12, padding: 16, minHeight: 220 },
-      events: ev.map(([time, court, title, no, conflict]) => ({ time, court, title, no, style: { textAlign: 'left', width: '100%', border: 0, borderRadius: 8, padding: '10px 12px', background: conflict ? '#FDECEA' : '#F5F5F4', color: conflict ? '#8F1D13' : '#0A0A0A', border: conflict ? '1px solid #F4B8B1' : '1px solid #E5E5E5' } })) }));
+    /* ---- cases ---- */
+    const SC = { active: ['Active', '#F0F0EF', '#0A0A0A'], pending: ['Pending', '#FDECEA', '#B42318'], disposed: ['Disposed', '#EDEDED', '#363636'], archived: ['Archived', '#EDEDED', '#363636'] };
+    const nextOf = c => { const nh = V.nextHearing(D, c.id); if (nh) return { label: nh.date === T ? 'Today, ' + LS.t12(nh.time) : LS.fmt(nh.date), today: nh.date === T }; const po = pendOrders.find(o => o.caseId === c.id); return { label: po ? LS.dayMon(po.nextDate) + ' · to confirm' : '—', today: false }; };
+    const cq = S.caseQ.toLowerCase();
+    const caseRows = D.cases.filter(c => (S.caseFilter === 'all' || c.status === S.caseFilter) && (!cq || (c.title + c.no + c.court + c.cnr).toLowerCase().includes(cq))).map(c => { const n = nextOf(c); return { title: c.title, no: c.no, court: c.court, next: n.label, stage: c.purpose || c.stage, who: c.team.map(LS.short).join(', '), status: SC[c.status][0], go: () => this.go('case', c.id),
+      chip: { fontSize: 12, fontWeight: 500, background: SC[c.status][1], color: SC[c.status][2], borderRadius: 6, padding: '2px 8px', justifySelf: 'start', whiteSpace: 'nowrap' },
+      dateStyle: { color: n.today ? '#B42318' : '#363636', fontWeight: n.today ? 600 : 400, whiteSpace: 'nowrap' } }; });
 
+    /* ---- current case ---- */
+    const C0 = D.cases.find(c => c.id === S.param) || D.cases[0] || { id: '', title: '', full: '', no: '', team: [], parties: [], issues: [] };
+    const cTasks = D.tasks.filter(t => t.caseId === C0.id).sort((a, b) => (a.done - b.done) || a.due.localeCompare(b.due));
+    const cOrders = D.orders.filter(o => o.caseId === C0.id).sort((a, b) => b.date.localeCompare(a.date));
+    const cNext = V.nextHearing(D, C0.id), cPend = pendOrders.find(o => o.caseId === C0.id);
+    const emptyBox = t => h('div', { style: { padding: '28px 22px', color: '#5E5E5E', fontSize: 14, textAlign: 'center' } }, t);
+    const sumEl = C0.summary ? C0.summary.split(/(\[[^\]]+\])/).map((p, i) => /^\[/.test(p) ? h('a', { key: i, href: '#', onClick: e => { e.preventDefault(); /Order/.test(p) && cOrders[0] ? this.go('order', cOrders[0].id) : this.go('case', C0.id, 'documents'); } }, p) : p) : 'No summary yet. Add an order or documents to this case, then ask the Case Brain for a hearing brief.';
+    const c = { no: C0.no, full: C0.full, cnrLabel: C0.cnr ? 'CNR ' + C0.cnr : 'CNR not added', forum: C0.forum || C0.court, statusLine: (SC[C0.status] || SC.active)[0] + ' · ' + (C0.stage || ''),
+      nextLabel: cNext ? LS.longDate(cNext.date) : (cPend ? LS.longDate(cPend.nextDate) : 'Not fixed'), benchLine: cNext ? [cNext.court, LS.t12ap(cNext.time), C0.bench].filter(Boolean).join(' · ') : (cPend ? 'From the last order · not yet confirmed' : (C0.bench || C0.court)),
+      openOrder: () => cOrders[0] ? this.go('order', cOrders[0].id) : V.addOrder(this, C0.id), orderLabel: cOrders[0] ? 'Open latest order' : 'Add court order',
+      brief: () => { this.setState({ brainCase: C0.id }); this.go('brain'); setTimeout(() => this.ask('Prepare a hearing brief'), 80); },
+      actions: h(React.Fragment, null, h(V.Btn, { onClick: () => V.addHearing(this, C0.id) }, '+ Hearing'), h(V.Btn, { onClick: () => V.addOrder(this, C0.id) }, '+ Order'), h(V.Btn, { onClick: () => V.uploadDoc(this, 'document', C0.id) }, '+ Document'),
+        h(V.Select, { value: C0.status, onChange: v => this.mut(db => { db.cases.find(x => x.id === C0.id).status = v; V.logIt(db, 'Status changed to ' + SC[v][0], C0.id); }, 'Case marked ' + SC[v][0].toLowerCase()), options: Object.keys(SC).map(k => [k, SC[k][0]]), style: { height: 36, minWidth: 120, fontSize: 13.5 } })),
+      summaryMeta: C0.summaryMeta || 'Not generated yet', summaryEl: sumEl, parties: C0.parties, partiesEmpty: C0.parties.length ? null : h('div', { style: { fontSize: 14, color: '#5E5E5E' } }, 'Client: ' + V.clientOf(D, C0.clientId).name + '. Party details have not been added.'),
+      issues: C0.issues, issuesEmpty: C0.issues.length ? null : h('div', { style: { fontSize: 14, color: '#5E5E5E' } }, 'No issues recorded yet.'),
+      tasksEl: h('div', null, cTasks.map(t => h(V.TaskRow, { key: t.id, app: this, t })), !cTasks.length && h('div', { style: { fontSize: 14, color: '#5E5E5E', paddingBottom: 8 } }, 'No tasks in this case.'), h('div', { style: { marginTop: 10 } }, h(V.Btn, { small: true, onClick: () => V.addTask(this, C0.id) }, '+ Add task'))),
+      advocates: C0.team.map((n, i) => { const u = D.team.find(x => x.name === n) || { title: n, role: '' }; return { name: u.title, role: (i === 0 ? 'Lead · ' : '') + u.role }; }) };
+    const caseOrders = cOrders.map(o => ({ date: LS.dmy(o.date), summary: o.summary, source: o.source, go: () => this.go('order', o.id) }));
+    const hearingHistory = D.hearings.filter(x => x.caseId === C0.id).sort((a, b) => b.date.localeCompare(a.date)).map(x => ({ date: LS.dmy(x.date), purpose: x.purpose, outcome: x.outcome || (x.date >= T ? `Listed · ${LS.t12ap(x.time)} · ${x.court} · ${x.assignee}` : 'Outcome not recorded') }));
+    const docs = D.docs.filter(x => x.caseId === C0.id).map(x => ({ ext: x.ext, name: x.name, meta: x.meta, v: x.v, act: h('button', { onClick: () => V.openDoc(this, x), style: { border: '1px solid #E5E5E5', background: '#fff', borderRadius: 8, height: 30, padding: '0 10px', fontSize: 12.5, marginLeft: 12 } }, 'Download') }));
+    const timeline = D.log.filter(e => e.caseId === C0.id).map(e => ({ date: LS.dmy(e.ts.slice(0, 10)) + (e.ts.slice(0, 10) === T ? ' ' + e.ts.slice(11) : ''), x: e.x }));
     const tabsDef = [['overview', 'Overview'], ['orders', 'Orders'], ['hearings', 'Hearings'], ['documents', 'Documents'], ['timeline', 'Timeline']];
-    const tab = {}; tabsDef.forEach(([k]) => tab[k] = S.tab === k);
-    const tabs = tabsDef.map(([k, label]) => ({ label, go: () => this.setState({ tab: k }), style: { border: 0, background: 'none', padding: '12px 16px', fontSize: 14, whiteSpace: 'nowrap', color: S.tab === k ? '#0A0A0A' : '#5E5E5E', fontWeight: S.tab === k ? 600 : 400, borderBottom: S.tab === k ? '2px solid #0A0A0A' : '2px solid transparent', marginBottom: -1 } }));
+    const tabKey = tabsDef.some(t => t[0] === S.tab) ? S.tab : 'overview';
+    const tab = {}; tabsDef.forEach(([k]) => tab[k] = tabKey === k);
+    const tabs = tabsDef.map(([k, label]) => ({ label, go: () => this.go('case', C0.id, k === 'overview' ? '' : k), style: { border: 0, background: 'none', padding: '12px 16px', fontSize: 14, whiteSpace: 'nowrap', color: tabKey === k ? '#0A0A0A' : '#5E5E5E', fontWeight: tabKey === k ? 600 : 400, borderBottom: tabKey === k ? '2px solid #0A0A0A' : '2px solid transparent', marginBottom: -1 } }));
+    const tabEmpty = { orders: caseOrders.length ? null : emptyBox('No orders in this case yet.'), hearings: hearingHistory.length ? null : emptyBox('No hearings recorded.'), documents: docs.length ? null : emptyBox('No documents in this case.'), timeline: timeline.length ? null : emptyBox('No activity yet.') };
 
-    const orderSteps = [['1', 'Uploaded'], ['2', 'OCR text'], ['3', 'AI summary'], ['4', S.confirmed ? 'Date confirmed' : 'Confirm next date']].map(([n, label], i) => {
-      const done = i < 3 || S.confirmed;
+    /* ---- order review ---- */
+    const O = D.orders.find(o => o.id === S.param) || pendOrders[0] || D.orders[0] || { id: '', caseId: '', paras: [], points: [], date: T };
+    const oc = caseOf(O.caseId), oConf = !!O.confirmed, oDate = O.nextDate || '';
+    const nextDateLabel = oDate ? LS.longDate(oDate) : 'No date found';
+    const rem = oDate ? `${LS.dayMon(LS.addDays(oDate, -st.remindDays))} and ${LS.dayMon(oDate)}, ${LS.t12ap(st.briefingTime)} IST` : '';
+    const nextPara = O.nextFrom ? +(/¶(\d+)/.exec(O.nextFrom) || [])[1] : 0;
+    const ord = { caseLine: oc.title + ' · ' + oc.no, file: O.file || 'Order dated ' + LS.dmy(O.date), sourceNote: O.official ? 'Fetched from eCourts. ' + O.source : 'Manually added. Not an official retrieval.', nextFrom: O.nextFrom || (oDate ? 'from the order' : 'Enter the next date below'),
+      sumChip: oConf ? 'Reviewed' : 'Draft · needs your review',
+      docEl: h(React.Fragment, null, O.court && h('div', { style: { textAlign: 'center', fontWeight: 600, letterSpacing: '.04em' } }, O.court), h('div', { style: { textAlign: 'center', marginTop: 4 } }, O.cause || oc.no),
+        O.p1 ? h(React.Fragment, null, h('div', { style: { marginTop: 18 } }, O.p1), h('div', null, 'versus'), h('div', null, O.p2)) : h('div', { style: { marginTop: 18 } }, oc.full || oc.title),
+        O.coram && h('div', { style: { marginTop: 14 } }, 'CORAM: ' + O.coram), h('div', { style: { marginTop: 4 } }, 'O R D E R · ' + LS.dmy(O.date)),
+        (O.paras || []).map((p, i) => h('p', { key: i, id: 'ls-para-' + (i + 1), style: Object.assign({ margin: (i ? 8 : 14) + 'px 0 0' }, i + 1 === nextPara ? { background: '#F0F0EF', outline: '2px solid #E3E3E2', borderRadius: 2 } : null) }, h('b', null, (i + 1) + '.'), ' ' + p))),
+      pointsEl: h('ul', { style: { margin: '14px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14, lineHeight: 1.6, color: '#363636' } }, (O.points || O.paras || []).map((p, i) => h('li', { key: i }, p + ' ', h('a', { href: '#', onClick: e => { e.preventDefault(); const el = document.getElementById('ls-para-' + (i + 1)); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.style.transition = 'background .3s'; el.style.background = '#E3E3E2'; setTimeout(() => { el.style.background = i + 1 === nextPara ? '#F0F0EF' : ''; }, 900); } } }, '¶' + (i + 1))))) };
+    const orderSteps = [['1', 'Uploaded'], ['2', 'OCR text'], ['3', 'AI summary'], ['4', oConf ? 'Date confirmed' : 'Confirm next date']].map(([n, label], i) => {
+      const done = i < 3 || oConf;
       return { n: done ? '✓' : n, label, style: { display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', fontSize: 13, padding: '6px 14px 6px 6px', borderRadius: 8, background: done ? '#FFFFFF' : '#0A0A0A', color: done ? '#0A0A0A' : '#fff', border: '1px solid #E5E5E5' },
-        numStyle: { width: 22, height: 22, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, background: done ? '#F0F0EF' : '#E3E3E2', color: done ? '#0A0A0A' : '#0A0A0A', fontWeight: 600 } };
+        numStyle: { width: 22, height: 22, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, background: done ? '#F0F0EF' : '#E3E3E2', color: '#0A0A0A', fontWeight: 600 } };
     });
+    const confirmDate = () => { if (!LS.valid(oDate)) return this.toast('Enter the next date first.');
+      this.mut(db => { const o = db.orders.find(x => x.id === O.id), cs = db.cases.find(x => x.id === o.caseId) || {}; o.confirmed = true;
+        if (!db.hearings.some(x => x.caseId === o.caseId && x.date === o.nextDate)) db.hearings.push({ id: LS.uid('h'), caseId: o.caseId, date: o.nextDate, time: '10:30', court: cs.court || '', item: '', purpose: cs.purpose || 'Hearing', assignee: (cs.team || [])[0] || db.user.name, outcome: '', brief: false, fromOrder: o.id });
+        V.logIt(db, `Next date ${LS.dmy(o.nextDate)} confirmed by ${db.user.name}`, o.caseId); }, 'Hearing added to calendar · reminders scheduled'); this.setState({ editDate: false }); };
 
-    const derivation = [
-      ['1', 'Date of judgment and decree', 'Trigger event', '04.09.2026'],
-      ['2', 'Exclude the day of judgment', 'Limitation Act, 1963, s.12(1)', 'from 05.09.2026'],
-      ['3', 'Limitation period for a commercial appeal', 'Commercial Courts Act, 2015, s.13(1A)', '60 days → 03.11.2026'],
-      ['4', 'Time to obtain certified copy (applied 08.09, ready 22.09)', 'Limitation Act, s.12(2)', '+14 days'],
-      ['5', 'Adjusted last date', '', '17.11.2026'],
-      ['6', 'Check court working day', 'Delhi HC calendar 2026 · s.4 not triggered', 'Working day ✓']
-    ].map(([n, step, basis, val]) => ({ n, step, basis, val }));
+    /* ---- calendar ---- */
+    const ws = S.weekStart || this.monday(T), daySel = S.daySel || T, wkView = S.calView === 'week';
+    const week = [0, 1, 2, 3, 4, 5].map(i => { const ds = LS.addDays(ws, i), dt = LS.parse(ds), sat2 = dt.getDay() === 6 && dt.getDate() > 7 && dt.getDate() <= 14, isT = ds === T;
+      return { dow: 'Sun Mon Tue Wed Thu Fri Sat'.split(' ')[dt.getDay()], n: dt.getDate(), note: isT ? 'Today' : (sat2 ? 'Court holiday' : ''),
+        colStyle: { background: sat2 ? '#E5E5E5' : '#FFFFFF', border: isT ? '1.5px solid #0A0A0A' : '1px solid #E5E5E5', borderRadius: 12, padding: 16, minHeight: 220 },
+        events: D.hearings.filter(x => x.date === ds).sort((a, b) => a.time.localeCompare(b.time)).map(x => { const cf = clashIds.has(x.id), cs = caseOf(x.caseId); return { time: LS.t12(x.time), court: shortCourt(x.court), title: cs.title, no: cs.no + ' · ' + LS.short(x.assignee), go: () => this.go('case', x.caseId), style: { textAlign: 'left', width: '100%', borderRadius: 8, padding: '10px 12px', background: cf ? '#FDECEA' : '#F5F5F4', color: cf ? '#8F1D13' : '#0A0A0A', border: cf ? '1px solid #F4B8B1' : '1px solid #E5E5E5' } }; }) }; });
+    const we = LS.addDays(ws, 5), sameM = ws.slice(0, 7) === we.slice(0, 7);
+    const weekTitle = wkView ? (sameM ? `${LS.parse(ws).getDate()} – ${LS.fmt(we, { day: 'numeric', month: 'long', year: 'numeric' })}` : `${LS.dayMon(ws)} – ${LS.fmt(we)}`) : LS.fmt(daySel, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const step = n => wkView ? this.setState({ weekStart: LS.addDays(ws, 7 * n) }) : this.setState({ daySel: LS.addDays(daySel, n), weekStart: this.monday(LS.addDays(daySel, n)) });
+    const calNav = h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } }, h(V.Btn, { onClick: () => step(-1), title: 'Previous' }, '‹'), h(V.Btn, { onClick: () => this.setState({ weekStart: this.monday(T), daySel: T }) }, 'Today'), h(V.Btn, { onClick: () => step(1), title: 'Next' }, '›'), h(V.Btn, { primary: true, onClick: () => V.addHearing(this, '', wkView ? '' : daySel) }, '+ Add hearing'));
+    const shown = wkView ? D.hearings.filter(x => x.date >= ws && x.date <= we) : D.hearings.filter(x => x.date === daySel);
+    const cg = clashGroups.find(g => wkView ? (g[0].date >= ws && g[0].date <= we) : g[0].date === daySel);
+    const other = cg && D.team.find(u => u.status === 'Active' && u.name !== cg[0].assignee && /Advocate|Partner|Associate/.test(u.role) && !D.hearings.some(x => x.date === cg[0].date && x.time === cg[0].time && x.assignee === u.name));
+    const conflict = cg ? { head: `Conflict, ${LS.fmt(cg[0].date, { weekday: 'short', day: 'numeric', month: 'short' })} at ${LS.t12ap(cg[0].time)}.`, text: cg.map(x => `${caseOf(x.caseId).title} (${x.court})`).join(' and ') + ` are at the same time for ${cg[0].assignee}. Assign one of them to a colleague.`, btn: other ? 'Assign to ' + other.name : 'No free colleague', assign: () => other ? this.mut(db => { const x = db.hearings.find(y => y.id === cg[1].id); x.assignee = other.name; V.logIt(db, `Hearing on ${LS.dmy(x.date)} assigned to ${other.name}`, x.caseId); }, `${caseOf(cg[1].caseId).title} assigned to ${other.name}`) : this.toast('Everyone already has a hearing at that time.') } : { head: '', text: '', btn: '', assign: () => {} };
+    const dayHearings = D.hearings.filter(x => x.date === daySel).sort((a, b) => a.time.localeCompare(b.time)).map(hv);
 
+    /* ---- limitation ---- */
+    const limO = { title: D.lim.title, readyInput: this.readyDraft || LS.addDays(D.lim.applied, 14), setReady: e => { this.readyDraft = e.target.value; this.setState({ dr: Date.now() }); },
+      dueLabel: LS.longDate(lim.due), daysLabel: lim.daysLeft >= 0 ? `${lim.daysLeft} day${lim.daysLeft === 1 ? '' : 's'}` : `${-lim.daysLeft} day${lim.daysLeft === -1 ? '' : 's'} late`, daysWord: lim.daysLeft >= 0 ? 'remaining' : 'past the last date',
+      sendLabel: D.lim.sent ? 'Sent to Neha for review ✓' : 'Send to Neha for review', send: () => { if (D.lim.sent) return this.toast('Already sent. A review task is open.'); const rv = (D.team.find(u => /Neha/.test(u.name)) || D.team.find(u => u.name !== me) || { name: me }).name; this.mut(db => { db.lim.sent = true; db.tasks.push({ id: LS.uid('t'), caseId: db.lim.caseId, t: 'Review limitation calculation: ' + db.lim.title, who: rv, due: LS.addDays(T, 1), done: false }); V.logIt(db, 'Limitation calculation sent to ' + rv + ' for review', db.lim.caseId); }, 'Review task created for ' + rv); },
+      approvedBy: 'Approved by ' + D.user.title, approvedText: D.lim.approved ? `on ${D.lim.approvedAt}. Alerts set for ${[3, 1, 0].map(n => LS.dayMon(LS.addDays(lim.due, -n))).join(', ')}. Logged in the calculation history.` : '',
+      changeEl: limFilled ? h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 } }, !D.lim.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lim.ready = ''; }) }, 'Change the certified-copy date'), D.lim.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lim.approved = false; db.lim.approvedAt = ''; }, 'Approval withdrawn') }, 'Withdraw approval')) : null };
+    const fillMissing = () => { const v = limO.readyInput; if (!LS.valid(v)) return this.toast('Enter a valid date.'); if (v < D.lim.applied) return this.toast('The copy cannot be ready before it was applied for (' + LS.dmy(D.lim.applied) + ').'); if (v > T) return this.toast('That date is in the future.'); this.mut(db => { db.lim.ready = v; }); };
+
+    /* ---- brain ---- */
+    const bc = D.cases.find(x => x.id === S.brainCase) || D.cases[0] || { id: '' }, chat = bc.id ? this.chat(bc.id) : [];
+    const brainScope = h('span', { style: { display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }, h(V.Select, { value: bc.id, onChange: v => this.setState({ brainCase: v }), options: D.cases.map(x => [x.id, x.no + ' · ' + x.title]), style: { height: 34, fontSize: 13, maxWidth: 320 } }), h('span', null, `${D.docs.filter(x => x.caseId === bc.id).length} documents · ${D.orders.filter(x => x.caseId === bc.id).length} orders`), chat.length > 0 && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.chats[bc.id] = []; }) }, 'Clear'));
+    const suggestions = ['Prepare a hearing brief', 'What documents are missing?', 'What tasks are pending?', 'What arguments were raised?'].map(label => ({ label, ask: () => this.ask(label) }));
+    const msgs = chat.map(m => ({ text: m.text, cites: m.cites || [],
+      wrap: { display: 'flex', flexDirection: 'column', gap: 8, alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' },
+      bubble: m.role === 'user' ? { background: '#0A0A0A', color: '#fff', borderRadius: 12, padding: '12px 16px', fontSize: 15, maxWidth: '80%' } : { background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: 12, padding: '18px 20px', fontSize: 15, lineHeight: 1.65, whiteSpace: 'pre-line', maxWidth: '92%', color: '#1A1A1A' } }));
+
+    /* ---- drafting ---- */
+    const saved = D.drafts[S.tpl] || [], vlist = [...saved.map((x, i) => ({ v: 'v' + (saved.length - i + 1) + (i === 0 ? ' · current' : ''), meta: `Saved by ${x.by} · ${LS.dayMon(x.at.slice(0, 10))}, ${x.at.slice(11)}`, html: x.html })), { v: 'v1' + (saved.length ? '' : ' · current'), meta: 'From template', html: this.tplHtml(S.tpl) }];
+    const vi = Math.min(S.ver, vlist.length - 1), dHtml = this.clean(vlist[vi].html), liveHtml = this.buf != null ? this.buf : dHtml, plain = liveHtml.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+    const templates = this.tplNames.map((label, i) => ({ label, go: () => { this.buf = null; this.setState({ tpl: i, ver: 0 }); },
+      style: { display: 'block', width: '100%', textAlign: 'left', border: 0, borderRadius: 8, padding: '9px 10px', fontSize: 14, background: S.tpl === i ? '#F0F0EF' : 'transparent', color: '#0A0A0A', fontWeight: S.tpl === i ? 600 : 400 } }));
+    const versions = vlist.map((x, i) => ({ v: x.v, meta: x.meta, go: () => { this.buf = null; this.setState({ ver: i }); },
+      style: { display: 'flex', flexDirection: 'column', width: '100%', textAlign: 'left', border: 0, borderTop: '1px solid #E5E5E5', padding: '10px 4px', fontSize: 14, background: vi === i ? '#FFFFFF' : 'transparent', color: '#0A0A0A', fontWeight: vi === i ? 600 : 400 } }));
+    const ph = (plain.match(/\[[^\]]+\]/g) || []).length, dm = (d1, d2) => { const p = x => x.slice(6) + '-' + x.slice(3, 5) + '-' + x.slice(0, 2); return LS.diffDays(p(d1), p(d2)); };
+    const chk = [ph ? ['•', `${ph} placeholder${ph > 1 ? 's' : ''} in [brackets] still to be filled in`] : ['✓', 'No unfilled placeholders'], /\b\d{2}\.\d{2}\.\d{4}\b/.test(plain) ? ['✓', 'The document is dated'] : ['•', 'No date found in the document'], plain.includes(D.user.name) ? ['✓', 'Signature block is present'] : ['•', `The signature block for ${D.user.title} is missing`]];
+    if (S.tpl === 2 || S.tpl === 0) chk.push(/fifteen days|15 days/i.test(plain) ? ['✓', 'The 15-day payment period is stated'] : ['•', 'The 15-day period for compliance is not stated']);
+    if (S.tpl === 2) { const r = /returned unpaid on (\d{2}\.\d{2}\.\d{4})/.exec(plain), dt = /Date:\s*(\d{2}\.\d{2}\.\d{4})/.exec(plain); if (r && dt) { const n = dm(dt[1], r[1]); chk.push(n <= 30 && n >= 0 ? ['✓', `Notice is within 30 days of the return memo dated ${r[1]}, as s.138(b) requires`] : ['•', `Notice is dated ${n} days after the return memo. Section 138(b) allows 30 days.`]); } else chk.push(['•', 'Could not find the return memo date to check the 30-day period']); chk.push(['•', 'The bank branch address is not in the case file. Please verify it.']); }
+    const draft = { title: S.tpl === 2 ? 'Legal notice, s.138 NI Act' : this.tplNames[S.tpl], footer: `Draft ${vlist[vi].v.split(' ')[0]} · Prepared on Legal Staff · ${plain.trim().split(/\s+/).length} words`,
+      body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length + ':' + S.rev0, ref: el => { this.ed = el; }, contentEditable: true, suppressContentEditableWarning: true, spellCheck: true, style: { position: 'relative', outline: 'none' }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
+      checks: h(React.Fragment, null, chk.map(([m, t], i) => h('div', { key: i, style: { color: m === '✓' ? '#0A0A0A' : '#B42318' } }, m + ' ' + t))),
+      saveBtn: h(V.Btn, { onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
+      docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }], ...LS.htmlToRuns(this.ed)]); this.toast('DOCX downloaded'); },
+      pdf: () => { const sec = this.ed && this.ed.closest('section'); if (!sec) return; sec.classList.add('ls-print'); const done = () => { sec.classList.remove('ls-print'); window.removeEventListener('afterprint', done); }; window.addEventListener('afterprint', done); window.print(); } };
+
+    /* ---- pricing ---- */
     const cycles = [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14, background: S.cycle === k ? '#0A0A0A' : 'transparent', color: S.cycle === k ? '#fff' : '#363636' } }));
     const P = [
       ['Solo', 'For an advocate practising alone', 699, 6999, ['1 user', '150 active cases', '10 GB storage', '200 AI credits / month', 'Hearing reminders on WhatsApp and email', 'Limitation tracker']],
@@ -1082,165 +1203,150 @@ class Component extends DCLogic {
       ['Firm', 'For law firms with teams and partners', 3999, 39999, ['Up to 15 users', 'Unlimited cases', '250 GB storage', '5,000 AI credits / month', 'Roles, permissions and AI agents', 'Reports and analytics']],
       ['Enterprise', 'For corporate legal departments and large firms', null, null, ['Custom users and storage', 'SSO and audit exports', 'Dedicated onboarding', 'Custom court-data providers']]
     ];
-    const inr = n => '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+    const inr = LS.inr;
+    const sales = () => this.modal(() => h(V.Modal, { title: 'Talk to sales', sub: 'Tell us about your team and we will prepare an Enterprise quote.', onClose: () => this.modal(null) }, h(V.Form, { init: { name: D.user.name, email: D.user.email, org: D.firm.name }, submit: 'Save request', onCancel: () => this.modal(null), note: 'This browser-only version stores the request on this device. Nothing is sent.', fields: [{ k: 'name', label: 'Your name', req: true, half: true }, { k: 'email', label: 'Work email', type: 'email', req: true, half: true }, { k: 'org', label: 'Organisation', req: true, half: true }, { k: 'users', label: 'Number of users', type: 'number', req: true, half: true }, { k: 'msg', label: 'What do you need?', type: 'textarea', rows: 3 }], onSubmit: v => { this.mut(db => { (db.salesRequests = db.salesRequests || []).push(Object.assign({ at: T }, v)); }, 'Enterprise request saved'); this.modal(null); } })));
     const plans = P.map(([name, who, m, a, feats], i) => {
-      const feat = i === 1, ann = S.cycle === 'annual';
+      const feat = i === 1, ann = S.cycle === 'annual', curPlan = D.sub.plan === name && D.sub.cycle === S.cycle;
       return { name, who, feats, price: m ? inr(ann ? a : m) : 'Custom', per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '',
-        cta: m ? `Choose ${name}` : 'Contact sales', pick: () => m && this.setState({ plan: i, paid: false }),
+        cta: m ? (curPlan ? 'Current plan' : `Choose ${name}`) : 'Contact sales', pick: () => m ? (curPlan ? this.toast(`You are already on the ${name} plan.`) : this.setState({ plan: i, paid: false, gstin: D.firm.gstin || '', gstErr: '' })) : sales(),
         card: { background: feat ? '#F5F5F4' : '#FFFFFF', color: '#0A0A0A', border: feat ? '2px solid #0A0A0A' : '1px solid #E5E5E5', borderRadius: 12, padding: 26, display: 'flex', flexDirection: 'column', gap: 10 },
-        btn: { height: 38, border: feat ? 0 : '1px solid #0A0A0A', borderRadius: 8, fontSize: 14, fontWeight: 500, background: feat ? '#0A0A0A' : 'transparent', color: feat ? '#fff' : '#0A0A0A', margin: '8px 0' } };
+        btn: { height: 38, border: feat ? 0 : '1px solid #0A0A0A', borderRadius: 8, fontSize: 14, fontWeight: 500, background: feat ? '#0A0A0A' : 'transparent', color: feat ? '#fff' : '#0A0A0A', margin: '8px 0', opacity: curPlan ? .55 : 1 } };
     });
     let co = {};
     if (S.plan !== null) {
-      const [name, , m, a] = P[S.plan], ann = S.cycle === 'annual', base = ann ? a : m, gst = Math.round(base * 18) / 100;
-      co = { name, cycle: ann ? 'Annual' : 'Monthly', base: inr(base), gst: inr(gst), total: inr(base + gst), renew: ann ? 'every year' : 'every month', next: ann ? '11 Nov 2027' : '11 Dec 2026' };
+      const [name, , m, a] = P[S.plan], ann = S.cycle === 'annual', base = ann ? a : m, gst = Math.round(base * 18) / 100, renews = LS.addDays(T, ann ? 365 : 30);
+      co = { name, cycle: ann ? 'Annual' : 'Monthly', base: inr(base), gst: inr(gst), total: inr(base + gst), renew: ann ? 'every year' : 'every month', next: LS.fmt(renews), renews, gstErr: S.gstErr ? h('div', { style: { fontSize: 12.5, color: '#B42318', marginTop: 6 } }, S.gstErr) : null };
     }
+    const pay = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
+      this.mut(db => { db.sub.plan = co.name; db.sub.cycle = S.cycle; db.sub.since = T; db.sub.renews = co.renews; db.sub.history.unshift({ plan: co.name + ' · ' + co.cycle, total: co.total, date: T }); if (g) db.firm.gstin = g; V.logIt(db, `Subscription changed to ${co.name} (${co.cycle})`); }); this.setState({ paid: true, gstErr: '' }); };
 
+    /* ---- directory admin ---- */
     const APPS = [
-      { name: 'Sample Applicant — A. Sharma', enr: 'D/2841/2016', council: 'Bar Council of Delhi', date: '10 Nov', year: '2016', city: 'New Delhi' },
-      { name: 'Sample Applicant — K. Reddy', enr: 'TS/1123/2019', council: 'Bar Council of Telangana', date: '10 Nov', year: '2019', city: 'Hyderabad' },
-      { name: 'Sample Applicant — M. Fernandes', enr: 'MAH/4410/2012', council: 'Bar Council of Maharashtra & Goa', date: '8 Nov', year: '2012', city: 'Mumbai' },
-      { name: 'Sample Applicant — S. Banerjee', enr: 'WB/905/2020', council: 'Bar Council of West Bengal', date: '7 Nov', year: '2020', city: 'Kolkata' }
+      { id: 'a1', name: 'Sample Applicant — A. Sharma', enr: 'D/2841/2016', council: 'Bar Council of Delhi', date: '10 Nov', year: '2016', city: 'New Delhi', def: 'pending' },
+      { id: 'a2', name: 'Sample Applicant — K. Reddy', enr: 'TS/1123/2019', council: 'Bar Council of Telangana', date: '10 Nov', year: '2019', city: 'Hyderabad', def: 'pending' },
+      { id: 'a3', name: 'Sample Applicant — M. Fernandes', enr: 'MAH/4410/2012', council: 'Bar Council of Maharashtra & Goa', date: '8 Nov', year: '2012', city: 'Mumbai', def: 'info' },
+      { id: 'a4', name: 'Sample Applicant — S. Banerjee', enr: 'WB/905/2020', council: 'Bar Council of West Bengal', date: '7 Nov', year: '2020', city: 'Kolkata', def: 'pending' }
     ];
+    const allApps = [...this.dirApps().map(a => Object.assign({ def: a.status || 'pending', fromDir: true }, a, { id: String(a.id) })).reverse(), ...APPS];
     const stMap = { pending: ['Pending verification', '#FDECEA', '#B42318'], info: ['Info required', '#EDEDED', '#363636'], verified: ['Verified', '#F0F0EF', '#0A0A0A'], rejected: ['Rejected', '#FDECEA', '#B42318'] };
-    const apps = APPS.map((a, i) => { const st = stMap[S.statuses[i]]; return { ...a, status: st[0], chip: chip(st[1], st[2]), go: () => this.setState({ sel: i }),
-      row: { display: 'flex', gap: 12, width: '100%', textAlign: 'left', border: 0, borderBottom: '1px solid #E5E5E5', padding: '18px 20px', background: S.sel === i ? '#F0F0EF' : '#FFFFFF', color: '#0A0A0A' } }; });
-    const ca = apps[S.sel];
+    const sel = Math.min(S.sel, allApps.length - 1);
+    const apps = allApps.map((a, i) => { const k = D.adminStatus[a.id] || a.def, sm = stMap[k] || stMap.pending; return { ...a, statusKey: k, status: sm[0], chip: chip(sm[1], sm[2]), go: () => this.setState({ sel: i, adminNote: '' }),
+      row: { display: 'flex', gap: 12, width: '100%', textAlign: 'left', border: 0, borderBottom: '1px solid #E5E5E5', padding: '18px 20px', background: sel === i ? '#F0F0EF' : '#FFFFFF', color: '#0A0A0A' } }; });
+    const ca = apps[sel], enrOk = /^[A-Z]{1,4}\/\d{1,6}\/\d{4}$/i.test((ca.enr || '').trim());
     const cur = { ...ca, docs: ['Enrolment certificate', 'Certificate of Practice', 'Government photo ID'],
+      lastNote: D.adminNotes[ca.id] ? h('div', { style: { fontSize: 13, color: '#363636', background: '#F5F5F4', borderRadius: 8, padding: '10px 12px' } }, 'Last note sent: ' + D.adminNotes[ca.id]) : null,
       checks: [
-        { k: 'Enrolment number format', v: 'Matches the State Bar Council pattern', style: { color: '#0A0A0A' } },
-        { k: 'Name on certificate matches the application', v: 'Match', style: { color: '#0A0A0A' } },
+        { k: 'Enrolment number format', v: enrOk ? 'Matches the State Bar Council pattern' : 'Does not match the usual pattern', style: { color: enrOk ? '#0A0A0A' : '#B42318' } },
+        { k: 'Name on certificate matches the application', v: ca.fromDir ? 'Check against the uploaded certificate' : 'Match', style: { color: ca.fromDir ? '#B42318' : '#0A0A0A' } },
         { k: 'State Bar Council roll', v: 'Check manually. No authorised API.', style: { color: '#B42318' } },
         { k: 'Profile content: no testimonials or claims of superiority', v: 'Passed', style: { color: '#0A0A0A' } }
       ] };
 
-    const suggestions = ['Prepare a hearing brief', 'What documents are missing?', 'What tasks are pending?', 'What arguments were raised?'].map(label => ({ label, ask: () => this.ask(label) }));
-    const msgs = S.msgs.map(m => ({ text: m.text, cites: m.cites || [],
-      wrap: { display: 'flex', flexDirection: 'column', gap: 8, alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' },
-      bubble: m.role === 'user' ? { background: '#0A0A0A', color: '#fff', borderRadius: 12, padding: '12px 16px', fontSize: 15, maxWidth: '80%' } : { background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: 12, padding: '18px 20px', fontSize: 15, lineHeight: 1.65, whiteSpace: 'pre-line', maxWidth: '92%', color: '#1A1A1A' } }));
+    /* ---- dashboard numbers ---- */
+    const NUM = ['No', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'], word = n => NUM[n] || String(n), cap = x => x[0].toUpperCase() + x.slice(1);
+    const complexes = new Set(todayH.map(x => x.court.split(' · ')[0])).size, tClash = clashGroups.filter(g => g[0].date === T);
+    const dl = [{ days: lim.daysLeft, title: 'Commercial appeal, CS(COMM) 88/2023', rule: 'CCA s.13(1A)', due: LS.fmt(lim.due), status: D.lim.approved ? 'Approved' : 'Needs approval' }, ...D.deadlines.map(x => ({ days: LS.diffDays(x.due, T), title: x.title, rule: x.rule, due: LS.fmt(x.due), status: x.approved ? 'Approved' : 'Needs approval' }))].sort((a, b) => a.days - b.days);
+    const dl7 = dl.filter(x => x.days <= 7 && x.days >= 0), odT = D.tasks.filter(V.overdue), live = D.cases.filter(x => x.status === 'active' || x.status === 'pending');
+    const briefText = (todayH.length ? `You have ${word(todayH.length)} hearing${todayH.length > 1 ? 's' : ''} today in ${word(complexes)} court complex${complexes > 1 ? 'es' : ''}.` : 'You have no hearings today.') + (tClash.length ? ` ${cap(word(tClash[0].length))} of them, at ${LS.t12ap(tClash[0][0].time)} in ${[...new Set(tClash[0].map(x => x.court.split(' · ')[0]))].join(' and ')}, are at the same time.` : '') + (dl7.length ? ` ${cap(word(dl7.length))} limitation deadline${dl7.length > 1 ? 's fall' : ' falls'} in the next ${dl7[dl7.length - 1].days || 1} days.` : '') + (pendOrders.length ? ` ${cap(word(pendOrders.length))} order${pendOrders.length > 1 ? 's need' : ' needs'} a next date confirmed.` : '');
+    const hc = Array.from({ length: 14 }, (_, i) => { const ds = LS.addDays(T, i); return { ds, n: D.hearings.filter(x => x.date === ds).length, clash: clashGroups.some(g => g[0].date === ds) }; });
+    const hcMax = Math.max(4, ...hc.map(x => x.n)), stg = {}; live.forEach(x => { stg[x.stage] = (stg[x.stage] || 0) + 1; });
+    const stgRows = Object.entries(stg).sort((a, b) => b[1] - a[1]).slice(0, 6), stgMax = Math.max(1, ...stgRows.map(x => x[1])), SH = ['#0A0A0A', '#363636', '#5E5E5E', '#8A8A8A', '#B5B5B5', '#D9D9D9'];
+    const months = Array.from({ length: 6 }, (_, i) => { const dt = new Date(); dt.setDate(1); dt.setMonth(dt.getMonth() - (5 - i)); return LS.iso(dt).slice(0, 7); });
+    const fee = months.map(m => [LS.fmt(m + '-01', { month: 'short' }), D.invoices.filter(x => x.paid && x.date.slice(0, 7) === m).reduce((a, x) => a + x.amount, 0), D.invoices.filter(x => !x.paid && x.date.slice(0, 7) === m).reduce((a, x) => a + x.amount, 0)]), feeMax = Math.max(1, ...fee.map(x => x[1] + x[2])) * 1.1;
+    const unpaid = D.invoices.filter(x => !x.paid), hour = new Date().getHours();
+    const openMenu = k => () => this.setState({ menu: S.menu === k ? null : k });
 
-    const templates = ['Legal notice', 'Petition', 'Section 138 notice', 'Bail application', 'Affidavit', 'Written statement', 'Reply', 'Appeal', 'Revision', 'Agreement'].map((label, i) => ({ label, go: () => this.setState({ tpl: i }),
-      style: { display: 'block', width: '100%', textAlign: 'left', border: 0, borderRadius: 8, padding: '9px 10px', fontSize: 14, background: S.tpl === i ? '#F0F0EF' : 'transparent', color: '#0A0A0A', fontWeight: S.tpl === i ? 600 : 400 } }));
-    const versions = [['v3 · current', 'Edited by you · 10:52'], ['v2', 'AI draft from dictation · 10:41'], ['v1', 'From template · 10:38']].map(([v, meta], i) => ({ v, meta, go: () => this.setState({ ver: i }),
-      style: { display: 'flex', flexDirection: 'column', width: '100%', textAlign: 'left', border: 0, borderTop: '1px solid #E5E5E5', padding: '10px 4px', fontSize: 14, background: S.ver === i ? '#FFFFFF' : 'transparent', color: '#0A0A0A' } }));
+    /* ---- overlay: dropdown menus + modal ---- */
+    const dropFixed = (pos, kids) => h(V.Drop, { onClose: () => this.setState({ menu: null }), style: Object.assign({ position: 'fixed' }, pos) }, kids);
+    const overlay = h(React.Fragment, null,
+      S.menu === 'alerts' && dropFixed({ top: 52, right: mobile ? 8 : 150, width: 340, maxWidth: 'calc(100vw - 16px)' }, [h('div', { key: 'h', style: { padding: '8px 10px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: '#6B6B6B', fontWeight: 600 } }, alerts.length ? 'Alerts' : (st.inapp ? 'No alerts' : 'In-app alerts are switched off')), ...alerts.map((a, i) => h(V.Item, { key: i, onClick: () => { this.setState({ menu: null }); a.go(); } }, a.text)), !st.inapp && h(V.Item, { key: 's', onClick: () => this.go('settings') }, 'Open notification settings')]),
+      S.menu === 'firm' && dropFixed({ top: 106, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.firm.address }, D.firm.name), h(V.Item, { key: 2, onClick: () => this.go('pricing'), sub: 'Renews ' + LS.fmt(D.sub.renews) }, D.sub.plan + ' plan'), h(V.Item, { key: 3, onClick: () => this.go('team') }, 'Team and roles'), h(V.Item, { key: 4, onClick: () => this.go('billing') }, 'Billing & Finance')]),
+      S.menu === 'user' && dropFixed({ bottom: 64, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.session ? D.session.email : D.user.email }, 'Profile and settings'), h(V.Item, { key: 2, onClick: () => this.go('workspace') }, 'My Workspace'), h(V.Item, { key: 3, onClick: () => { this.setState({ menu: null }); V.help(this); } }, 'Help and shortcuts'), h(V.Item, { key: 4, onClick: () => this.signOut() }, 'Sign out')]),
+      S.modalOn && this._modal ? this._modal() : null);
+    const results = S.searchOpen ? V.searchAll(D, S.search) : [];
+    const pick = r => { this.setState({ search: '', searchOpen: false }); this.go(...r.to); };
+    const searchDrop = S.searchOpen && S.search.trim().length >= 2 ? h('div', { style: { position: 'absolute', top: 42, left: 0, right: 0, zIndex: 60, background: '#fff', border: '1px solid #E5E5E5', borderRadius: 12, boxShadow: '0 16px 48px rgba(0,0,0,.14)', padding: 6 } }, results.map((r, i) => h('button', { key: i, onMouseDown: e => { e.preventDefault(); pick(r); }, style: { display: 'flex', gap: 10, alignItems: 'baseline', width: '100%', textAlign: 'left', border: 0, background: 'none', borderRadius: 8, padding: '8px 10px', fontSize: 13.5, color: '#0A0A0A' } }, h('span', { style: { fontSize: 11, color: '#6B6B6B', width: 70, flexShrink: 0, textTransform: 'uppercase', letterSpacing: '.04em' } }, r.kind), h('span', { style: { minWidth: 0 } }, r.label, h('span', { style: { display: 'block', fontSize: 12, color: '#5E5E5E' } }, r.sub)))), !results.length && h('div', { style: { padding: '12px 10px', fontSize: 13.5, color: '#5E5E5E' } }, 'Nothing matches “' + S.search.trim() + '”.')) : null;
+    const pTasks = D.tasks.filter(t => !t.done && t.who === me).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 4);
 
     return {
-      expanded: exp, collapsed: !exp, notMobile: !mobile, toggleCollapse: () => this.setState({ collapsed: !S.collapsed }), collapseLabel: S.collapsed ? '»' : '« Collapse sidebar',
-      showLogin: S.auth === 'login', booting: S.auth === 'boot', signIn: () => this.setState({ auth: 'in' }),
+      expanded: exp, collapsed: !exp, notMobile: !mobile, toggleCollapse: () => this.mut(db => { db.settings.collapsed = !db.settings.collapsed; }), collapseLabel: st.collapsed ? '»' : '« Collapse sidebar',
+      showLogin: S.auth === 'login', booting: S.auth === 'boot', loginForm: h(V.LoginForm, { app: this }),
+      firmName: D.firm.name, firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')), firmLine: D.sub.plan + ' plan · ' + D.firm.city, firmAddress: D.firm.address, firmMenu: openMenu('firm'),
+      userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userEmail: D.user.email, userMenu: openMenu('user'),
+      searchQ: S.search, setSearch: e => this.setState({ search: e.target.value, searchOpen: true }), searchFocus: () => this.setState({ searchOpen: true, menu: null }), searchBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 150), searchKey: e => { if (e.key === 'Enter' && results[0]) pick(results[0]); }, searchDrop,
+      newCase: () => V.newCase(this), importCnr: () => V.importCnr(this), help: () => V.help(this), alertsMenu: openMenu('alerts'), alertCount: alerts.length, hasAlerts: alerts.length > 0, overlay,
       toast: S.toast, hasToast: !!S.toast, goCases: () => this.go('cases'),
-      hasCrumbs: false, crumb: { cases: 'Cases', case: 'Cases / CS(COMM) 219/2024', order: 'Court Orders / Review', calendar: 'Hearings / Calendar', limitation: 'Legal Deadlines / Limitation tracker', brain: 'AI Case Brain', drafting: 'AI Drafting Studio', pricing: 'Settings / Subscription', admin: 'Super Admin / Directory verification' }[S.screen] || '',
-      crumbBar: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, padding: mobile ? '8px 16px' : '10px 32px', borderBottom: '1px solid #E5E5E5', background: '#FFFFFF' },
-      quick: [['New case', 'Manual entry or CNR import', 'case', 'cases'], ['Upload court order', 'OCR, summary, next date', 'upload', 'order'], ['Calculate limitation', 'Rule-based, with review', 'clock', 'limitation'], ['Draft a document', 'Templates and dictation', 'pen', 'drafting']].map(([label, sub, ic, k]) => ({ label, sub, icon: icon(ic, 20), go: () => this.go(k) })),
-      caseFilters: [['all', 'All', 86], ['active', 'Active', 62], ['pending', 'Pending', 12], ['disposed', 'Disposed', 9], ['archived', 'Archived', 3]].map(([k, label, count]) => ({ label, count, go: () => this.setState({ caseFilter: k }),
+      hasCrumbs: false, crumb: '', crumbBar: {},
+      quick: [['New case', 'Manual entry or CNR import', 'case', () => V.newCase(this)], ['Upload court order', 'Next date and key points', 'upload', () => V.addOrder(this)], ['Calculate limitation', 'Rule-based, with review', 'clock', () => this.go('limitation')], ['Draft a document', 'Templates and dictation', 'pen', () => this.go('drafting')]].map(([label, sub, ic, go]) => ({ label, sub, icon: icon(ic, 20), go })),
+      caseFilters: [['all', 'All'], ['active', 'Active'], ['pending', 'Pending'], ['disposed', 'Disposed'], ['archived', 'Archived']].map(([k, label]) => ({ label, count: k === 'all' ? D.cases.length : D.cases.filter(x => x.status === k).length, go: () => this.setState({ caseFilter: k }),
         style: { height: 36, padding: '0 14px', borderRadius: 8, fontSize: 13, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8, border: S.caseFilter === k ? '1px solid #0A0A0A' : '1px solid #E5E5E5', background: S.caseFilter === k ? '#0A0A0A' : '#FFFFFF', color: S.caseFilter === k ? '#fff' : '#363636' },
         countStyle: { fontSize: 12, opacity: .7 } })),
-      caseQ: S.caseQ, setCaseQ: e => this.setState({ caseQ: e.target.value }),
-      ...(() => {
-        const R = [
-          ['Kapoor Textiles v. Meridian Exports', 'CS(COMM) 219/2024', 'Delhi HC · Court 34', '18 Nov 2026', 'Reply to I.A.', 'R. Iyer, N. Bhatia', 'active', false],
-          ['State v. Arjun Verma', 'Bail Appln. 1123/2026', 'Saket · Court 412', 'Today, 10:30', 'Arguments', 'R. Iyer', 'active', true],
-          ['Sharma v. Delhi Development Authority', 'W.P.(C) 4821/2025', 'Delhi HC · Court 9', 'Today, 12:00', 'Rejoinder', 'N. Bhatia', 'active', true],
-          ['Mehta v. Mehta', 'HMA 88/2025', 'Family Court, Dwarka', 'Today, 2:15', 'Mediation', 'R. Iyer', 'active', true],
-          ['Gupta v. ICICI Lombard', 'FA 412/2025', 'Delhi HC · Court 21', '9 Dec 2026', 'Admission', 'N. Bhatia', 'active', false],
-          ['Khanna v. Rao Builders', 'CS 1180/2024', 'Saket · Court 207', '10 Dec 2026', 'Written statement', 'R. Iyer', 'pending', false],
-          ['Appeal against decree, CS(COMM) 88/2023', 'To be filed', 'Delhi HC', '—', 'Filing due 17 Nov', 'R. Iyer', 'pending', false],
-          ['Bansal v. Union of India', 'W.P.(C) 9932/2026', 'Delhi HC · Court 34', '12 Nov 2026', 'Notice', 'N. Bhatia', 'active', false],
-          ['Arora v. Arora', 'HMA 41/2022', 'Family Court, Saket', '—', 'Decree passed', 'R. Iyer', 'disposed', false]
-        ];
-        const SC = { active: ['Active', '#F0F0EF', '#0A0A0A'], pending: ['Pending', '#FDECEA', '#B42318'], disposed: ['Disposed', '#EDEDED', '#363636'], archived: ['Archived', '#EDEDED', '#363636'] };
-        const q = S.caseQ.toLowerCase();
-        const caseRows = R.filter(r => (S.caseFilter === 'all' || r[6] === S.caseFilter) && (!q || (r[0] + r[1] + r[2]).toLowerCase().includes(q))).map(([title, no, court, next, stage, who, st, today]) => ({ title, no, court, next, stage, who, status: SC[st][0],
-          chip: { fontSize: 12, fontWeight: 500, background: SC[st][1], color: SC[st][2], borderRadius: 6, padding: '2px 8px', justifySelf: 'start', whiteSpace: 'nowrap' },
-          dateStyle: { color: today ? '#B42318' : '#363636', fontWeight: today ? 600 : 400, whiteSpace: 'nowrap' } }));
-        return { caseRows, noRows: caseRows.length === 0 };
-      })(),
-      nav, sideStyle, panelStyle, mobile, s, panel: S.panel, modLabel: S.modLabel,
+      caseQ: S.caseQ, setCaseQ: e => this.setState({ caseQ: e.target.value }), caseRows, noRows: caseRows.length === 0,
+      casesSub: `${D.cases.length} cases across ${new Set(D.cases.map(x => x.court)).size} courts · click a row to open the case workspace`,
+      nav, sideStyle, panelStyle, mobile, s, modView, panel: S.panel,
       drawerScrim: mobile && S.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }),
       togglePanel: () => this.setState({ panel: !S.panel }),
       copilotBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, fontWeight: 500, whiteSpace: 'nowrap', border: '1px solid ' + (S.panel ? '#0A0A0A' : '#E5E5E5'), background: S.panel ? '#F0F0EF' : '#FFFFFF', color: '#0A0A0A' },
-      mainStyle: { padding: mobile ? '20px 16px 56px' : '28px 32px 64px', flex: 1, backgroundColor: '#FAFAFA', backgroundAttachment: 'fixed', position: 'relative', isolation: 'isolate', minWidth: 0, zoom: (this.props.density ?? 'Comfortable') === 'Compact' ? 0.9 : 1,
-        ...({ Dots: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' }, Grid: { backgroundImage: 'linear-gradient(#ECECEC 1px,transparent 1px),linear-gradient(90deg,#ECECEC 1px,transparent 1px)', backgroundSize: '40px 40px' }, Plain: { backgroundImage: 'none' }, Wallpaper: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' } })[this.props.backdrop ?? 'Wallpaper'] },
-      showWall: (this.props.backdrop ?? 'Wallpaper') === 'Wallpaper',
-      goDashboard: () => this.go('dashboard'), goCase: () => this.go('case'), goOrder: () => this.go('order'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'),
-      briefLines: todayHearings.map(h => ({ time: h.time, title: h.title, meta: `${h.court} · ${h.item}` })),
+      mainStyle: { padding: mobile ? '20px 16px 56px' : '28px 32px 64px', flex: 1, backgroundColor: '#FAFAFA', backgroundAttachment: 'fixed', position: 'relative', isolation: 'isolate', minWidth: 0, zoom: st.density === 'Compact' ? 0.9 : 1,
+        ...({ Dots: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' }, Grid: { backgroundImage: 'linear-gradient(#ECECEC 1px,transparent 1px),linear-gradient(90deg,#ECECEC 1px,transparent 1px)', backgroundSize: '40px 40px' }, Plain: { backgroundImage: 'none' }, Wallpaper: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' } })[st.backdrop] },
+      showWall: st.backdrop === 'Wallpaper',
+      goDashboard: () => this.go('dashboard'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'), goOrder: () => this.go('orders'),
+      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, syncLine: 'Saved on this device · ' + LS.t12ap(LS.nowHM()),
+      briefText, waHello: `Good morning, Adv. ${D.user.name.split(' ').pop()}.`, waLine1: `${todayH.length} hearing${todayH.length === 1 ? '' : 's'} today.` + (tClash.length ? ` ${LS.t12ap(tClash[0][0].time)} clash: ${tClash[0].map(x => shortCourt(x.court).replace('HC ', 'Delhi HC Court ').replace('Saket ', 'Saket Court ')).join(' and ')}.` : ''), waLine2: dl[0] ? `Limitation: ${dl[0].title.split(',')[0].toLowerCase()} due ${LS.dayMon(LS.addDays(T, dl[0].days))}.` : 'No limitation deadlines this week.', waTime: LS.t12ap(st.briefingTime),
+      briefLines: todayHearings.map(x => ({ time: x.time, title: x.title, meta: `${x.court} · ${x.item}` })), noHearingsToday: todayH.length === 0 ? h('div', { style: { padding: '20px 0', fontSize: 14, color: '#5E5E5E' } }, 'No hearings are listed for today.') : null,
       stats: [
-        { label: "Today's hearings", value: '4', note: '1 time conflict', noteStyle: { fontSize: 13, color: '#B42318', marginTop: 6 }, sp: [3, 5, 2, 4, 6, 3, 4] },
-        { label: 'Active cases', value: '86', note: '12 pending filing', noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: [78, 79, 81, 82, 84, 85, 86] },
-        { label: 'Deadlines in 7 days', value: '2', note: '1 awaiting approval', noteStyle: { fontSize: 13, color: '#0A0A0A', marginTop: 6 }, sp: [1, 3, 2, 2, 4, 3, 2] },
-        { label: 'Overdue tasks', value: '5', note: 'across 3 team members', noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: [8, 7, 7, 6, 6, 5, 5] }
-      ].map(st => { const mx = Math.max(...st.sp), mn = Math.min(...st.sp) * 0.6; return { ...st, spark: st.sp.map((v, i) => ({ style: { width: 5, borderRadius: 1.5, background: i === 6 ? '#0A0A0A' : '#D4D4D4', height: grown ? Math.max(3, Math.round(((v - mn) / (mx - mn || 1)) * 28)) : 0, transition: `height .6s cubic-bezier(.2,.7,.2,1) ${i * 40}ms` } })) }; }),
-      hearChart: [4, 2, 3, 0, 0, 5, 3, 6, 2, 4, 0, 0, 3, 5].map((n, i) => { const dt = new Date(2026, 10, 11 + i), wk = dt.getDay() === 0 || dt.getDay() === 6, clash = i === 0 || i === 7; return { label: n || '', dow: 'SMTWTFS'[dt.getDay()], date: dt.getDate(),
-        bar: { width: '100%', maxWidth: 22, borderRadius: '3px 3px 0 0', background: clash ? '#B42318' : (i === 0 ? '#0A0A0A' : '#2B2B2B'), opacity: wk ? 0 : 1, height: grown ? Math.max(n ? 8 : 0, n * 17) : 0, transition: `height .7s cubic-bezier(.2,.7,.2,1) ${i * 35}ms` },
+        { label: "Today's hearings", value: String(todayH.length), note: tClash.length ? `${tClash.length} time conflict${tClash.length > 1 ? 's' : ''}` : 'No clashes', noteStyle: { fontSize: 13, color: tClash.length ? '#B42318' : '#5E5E5E', marginTop: 6 }, sp: [3, 5, 2, 4, 6, 3, Math.max(1, todayH.length)] },
+        { label: 'Active cases', value: String(D.cases.filter(x => x.status === 'active').length), note: `${D.cases.filter(x => x.status === 'pending').length} pending filing`, noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: [8, 9, 10, 11, 11, 12, 13] },
+        { label: 'Deadlines in 7 days', value: String(dl7.length), note: `${dl.filter(x => x.status !== 'Approved').length} awaiting approval`, noteStyle: { fontSize: 13, color: '#0A0A0A', marginTop: 6 }, sp: [1, 3, 2, 2, 4, 3, Math.max(1, dl7.length)] },
+        { label: 'Overdue tasks', value: String(odT.length), note: odT.length ? `across ${new Set(odT.map(t => t.who)).size} team members` : 'All tasks on time', noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: [8, 7, 7, 6, 6, 5, Math.max(1, odT.length)] }
+      ].map(x => { const mx = Math.max(...x.sp), mn = Math.min(...x.sp) * 0.6; return { ...x, spark: x.sp.map((v, i) => ({ style: { width: 5, borderRadius: 1.5, background: i === 6 ? '#0A0A0A' : '#D4D4D4', height: grown ? Math.max(3, Math.round(((v - mn) / (mx - mn || 1)) * 28)) : 0, transition: `height .6s cubic-bezier(.2,.7,.2,1) ${i * 40}ms` } })) }; }),
+      hearChart: hc.map((x, i) => { const dt = LS.parse(x.ds), wk = dt.getDay() === 0 || dt.getDay() === 6; return { label: x.n || '', dow: 'SMTWTFS'[dt.getDay()], date: dt.getDate(),
+        bar: { width: '100%', maxWidth: 22, borderRadius: '3px 3px 0 0', background: x.clash ? '#B42318' : (i === 0 ? '#0A0A0A' : '#2B2B2B'), opacity: x.n ? 1 : 0, height: grown ? Math.max(x.n ? 8 : 0, Math.round(x.n / hcMax * 100)) : 0, transition: `height .7s cubic-bezier(.2,.7,.2,1) ${i * 35}ms` },
         dayStyle: { display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 11, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums', color: i === 0 ? '#0A0A0A' : (wk ? '#B5B5B5' : '#5E5E5E'), fontWeight: i === 0 ? 700 : 400 } }; }),
-      stages: [['Pleadings', 28, '#0A0A0A'], ['Evidence', 19, '#363636'], ['Arguments', 14, '#5E5E5E'], ['Pending filing', 12, '#8A8A8A'], ['Execution', 8, '#B5B5B5'], ['Reserved for orders', 5, '#D9D9D9']].map(([name, n, c], i) => ({ name, n,
-        seg: { flex: grown ? n : 0.0001, background: c, transition: `flex .8s cubic-bezier(.2,.7,.2,1) ${i * 60}ms` },
-        dot: { width: 10, height: 10, borderRadius: 2, background: c, display: 'block' },
-        bar: { display: 'block', height: '100%', background: c, width: grown ? `${Math.round(n / 28 * 100)}%` : 0, transition: `width .8s cubic-bezier(.2,.7,.2,1) ${200 + i * 60}ms` } })),
-      feeChart: [['Jun', 3.9, 1.2], ['Jul', 4.4, 1.6], ['Aug', 3.6, 2.1], ['Sep', 5.2, 1.4], ['Oct', 4.6, 2.4], ['Nov', 4.8, 3.4]].map(([m, c, o], i) => ({ m,
-        col: { height: grown ? `${c / 9 * 100}%` : 0, background: '#0A0A0A', borderRadius: '0 0 2px 2px', transition: `height .7s cubic-bezier(.2,.7,.2,1) ${i * 50}ms` },
-        out: { height: grown ? `${o / 9 * 100}%` : 0, background: '#C4C4C4', borderRadius: '2px 2px 0 0', transition: `height .7s cubic-bezier(.2,.7,.2,1) ${150 + i * 50}ms` },
+      hearNote: `${hc.reduce((a, x) => a + x.n, 0)} hearings scheduled` + (hc.some(x => x.clash) ? ' · clash on ' + hc.filter(x => x.clash).map(x => LS.dayMon(x.ds)).join(' and ') : ' · no clashes'),
+      stageCount: live.length + ' cases',
+      stages: stgRows.map(([name, n], i) => ({ name, n,
+        seg: { flex: grown ? n : 0.0001, background: SH[i], transition: `flex .8s cubic-bezier(.2,.7,.2,1) ${i * 60}ms` },
+        dot: { width: 10, height: 10, borderRadius: 2, background: SH[i], display: 'block' },
+        bar: { display: 'block', height: '100%', background: SH[i], width: grown ? `${Math.round(n / stgMax * 100)}%` : 0, transition: `width .8s cubic-bezier(.2,.7,.2,1) ${200 + i * 60}ms` } })),
+      feeChart: fee.map(([m, cc, o], i) => ({ m,
+        col: { height: grown ? `${cc / feeMax * 100}%` : 0, background: '#0A0A0A', borderRadius: '0 0 2px 2px', transition: `height .7s cubic-bezier(.2,.7,.2,1) ${i * 50}ms` },
+        out: { height: grown ? `${o / feeMax * 100}%` : 0, background: '#C4C4C4', borderRadius: '2px 2px 0 0', transition: `height .7s cubic-bezier(.2,.7,.2,1) ${150 + i * 50}ms` },
         lbl: { fontSize: 11, textAlign: 'center', color: i === 5 ? '#0A0A0A' : '#5E5E5E', fontWeight: i === 5 ? 600 : 400 } })),
+      feeMonth: LS.fmt(T, { month: 'long' }), feeCollected: inr(fee[5][1]), feeOutstanding: inr(fee[5][2]), feeNote: `${unpaid.length} invoice${unpaid.length === 1 ? '' : 's'} unpaid · ${unpaid.filter(x => LS.diffDays(T, x.date) > 30).length} overdue by more than 30 days`, goBilling: () => this.go('billing'),
       todayHearings,
-      orders: [
-        { title: 'Kapoor Textiles v. Meridian Exports', date: '04.11.2026', source: 'Manual upload · 11 Nov, 10:42', summary: 'Defendant given 2 weeks to reply to I.A. 6612/2026. Next date: 18.11.2026.', btn: S.confirmed ? 'Confirmed' : 'Confirm date', btnStyle: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13, whiteSpace: 'nowrap', border: S.confirmed ? '1px solid #E5E5E5' : 0, background: S.confirmed ? '#FFFFFF' : '#0A0A0A', color: S.confirmed ? '#0A0A0A' : '#fff' } },
-        { title: 'Sharma v. DDA', date: '06.11.2026', source: 'eCourts · fetched 7 Nov, 06:10', summary: 'Counter-affidavit taken on record. Rejoinder in 4 weeks.', btn: 'Open', btnStyle: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13, border: '1px solid #E5E5E5', background: '#FFFFFF', color: '#0A0A0A' } },
-        { title: 'State v. Arjun Verma', date: '03.11.2026', source: 'Manual upload · 3 Nov, 17:20', summary: 'Status report called from the IO. Interim protection continued.', btn: 'Open', btnStyle: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13, border: '1px solid #E5E5E5', background: '#FFFFFF', color: '#0A0A0A' } }
-      ],
-      deadlines: [
-        { days: 6, title: 'Commercial appeal, CS(COMM) 88/2023', rule: 'CCA s.13(1A)', due: '17 Nov 2026', status: S.approved ? 'Approved' : 'Needs approval', dayStyle: { width: 54, height: 54, borderRadius: 8, background: '#FDECEA', color: '#B42318', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } },
-        { days: 19, title: 'Written statement, CS 1180/2024', rule: 'Order VIII r.1 CPC', due: '30 Nov 2026', status: 'Approved', dayStyle: { width: 54, height: 54, borderRadius: 8, background: '#FDECEA', color: '#B42318', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }
-      ],
-      activity: [{ t: '10:52', x: 'Neha Bhatia edited the s.138 notice draft (v3)' }, { t: '10:42', x: 'Order uploaded in CS(COMM) 219/2024' }, { t: '07:30', x: 'Daily briefing sent to 4 team members' }],
-      nextDate: S.nextDate, nextDateLabel, reminderLine: rem, editDate: S.editDate && !S.confirmed, confirmed: S.confirmed, notConfirmed: !S.confirmed,
-      setDate: e => this.setState({ nextDate: e.target.value }), toggleEdit: () => this.setState({ editDate: !S.editDate }),
-      confirmDate: () => { this.setState({ confirmed: true, editDate: false }); this.toastMsg('Hearing added to calendar · reminders scheduled'); }, undoConfirm: () => this.setState({ confirmed: false }),
-      orderSteps, tabs, tab,
-      caseTasks: [{ t: 'Draft rejoinder to reply in I.A. 6612/2026', who: 'Neha Bhatia', due: 'Due 17 Nov' }, { t: 'Collect original delivery challans from client', who: 'Karan Sood', due: 'Due 14 Nov' }, { t: 'Send hearing update to client', who: 'Rohan Iyer', due: 'After 18 Nov' }],
-      caseOrders: [
-        { date: '04.11.2026', summary: 'Two weeks given to the defendant to reply to I.A. 6612/2026. List on 18.11.2026.', source: 'Manual upload · 11 Nov 2026, 10:42' },
-        { date: '07.10.2026', summary: 'Notice issued on I.A. 6612/2026 (Order XIII-A).', source: 'eCourts · fetched 8 Oct 2026, 06:05' },
-        { date: '22.08.2026', summary: 'Pleadings complete. Admission/denial of documents directed.', source: 'eCourts · fetched 23 Aug 2026, 06:02' },
-        { date: '15.05.2026', summary: 'Written statement taken on record.', source: 'Manual upload · 16 May 2026' }
-      ],
-      hearingHistory: [
-        { date: '04.11.2026', purpose: 'Reply to I.A.', outcome: 'Defendant given 2 weeks. Next date 18.11.2026.' },
-        { date: '07.10.2026', purpose: 'Directions', outcome: 'Notice issued on I.A. 6612/2026.' },
-        { date: '22.08.2026', purpose: 'Admission/denial', outcome: 'Directions given. Date changed from 14.08 at the court\'s instance.' },
-        { date: '15.05.2026', purpose: 'Completion of pleadings', outcome: 'WS taken on record.' }
-      ],
-      docs: [
-        { ext: 'PDF', name: 'Order dated 04.11.2026', meta: 'Court order · manual upload · OCR indexed', v: 'v1' },
-        { ext: 'PDF', name: 'Plaint with annexures', meta: 'Pleading · 84 pages · OCR indexed', v: 'v2' },
-        { ext: 'PDF', name: 'Written statement and counter-claim', meta: 'Pleading · 41 pages', v: 'v1' },
-        { ext: 'DOCX', name: 'Rejoinder to I.A. 6612/2026 (draft)', meta: 'Draft · Neha Bhatia', v: 'v4' },
-        { ext: 'XLS', name: 'Ledger statement FY 2023-24', meta: 'Evidence · from client', v: 'v1' }
-      ],
-      timeline: [
-        { date: '11.11.2026 10:42', x: 'Order of 04.11.2026 uploaded by Rohan Iyer. Next date extracted.' },
-        { date: '05.11.2026', x: 'AI case summary approved by Rohan Iyer' },
-        { date: '04.11.2026', x: 'Hearing: defendant given 2 weeks to reply' },
-        { date: '14.10.2026', x: 'I.A. 6612/2026 served on defendant' },
-        { date: '07.10.2026', x: 'Notice issued on summary judgment application' },
-        { date: '12.03.2024', x: 'Suit instituted' }
-      ],
+      orders: D.orders.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3).map(o => { const need = !o.confirmed && o.nextDate; return { title: caseOf(o.caseId).title, date: LS.dmy(o.date), source: o.source, summary: o.summary, btn: need ? 'Confirm date' : 'Open', go: () => this.go('order', o.id), btnStyle: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13, whiteSpace: 'nowrap', border: need ? 0 : '1px solid #E5E5E5', background: need ? '#0A0A0A' : '#FFFFFF', color: need ? '#fff' : '#0A0A0A' } }; }),
+      deadlines: dl.map(x => ({ ...x, go: () => this.go('limitation'), dayStyle: { width: 54, height: 54, borderRadius: 8, background: x.days <= 21 ? '#FDECEA' : '#F0F0EF', color: x.days <= 21 ? '#B42318' : '#0A0A0A', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } })),
+      activity: D.log.slice().sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 4).map(e => ({ t: e.ts.slice(0, 10) === T ? e.ts.slice(11) : LS.dayMon(e.ts.slice(0, 10)), x: e.x })),
+      c, tabEmpty, caseOrders, hearingHistory, docs, timeline, tabs, tab,
+      ord, nextDate: oDate, nextDateLabel, reminderLine: rem, editDate: (S.editDate || !oDate) && !oConf, confirmed: oConf, notConfirmed: !oConf,
+      setDate: e => { const v = e.target.value; this.mut(db => { const o = db.orders.find(x => x.id === O.id); if (o) { o.nextDate = v; o.nextFrom = 'entered by you'; } }); }, toggleEdit: () => this.setState({ editDate: !S.editDate }),
+      confirmDate, undoConfirm: () => this.mut(db => { const o = db.orders.find(x => x.id === O.id); o.confirmed = false; db.hearings = db.hearings.filter(x => x.fromOrder !== o.id); }, 'Removed from calendar'),
+      viewInCalendar: () => this.openWeek(oDate), orderSteps,
       calViews: [['week', 'Week'], ['day', 'Day']].map(([k, label]) => ({ label, go: () => this.setState({ calView: k }), style: { border: 0, borderRadius: 8, padding: '6px 14px', fontSize: 13, background: S.calView === k ? '#0A0A0A' : 'transparent', color: S.calView === k ? '#fff' : '#363636' } })),
-      weekView: S.calView === 'week', dayView: S.calView === 'day', week,
+      weekView: wkView, dayView: !wkView, week, weekTitle, calNav, hasConflict: !!cg, conflict, dayHearings, dayEmpty: !wkView && !dayHearings.length ? h('div', { style: { padding: '40px 22px', textAlign: 'center', color: '#5E5E5E', fontSize: 14 } }, 'No hearings on this day.') : null,
+      exportIcs: () => { if (!shown.length) return this.toast('No hearings in this view to export.'); LS.ics('hearings-' + (wkView ? ws : daySel) + '.ics', shown, D); this.toast(`${shown.length} hearing${shown.length > 1 ? 's' : ''} exported`); },
+      lim: limO,
       limFacts: [
         { label: 'Type of proceeding', value: 'Appeal against decree of Commercial Court (District Judge level)' },
         { label: 'Applicable provision', value: 'Commercial Courts Act, 2015, s.13(1A): 60 days' },
-        { label: 'Triggering event', value: 'Judgment and decree pronounced on 04.09.2026' },
-        { label: 'Certified copy applied for', value: '08.09.2026' },
-        ...(S.missingFilled ? [{ label: 'Certified copy ready for delivery', value: '22.09.2026 (added by you)' }] : [])
+        { label: 'Triggering event', value: 'Judgment and decree pronounced on ' + LS.dmy(D.lim.judgment) },
+        { label: 'Certified copy applied for', value: LS.dmy(D.lim.applied) },
+        ...(limFilled ? [{ label: 'Certified copy ready for delivery', value: LS.dmy(D.lim.ready) + ' (added by you)' }] : [])
       ],
-      missingOpen: !S.missingFilled, missingFilled: S.missingFilled, fillMissing: () => this.setState({ missingFilled: true }),
-      derivation, approved: S.approved, notApproved: !S.approved, approve: () => { this.setState({ approved: true }); this.toastMsg('Limitation date approved · alerts set'); },
-      msgs, suggestions, draftQ: S.q, setQ: e => this.setState({ q: e.target.value }), sendQ: () => S.q.trim() && this.ask(S.q.trim()), qKey: e => { if (e.key === 'Enter' && S.q.trim()) this.ask(S.q.trim()); },
-      templates, versions,
-      toggleDict: () => this.setState({ dict: !S.dict }), dictLabel: S.dict ? '● Listening… Hinglish' : 'Dictate (Hindi · English · Hinglish)',
+      missingOpen: !limFilled, missingFilled: limFilled, fillMissing,
+      derivation: lim.rows, approved: D.lim.approved, notApproved: !D.lim.approved, approve: () => this.mut(db => { db.lim.approved = true; db.lim.approvedAt = LS.fmt(T) + ' at ' + LS.nowHM() + ' IST'; V.logIt(db, 'Limitation date ' + LS.dmy(lim.due) + ' approved by ' + db.user.name, db.lim.caseId); }, 'Limitation date approved · alerts set'),
+      msgs, suggestions, brainScope, chatEmpty: chat.length ? null : h('div', { style: { color: '#5E5E5E', fontSize: 14, padding: '24px 0' } }, 'Ask a question about this case, or pick a suggestion below.'), draftQ: S.q, setQ: e => this.setState({ q: e.target.value }), sendQ: () => S.q.trim() && this.ask(S.q.trim()), qKey: e => { if (e.key === 'Enter' && S.q.trim()) this.ask(S.q.trim()); },
+      templates, versions, draft,
+      toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate (Hindi · English · Hinglish)',
       dictBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, border: S.dict ? '1px solid #B42318' : '1px solid #E5E5E5', background: S.dict ? '#FDECEA' : '#FFFFFF', color: S.dict ? '#B42318' : '#0A0A0A' },
-      cycles, plans, co, checkoutOpen: S.plan !== null, paid: S.paid, notPaid: !S.paid,
-      closeCheckout: () => this.setState({ plan: null }), pay: () => this.setState({ paid: true }), finishPay: () => { this.setState({ plan: null, paid: false }); this.go('dashboard'); },
-      apps, cur, verify: () => this.setStatus('verified'), askInfo: () => this.setStatus('info'), reject: () => this.setStatus('rejected')
+      cycles, plans, co, checkoutOpen: S.plan !== null, paid: S.paid, notPaid: !S.paid, gstin: S.gstin, setGstin: e => this.setState({ gstin: e.target.value, gstErr: '' }),
+      closeCheckout: () => this.setState({ plan: null }), pay, finishPay: () => { this.setState({ plan: null, paid: false }); this.go('dashboard'); },
+      apps, cur, adminNote: S.adminNote, setAdminNote: e => this.setState({ adminNote: e.target.value }), verify: () => this.setStatus('verified', ca), askInfo: () => this.setStatus('info', ca), reject: () => this.setStatus('rejected', ca),
+      cq: S.cq, setCq: e => this.setState({ cq: e.target.value }), cqKey: e => { if (e.key === 'Enter' && S.cq.trim()) this.copilot(S.cq.trim()); }, copilotAsk: () => S.cq.trim() ? this.copilot(S.cq.trim()) : this.toast('Type a question first.'),
+      copilotMsgs: D.copilot.length ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } }, D.copilot.slice().reverse().map((m, i) => h('div', { key: i, style: { border: '1px solid #E5E5E5', borderRadius: 8, padding: '10px 12px', fontSize: 13.5, lineHeight: 1.55 } }, h('div', { style: { fontWeight: 600, marginBottom: 4 } }, m.q), h('div', { style: { whiteSpace: 'pre-line', color: '#363636' } }, m.text), m.go && h('button', { onClick: () => this.go(...m.go), style: { marginTop: 8, border: 0, background: 'none', padding: 0, textDecoration: 'underline', fontSize: 13, color: '#0A0A0A' } }, 'Open →'))), h(V.Btn, { small: true, onClick: () => this.mut(db => { db.copilot = []; }) }, 'Clear answers')) : null,
+      copilotSugs: h(React.Fragment, null, alerts.slice(0, 3).map((a, i) => h('button', { key: i, onClick: a.go, style: { textAlign: 'left', background: i ? '#FFFFFF' : '#F0F0EF', border: '1px solid ' + (i ? '#E5E5E5' : '#E3E3E2'), borderRadius: 8, padding: 12, color: '#363636', fontSize: 13.5 } }, a.text)), !alerts.length && h('div', { style: { fontSize: 13.5, color: '#5E5E5E' } }, 'Nothing needs your attention right now.')),
+      panelTasks: pTasks.map(t => ({ t: t.t, due: (t.due < T ? 'Overdue · ' : 'Due ') + LS.dayMon(t.due) })), panelTasksEmpty: pTasks.length ? null : h('div', { style: { fontSize: 13.5, color: '#5E5E5E', padding: '8px 0', borderTop: '1px solid #E5E5E5' } }, 'No open tasks assigned to you.')
     };
   }
 }
