@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="assets/ls-favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{overflow-x:hidden;max-width:100%}
+a{color:#0A0A0A;text-decoration:none}
+a:hover{color:#2B2B2B}
+button{font-family:inherit;cursor:pointer}
+a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .25s}
+:focus-visible{outline:2px solid #0A0A0A;outline-offset:2px}
+@keyframes lsPulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 7px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+@keyframes lsScan{0%{transform:translateY(-100%)}100%{transform:translateY(900%)}}
+@keyframes lsDrift{0%{background-position:0 0}100%{background-position:64px 64px}}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#FFFFFF;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:17px;line-height:1.55">
+
+<header style="position:sticky;top:0;z-index:30;background:#0A0A0A;border-bottom:1px solid #1F1F1F">
+  <div style="max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,28px);height:72px;display:flex;align-items:center;gap:clamp(12px,3vw,36px)">
+    <a href="#top" style="display:flex;align-items:center;gap:10px;color:#fff;white-space:nowrap"><img src="assets/ls-mark-white.png" alt="" style="height:30px;display:block"><span style="font-weight:600;font-size:clamp(18px,3vw,21px);letter-spacing:-.02em">Legal Staff</span></a>
+    <sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}">
+      <nav style="display:flex;gap:28px;font-size:16px;white-space:nowrap">
+        <a href="#platform" style="color:#C9C9C9" style-hover="color:#fff">Platform</a>
+        <a href="#workflow" style="color:#C9C9C9" style-hover="color:#fff">How it works</a>
+        <a href="#security" style="color:#C9C9C9" style-hover="color:#fff">Security</a>
+        <a href="#pricing" style="color:#C9C9C9" style-hover="color:#fff">Pricing</a>
+        <a href="directory.html" style="color:#C9C9C9" style-hover="color:#fff">Find an advocate</a>
+      </nav>
+    </sc-if>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <sc-if value="{{ notNarrow }}" hint-placeholder-val="{{ true }}"><a href="app.html" style="height:44px;padding:0 18px;display:flex;align-items:center;font-size:16px;color:#fff;white-space:nowrap" style-hover="color:#C9C9C9">Sign in</a></sc-if>
+      <a href="#pricing" style="height:44px;padding:0 clamp(14px,3vw,20px);display:flex;align-items:center;background:#fff;border-radius:8px;font-size:clamp(15px,2.5vw,16px);color:#0A0A0A;font-weight:600;white-space:nowrap" style-hover="background:#E5E5E5;color:#0A0A0A">Choose a plan</a>
+    </div>
+  </div>
+</header>
+
+<section id="top" style="background:#0A0A0A;color:#fff;overflow:hidden;position:relative">
+{{ heroGrid }}
+<div style="position:absolute;left:50%;top:-240px;width:900px;height:600px;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(255,255,255,.10),transparent);pointer-events:none"></div>
+<div style="position:relative;max-width:1280px;margin:0 auto;padding:clamp(56px,9vw,96px) clamp(20px,4vw,28px) 0;display:flex;flex-direction:column;align-items:center;text-align:center;gap:26px">
+  <div data-reveal="" style="font-size:15px;color:#A3A3A3;font-weight:500;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px"><img src="assets/ls-mark-white.png" alt="" style="height:22px">Practice management for Indian advocates and law firms</div>
+  <h1 data-reveal="" data-delay="80" style="font-weight:600;font-size:clamp(42px,6vw,76px);line-height:1.04;letter-spacing:-.025em;letter-spacing:-.035em;margin:0;max-width:980px;text-wrap:balance">Every case, order and hearing date in one place.</h1>
+  <p data-reveal="" data-delay="160" style="font-size:clamp(17px,2.4vw,20px);color:#C9C9C9;margin:0;max-width:720px;text-wrap:pretty">Legal Staff reads each new court order, picks out the next date, adds it to your calendar once you confirm, and reminds you on WhatsApp before the hearing. Your cases, documents and AI research stay in one secure workspace.</p>
+  <div data-reveal="" data-delay="240" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:6px">
+    <a href="#pricing" style="height:54px;padding:0 28px;display:flex;align-items:center;white-space:nowrap;background:#fff;border-radius:8px;font-size:17px;color:#0A0A0A;font-weight:600" style-hover="background:#E5E5E5;color:#0A0A0A">See plans and pricing</a>
+    <a href="app.html" style="height:54px;padding:0 26px;display:flex;align-items:center;white-space:nowrap;border:1px solid #4A4A4A;border-radius:8px;font-size:17px;color:#fff" style-hover="background:#1F1F1F;color:#fff">Explore the product</a>
+  </div>
+
+  <div data-reveal="" data-delay="360" data-dist="60" style="position:relative;width:100%;margin-top:56px;background:#FFFFFF;border-radius:16px 16px 0 0;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:hidden;text-align:left;display:grid;grid-template-columns:{{ shotCols }}">
+    <sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}">
+      <div style="background:#F5F5F4;padding:22px 16px;display:flex;flex-direction:column;gap:4px;font-size:14px">
+        <div style="display:flex;align-items:center;gap:8px;padding:0 10px 18px"><img src="assets/ls-mark-black.png" alt="" style="height:22px"><span style="font-weight:600;font-size:16px;letter-spacing:-.02em">Legal Staff</span></div>
+        <sc-for list="{{ shotNav }}" as="n" hint-placeholder-count="7">
+          <div style="{{ n.style }}">{{ n.label }}</div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <div style="padding:clamp(18px,4vw,28px) clamp(16px,4vw,32px) clamp(22px,4vw,36px);display:flex;flex-direction:column;gap:22px;min-width:0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div><div style="font-size:14px;color:#5E5E5E">Wednesday, 11 November 2026</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600;margin-top:2px">Good morning, Rohan</div></div>
+        <span style="font-size:13px;color:#2B2B2B;background:#F0F0EF;border-radius:8px;padding:5px 12px;display:flex;align-items:center;gap:8px">{{ liveDot }}All court sources synced · 6:10 AM</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:22px;align-items:start">
+        <div style="display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding-bottom:10px;border-bottom:2px solid #0A0A0A"><span>Today's hearings</span><span style="color:#5E5E5E;font-weight:400">4 matters</span></div>
+          <sc-for list="{{ heroRows }}" as="h" hint-placeholder-count="4">
+            <div data-reveal="" data-delay="{{ h.delay }}" data-dist="10" style="display:flex;gap:16px;padding:13px 0;border-bottom:1px solid #E5E5E5;align-items:center">
+              <span style="font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;width:48px">{{ h.t }}</span>
+              <span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:600">{{ h.title }}</span><span style="display:block;font-size:13px;color:#5E5E5E">{{ h.court }}</span></span>
+              <span style="{{ h.chip }}">{{ h.tag }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div data-reveal="" data-delay="900" style="position:relative;overflow:hidden;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+            {{ scanLine }}
+            <div style="font-size:13px;color:#5E5E5E;font-weight:600">Next date found in order of 04.11.2026</div>
+            <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:24px;font-weight:600">Wed, 18 November 2026</div>
+            <div style="font-size:14px;color:#363636">Kapoor Textiles v. Meridian Exports · from ¶4, "List on 18.11.2026"</div>
+            <div style="display:flex;gap:8px;margin-top:4px"><span style="height:38px;padding:0 16px;display:flex;align-items:center;background:#0A0A0A;color:#fff;border-radius:8px;font-size:14px;font-weight:600">Confirm date</span><span style="height:38px;padding:0 14px;display:flex;align-items:center;border:1px solid #E5E5E5;border-radius:8px;font-size:14px">Edit</span></div>
+          </div>
+          <div data-reveal="" data-delay="1050" style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:16px;padding:20px 22px;display:flex;gap:16px;align-items:center">
+            <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:36px;font-weight:600;color:#B42318;line-height:1">6</div>
+            <div><div style="font-size:15px;font-weight:600">days to file commercial appeal</div><div style="font-size:13px;color:#5E5E5E">CS(COMM) 88/2023 · CCA s.13(1A) · awaiting approval</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<section style="background:#F5F5F4">
+  <div style="max-width:1280px;margin:0 auto;padding:30px clamp(20px,4vw,28px);display:flex;flex-wrap:wrap;gap:12px clamp(20px,4vw,44px);align-items:center;justify-content:center;font-size:17px">
+    <span style="font-size:14px;color:#5E5E5E;font-weight:600">Built for</span>
+    <span>Individual advocates</span><span>Chambers with juniors</span><span>Law firms</span><span>Corporate legal teams</span>
+  </div>
+</section>
+
+<section id="platform" style="max-width:1280px;margin:0 auto;padding:clamp(64px,10vw,112px) clamp(20px,4vw,28px) clamp(56px,8vw,96px);display:flex;flex-direction:column;gap:44px">
+  <div data-reveal="" style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px">
+    <h2 style="font-weight:600;font-size:clamp(34px,4vw,50px);line-height:1.1;letter-spacing:-.025em;margin:0;max-width:820px;text-wrap:balance">One workspace for every part of a practice.</h2>
+    <p style="margin:0;color:#5E5E5E;max-width:640px;font-size:18px">Cases, hearings, deadlines, documents, clients and fees, with AI help that you stay in control of.</p>
+  </div>
+  <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px;border-bottom:1px solid #E5E5E5">
+    <sc-for list="{{ auds }}" as="a" hint-placeholder-count="3">
+      <button onClick="{{ a.go }}" style="{{ a.style }}">{{ a.label }}</button>
+    </sc-for>
+  </div>
+  <div data-reveal="" data-delay="120" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:48px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:16px;max-width:460px">
+      <div style="font-size:14px;color:#0A0A0A;font-weight:600">{{ aud.who }}</div>
+      <h3 style="font-weight:600;font-size:34px;line-height:1.15;margin:0;text-wrap:balance">{{ aud.title }}</h3>
+      <p style="margin:0;color:#363636;font-size:18px;text-wrap:pretty">{{ aud.d }}</p>
+      <a href="#pricing" style="font-weight:600;font-size:16px;margin-top:4px">{{ aud.cta }} →</a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:36px 40px">
+      <sc-for list="{{ aud.feats }}" as="f" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="color:#0A0A0A;display:flex">{{ f.icon }}</span>
+          <div style="font-size:19px;font-weight:600;margin-top:4px">{{ f.t }}</div>
+          <div style="font-size:16px;color:#5E5E5E;text-wrap:pretty">{{ f.d }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+<section id="workflow" style="background:#F5F5F4">
+  <div style="max-width:1280px;margin:0 auto;padding:clamp(64px,9vw,104px) clamp(20px,4vw,28px)">
+    <div data-reveal="" style="max-width:760px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:15px;color:#5E5E5E;font-weight:600">How it works</div>
+      <h2 style="font-weight:600;font-size:clamp(32px,3.8vw,46px);line-height:1.12;letter-spacing:-.025em;margin:0;text-wrap:balance">From a new order to a reminder, without entering anything twice.</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:40px;margin-top:56px">
+      <sc-for list="{{ flow }}" as="f" hint-placeholder-count="4">
+        <div data-reveal="" data-delay="{{ f.delay }}" style="position:relative;display:flex;flex-direction:column;gap:12px;border-top:2px solid #D9D9D9;padding-top:22px">
+          <div data-bar="" data-delay="{{ f.barDelay }}" style="position:absolute;top:-2px;left:0;right:0;height:2px;background:#0A0A0A;transform-origin:left center"></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:40px;font-weight:600;line-height:1;color:#0A0A0A">{{ f.n }}</span><span style="font-size:14px;color:#5E5E5E">{{ f.when }}</span></div>
+          <div style="font-size:22px;font-weight:600">{{ f.t }}</div>
+          <div style="font-size:16px;color:#363636;text-wrap:pretty">{{ f.d }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+<section id="ai" style="max-width:1280px;margin:0 auto;padding:clamp(64px,10vw,112px) clamp(20px,4vw,28px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:64px;align-items:center">
+  <div data-reveal="" style="display:flex;flex-direction:column;gap:18px">
+    <div style="font-size:15px;color:#5E5E5E;font-weight:600">AI that shows its sources</div>
+    <h2 style="font-weight:600;font-size:clamp(32px,3.8vw,46px);line-height:1.12;letter-spacing:-.025em;margin:0;text-wrap:balance">Ask about your case and see where each answer comes from.</h2>
+    <p style="margin:0;color:#363636;font-size:18px;text-wrap:pretty">The AI Case Brain answers only from your case's documents and approved legal sources. It keeps verified sources separate from its own suggestions.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:24px 32px;margin-top:12px">
+      <sc-for list="{{ principles }}" as="p" hint-placeholder-count="4">
+        <div><div style="font-weight:600;font-size:17px">{{ p.t }}</div><div style="font-size:15px;color:#5E5E5E;margin-top:4px">{{ p.d }}</div></div>
+      </sc-for>
+    </div>
+  </div>
+  <div data-reveal="" data-delay="120" style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.06);padding:30px;display:flex;flex-direction:column;gap:16px">
+    <div style="font-size:14px;color:#5E5E5E;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span style="font-weight:600;color:#0A0A0A">AI Case Brain</span><span>CS(COMM) 219/2024 · 14 documents indexed</span></div>
+    <div data-reveal="" data-delay="400" data-dist="12" style="align-self:flex-end;background:#0A0A0A;color:#fff;border-radius:16px;padding:12px 16px;font-size:16px;max-width:85%">What was the last order, and what's due before the next date?</div>
+    <div data-reveal="" data-delay="1000" data-dist="12" style="background:#F5F5F4;border-radius:16px;padding:20px;font-size:16px;line-height:1.65">
+      On 04.11.2026 the court gave the defendant two weeks to reply to I.A. 6612/2026 and listed the matter on 18.11.2026. Your rejoinder, if any, is due before that date.
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
+        <span style="font-size:13px;background:#FFFFFF;color:#2B2B2B;border-radius:8px;padding:3px 9px">Order 04.11.2026 ¶3</span>
+        <span style="font-size:13px;background:#FFFFFF;color:#2B2B2B;border-radius:8px;padding:3px 9px">Order 04.11.2026 ¶4</span>
+      </div>
+    </div>
+    <div data-reveal="" data-delay="1500" data-dist="12" style="border:1px dashed #C4C4C4;border-radius:16px;padding:14px 16px;font-size:15px;color:#363636"><b style="color:#0A0A0A">Suggestion, not verified:</b> consider pressing that no date of rejection is pleaded in the written statement.</div>
+  </div>
+</section>
+
+<section id="security" style="background:#0A0A0A;color:#fff;position:relative;overflow:hidden">
+  {{ secGrid }}
+  <div data-reveal="" style="position:relative;max-width:1280px;margin:0 auto;padding:clamp(64px,9vw,104px) clamp(20px,4vw,28px);display:flex;flex-direction:column;gap:52px">
+    <div style="display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-end">
+      <div style="max-width:700px;display:flex;flex-direction:column;gap:14px">
+        <div style="font-size:15px;color:#A3A3A3;font-weight:600">Security and privacy</div>
+        <h2 style="font-weight:600;font-size:clamp(32px,3.8vw,46px);line-height:1.12;letter-spacing:-.025em;margin:0;text-wrap:balance">Your firm's records stay private to your firm.</h2>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span style="font-size:14px;border:1px solid #4A4A4A;border-radius:8px;padding:6px 12px">DPDP Act, 2023</span>
+        <span style="font-size:14px;border:1px solid #4A4A4A;border-radius:8px;padding:6px 12px">Row-level security</span>
+        <span style="font-size:14px;border:1px solid #4A4A4A;border-radius:8px;padding:6px 12px">Encrypted storage</span>
+        <span style="font-size:14px;border:1px solid #4A4A4A;border-radius:8px;padding:6px 12px">Audit logs</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:40px 48px">
+      <sc-for list="{{ security }}" as="x" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:19px;font-weight:600">{{ x.t }}</div>
+          <div style="font-size:16px;color:#C9C9C9;text-wrap:pretty">{{ x.d }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+<section id="pricing" style="max-width:1280px;margin:0 auto;padding:clamp(64px,10vw,112px) clamp(20px,4vw,28px);display:flex;flex-direction:column;gap:40px">
+  <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px">
+    <h2 style="font-weight:600;font-size:clamp(32px,3.8vw,46px);line-height:1.12;letter-spacing:-.025em;margin:0">Simple plans for every size of practice</h2>
+    <p style="margin:0;color:#5E5E5E;font-size:17px">All plans are paid subscriptions. Prices exclude 18% GST. Upgrade, downgrade or cancel at any time.</p>
+    <div style="display:flex;background:#F5F5F4;border-radius:8px;padding:4px;margin-top:8px">
+      <sc-for list="{{ cycles }}" as="c" hint-placeholder-count="2">
+        <button onClick="{{ c.go }}" style="{{ c.style }}">{{ c.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+  <div data-reveal="" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:18px">
+    <sc-for list="{{ plans }}" as="p" hint-placeholder-count="4">
+      <div style="{{ p.card }}" style-hover="transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.10)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:24px;font-weight:600">{{ p.name }}</span><sc-if value="{{ p.feat }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;background:#0A0A0A;color:#fff;border-radius:8px;padding:3px 10px;font-weight:600;white-space:nowrap">Most chosen</span></sc-if></div>
+        <div style="font-size:15px;color:#5E5E5E;min-height:46px">{{ p.who }}</div>
+        <div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:40px;font-weight:600">{{ p.price }}</span><span style="font-size:14px;color:#5E5E5E">{{ p.per }}</span></div>
+        <div style="font-size:13px;color:#5E5E5E;min-height:20px">{{ p.save }}</div>
+        <a href="app.html" style="{{ p.btn }}">{{ p.cta }}</a>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:15px;padding-top:8px">
+          <sc-for list="{{ p.feats }}" as="f" hint-placeholder-count="5">
+            <div style="display:flex;gap:10px"><span style="color:#0A0A0A">✓</span><span>{{ f }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</section>
+
+<section style="background:#F5F5F4">
+  <div style="max-width:1280px;margin:0 auto;padding:clamp(64px,9vw,104px) clamp(20px,4vw,28px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:56px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:14px;max-width:420px">
+      <h2 style="font-weight:600;font-size:clamp(30px,3.4vw,42px);line-height:1.12;letter-spacing:-.025em;margin:0">Common questions</h2>
+      <p style="margin:0;color:#5E5E5E">Looking for an advocate instead? <a href="directory.html">Search the directory</a>. There are no rankings and no paid listings.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;border-top:2px solid #0A0A0A">
+      <sc-for list="{{ faqs }}" as="q" hint-placeholder-count="5">
+        <div style="border-bottom:1px solid #E5E5E5">
+          <button onClick="{{ q.toggle }}" style="width:100%;display:flex;justify-content:space-between;gap:16px;align-items:center;text-align:left;border:0;background:transparent;padding:22px 0;font-size:18px;font-weight:600;color:#0A0A0A" style-hover="color:#0A0A0A">{{ q.q }}<span style="color:#0A0A0A;font-size:22px;flex-shrink:0">{{ q.sign }}</span></button>
+          <sc-if value="{{ q.open }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:0 0 24px;font-size:16px;color:#363636;max-width:680px;text-wrap:pretty">{{ q.a }}</div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+<section data-reveal="" style="max-width:1280px;margin:0 auto;padding:clamp(64px,10vw,112px) clamp(20px,4vw,28px);text-align:center;display:flex;flex-direction:column;align-items:center;gap:22px">
+  <img src="assets/ls-mark-black.png" alt="" style="height:64px">
+  <h2 style="font-weight:600;font-size:clamp(36px,4.6vw,58px);line-height:1.06;letter-spacing:-.025em;margin:0;max-width:820px;text-wrap:balance">Stop copying dates by hand.</h2>
+  <p style="margin:0;color:#5E5E5E;max-width:560px;font-size:18px">Choose a plan, add your first case and get your first briefing tomorrow morning.</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+    <a href="#pricing" style="height:54px;padding:0 28px;display:flex;align-items:center;white-space:nowrap;background:#0A0A0A;border-radius:8px;font-size:17px;color:#fff;font-weight:600" style-hover="background:#2B2B2B;color:#fff">Choose a plan</a>
+    <a href="app.html" style="height:54px;padding:0 26px;display:flex;align-items:center;white-space:nowrap;border:1px solid #0A0A0A;border-radius:8px;font-size:17px;color:#0A0A0A" style-hover="background:#F5F5F4;color:#0A0A0A">Explore the product</a>
+  </div>
+</section>
+
+<footer style="background:#0A0A0A;color:#fff">
+  <div style="max-width:1280px;margin:0 auto;padding:64px clamp(20px,4vw,28px) 40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:40px;font-size:15px;color:#A3A3A3">
+    <div style="{{ footBrand }}">
+      <img src="assets/ls-logo-white.png" alt="Legal Staff" style="height:96px;width:auto;align-self:flex-start">
+      <div style="max-width:380px">A legal practice management platform for India. Legal Staff does not give legal advice, and AI output must be reviewed by an advocate.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px"><b style="color:#fff">Product</b><a href="#platform" style="color:#A3A3A3">Platform</a><a href="#ai" style="color:#A3A3A3">AI Case Brain</a><a href="#pricing" style="color:#A3A3A3">Pricing</a><a href="#security" style="color:#A3A3A3">Security</a></div>
+    <div style="display:flex;flex-direction:column;gap:10px"><b style="color:#fff">Company</b><a href="directory.html" style="color:#A3A3A3">Advocate directory</a><a href="#" style="color:#A3A3A3">Privacy policy</a><a href="#" style="color:#A3A3A3">Terms of service</a><a href="#" style="color:#A3A3A3">Contact</a></div>
+  </div>
+  <div style="max-width:1280px;margin:0 auto;padding:20px clamp(20px,4vw,28px) 32px;font-size:14px;color:#8A8A8A;border-top:1px solid #1F1F1F;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><span>© 2026 Legal Staff · legalstaff.in</span><span>Prices in INR, exclusive of GST</span></div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { cycle: 'annual', faq: 0, aud: 0, w: window.innerWidth };
+  componentDidMount() { this.onR = () => this.setState({ w: window.innerWidth }); window.addEventListener('resize', this.onR); setTimeout(() => this.reveal(), 30); }
+  componentWillUnmount() { window.removeEventListener('resize', this.onR); this.io && this.io.disconnect(); }
+  reveal() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
+    const ease = 'cubic-bezier(.2,.7,.2,1)';
+    this.io = new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting) return;
+      const t = e.target; t.style.opacity = 1; t.style.transform = 'none';
+      t.querySelectorAll('[data-bar]').forEach(b => b.style.transform = 'scaleX(1)');
+      this.io.unobserve(t);
+    }), { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('[data-reveal]').forEach(el => {
+      const d = +(el.dataset.delay || 0), y = +(el.dataset.dist || 24);
+      el.style.transition = `opacity .8s ${ease} ${d}ms, transform .8s ${ease} ${d}ms`;
+      el.style.opacity = 0; el.style.transform = `translateY(${y}px)`;
+      el.querySelectorAll('[data-bar]').forEach(b => { b.style.transform = 'scaleX(0)'; b.style.transition = `transform 1s ${ease} ${+(b.dataset.delay || 0)}ms`; });
+      this.io.observe(el);
+    });
+  }
+  renderVals() {
+    const S = this.state, wide = S.w >= 1100, narrow = S.w < 560;
+    const IC = {
+      case: 'M3 7h18v13H3z M8 7V4h8v3 M3 12h18', cal: 'M3 5h18v16H3z M3 10h18 M8 3v4 M16 3v4', clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2',
+      order: 'M14 3H6v18h12V7z M14 3v4h4 M9 13h6 M9 17h6', bell: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4z M10 21h4',
+      pen: 'M4 20h4L19 9l-4-4L4 16z M13.5 6.5l4 4', globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M3 12h18 M12 3a14 14 0 0 1 0 18 M12 3a14 14 0 0 0 0 18',
+      rupee: 'M6 4h12 M6 9h12 M9 4a5 5 0 0 1 0 10H6l8 7', team: 'M15 21a6 6 0 0 0-12 0 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M16 11h6',
+      chart: 'M4 20V10 M10 20V4 M16 20v-7 M22 20H2', shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4', key: 'M14 10a4 4 0 1 0-4 4 M10 14l-6 6 M6 18l2 2'
+    };
+    const icon = k => React.createElement('svg', { width: 26, height: 26, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('path', { d: IC[k] }));
+    const chip = (bg, fg) => ({ fontSize: 13, fontWeight: 600, background: bg, color: fg, borderRadius: 8, padding: '3px 10px', whiteSpace: 'nowrap' });
+    const inr = n => '₹' + n.toLocaleString('en-IN');
+    const AUD = [
+      { label: 'Advocates', who: 'For advocates practising alone', title: 'Never miss a date, even on a four-court day.', d: 'Orders are read as they arrive, next dates wait for your confirmation, and reminders reach you on WhatsApp before the hearing.', cta: 'See the Solo plan',
+        feats: [['order', 'Court orders, read for you', 'OCR and a summary with paragraph citations for every new order.'], ['cal', 'Hearing calendar', 'Day and week views, clash warnings, Google Calendar sync and .ics export.'], ['bell', 'WhatsApp reminders', 'Two days before and at 7:30 AM IST on the day of the hearing.'], ['clock', 'Limitation tracker', 'Rule-based calculations that show each step and exclusion.'], ['pen', 'Drafting Studio', 'Notices, petitions and bail applications, dictated in Hindi, English or Hinglish.']] },
+      { label: 'Chambers and law firms', who: 'For chambers with juniors and law firms', title: 'Run the whole team from one case list.', d: 'Partners, juniors, paralegals and accountants work in the same workspace, and each sees only the cases assigned to them.', cta: 'See the Professional and Firm plans',
+        feats: [['team', 'Team and roles', 'Assign cases and tasks. Access follows the assignment.'], ['case', 'Case workspace', 'Overview, parties, orders, hearings, documents and a full timeline on one page.'], ['globe', 'Client portal', 'Clients see only what you share: progress, dates, documents and invoices.'], ['rupee', 'Billing and fees', 'Invoice clients, record payments and expenses, and track what is outstanding.'], ['chart', 'Reports', 'Hearings, deadlines and fees across the firm, by person and by court.']] },
+      { label: 'Corporate legal teams', who: 'For corporate legal departments', title: 'Every matter across every forum, in one view.', d: 'Track litigation handled by in-house counsel and external advocates, with controlled access and a record of every action.', cta: 'Talk to us about Enterprise',
+        feats: [['case', 'Matter tracking', 'Cases across High Courts, district courts and tribunals in one list.'], ['key', 'SSO and access control', 'Single sign-on and fine-grained permissions down to individual documents.'], ['shield', 'Audit exports', 'Who viewed, changed or approved what, and when, ready for review.'], ['clock', 'Deadline oversight', 'Limitation dates wait for advocate approval before they count.'], ['chart', 'Reports and analytics', 'Status of every matter for management reporting.']] }
+    ];
+    const A = AUD[S.aud];
+    const P = [
+      ['Solo', 'For an advocate practising alone', 699, 6999, ['1 user', '150 active cases', '10 GB storage', '200 AI credits / month', 'WhatsApp and email reminders', 'Limitation tracker']],
+      ['Professional', 'For advocates with juniors or a small chamber', 1499, 14999, ['Up to 3 users', '600 active cases', '50 GB storage', '1,000 AI credits / month', 'AI Case Brain and Drafting Studio', 'Client portal']],
+      ['Firm', 'For law firms with teams and partners', 3999, 39999, ['Up to 15 users', 'Unlimited cases', '250 GB storage', '5,000 AI credits / month', 'Roles, permissions and AI agents', 'Reports and analytics']],
+      ['Enterprise', 'For corporate legal departments and large firms', null, null, ['Custom users and storage', 'SSO and audit exports', 'Dedicated onboarding', 'Custom court-data providers']]
+    ];
+    const ann = S.cycle === 'annual';
+    const grid = (op, drift) => React.createElement('div', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: `linear-gradient(rgba(255,255,255,${op}) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,${op}) 1px,transparent 1px)`, backgroundSize: '64px 64px', WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 50% 30%,#000,transparent)', maskImage: 'radial-gradient(ellipse 70% 60% at 50% 30%,#000,transparent)', animation: drift ? 'lsDrift 12s linear infinite' : 'none' } });
+    return {
+      heroGrid: grid(.07, true), secGrid: grid(.05, false),
+      liveDot: React.createElement('span', { style: { width: 7, height: 7, borderRadius: 4, background: '#16A34A', display: 'block', animation: 'lsPulse 2s ease-out infinite' } }),
+      scanLine: React.createElement('div', { 'aria-hidden': true, style: { position: 'absolute', left: 0, right: 0, top: 0, height: '18%', background: 'linear-gradient(180deg,transparent,rgba(10,10,10,.05),transparent)', animation: 'lsScan 3.6s ease-in-out infinite', pointerEvents: 'none' } }),
+      notNarrow: !narrow, footBrand: { display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0, gridColumn: S.w < 640 ? 'auto' : 'span 2' },
+      wide, shotCols: wide ? '220px minmax(0,1fr)' : 'minmax(0,1fr)',
+      shotNav: ['Dashboard', 'Cases', 'Court Orders', 'Hearings', 'Legal Deadlines', 'AI Case Brain', 'Drafting Studio'].map((label, i) => ({ label, style: { padding: '8px 10px', borderRadius: 8, background: i === 0 ? '#FFFFFF' : 'transparent', fontWeight: i === 0 ? 600 : 400, color: i === 0 ? '#0A0A0A' : '#363636' } })),
+      heroRows: [
+        { t: '10:30', title: 'Kapoor Textiles v. Meridian Exports', court: 'Delhi HC · Court 34', tag: 'Conflict', chip: chip('#FDECEA', '#B42318') },
+        { t: '10:30', title: 'State v. Arjun Verma', court: 'Saket · Court 412', tag: 'Conflict', chip: chip('#FDECEA', '#B42318') },
+        { t: '12:00', title: 'Sharma v. DDA', court: 'Delhi HC · Court 9', tag: 'Brief ready', chip: chip('#F0F0EF', '#2B2B2B') },
+        { t: '2:15', title: 'Mehta v. Mehta', court: 'Family Court, Dwarka', tag: 'Mediation', chip: chip('#EDEDED', '#363636') }
+      ].map((r, i) => ({ ...r, delay: 600 + i * 90 })),
+      auds: AUD.map((a, i) => ({ label: a.label, go: () => this.setState({ aud: i }), style: { border: 0, background: 'transparent', padding: '14px 20px', fontSize: 17, whiteSpace: 'nowrap', color: S.aud === i ? '#0A0A0A' : '#5E5E5E', fontWeight: S.aud === i ? 600 : 400, borderBottom: S.aud === i ? '3px solid #0A0A0A' : '3px solid transparent', marginBottom: -1 } })),
+      aud: { ...A, feats: A.feats.map(([ic, t, d]) => ({ icon: icon(ic), t, d })) },
+      flow: [
+        { n: '1', when: 'Once', t: 'Add your case', d: 'Enter it manually or import it by CNR. Parties, court, judge and stage are kept in one case workspace.' },
+        { n: '2', when: 'After each hearing', t: 'The order arrives', d: 'Fetched from an authorised source or uploaded by you. It is read with OCR and summarised with paragraph citations.' },
+        { n: '3', when: 'One click', t: 'Confirm the next date', d: 'The date is taken from the order and waits for your approval. Once confirmed, it is added to your calendar and the hearing history.' },
+        { n: '4', when: '7:30 AM IST', t: 'Get reminded', d: 'Reminders go out two days before and on the morning of the hearing, by WhatsApp, email and in the app.' }
+      ].map((f, i) => ({ ...f, delay: i * 140, barDelay: 250 + i * 140 })),
+      principles: [
+        { t: 'Every claim has a citation', d: 'Each answer links to the order, pleading or authority it came from.' },
+        { t: 'No invented case law', d: 'If a judgment can\'t be verified, it isn\'t presented as a fact.' },
+        { t: 'You approve what matters', d: 'Summaries, dates and limitation calculations wait for advocate review.' },
+        { t: 'Your cases only', d: 'Answers draw only on cases you have access to. Nothing is shared across firms.' }
+      ],
+      security: [
+        { t: 'Separated from other firms', d: 'Every record belongs to your organisation and is protected by row-level security in the database.' },
+        { t: 'Private document storage', d: 'Files are encrypted, opened through short-lived signed links, and every access is logged.' },
+        { t: 'Role-based access', d: 'Fine-grained permissions control who sees what, down to individual cases and documents.' },
+        { t: 'Audit logs', d: 'Record who viewed, changed or approved what, and when.' },
+        { t: 'Consent and data rights', d: 'Consent management, data export and data deletion, designed with reference to the DPDP Act, 2023.' },
+        { t: 'Limited support access', d: 'Platform staff can\'t open your case files. Support access is limited to a stated purpose and logged.' }
+      ],
+      cycles: [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: '9px 18px', fontSize: 15, background: S.cycle === k ? '#FFFFFF' : 'transparent', boxShadow: S.cycle === k ? '0 1px 2px rgba(0,0,0,.06)' : 'none', color: '#0A0A0A', fontWeight: S.cycle === k ? 600 : 400 } })),
+      plans: P.map(([name, who, m, a, feats], i) => {
+        const feat = i === 1;
+        return { name, who, feats, feat, price: m ? inr(ann ? a : m) : 'Custom', per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '', cta: m ? `Choose ${name}` : 'Contact sales',
+          card: { transition: 'transform .3s cubic-bezier(.2,.7,.2,1), box-shadow .3s', background: '#FFFFFF', border: feat ? '2px solid #0A0A0A' : '1px solid #E5E5E5', boxShadow: feat ? '0 8px 24px rgba(0,0,0,.08)' : 'none', borderRadius: 16, padding: 30, display: 'flex', flexDirection: 'column', gap: 10 },
+          btn: { height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', border: feat ? 0 : '1px solid #0A0A0A', borderRadius: 8, fontSize: 16, fontWeight: 600, background: feat ? '#0A0A0A' : 'transparent', color: feat ? '#fff' : '#0A0A0A', margin: '8px 0' } };
+      }),
+      faqs: [
+        ['Is there a free plan?', 'No. Legal Staff is a paid subscription. You choose a plan at sign-up and pay securely with Razorpay, and you receive a GST invoice for every payment.'],
+        ['Where do court orders come from?', 'From authorised court-data sources where they are available, or from your own uploads. Each order shows its source and when it was retrieved. An upload is never labelled as an official retrieval.'],
+        ['Can I rely on the limitation calculations?', 'Each calculation shows the provision, the trigger date, every exclusion and the court-holiday check. It is a decision aid that an advocate must review and approve. It is not legal advice.'],
+        ['Will my juniors see every case?', 'No. Roles and case assignments control access. Juniors and paralegals see only the cases and documents assigned to them.'],
+        ['Does a directory profile include the software?', 'No. The advocate directory is a separate, verified listing. The practice software needs its own paid subscription.']
+      ].map(([q, a], i) => ({ q, a, open: S.faq === i, sign: S.faq === i ? '−' : '+', toggle: () => this.setState({ faq: S.faq === i ? -1 : i }) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

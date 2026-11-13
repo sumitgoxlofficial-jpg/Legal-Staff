@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="assets/ls-favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#0A0A0A;text-decoration:underline;text-underline-offset:2px}
+a:hover{color:#2B2B2B}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+a,button{transition:background-color .2s,color .2s,border-color .2s,transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s}
+@keyframes lsDrift{0%{background-position:0 0}100%{background-position:64px 64px}}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#FFFFFF;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:15px;line-height:1.5;display:flex;flex-direction:column">
+
+<header style="position:sticky;top:0;z-index:20;background:#0A0A0A;backdrop-filter:blur(6px);border-bottom:1px solid #E5E5E5;border-bottom:1px solid #1F1F1F">
+  <div style="max-width:1240px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+    <button onClick="{{ goHome }}" style="border:0;background:none;padding:0;display:flex;align-items:center;gap:12px">
+      <span style="display:flex;align-items:center;gap:9px;white-space:nowrap"><img src="assets/ls-mark-white.png" alt="" style="height:30px;display:block"><span style="font-weight:600;font-size:21px;letter-spacing:-.02em;line-height:1;color:#fff">Legal Staff</span></span>
+      <span style="font-size:11px;color:#A3A3A3;border-left:1px solid #333;padding-left:12px;font-weight:600">Directory</span>
+    </button>
+    <div style="flex:1"></div>
+    <nav style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+      <button onClick="{{ goResults }}" style="border:0;background:none;padding:8px 12px;font-size:14px;color:#C9C9C9">Find an advocate</button>
+      <button onClick="{{ goHomeBrowse }}" style="border:0;background:none;padding:8px 12px;font-size:14px;color:#C9C9C9">Browse</button>
+      <button onClick="{{ goRegister }}" style="border:0;background:none;padding:8px 12px;font-size:14px;color:#C9C9C9">For advocates</button>
+      <button style="white-space:nowrap;height:38px;padding:0 16px;border:1px solid #fff;background:#fff;border-radius:8px;font-size:14px;color:#0A0A0A">Log in</button>
+    </nav>
+  </div>
+</header>
+
+<main style="flex:1">
+
+<sc-if value="{{ s.home }}" hint-placeholder-val="{{ true }}">
+  <section style="background:#0A0A0A;color:#fff;position:relative;overflow:hidden">
+    {{ heroGrid }}
+    <div style="position:relative;max-width:1240px;margin:0 auto;padding:clamp(56px,8vw,80px) clamp(20px,4vw,24px) 72px;display:flex;flex-direction:column;gap:30px">
+      <div data-reveal="" style="max-width:760px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#A3A3A3;font-weight:500">Advocate directory · India</div>
+        <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:clamp(34px,5vw,56px);line-height:1.08;margin:0;letter-spacing:-.015em;text-wrap:balance">Find a verified advocate by court, city and area of practice.</h1>
+        <p style="font-size:17px;color:#C9C9C9;margin:0;max-width:620px;text-wrap:pretty">Profiles show factual professional details, and enrolment is checked before a profile goes live. No rankings, ratings or paid placements.</p>
+      </div>
+      <div data-reveal="" data-delay="180" style="background:#FFFFFF;border-radius:14px;padding:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px;box-shadow:0 24px 64px rgba(0,0,0,.18)">
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:8px;background:#F5F5F4">
+          <label style="font-size:11px;color:#5E5E5E;font-weight:600">Looking for</label>
+          <input placeholder="Advocate name or type of matter" style="border:0;background:transparent;outline:none;font-size:15px;color:#0A0A0A;padding:2px 0">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:8px;background:#F5F5F4">
+          <label style="font-size:11px;color:#5E5E5E;font-weight:600">State / City</label>
+          <select style="border:0;background:transparent;outline:none;font-size:15px;color:#0A0A0A;padding:2px 0"><option>Delhi · New Delhi</option><option>Maharashtra · Mumbai</option><option>Karnataka · Bengaluru</option><option>Tamil Nadu · Chennai</option><option>West Bengal · Kolkata</option></select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:8px;background:#F5F5F4">
+          <label style="font-size:11px;color:#5E5E5E;font-weight:600">District</label>
+          <select style="border:0;background:transparent;outline:none;font-size:15px;color:#0A0A0A;padding:2px 0"><option>Any district</option><option>South</option><option>South West</option><option>Central</option><option>Shahdara</option></select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:8px 14px;border-radius:8px;background:#F5F5F4">
+          <label style="font-size:11px;color:#5E5E5E;font-weight:600">Practice area</label>
+          <select style="border:0;background:transparent;outline:none;font-size:15px;color:#0A0A0A;padding:2px 0"><option>Any practice area</option><option>Civil</option><option>Criminal</option><option>Family</option><option>Property</option><option>Consumer</option></select>
+        </div>
+        <button onClick="{{ goResults }}" style="min-height:58px;border:0;border-radius:8px;background:#0A0A0A;color:#fff;font-size:16px;font-weight:600" style-hover="background:#2B2B2B">Search</button>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width:1240px;margin:0 auto;padding:72px 24px 24px;display:flex;flex-direction:column;gap:24px">
+    <h2 data-reveal="" style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:30px;margin:0">Browse by practice area</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:12px">
+      <sc-for list="{{ areas }}" as="a" hint-placeholder-count="12">
+        <button data-reveal="" data-delay="{{ a.delay }}" data-dist="14" onClick="{{ goResults }}" style="text-align:left;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;padding:18px 20px;color:#0A0A0A;display:flex;flex-direction:column;gap:4px" style-hover="border-color:#0A0A0A;background:#FFFFFF;box-shadow:0 8px 20px rgba(0,0,0,.08)">
+          <span style="font-size:16px;font-weight:500">{{ a.name }}</span>
+          <span style="font-size:13px;color:#5E5E5E">{{ a.eg }}</span>
+        </button>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="max-width:1240px;margin:0 auto;padding:48px 24px;display:flex;flex-direction:column;gap:20px">
+    <h2 data-reveal="" style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:30px;margin:0">Browse by location or court</h2>
+    <div data-reveal="" data-delay="120" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:28px">
+      <div>
+        <div style="font-size:12px;color:#5E5E5E;font-weight:600;margin-bottom:12px">States &amp; UTs</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <sc-for list="{{ states }}" as="st" hint-placeholder-count="12">
+            <button onClick="{{ goResults }}" style="white-space:nowrap;height:36px;padding:0 14px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:18px;font-size:14px;color:#363636" style-hover="border-color:#0A0A0A;color:#0A0A0A">{{ st }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#5E5E5E;font-weight:600;margin-bottom:12px">Courts</div>
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ courts }}" as="c" hint-placeholder-count="5">
+            <button onClick="{{ goResults }}" style="text-align:left;border:0;border-top:1px solid #E5E5E5;background:none;padding:12px 0;font-size:15px;color:#0A0A0A;transition:padding .25s;display:flex;justify-content:space-between" style-hover="padding-left:6px"><span>{{ c }}</span><span style="color:#0A0A0A">→</span></button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="background:#F5F5F4;margin-top:24px">
+    <div data-reveal="" style="max-width:1240px;margin:0 auto;padding:64px clamp(20px,4vw,24px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:32px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:28px;margin:0">How profiles are verified</h2>
+        <p style="margin:0;color:#5E5E5E">Each profile separates verified enrolment details from information the advocate has declared.</p>
+      </div>
+      <sc-for list="{{ howSteps }}" as="h" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:34px;color:#0A0A0A;font-weight:600">{{ h.n }}</div>
+          <div style="font-weight:600;font-size:16px">{{ h.t }}</div>
+          <div style="font-size:14px;color:#5E5E5E;text-wrap:pretty">{{ h.d }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section data-reveal="" style="max-width:1240px;margin:0 auto;padding:64px clamp(20px,4vw,24px);display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between">
+    <div style="max-width:620px">
+      <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:28px;margin:0">Are you an enrolled advocate?</h2>
+      <p style="margin:8px 0 0;color:#5E5E5E">Applying for a directory profile is separate from a Legal Staff practice software subscription.</p>
+    </div>
+    <button onClick="{{ goRegister }}" style="white-space:nowrap;height:48px;padding:0 22px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:15px;font-weight:500" style-hover="background:#2B2B2B">Apply for a profile</button>
+  </section>
+</sc-if>
+
+<sc-if value="{{ s.results }}" hint-placeholder-val="{{ false }}">
+  <div data-reveal="" data-dist="12" style="max-width:1240px;margin:0 auto;padding:36px 24px 72px;display:flex;flex-direction:column;gap:24px">
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px">
+      <div>
+        <div style="font-size:13px;color:#5E5E5E">Delhi · New Delhi · Civil</div>
+        <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:32px;margin:6px 0 0">Verified advocates</h1>
+      </div>
+      <div style="font-size:13px;color:#5E5E5E">Sorted alphabetically. Directory results are never ranked.</div>
+    </div>
+    <div style="background:#F0F0EF;border:1px solid #E3E3E2;border-radius:8px;padding:12px 16px;font-size:14px;color:#2B2B2B">Design preview: these are sample profiles, not real advocates.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start">
+      <aside style="flex:1 1 240px;max-width:300px;display:flex;flex-direction:column;gap:22px">
+        <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+          <div>
+            <div style="font-size:12px;color:#5E5E5E;font-weight:600;margin-bottom:10px">{{ f.title }}</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ f.opts }}" as="o" hint-placeholder-count="3">
+                <label style="display:flex;gap:10px;align-items:center;font-size:14px;color:#363636"><input type="checkbox" style="width:16px;height:16px;accent-color:#0A0A0A">{{ o }}</label>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </aside>
+      <div style="flex:3 1 480px;display:flex;flex-direction:column;gap:14px;min-width:0">
+        <sc-for list="{{ people }}" as="p" hint-placeholder-count="4">
+          <div data-reveal="" data-delay="{{ p.delay }}" data-dist="16" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px 24px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;transition:border-color .2s,box-shadow .25s" style-hover="border-color:#0A0A0A;box-shadow:0 8px 24px rgba(0,0,0,.06)">
+            <div style="width:64px;height:64px;border-radius:50%;background:#F0F0EF;color:#0A0A0A;display:flex;align-items:center;justify-content:center;font-family:'Instrument Sans',system-ui,sans-serif;font-size:22px;font-weight:600;flex-shrink:0">{{ p.ini }}</div>
+            <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:21px;font-weight:600">{{ p.name }}</div>
+                <span style="font-size:12px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:2px 10px;font-weight:500">Enrolment verified</span>
+              </div>
+              <div style="font-size:13px;color:#5E5E5E;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums">{{ p.enr }} · {{ p.council }} · since {{ p.year }}</div>
+              <div style="font-size:14px;color:#363636">{{ p.areas }}</div>
+              <div style="font-size:13px;color:#5E5E5E">{{ p.courts }} · {{ p.langs }}</div>
+            </div>
+            <button onClick="{{ goProfile }}" style="white-space:nowrap;height:40px;padding:0 16px;border:1px solid #0A0A0A;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A;align-self:center" style-hover="background:#0A0A0A;color:#fff">View profile</button>
+          </div>
+        </sc-for>
+        <div style="display:flex;justify-content:center;gap:6px;padding-top:10px">
+          <button style="width:38px;height:38px;border-radius:8px;border:0;background:#0A0A0A;color:#fff;font-size:14px">1</button>
+          <button style="width:38px;height:38px;border-radius:8px;border:1px solid #E5E5E5;background:#FFFFFF;color:#0A0A0A;font-size:14px">2</button>
+          <button style="width:38px;height:38px;border-radius:8px;border:1px solid #E5E5E5;background:#FFFFFF;color:#0A0A0A;font-size:14px">3</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ s.profile }}" hint-placeholder-val="{{ false }}">
+  <div data-reveal="" data-dist="12" style="max-width:1240px;margin:0 auto;padding:36px 24px 72px;display:flex;flex-direction:column;gap:24px">
+    <div style="font-size:13px;color:#5E5E5E;display:flex;gap:8px;flex-wrap:wrap"><button onClick="{{ goResults }}" style="border:0;background:none;padding:0;color:#5E5E5E;font-size:13px">Delhi</button><span>/</span><span>Civil</span><span>/</span><span style="color:#0A0A0A">Sample Advocate — A. Sharma</span></div>
+    <div style="background:#F0F0EF;border:1px solid #E3E3E2;border-radius:8px;padding:12px 16px;font-size:14px;color:#2B2B2B">Design preview: this is a sample profile, not a real advocate.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+      <div style="flex:2 1 520px;min-width:0;display:flex;flex-direction:column;gap:28px">
+        <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
+          <div style="width:96px;height:96px;border-radius:50%;background:#F0F0EF;color:#0A0A0A;display:flex;align-items:center;justify-content:center;font-family:'Instrument Sans',system-ui,sans-serif;font-size:34px;font-weight:600">AS</div>
+          <div>
+            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:36px;margin:0;line-height:1.15">Sample Advocate — A. Sharma</h1>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+              <span style="font-size:13px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 12px;font-weight:500">Enrolment verified · 2 Oct 2026</span>
+              <span style="font-size:13px;background:#F5F5F4;color:#363636;border-radius:8px;padding:3px 12px">New Delhi</span>
+            </div>
+          </div>
+        </div>
+        <section style="border-top:1px solid #E5E5E5;padding-top:22px">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px"><h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:20px;font-weight:600;margin:0">Professional enrolment</h2><span style="display:flex;align-items:center;gap:6px;font-size:12px;color:#0A0A0A;font-weight:600">Verified by Legal Staff</span></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px">
+            <div><div style="font-size:13px;color:#5E5E5E">Enrolment number</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:15px">D/2841/2016</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">State Bar Council</div><div>Bar Council of Delhi</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Year of enrolment</div><div>2016</div></div>
+          </div>
+        </section>
+        <section style="border-top:1px solid #E5E5E5;padding-top:22px">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px"><h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:20px;font-weight:600;margin:0">Practice</h2><span style="font-size:12px;color:#5E5E5E">Declared by the advocate</span></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px">
+            <div><div style="font-size:13px;color:#5E5E5E">Practice areas</div><div>Civil, Property, Consumer</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Courts</div><div>Delhi High Court; Saket District Courts</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Languages</div><div>Hindi, English, Punjabi</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Qualifications</div><div>B.A. LL.B. (Hons.), LL.M.</div></div>
+            <div><div style="font-size:13px;color:#5E5E5E">Chamber</div><div>Saket District Courts, New Delhi</div></div>
+          </div>
+        </section>
+        <div style="font-size:13px;color:#5E5E5E;text-wrap:pretty">This page shows factual information only. It is not an advertisement, solicitation or recommendation. Legal Staff does not rate advocates, assign matters or take any share of fees.</div>
+      </div>
+
+      <aside style="flex:1 1 340px;max-width:440px;border:1px solid #E5E5E5;border-radius:14px;padding:26px;display:flex;flex-direction:column;gap:14px;position:sticky;top:96px">
+        <sc-if value="{{ notSent }}" hint-placeholder-val="{{ true }}">
+          <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:22px;font-weight:600;margin:0">Request contact</h2>
+          <div style="font-size:14px;color:#5E5E5E">The advocate sees your request and decides whether to reply.</div>
+          <sc-for list="{{ contactFields }}" as="f" hint-placeholder-count="5">
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:13px;color:#363636">{{ f.label }}</label>
+              <input placeholder="{{ f.ph }}" style="height:42px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px">
+            </div>
+          </sc-for>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <label style="font-size:13px;color:#363636">Brief description</label>
+            <textarea placeholder="Describe your matter in a few lines. Don't share confidential documents here." style="min-height:90px;border:1px solid #E5E5E5;border-radius:8px;padding:10px 12px;font-size:14px;resize:vertical"></textarea>
+          </div>
+          <label style="display:flex;gap:10px;font-size:13px;color:#363636;align-items:flex-start"><input type="checkbox" checked="{{ consent }}" onChange="{{ toggleConsent }}" style="width:16px;height:16px;margin-top:2px;accent-color:#0A0A0A"><span>I consent to Legal Staff sharing these details with this advocate only, for the purpose of my contact request (DPDP Act, 2023).</span></label>
+          <button onClick="{{ send }}" style="{{ sendBtn }}">Send request</button>
+        </sc-if>
+        <sc-if value="{{ sent }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:12px;color:#5E5E5E;font-weight:600">Request sent</div>
+          <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:22px;font-weight:600;margin:0">The advocate has your request</h2>
+          <div style="font-size:14px;color:#363636">They may contact you directly. Legal Staff does not assign matters or take part in fee arrangements. You can withdraw your request and consent from the link in your confirmation email.</div>
+          <button onClick="{{ resetSend }}" style="white-space:nowrap;height:42px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A">Done</button>
+        </sc-if>
+      </aside>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ s.register }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:880px;margin:0 auto;padding:44px 24px 72px;display:flex;flex-direction:column;gap:28px">
+    <div>
+      <div style="font-size:12px;color:#5E5E5E;font-weight:600">Advocate registration</div>
+      <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:34px;margin:8px 0 0">Apply for a directory profile</h1>
+      <p style="margin:8px 0 0;color:#5E5E5E">Your profile is published only after your enrolment is verified. A directory profile doesn't include the Legal Staff practice software.</p>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <sc-for list="{{ steps }}" as="st" hint-placeholder-count="5">
+        <div style="{{ st.style }}"><span style="{{ st.num }}">{{ st.n }}</span>{{ st.label }}</div>
+      </sc-for>
+    </div>
+    <section data-reveal="" data-dist="12" style="border:1px solid #E5E5E5;border-radius:14px;padding:clamp(20px,4vw,30px);display:flex;flex-direction:column;gap:18px">
+      <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:22px;font-weight:600;margin:0">{{ stepTitle }}</h2>
+      <sc-if value="{{ isDocs }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+          <sc-for list="{{ docSlots }}" as="d" hint-placeholder-count="3">
+            <div style="border:1.5px dashed #C4C4C4;border-radius:8px;padding:22px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;background:#FFFFFF">
+              <div style="font-weight:500">{{ d.t }}</div>
+              <div style="font-size:13px;color:#5E5E5E">{{ d.d }}</div>
+              <button style="margin-top:6px;height:36px;padding:0 14px;border:1px solid #0A0A0A;background:#FFFFFF;border-radius:8px;font-size:13px;color:#0A0A0A">Upload PDF or image</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isReview }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ reviewRows }}" as="r" hint-placeholder-count="5">
+            <div style="display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid #E5E5E5;font-size:14px;flex-wrap:wrap"><span style="color:#5E5E5E">{{ r.k }}</span><span>{{ r.v }}</span></div>
+          </sc-for>
+        </div>
+        <label style="display:flex;gap:10px;font-size:13px;color:#363636;align-items:flex-start"><input type="checkbox" style="width:16px;height:16px;margin-top:2px;accent-color:#0A0A0A"><span>I confirm these details are accurate. My profile will contain no testimonials, claims of results or other promotional content.</span></label>
+      </sc-if>
+      <sc-if value="{{ isForm }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
+          <sc-for list="{{ stepFields }}" as="f" hint-placeholder-count="4">
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:13px;color:#363636">{{ f.label }}</label>
+              <input placeholder="{{ f.ph }}" style="height:44px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px">
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <div style="display:flex;justify-content:space-between;gap:10px;padding-top:8px;border-top:1px solid #E5E5E5;margin-top:4px">
+        <button onClick="{{ back }}" style="white-space:nowrap;height:44px;padding:0 18px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A">Back</button>
+        <button onClick="{{ next }}" style="white-space:nowrap;height:44px;padding:0 20px;border:0;background:#0A0A0A;color:#fff;border-radius:8px;font-size:14px;font-weight:500">{{ nextLabel }}</button>
+      </div>
+    </section>
+  </div>
+</sc-if>
+
+<sc-if value="{{ s.status }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:880px;margin:0 auto;padding:44px 24px 72px;display:flex;flex-direction:column;gap:24px">
+    <div>
+      <div style="font-size:12px;color:#5E5E5E;font-weight:600">Directory account</div>
+      <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:34px;margin:8px 0 0">Your application is under review</h1>
+      <p style="margin:8px 0 0;color:#5E5E5E">Reference LS-DIR-2026-04812 · submitted 11 Nov 2026. Most applications are reviewed within 3 working days.</p>
+    </div>
+    <section style="border:1px solid #E5E5E5;border-radius:14px;padding:28px 30px;display:flex;flex-direction:column">
+      <sc-for list="{{ track }}" as="t" hint-placeholder-count="4">
+        <div data-reveal="" data-delay="{{ t.delay }}" data-dist="10" style="display:flex;gap:18px">
+          <div style="display:flex;flex-direction:column;align-items:center;width:24px">
+            <div style="{{ t.dot }}">{{ t.mark }}</div>
+            <div style="flex:1;width:1px;background:#E5E5E5;min-height:18px"></div>
+          </div>
+          <div style="padding-bottom:22px">
+            <div style="font-weight:600;font-size:15px">{{ t.t }}</div>
+            <div style="font-size:14px;color:#5E5E5E">{{ t.d }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </section>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
+      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Profile visibility</div><div style="font-weight:500;margin-top:4px">Hidden until verified</div></div>
+      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Contact requests</div><div style="font-weight:500;margin-top:4px">Open after you're published</div></div>
+      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Practice software</div><div style="font-weight:500;margin-top:4px">Not included. <a href="index.html">See plans</a></div></div>
+    </div>
+  </div>
+</sc-if>
+</main>
+
+<footer style="background:#0A0A0A;color:#fff">
+  <div style="max-width:1240px;margin:0 auto;padding:32px 24px;display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between;font-size:13px;color:#A3A3A3">
+    <div style="max-width:640px;display:flex;flex-direction:column;gap:14px"><img src="assets/ls-logo-white.png" alt="Legal Staff" style="height:84px;width:auto;align-self:flex-start"><div style="text-wrap:pretty">Legal Staff Directory shows verified, factual professional information so the public can find advocates themselves. It does not rank, rate or promote advocates, and there is no paid placement.</div></div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap"><a href="#" style="color:#A3A3A3">Privacy</a><a href="#" style="color:#A3A3A3">Terms</a><a href="#" style="color:#A3A3A3">Report a profile</a><a href="index.html" style="color:#A3A3A3">Practice software</a></div>
+  </div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen: 'home', step: 0, sent: false, consent: false };
+  go(screen) { this.setState({ screen }); window.scrollTo(0, 0); }
+  componentDidMount() { setTimeout(() => this.reveal(), 30); }
+  componentDidUpdate(pp, ps) { if (ps.screen !== this.state.screen || ps.step !== this.state.step || ps.sent !== this.state.sent) setTimeout(() => this.reveal(), 0); }
+  componentWillUnmount() { this.io && this.io.disconnect(); }
+  reveal() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
+    const ease = 'cubic-bezier(.2,.7,.2,1)';
+    if (!this.io) this.io = new IntersectionObserver(es => es.forEach(e => { if (!e.isIntersecting) return; e.target.style.opacity = 1; e.target.style.transform = 'none'; this.io.unobserve(e.target); setTimeout(() => { e.target.style.transition = ''; }, 1600); }), { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+    document.querySelectorAll('[data-reveal]:not([data-rv])').forEach(el => {
+      el.setAttribute('data-rv', '');
+      const d = +(el.dataset.delay || 0), y = +(el.dataset.dist || 22);
+      el.style.transition = `opacity .7s ${ease} ${d}ms, transform .7s ${ease} ${d}ms`;
+      el.style.opacity = 0; el.style.transform = `translateY(${y}px)`;
+      this.io.observe(el);
+    });
+  }
+  renderVals() {
+    const S = this.state;
+    const s = {}; ['home', 'results', 'profile', 'register', 'status'].forEach(k => s[k] = S.screen === k);
+    const stepDefs = [
+      ['Personal', 'Personal details', [['Full name (as on enrolment certificate)', 'e.g. Anjali Sharma'], ['Email', 'you@example.com'], ['Mobile', '+91'], ['City', 'New Delhi']]],
+      ['Enrolment', 'Enrolment details', [['Enrolment number', 'e.g. D/1234/2016'], ['State Bar Council', 'Bar Council of Delhi'], ['Year of enrolment', '2016'], ['Certificate of Practice number', 'Optional']]],
+      ['Practice', 'Practice information', [['Practice areas', 'Civil, Property'], ['Courts', 'Delhi High Court'], ['State / District', 'Delhi · South'], ['Languages', 'Hindi, English'], ['Qualifications', 'B.A. LL.B.'], ['Chamber address (optional)', '']]],
+      ['Documents', 'Verification documents', []],
+      ['Review', 'Review and submit', []]
+    ];
+    const cur = stepDefs[S.step];
+    const steps = stepDefs.map(([label], i) => {
+      const done = i < S.step, on = i === S.step;
+      return { label, n: done ? '✓' : String(i + 1), style: { display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', fontSize: 13, padding: '6px 14px 6px 6px', borderRadius: 8, border: '1px solid #E5E5E5', background: on ? '#0A0A0A' : '#FFFFFF', color: on ? '#fff' : (done ? '#0A0A0A' : '#5E5E5E') },
+        num: { width: 22, height: 22, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, background: on ? '#E3E3E2' : (done ? '#F0F0EF' : '#F5F5F4'), color: on ? '#0A0A0A' : (done ? '#0A0A0A' : '#5E5E5E') } };
+    });
+    const people = [
+      ['AS', 'Sample Advocate — A. Sharma', 'D/2841/2016', 'Bar Council of Delhi', '2016', 'Civil · Property · Consumer', 'Delhi High Court, Saket', 'Hindi, English, Punjabi'],
+      ['RK', 'Sample Advocate — R. Khan', 'D/1190/2011', 'Bar Council of Delhi', '2011', 'Civil · Arbitration', 'Delhi High Court', 'English, Urdu, Hindi'],
+      ['PN', 'Sample Advocate — P. Nair', 'D/3302/2018', 'Bar Council of Delhi', '2018', 'Civil · Family', 'Tis Hazari, Dwarka', 'Malayalam, English, Hindi'],
+      ['VS', 'Sample Advocate — V. Singh', 'D/0877/2009', 'Bar Council of Delhi', '2009', 'Civil · Banking & Recovery', 'Delhi High Court, DRT', 'Hindi, English']
+    ].map(([ini, name, enr, council, year, areas, courts, langs], i) => ({ ini, name, enr, council, year, areas, courts, langs, delay: 120 + i * 90 }));
+    const track = [
+      ['Application submitted', '11 Nov 2026, 11:20 IST', 'done'],
+      ['Document check', 'A moderator is checking your enrolment certificate and ID', 'now'],
+      ['Bar Council roll check', 'Your enrolment number is matched against the State Bar Council record', 'todo'],
+      ['Decision', 'Verified and published, or more information requested', 'todo']
+    ].map(([t, d, st], i) => ({ t, d, delay: i * 120, mark: st === 'done' ? '✓' : '', dot: { width: 22, height: 22, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, marginTop: 1,
+      background: st === 'done' ? '#0A0A0A' : (st === 'now' ? '#E3E3E2' : '#FFFFFF'), color: '#fff', border: st === 'todo' ? '1.5px solid #C4C4C4' : 0 } }));
+    const g = 'rgba(255,255,255,.07)';
+    return {
+      heroGrid: React.createElement('div', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: `linear-gradient(${g} 1px,transparent 1px),linear-gradient(90deg,${g} 1px,transparent 1px)`, backgroundSize: '64px 64px', WebkitMaskImage: 'radial-gradient(ellipse 70% 80% at 30% 20%,#000,transparent)', maskImage: 'radial-gradient(ellipse 70% 80% at 30% 20%,#000,transparent)', animation: 'lsDrift 12s linear infinite' } }),
+      s,
+      goHome: () => this.go('home'), goHomeBrowse: () => this.go('home'), goResults: () => this.go('results'), goProfile: () => this.go('profile'), goRegister: () => this.setState({ screen: 'register', step: 0 }, () => window.scrollTo(0, 0)),
+      areas: [['Civil', 'Recovery, injunctions, contracts'], ['Criminal', 'Bail, trials, quashing'], ['Family', 'Divorce, custody, maintenance'], ['Property', 'Title, partition, tenancy'], ['Consumer', 'Deficiency of service, refunds'], ['Labour & Employment', 'Wages, termination, PF'], ['Tax', 'GST, income tax appeals'], ['Corporate & Commercial', 'Commercial suits, company law'], ['Arbitration', 'Section 9, 11, 34 proceedings'], ['Constitutional & Writs', 'Writ petitions, service matters'], ['Cyber', 'IT Act, online fraud'], ['Banking & Recovery', 'DRT, SARFAESI, cheque bounce']].map(([name, eg], i) => ({ name, eg, delay: (i % 4) * 60 + Math.floor(i / 4) * 80 })),
+      states: ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Uttar Pradesh', 'West Bengal', 'Telangana', 'Gujarat', 'Rajasthan', 'Kerala', 'Punjab', 'Madhya Pradesh'],
+      courts: ['Supreme Court of India', 'High Court of Delhi', 'Bombay High Court', 'Madras High Court', 'District Courts', 'Consumer Commissions', 'Debts Recovery Tribunals'],
+      howSteps: [{ n: '1', t: 'Advocate applies', d: 'They submit their enrolment number, State Bar Council and supporting documents.' }, { n: '2', t: 'Enrolment checked', d: 'A moderator checks the documents against the Bar Council record. Every decision is logged.' }, { n: '3', t: 'Profile published', d: 'Only verified profiles appear in search. Declared details are labelled as declared.' }],
+      filters: [{ title: 'District', opts: ['South', 'South West', 'Central', 'New Delhi'] }, { title: 'Court', opts: ['Delhi High Court', 'Saket', 'Tis Hazari', 'Dwarka'] }, { title: 'Language', opts: ['Hindi', 'English', 'Punjabi', 'Urdu'] }, { title: 'Years since enrolment', opts: ['0–5', '5–10', '10+'] }],
+      people,
+      contactFields: [{ label: 'Your name', ph: 'Full name' }, { label: 'Phone or email', ph: '+91 or email' }, { label: 'City', ph: 'New Delhi' }, { label: 'Matter category', ph: 'e.g. Property dispute' }, { label: 'Preferred language', ph: 'Hindi' }],
+      consent: S.consent, toggleConsent: () => this.setState({ consent: !S.consent }),
+      sendBtn: { height: 46, border: 0, borderRadius: 8, fontSize: 15, fontWeight: 500, background: S.consent ? '#0A0A0A' : '#C4C4C4', color: '#fff', cursor: S.consent ? 'pointer' : 'not-allowed' },
+      send: () => S.consent && this.setState({ sent: true }), sent: S.sent, notSent: !S.sent, resetSend: () => this.setState({ sent: false, consent: false }),
+      steps, stepTitle: cur[1], stepFields: cur[2].map(([label, ph]) => ({ label, ph })),
+      isForm: S.step < 3, isDocs: S.step === 3, isReview: S.step === 4,
+      docSlots: [{ t: 'Enrolment certificate', d: 'Issued by your State Bar Council' }, { t: 'Certificate of Practice', d: 'If issued' }, { t: 'Government photo ID', d: 'Aadhaar (masked), PAN or passport' }],
+      reviewRows: [{ k: 'Name', v: 'Anjali Sharma' }, { k: 'Enrolment', v: 'D/1234/2016 · Bar Council of Delhi' }, { k: 'Practice areas', v: 'Civil, Property' }, { k: 'Courts', v: 'Delhi High Court' }, { k: 'Documents', v: '3 uploaded' }],
+      back: () => S.step > 0 ? this.setState({ step: S.step - 1 }) : this.go('home'),
+      next: () => S.step < 4 ? this.setState({ step: S.step + 1 }) : this.go('status'),
+      nextLabel: S.step < 4 ? 'Continue' : 'Submit for verification',
+      track
+    };
+  }
+}
+</script>
+</body>
+</html>
