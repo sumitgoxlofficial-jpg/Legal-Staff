@@ -13,6 +13,10 @@
 | `functions/notify` | Email (Resend) and WhatsApp (Meta Cloud API) briefings and reminders (deploy with JWT verification off; it checks the caller itself) |
 | `functions/court-status` | CNR lookup through a court-data provider |
 
+## Current project
+
+Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 and 0002 are applied and `config.js` points at it. Migration 0003 (the daily schedule) is not applied yet; it needs the two Vault values first.
+
 ## Set-up, in order
 
 1. Create the Supabase project and apply the three migrations in order.

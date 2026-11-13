@@ -84,7 +84,7 @@
     async refreshSub(d) { await subscription(d); },
     /* ---- documents ---- */
     path: (docId, name) => firmId + '/' + docId + '/' + String(name).replace(/[^\w.\- ]+/g, '_'),
-    async upload(docId, file) { ok(await sb.storage.from('documents').upload(B.path(docId, file.name), file, { upsert: true, contentType: file.type || 'application/octet-stream' })); },
+    async upload(docId, file) { ok(await sb.storage.from('documents').upload(B.path(docId, file.name), file, { upsert: false, contentType: file.type || 'application/octet-stream' })); },
     async download(docId, name) { return ok(await sb.storage.from('documents').download(B.path(docId, name))); },
     async removeFile(docId, name) { try { await sb.storage.from('documents').remove([B.path(docId, name)]); } catch (e) {} },
     /* ---- server functions ---- */
