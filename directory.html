@@ -151,9 +151,9 @@ header :focus-visible{outline-color:#fff}
       </div>
       <div style="font-size:13px;color:#5E5E5E;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span>{{ resCount }} · Directory results are never ranked.</span>{{ sortSelect }}</div>
     </div>
-    <div style="background:#F0F0EF;border:1px solid #E3E3E2;border-radius:8px;padding:12px 16px;font-size:14px;color:#2B2B2B">Design preview: these are sample profiles, not real advocates.</div>
     {{ resToolbar }}
     <div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start">
+<sc-if value="{{ hasAside }}" hint-placeholder-val="{{ true }}">
       <aside style="flex:1 1 240px;max-width:300px;display:flex;flex-direction:column;gap:22px">
         <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
           <div>
@@ -168,6 +168,7 @@ header :focus-visible{outline-color:#fff}
         </sc-for>
         {{ clearBtn }}
       </aside>
+      </sc-if>
       <div style="flex:3 1 480px;display:flex;flex-direction:column;gap:14px;min-width:0">
         <sc-for list="{{ people }}" as="p" hint-placeholder-count="4">
           <div data-reveal="" data-delay="{{ p.delay }}" data-dist="16" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px 24px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;transition:border-color .2s,box-shadow .25s" style-hover="border-color:#0A0A0A;box-shadow:0 8px 24px rgba(0,0,0,.06)">
@@ -194,7 +195,6 @@ header :focus-visible{outline-color:#fff}
 <sc-if value="{{ s.profile }}" hint-placeholder-val="{{ false }}">
   <div data-reveal="" data-dist="12" style="max-width:1240px;margin:0 auto;padding:36px 24px 72px;display:flex;flex-direction:column;gap:24px">
     <div style="font-size:13px;color:#5E5E5E;display:flex;gap:8px;flex-wrap:wrap"><button onClick="{{ prof.goAll }}" style="border:0;background:none;padding:0;color:#5E5E5E;font-size:13px;text-decoration:underline;text-underline-offset:2px">All advocates</button><span>/</span><button onClick="{{ prof.goState }}" style="border:0;background:none;padding:0;color:#5E5E5E;font-size:13px;text-decoration:underline;text-underline-offset:2px">{{ prof.state }}</button><span>/</span><button onClick="{{ prof.goArea }}" style="border:0;background:none;padding:0;color:#5E5E5E;font-size:13px;text-decoration:underline;text-underline-offset:2px">{{ prof.area0 }}</button><span>/</span><span style="color:#0A0A0A">{{ prof.name }}</span></div>
-    <div style="background:#F0F0EF;border:1px solid #E3E3E2;border-radius:8px;padding:12px 16px;font-size:14px;color:#2B2B2B">{{ prof.banner }}</div>
     <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
       <div style="flex:2 1 520px;min-width:0;display:flex;flex-direction:column;gap:28px">
         <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
@@ -286,7 +286,7 @@ header :focus-visible{outline-color:#fff}
             </div>
           </sc-for>
         </div>
-        <div style="font-size:13px;color:#5E5E5E">PDF, JPG or PNG, up to 5 MB each. In this preview files are not uploaded anywhere: only the file name and size are recorded.</div>
+        <div style="font-size:13px;color:#5E5E5E">PDF, JPG or PNG, up to 5 MB each. Files are not uploaded to a server yet: only the file name and size are recorded.</div>
       </sc-if>
       <sc-if value="{{ isReview }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;flex-direction:column">
@@ -386,59 +386,19 @@ class Component extends DCLogic {
   loadStore() { this.setState({ apps: this.readApps(), mine: this.readMine(), enquiries: this.readList(this.K.enq) }); }
 
   /* ---------- data ---------- */
-  data() {
-    if (this._data) return this._data;
-    const council = {}; this.COUNCILS.forEach(([st, c]) => council[st] = c);
-    const rows = [
-      ['A. Sharma', 'Delhi', 'New Delhi', 'South', 'D/2841/2016', ['Civil', 'Property', 'Consumer'], ['High Court of Delhi', 'Saket District Courts'], ['Hindi', 'English', 'Punjabi'], 'B.A. LL.B. (Hons.), LL.M.', 'Saket District Courts, New Delhi', '2 Oct 2026'],
-      ['R. Khan', 'Delhi', 'New Delhi', 'Central', 'D/1190/2011', ['Civil', 'Arbitration'], ['Supreme Court of India', 'High Court of Delhi'], ['English', 'Urdu', 'Hindi'], 'LL.B., LL.M.', 'Lawyers\' Chambers, Delhi High Court', '18 Sep 2026'],
-      ['P. Nair', 'Delhi', 'New Delhi', 'South West', 'D/3302/2018', ['Civil', 'Family'], ['Tis Hazari District Courts', 'Dwarka District Courts'], ['Malayalam', 'English', 'Hindi'], 'B.A. LL.B.', 'Dwarka District Courts, New Delhi', '6 Oct 2026'],
-      ['V. Singh', 'Delhi', 'New Delhi', 'New Delhi', 'D/0877/2009', ['Civil', 'Banking & Recovery'], ['High Court of Delhi', 'DRT Delhi'], ['Hindi', 'English'], 'B.Com., LL.B.', 'Patiala House Courts, New Delhi', '24 Aug 2026'],
-      ['N. Gupta', 'Delhi', 'New Delhi', 'Shahdara', 'D/4120/2021', ['Criminal'], ['Karkardooma District Courts', 'High Court of Delhi'], ['Hindi', 'English'], 'LL.B.', 'Karkardooma District Courts, Delhi', '14 Oct 2026'],
-      ['S. Mehra', 'Delhi', 'New Delhi', 'South', 'D/1675/2013', ['Corporate & Commercial', 'Arbitration'], ['High Court of Delhi', 'Supreme Court of India'], ['English', 'Hindi'], 'B.B.A. LL.B. (Hons.)', 'Saket District Courts, New Delhi', '30 Sep 2026'],
-      ['T. Bhatia', 'Delhi', 'New Delhi', 'Central', 'D/2290/2015', ['Consumer', 'Civil'], ['Delhi State Consumer Commission', 'Tis Hazari District Courts'], ['Hindi', 'Punjabi', 'English'], 'B.A., LL.B.', 'Tis Hazari District Courts, Delhi', '9 Sep 2026'],
-      ['K. Joseph', 'Delhi', 'New Delhi', 'New Delhi', 'D/0412/2006', ['Constitutional & Writs', 'Labour & Employment'], ['Supreme Court of India', 'High Court of Delhi'], ['English', 'Malayalam', 'Hindi'], 'LL.B., LL.M.', 'Supreme Court Lawyers\' Chambers, New Delhi', '12 Aug 2026'],
-      ['M. Fernandes', 'Maharashtra', 'Mumbai', 'Mumbai City', 'MAH/4410/2012', ['Corporate & Commercial', 'Arbitration'], ['Bombay High Court'], ['English', 'Marathi', 'Konkani'], 'B.L.S. LL.B.', 'Fort, Mumbai', '21 Sep 2026'],
-      ['D. Kulkarni', 'Maharashtra', 'Pune', 'Pune', 'MAH/2218/2017', ['Property', 'Civil'], ['Pune District Courts'], ['Marathi', 'Hindi', 'English'], 'B.A. LL.B.', 'Shivajinagar Court, Pune', '3 Oct 2026'],
-      ['H. Shah', 'Maharashtra', 'Mumbai', 'Mumbai Suburban', 'MAH/0932/2008', ['Banking & Recovery', 'Tax'], ['DRT Mumbai', 'Bombay High Court'], ['Gujarati', 'Hindi', 'English'], 'B.Com., LL.B.', 'Bandra (East), Mumbai', '27 Aug 2026'],
-      ['A. Deshmukh', 'Maharashtra', 'Mumbai', 'Mumbai City', 'MAH/5127/2020', ['Criminal', 'Cyber'], ['Mumbai City Civil & Sessions Court', 'Bombay High Court'], ['Marathi', 'Hindi', 'English'], 'LL.B.', 'Kala Ghoda, Mumbai', '16 Oct 2026'],
-      ['L. Rao', 'Karnataka', 'Bengaluru', 'Bengaluru Urban', 'KAR/1830/2014', ['Cyber', 'Corporate & Commercial'], ['Karnataka High Court', 'Bengaluru City Civil Court'], ['Kannada', 'English', 'Telugu'], 'B.A. LL.B. (Hons.)', 'Cubbon Park area, Bengaluru', '11 Sep 2026'],
-      ['G. Hegde', 'Karnataka', 'Bengaluru', 'Bengaluru Urban', 'KAR/3391/2019', ['Labour & Employment', 'Civil'], ['Bengaluru City Civil Court'], ['Kannada', 'English'], 'LL.B.', 'City Civil Court complex, Bengaluru', '8 Oct 2026'],
-      ['S. Gowda', 'Karnataka', 'Mysuru', 'Mysuru', 'KAR/0764/2010', ['Property', 'Family'], ['Mysuru District Courts'], ['Kannada', 'English'], 'B.A., LL.B.', 'District Court complex, Mysuru', '19 Aug 2026'],
-      ['R. Iyer', 'Tamil Nadu', 'Chennai', 'Chennai', 'MS/1502/2012', ['Tax', 'Corporate & Commercial'], ['Madras High Court'], ['Tamil', 'English'], 'B.Com., B.L.', 'Parrys Corner, Chennai', '25 Sep 2026'],
-      ['K. Subramanian', 'Tamil Nadu', 'Chennai', 'Chennai', 'MS/0611/2005', ['Constitutional & Writs', 'Civil'], ['Madras High Court', 'Supreme Court of India'], ['Tamil', 'English'], 'B.A., B.L., M.L.', 'High Court campus, Chennai', '5 Aug 2026'],
-      ['J. Mary', 'Tamil Nadu', 'Coimbatore', 'Coimbatore', 'MS/2874/2018', ['Family', 'Consumer'], ['Coimbatore District Courts', 'Coimbatore District Consumer Commission'], ['Tamil', 'English', 'Malayalam'], 'B.A. LL.B.', 'Combined Court complex, Coimbatore', '1 Oct 2026'],
-      ['A. Srivastava', 'Uttar Pradesh', 'Lucknow', 'Lucknow', 'UP/3340/2014', ['Criminal', 'Civil'], ['Allahabad High Court (Lucknow Bench)', 'Lucknow District Courts'], ['Hindi', 'English'], 'LL.B.', 'Kaiserbagh, Lucknow', '13 Sep 2026'],
-      ['F. Ansari', 'Uttar Pradesh', 'Prayagraj', 'Prayagraj', 'UP/1208/2009', ['Constitutional & Writs', 'Labour & Employment'], ['Allahabad High Court'], ['Hindi', 'Urdu', 'English'], 'B.A., LL.B.', 'Civil Lines, Prayagraj', '22 Aug 2026'],
-      ['P. Tyagi', 'Uttar Pradesh', 'Noida', 'Gautam Buddh Nagar', 'UP/5561/2020', ['Property', 'Consumer'], ['Gautam Buddh Nagar District Courts', 'UP State Consumer Commission'], ['Hindi', 'English'], 'B.A. LL.B.', 'Surajpur District Court, Greater Noida', '10 Oct 2026'],
-      ['S. Banerjee', 'West Bengal', 'Kolkata', 'Kolkata', 'WB/905/2020', ['Civil', 'Family'], ['Calcutta High Court', 'Alipore District Courts'], ['Bengali', 'English', 'Hindi'], 'B.A. LL.B.', 'Alipore, Kolkata', '15 Oct 2026'],
-      ['D. Mukherjee', 'West Bengal', 'Kolkata', 'Kolkata', 'WB/2217/2011', ['Banking & Recovery', 'Corporate & Commercial'], ['Calcutta High Court', 'DRT Kolkata'], ['Bengali', 'English'], 'B.Com., LL.B.', 'Old Post Office Street, Kolkata', '29 Aug 2026'],
-      ['K. Reddy', 'Telangana', 'Hyderabad', 'Hyderabad', 'TS/1123/2019', ['Criminal', 'Cyber'], ['Telangana High Court', 'Nampally Criminal Courts'], ['Telugu', 'English', 'Hindi'], 'LL.B.', 'Nampally, Hyderabad', '7 Oct 2026'],
-      ['M. Hussain', 'Telangana', 'Hyderabad', 'Hyderabad', 'TS/0458/2013', ['Arbitration', 'Civil'], ['Telangana High Court'], ['Urdu', 'Telugu', 'English'], 'B.A. LL.B., LL.M.', 'High Court Road, Hyderabad', '17 Sep 2026'],
-      ['N. Patel', 'Gujarat', 'Ahmedabad', 'Ahmedabad', 'G/1984/2015', ['Tax', 'Corporate & Commercial'], ['Gujarat High Court'], ['Gujarati', 'Hindi', 'English'], 'B.Com., LL.B.', 'Sola, Ahmedabad', '4 Sep 2026'],
-      ['V. Rathore', 'Rajasthan', 'Jaipur', 'Jaipur', 'R/2630/2016', ['Property', 'Civil'], ['Rajasthan High Court (Jaipur Bench)', 'Jaipur District Courts'], ['Hindi', 'English'], 'B.A. LL.B.', 'Bani Park, Jaipur', '26 Sep 2026'],
-      ['T. Menon', 'Kerala', 'Kochi', 'Ernakulam', 'K/1147/2012', ['Labour & Employment', 'Constitutional & Writs'], ['Kerala High Court'], ['Malayalam', 'English'], 'B.A., LL.B.', 'High Court Junction, Kochi', '20 Aug 2026'],
-      ['G. Sandhu', 'Punjab', 'Mohali', 'SAS Nagar', 'P/3015/2017', ['Criminal', 'Family'], ['Punjab & Haryana High Court', 'SAS Nagar District Courts'], ['Punjabi', 'Hindi', 'English'], 'B.A. LL.B.', 'District Court complex, Mohali', '28 Sep 2026'],
-      ['R. Chouhan', 'Madhya Pradesh', 'Indore', 'Indore', 'MP/2046/2014', ['Consumer', 'Banking & Recovery'], ['Madhya Pradesh High Court (Indore Bench)', 'Indore District Consumer Commission'], ['Hindi', 'English'], 'B.Com., LL.B.', 'M.G. Road, Indore', '2 Sep 2026']
-    ];
-    this._data = rows.map(([nm, state, city, district, enr, areas, courts, langs, quals, chamber, verifiedOn], i) => ({
-      id: 's' + (i + 1), sample: true, sortKey: nm.split(' ').slice(1).join(' ') + ' ' + nm, ini: nm.replace(/[^A-Z]/g, '').slice(0, 2), name: 'Sample Advocate — ' + nm,
-      state, city, district, enr, council: council[state], year: enr.split('/').pop(), areas, courts, langs, quals, chamber, verifiedOn
-    }));
-    return this._data;
-  }
+  data() { return []; }
   splitList(v) { return String(v || '').split(/[,;\n]+/).map(x => x.trim()).filter(Boolean); }
-  /* sample profiles plus applications from this browser that a moderator has verified */
+  /* only applications that a moderator has verified are listed */
   people() {
     const S = this.state, councilState = {}; this.COUNCILS.forEach(([st, c]) => councilState[c] = st);
-    const own = S.apps.filter(a => a.status === 'verified' && S.mine[a.id]).map(a => {
-      const d = S.mine[a.id], nm = String(a.name || d.name || 'Advocate');
+    const own = S.apps.filter(a => a.status === 'verified' && a.id != null).map(a => {
+      const d = S.mine[a.id] || {}, nm = String(a.name || 'Advocate');
       const parts = nm.split(/\s+/).filter(Boolean);
-      return { id: String(a.id), sample: false, own: true, sortKey: (parts[parts.length - 1] || nm) + ' ' + nm, ini: ((parts[0] || 'A')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase(), name: nm,
-        state: councilState[a.council] || 'Other', city: a.city || d.city || '', district: d.district || '', enr: a.enr, council: a.council, year: String(a.year),
+      return { id: String(a.id), own: !!S.mine[a.id], sortKey: (parts[parts.length - 1] || nm) + ' ' + nm, ini: ((parts[0] || 'A')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase(), name: nm,
+        state: councilState[a.council] || 'Other', city: a.city || d.city || '', district: d.district || '', enr: String(a.enr || ''), council: String(a.council || ''), year: String(a.year || ''),
         areas: d.areas || [], courts: this.splitList(d.courts), langs: this.splitList(d.langs), quals: d.quals || '—', chamber: d.chamber || '—', verifiedOn: '' };
     });
-    return this.data().concat(own);
+    return own;
   }
   courtMatch(p, label) {
     if (label === 'District Courts') return p.courts.some(c => !/Supreme Court|High Court|Consumer|DRT|Tribunal/.test(c));
@@ -546,7 +506,7 @@ class Component extends DCLogic {
     if (Object.keys(err).length) { this.setState({ cfErr: err }); return; }
     const list = this.readList(this.K.enq);
     const n = list.reduce((m, e) => Math.max(m, +String(e.id || '').split('-').pop() || 0), 1000) + 1;
-    list.push({ id: 'LS-ENQ-' + n, advocateId: p.id, advocateName: p.name, name: f.name.trim(), contact, city: f.city.trim(), category: f.category, language: f.language || p.langs[0] || '', description: f.desc.trim(), consent: true, at: new Date().toISOString() });
+    list.push({ id: 'LS-ENQ-' + n, advocateId: p.id, advocateName: p.name, name: f.name.trim(), contact, city: f.city.trim(), category: f.category, language: f.language || p.langs[0] || 'English', description: f.desc.trim(), consent: true, at: new Date().toISOString() });
     if (!this.write(this.K.enq, list)) { this.setState({ cfErr: { consent: 'This browser blocked local storage, so the request could not be saved.' } }); return; }
     this.setState({ enquiries: list, cf: this.blankContact(), cfErr: {} });
   }
@@ -563,8 +523,7 @@ class Component extends DCLogic {
     } else if (i === 1) {
       const enr = a.enr.trim().toUpperCase();
       if (!/^[A-Z]{1,5}\/\d{1,6}\/\d{4}$/.test(enr)) err.enr = 'Use the format on your certificate, e.g. D/1234/2016.';
-      else if (this.readApps().some(x => x.id !== this.state.editingId && String(x.enr).toUpperCase() === enr && x.status !== 'rejected')) err.enr = 'An application with this enrolment number is already on file.';
-      else if (this.data().some(p => p.enr === enr)) err.enr = 'A profile with this enrolment number is already published.';
+      else if (this.readApps().some(x => x.id !== this.state.editingId && String(x.enr).toUpperCase() === enr && x.status !== 'rejected')) err.enr = 'An application or profile with this enrolment number is already on file.';
       if (!a.council) err.council = 'Choose your State Bar Council.';
       if (!/^\d{4}$/.test(a.year.trim()) || +a.year < 1950 || +a.year > yr) err.year = 'Enter a year between 1950 and ' + yr + '.';
       else if (!err.enr && enr.split('/').pop() !== a.year.trim()) err.year = 'This does not match the year in your enrolment number.';
@@ -671,14 +630,14 @@ class Component extends DCLogic {
     } else if (kind === 'report' && S.rfDone) {
       eyebrow = 'Reference ' + S.rfDone.ref; title = S.rfDone.saved ? 'Report saved' : 'Report not saved';
       body = [para(S.rfDone.saved ? 'Thank you. Your report is recorded for moderator review. Reports are confidential and the advocate is not told who made them.' : 'This browser blocked local storage, so the report could not be recorded. Please allow site data and try again.', 'p'),
-        note('This preview has no server: the report is stored in this browser only and no email is sent.', 'n'),
+        note('There is no server behind this site yet: the report is stored in this browser only and no email is sent.', 'n'),
         h('div', { key: 'b', style: { display: 'flex', gap: 10 } }, btn('Done', close, true))];
     } else if (kind === 'report') {
       const set = k => e => this.setState({ rf: { ...this.state.rf, [k]: e.target.value }, rfErr: { ...this.state.rfErr, [k]: undefined } });
       const fld = (k, label, control) => h('div', { key: k, style: { display: 'flex', flexDirection: 'column', gap: 5 } }, h('label', { htmlFor: 'rf-' + k, style: { fontSize: 13, color: '#363636' } }, label), control, errEl(S.rfErr[k]));
       const ppl = this.people().slice().sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-      eyebrow = 'Report a profile'; title = 'Tell us what is wrong';
-      body = [para('Use this if a profile shows inaccurate details, belongs to someone who is not an enrolled advocate, or contains promotional content.', 'p'),
+      eyebrow = 'Report a profile'; title = ppl.length ? 'Tell us what is wrong' : 'No profiles are listed yet';
+      body = !ppl.length ? [para('There are no published profiles to report at the moment. Profiles appear once an advocate\'s enrolment has been verified.', 'p'), h('div', { key: 'b', style: { display: 'flex', gap: 10 } }, btn('Close', close, true))] : [para('Use this if a profile shows inaccurate details, belongs to someone who is not an enrolled advocate, or contains promotional content.', 'p'),
         h('form', { key: 'f', noValidate: true, onSubmit: e => { e.preventDefault(); this.submitReport(); }, style: { display: 'flex', flexDirection: 'column', gap: 14 } },
           fld('profile', 'Profile', h('select', { id: 'rf-profile', value: S.rf.profile, onChange: set('profile'), style: inp(S.rfErr.profile) }, h('option', { value: '' }, 'Select a profile'), ppl.map(p => h('option', { key: p.id, value: p.id }, p.name + ' · ' + p.city)))),
           fld('reason', 'Reason', h('select', { id: 'rf-reason', value: S.rf.reason, onChange: set('reason'), style: inp(S.rfErr.reason) }, ['', 'Details are inaccurate', 'Not an enrolled advocate', 'Promotional or misleading content', 'Impersonation', 'Something else'].map(o => h('option', { key: o, value: o }, o || 'Select a reason')))),
@@ -691,7 +650,7 @@ class Component extends DCLogic {
         sect('Searching', 'You can search and view profiles without an account. Searches are not linked to your identity.', 1),
         sect('Contact requests', 'The details you enter are shared only with the advocate you chose, for that request, and only with your consent. You can withdraw the request and your consent at any time.', 2),
         sect('Advocate applications', 'Enrolment details and documents are used only to verify enrolment. Documents are never shown on a profile; published profiles show the enrolment number, State Bar Council, year and the practice details the advocate declared.', 3),
-        sect('In this preview', 'Requests, reports and applications are stored in your own browser (local storage) and are not sent to a server.', 4)];
+        sect('Where data is kept', 'Requests, reports and applications are stored in your own browser (local storage) and are not sent to a server.', 4)];
     } else {
       eyebrow = 'Summary · last updated 1 November 2026'; title = 'Directory terms';
       body = [para('A plain-language summary of the rules for using the Legal Staff Directory.', 'p'),
@@ -722,7 +681,7 @@ class Component extends DCLogic {
     const bare = { border: 0, background: 'transparent', outline: 'none', fontSize: 15, color: '#0A0A0A', padding: '2px 0', width: '100%', minWidth: 0 };
     const states = uniq(all.map(p => p.state));
     const locOpts = [['', 'Any state or city']];
-    states.forEach(st => { const cities = uniq(all.filter(p => p.state === st).map(p => p.city)); if (cities.length > 1) locOpts.push([st, st + ' · All cities']); cities.forEach(c => locOpts.push([st + '|' + c, st + ' · ' + c])); });
+    uniq(this.COUNCILS.map(c => c[0]).concat(states)).forEach(st => { const cities = uniq(all.filter(p => p.state === st).map(p => p.city)); locOpts.push([st, cities.length ? st + ' · All cities' : st]); cities.forEach(c => locOpts.push([st + '|' + c, st + ' · ' + c])); });
     const [locState, locCity] = S.loc.split('|');
     const inLoc = all.filter(p => (!locState || p.state === locState) && (!locCity || p.city === locCity));
     const distOpts = locState ? uniq(inLoc.map(p => p.district)).sort() : [];
@@ -768,13 +727,19 @@ class Component extends DCLogic {
     const pageBtn = (label, n, on, disabled, aria) => h('button', { key: aria || label, type: 'button', disabled, 'aria-label': aria || 'Page ' + label, 'aria-current': on ? 'page' : undefined, onClick: () => { this.setState({ page: n }); window.scrollTo(0, 0); }, style: { minWidth: 38, height: 38, padding: '0 10px', borderRadius: 8, border: on ? 0 : '1px solid #E5E5E5', background: on ? '#0A0A0A' : '#FFFFFF', color: on ? '#fff' : (disabled ? '#C4C4C4' : '#0A0A0A'), fontSize: 14, cursor: disabled ? 'default' : 'pointer' } }, label);
     const pager = pages > 1 ? h('nav', { 'aria-label': 'Pages', style: { display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: 6, paddingTop: 10 } },
       pageBtn('←', page - 1, false, page === 1, 'Previous page'), ...Array.from({ length: pages }, (_, i) => pageBtn(String(i + 1), i + 1, i + 1 === page, false)), pageBtn('→', page + 1, false, page === pages, 'Next page')) : null;
-    const emptyState = list.length ? null : h('div', { style: { border: '1px solid #E5E5E5', borderRadius: 14, padding: '36px 24px', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' } },
+    const applyBtn = h('button', { type: 'button', onClick: () => this.startApply(), style: { marginTop: 6, height: 44, padding: '0 18px', border: 0, background: '#0A0A0A', borderRadius: 8, fontSize: 14, fontWeight: 500, color: '#fff' } }, 'Apply for a profile');
+    const emptyState = list.length ? null : !all.length ? h('div', { style: { border: '1px solid #E5E5E5', borderRadius: 14, padding: 'clamp(28px,5vw,48px) clamp(20px,4vw,36px)', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' } },
+      h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600 } }, 'Directory'),
+      h('div', { style: { fontSize: 24, fontWeight: 600, letterSpacing: '-.02em', lineHeight: 1.2 } }, 'No advocates are listed yet'),
+      h('div', { style: { fontSize: 15, color: '#5E5E5E', maxWidth: 560, textWrap: 'pretty' } }, 'A profile appears here only after an advocate applies and a moderator has verified their enrolment. Are you an enrolled advocate? Apply for a profile and track its review from this page.'),
+      h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, applyBtn, h('button', { type: 'button', onClick: () => this.nav({ screen: 'status', viewId: null }), style: { marginTop: 6, height: 44, padding: '0 18px', border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, fontSize: 14, color: '#0A0A0A' } }, 'Check application status'))) : h('div', { style: { border: '1px solid #E5E5E5', borderRadius: 14, padding: '36px 24px', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' } },
       h('div', { style: { fontSize: 20, fontWeight: 600 } }, 'No advocates match these criteria'),
       h('div', { style: { fontSize: 14, color: '#5E5E5E', maxWidth: 520 } }, 'Try a different location or practice area, remove a filter, or search by a type of matter such as “bail”, “divorce” or “cheque bounce”.'),
       h('button', { type: 'button', onClick: clearAll, style: { marginTop: 6, height: 40, padding: '0 16px', border: '1px solid #0A0A0A', background: '#FFFFFF', borderRadius: 8, fontSize: 14, color: '#0A0A0A' } }, 'Clear search and filters'));
 
     /* ----- profile ----- */
-    const P = all.find(p => p.id === S.profileId) || all[0];
+    const P = all.find(p => p.id === S.profileId) || { id: '', ini: '', name: '', state: '', city: '', district: '', enr: '', council: '', year: '', areas: [], courts: [], langs: [], quals: '', chamber: '', verifiedOn: '' };
+    if (!P.id && s.profile) { s.profile = false; s.results = true; }
     const enq = S.enquiries.find(e => e.advocateId === P.id) || null;
     const fieldStyle = (bad, hgt) => ({ height: hgt || 42, width: '100%', border: '1px solid ' + (bad ? '#B42318' : '#E5E5E5'), background: '#FFFFFF', borderRadius: 8, padding: '0 12px', fontSize: 14, color: '#0A0A0A' });
     const setCf = (k, v) => this.setState({ cf: { ...this.state.cf, [k]: v }, cfErr: { ...this.state.cfErr, [k]: undefined } });
@@ -794,7 +759,7 @@ class Component extends DCLogic {
     const councilField = { id: 'ap-council', label: 'State Bar Council', err: E.council || '', bad: !!E.council, wrap: wrap(false),
       control: sel('ap-council', 'State Bar Council', A.council, [['', 'Select your State Bar Council']].concat(this.COUNCILS.map(([, c]) => [c, c]).sort((a, b) => a[1].localeCompare(b[1]))), v => setApp('council', v), fieldStyle(E.council, 44)) };
     const stepDefs = [
-      ['Personal', 'Personal details', [appField('name', 'Full name (as on enrolment certificate)', 'e.g. Anjali Sharma'), appField('email', 'Email', 'you@example.com', { type: 'email' }), appField('mobile', 'Mobile', '+91', { type: 'tel' }), appField('city', 'City', 'New Delhi')]],
+      ['Personal', 'Personal details', [appField('name', 'Full name (as on enrolment certificate)', 'Your full name'), appField('email', 'Email', 'you@example.com', { type: 'email' }), appField('mobile', 'Mobile', '+91', { type: 'tel' }), appField('city', 'City', 'New Delhi')]],
       ['Enrolment', 'Enrolment details', [appField('enr', 'Enrolment number', 'e.g. D/1234/2016'), councilField, appField('year', 'Year of enrolment', '2016', { inputMode: 'numeric', maxLength: 4 }), appField('cop', 'Certificate of Practice number', 'Optional')]],
       ['Practice', 'Practice information', [areaChips, appField('courts', 'Courts', 'Delhi High Court, Saket District Courts'), appField('district', 'District', 'e.g. South'), appField('langs', 'Languages', 'Hindi, English'), appField('quals', 'Qualifications', 'B.A. LL.B.'), appField('chamber', 'Chamber address (optional)', '')]],
       ['Documents', 'Verification documents', []],
@@ -844,7 +809,7 @@ class Component extends DCLogic {
     const actions = [];
     if (!app) actions.push(act('Apply for a profile', () => this.startApply(), true, 'a'), act('Find my application', () => this.setState({ modal: 'login', lookup: '', lookupMsg: '' }), false, 'l'));
     else {
-      if (status === 'verified' && det) actions.push(act('View your profile', () => this.openProfile(app.id), true, 'v'));
+      if (status === 'verified') actions.push(act('View your profile', () => this.openProfile(app.id), true, 'v'));
       if (status === 'info' && det) actions.push(act('Update and resubmit', () => this.editApp(app.id), true, 'e'));
       if (status === 'rejected') actions.push(act('Start a new application', () => this.startApply(), true, 'n'));
       actions.push(act('Refresh status', () => this.loadStore(), false, 'r'));
@@ -874,21 +839,20 @@ class Component extends DCLogic {
       openLogin: openM('login'), openPrivacy: openM('privacy'), openTerms: openM('terms'), openReport: openM('report'),
       q: S.q, setQ: e => this.setState({ q: e.target.value }), qKey: e => { if (e.key === 'Enter') doSearch(); }, doSearch,
       locSelect: sel('dloc', 'State or city', S.loc, locOpts, setLoc, bare),
-      distSelect: sel('ddist', 'District', S.district, [['', locState ? 'Any district' : 'Choose a state first']].concat(distOpts.map(d => [d, d])), v => this.setState({ district: v }), { ...bare, color: locState ? '#0A0A0A' : '#8A8A8A' }, !locState),
+      distSelect: sel('ddist', 'District', S.district, [['', !locState ? 'Choose a state first' : (distOpts.length ? 'Any district' : 'No districts listed yet')]].concat(distOpts.map(d => [d, d])), v => this.setState({ district: v }), { ...bare, color: distOpts.length ? '#0A0A0A' : '#8A8A8A' }, !distOpts.length),
       areaSelect: sel('darea', 'Practice area', S.area, areaOpts, setArea, bare),
       areas: this.AREAS.map(([name, eg], i) => ({ name, eg, delay: (i % 4) * 60 + Math.floor(i / 4) * 80, go: () => this.search({ q: '', loc: '', district: '', court: '', area: name }) })),
       states: ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Uttar Pradesh', 'West Bengal', 'Telangana', 'Gujarat', 'Rajasthan', 'Kerala', 'Punjab', 'Madhya Pradesh'].map(name => ({ name, go: () => this.search({ q: '', loc: name, district: '', court: '', area: '' }) })),
       courts: ['Supreme Court of India', 'High Court of Delhi', 'Bombay High Court', 'Madras High Court', 'District Courts', 'Consumer Commissions', 'Debts Recovery Tribunals'].map(name => ({ name, go: () => this.search({ q: '', loc: '', district: '', area: '', court: name }) })),
       howSteps: [{ n: '1', t: 'Advocate applies', d: 'They submit their enrolment number, State Bar Council and supporting documents.' }, { n: '2', t: 'Enrolment checked', d: 'A moderator checks the documents against the Bar Council record. Every decision is logged.' }, { n: '3', t: 'Profile published', d: 'Only verified profiles appear in search. Declared details are labelled as declared.' }],
-      resSummary: summary, resCount: list.length === 1 ? '1 advocate' : list.length + ' advocates', resToolbar,
-      sortSelect: sel('rsort', 'Sort order', S.sort, [['az', 'Name A–Z'], ['za', 'Name Z–A'], ['old', 'Enrolment year, earliest first'], ['new', 'Enrolment year, latest first']], v => this.setState({ sort: v, page: 1 }), { height: 34, border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, padding: '0 8px', fontSize: 13, color: '#0A0A0A' }),
+      resSummary: summary, resCount: list.length === 1 ? '1 advocate' : (list.length || 'No') + ' advocates', resToolbar, hasAside: filters.length > 0 || anyCriteria,
+      sortSelect: !all.length ? null : sel('rsort', 'Sort order', S.sort, [['az', 'Name A–Z'], ['za', 'Name Z–A'], ['old', 'Enrolment year, earliest first'], ['new', 'Enrolment year, latest first']], v => this.setState({ sort: v, page: 1 }), { height: 34, border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, padding: '0 8px', fontSize: 13, color: '#0A0A0A' }),
       filters, clearBtn: anyCriteria ? h('button', { type: 'button', onClick: clearAll, style: linkBtn }, 'Clear search and filters') : null,
       people: pageRows.map((p, i) => ({ ini: p.ini, name: p.name, enr: p.enr, council: p.council, year: p.year, areas: p.areas.join(' · '), courts: p.courts.join(', '), langs: p.langs.join(', '), delay: 60 + i * 70, go: () => this.openProfile(p.id),
         you: p.own ? h('span', { style: { fontSize: 12, background: '#0A0A0A', color: '#fff', borderRadius: 8, padding: '2px 10px', fontWeight: 500 } }, 'Your profile') : null })),
       emptyState, pager,
       prof: { ini: P.ini, name: P.name, state: P.state, area0: P.areas[0] || 'All practice areas', place: [P.city, P.district && P.district !== P.city ? P.district + ' district' : ''].filter(Boolean).join(' · '),
         verified: 'Enrolment verified' + (P.verifiedOn ? ' · ' + P.verifiedOn : ''), enr: P.enr, council: P.council, year: P.year, areas: P.areas.join(', ') || '—', courts: P.courts.join('; ') || '—', langs: P.langs.join(', ') || '—', quals: P.quals, chamber: P.chamber,
-        banner: P.sample ? 'Design preview: this is a sample profile, not a real advocate.' : 'Design preview: this profile was created from an application submitted in this browser and approved in the Legal Staff admin queue.',
         goAll: () => this.searchAll(), goState: () => this.search({ q: '', loc: P.state, district: '', court: '', area: '' }), goArea: () => this.search({ q: '', loc: P.state, district: '', court: '', area: P.areas[0] || '' }) },
       contactFields: [cfField('name', 'Your name', 'Full name'), cfField('contact', 'Phone or email', '+91 or email'), cfField('city', 'City', P.city || 'New Delhi'),
         cfField('category', 'Matter category', '', [['', 'Select a category']].concat(this.AREAS.map(([n, e]) => [n, n + ' — ' + e.toLowerCase()])).concat([['Not sure', 'Not sure']])),
@@ -898,7 +862,7 @@ class Component extends DCLogic {
       sendBtn: { height: 46, border: 0, borderRadius: 8, fontSize: 15, fontWeight: 500, background: S.cf.consent ? '#0A0A0A' : '#C4C4C4', color: '#fff', cursor: 'pointer' },
       send: () => this.sendEnquiry(P), sent: !!enq, notSent: !enq, resetSend: () => enq && this.withdrawEnquiry(enq.id),
       enq: enq ? { ref: enq.id, summary: `${enq.name} · ${enq.contact} · ${enq.category} · saved ${fmtDate(enq.at)}`,
-        note: P.sample ? 'This is a sample profile in a design preview, so nobody receives the request: it is stored in this browser only and no email or message is sent.' : 'In this preview the request is stored in this browser only; no email or message is sent.' } : { ref: '', summary: '', note: '' },
+        note: 'Your request is saved in this browser. There is no server behind this site yet, so no email or message is sent to the advocate.' } : { ref: '', summary: '', note: '' },
       regTitle: S.editingId ? 'Update your application' : 'Apply for a directory profile',
       steps, stepTitle: cur[1], stepFields: cur[2], isForm: S.step < 3, isDocs: S.step === 3, isReview: S.step === 4, docSlots,
       reviewRows: [{ k: 'Name', v: A.name.trim() || '—' }, { k: 'Contact', v: [A.email.trim(), A.mobile.trim(), A.city.trim()].filter(Boolean).join(' · ') || '—' }, { k: 'Enrolment', v: [A.enr.trim().toUpperCase(), A.council, A.year.trim()].filter(Boolean).join(' · ') || '—' },

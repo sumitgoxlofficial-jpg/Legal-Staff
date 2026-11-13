@@ -69,7 +69,7 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
     <a href="app.html" style="height:54px;padding:0 26px;display:flex;align-items:center;white-space:nowrap;border:1px solid #4A4A4A;border-radius:8px;font-size:17px;color:#fff" style-hover="background:#1F1F1F;color:#fff">Explore the product</a>
   </div>
 
-  <div data-reveal="" data-delay="360" data-dist="60" style="position:relative;width:100%;margin-top:56px;background:#FFFFFF;border-radius:16px 16px 0 0;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:hidden;text-align:left;display:grid;grid-template-columns:{{ shotCols }}">
+  <div data-reveal="" data-delay="360" data-dist="60" style="position:relative;width:100%;margin-top:56px;background:#FFFFFF;border-radius:16px 16px 0 0;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:hidden;text-align:left;color:#0A0A0A;display:grid;grid-template-columns:{{ shotCols }}">
     <sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}">
       <div style="background:#F5F5F4;padding:22px 16px;display:flex;flex-direction:column;gap:4px;font-size:14px">
         <div style="display:flex;align-items:center;gap:8px;padding:0 10px 18px"><img src="assets/ls-mark-black.png" alt="" style="height:22px"><span style="font-weight:600;font-size:16px;letter-spacing:-.02em">Legal Staff</span></div>
@@ -80,12 +80,12 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
     </sc-if>
     <div style="padding:clamp(18px,4vw,28px) clamp(16px,4vw,32px) clamp(22px,4vw,36px);display:flex;flex-direction:column;gap:22px;min-width:0">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
-        <div><div style="font-size:14px;color:#5E5E5E">Wednesday, 11 November 2026</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600;margin-top:2px">Good morning, Rohan</div></div>
-        <span style="font-size:13px;color:#2B2B2B;background:#F0F0EF;border-radius:8px;padding:5px 12px;display:flex;align-items:center;gap:8px">{{ liveDot }}All court sources synced · 6:10 AM</span>
+        <div><div style="font-size:14px;color:#5E5E5E">{{ today }}</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600;margin-top:2px">Good morning</div></div>
+        <span style="font-size:13px;color:#2B2B2B;background:#F0F0EF;border-radius:8px;padding:5px 12px;display:flex;align-items:center;gap:8px">{{ liveDot }}Illustration · court sources synced</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:22px;align-items:start">
         <div style="display:flex;flex-direction:column">
-          <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding-bottom:10px;border-bottom:2px solid #0A0A0A"><span>Today's hearings</span><span style="color:#5E5E5E;font-weight:400">4 matters</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding-bottom:10px;border-bottom:2px solid #0A0A0A"><span>Today's hearings</span><span style="color:#5E5E5E;font-weight:400">Example day</span></div>
           <sc-for list="{{ heroRows }}" as="h" hint-placeholder-count="4">
             <div data-reveal="" data-delay="{{ h.delay }}" data-dist="10" style="display:flex;gap:16px;padding:13px 0;border-bottom:1px solid #E5E5E5;align-items:center">
               <span style="font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;width:48px">{{ h.t }}</span>
@@ -97,14 +97,14 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
         <div style="display:flex;flex-direction:column;gap:14px">
           <div data-reveal="" data-delay="900" style="position:relative;overflow:hidden;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;gap:10px">
             {{ scanLine }}
-            <div style="font-size:13px;color:#5E5E5E;font-weight:600">Next date found in order of 04.11.2026</div>
-            <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:24px;font-weight:600">Wed, 18 November 2026</div>
-            <div style="font-size:14px;color:#363636">Kapoor Textiles v. Meridian Exports · from ¶4, "List on 18.11.2026"</div>
+            <div style="font-size:13px;color:#5E5E5E;font-weight:600">Next date found in the latest order</div>
+            <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:24px;font-weight:600">Next hearing date</div>
+            <div style="font-size:14px;color:#363636">Case title · taken from the paragraph that lists the matter</div>
             <div style="display:flex;gap:8px;margin-top:4px"><span style="height:38px;padding:0 16px;display:flex;align-items:center;background:#0A0A0A;color:#fff;border-radius:8px;font-size:14px;font-weight:600">Confirm date</span><span style="height:38px;padding:0 14px;display:flex;align-items:center;border:1px solid #E5E5E5;border-radius:8px;font-size:14px">Edit</span></div>
           </div>
           <div data-reveal="" data-delay="1050" style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:16px;padding:20px 22px;display:flex;gap:16px;align-items:center">
             <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:36px;font-weight:600;color:#B42318;line-height:1">6</div>
-            <div><div style="font-size:15px;font-weight:600">days to file commercial appeal</div><div style="font-size:13px;color:#5E5E5E">CS(COMM) 88/2023 · CCA s.13(1A) · awaiting approval</div></div>
+            <div><div style="font-size:15px;font-weight:600">days left on a limitation deadline</div><div style="font-size:13px;color:#5E5E5E">Case number · provision applied · awaiting approval</div></div>
           </div>
         </div>
       </div>
@@ -180,13 +180,13 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
     </div>
   </div>
   <div data-reveal="" data-delay="120" style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.06);padding:30px;display:flex;flex-direction:column;gap:16px">
-    <div style="font-size:14px;color:#5E5E5E;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span style="font-weight:600;color:#0A0A0A">AI Case Brain</span><span>CS(COMM) 219/2024 · 14 documents indexed</span></div>
+    <div style="font-size:14px;color:#5E5E5E;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span style="font-weight:600;color:#0A0A0A">AI Case Brain</span><span>Example conversation</span></div>
     <div data-reveal="" data-delay="400" data-dist="12" style="align-self:flex-end;background:#0A0A0A;color:#fff;border-radius:16px;padding:12px 16px;font-size:16px;max-width:85%">What was the last order, and what's due before the next date?</div>
     <div data-reveal="" data-delay="1000" data-dist="12" style="background:#F5F5F4;border-radius:16px;padding:20px;font-size:16px;line-height:1.65">
-      On 04.11.2026 the court gave the defendant two weeks to reply to I.A. 6612/2026 and listed the matter on 18.11.2026. Your rejoinder, if any, is due before that date.
+      The last order gave the other side two weeks to file a reply to the pending application and listed the matter for the next date. Your rejoinder, if any, is due before then.
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
-        <span style="font-size:13px;background:#FFFFFF;color:#2B2B2B;border-radius:8px;padding:3px 9px">Order 04.11.2026 ¶3</span>
-        <span style="font-size:13px;background:#FFFFFF;color:#2B2B2B;border-radius:8px;padding:3px 9px">Order 04.11.2026 ¶4</span>
+        <span style="font-size:13px;background:#FFFFFF;color:#2B2B2B;border-radius:8px;padding:3px 9px">Latest order ¶3</span>
+        <span style="font-size:13px;background:#FFFFFF;color:#2B2B2B;border-radius:8px;padding:3px 9px">Latest order ¶4</span>
       </div>
     </div>
     <div data-reveal="" data-delay="1500" data-dist="12" style="border:1px dashed #C4C4C4;border-radius:16px;padding:14px 16px;font-size:15px;color:#363636"><b style="color:#0A0A0A">Suggestion, not verified:</b> consider pressing that no date of rejection is pleaded in the written statement.</div>
@@ -232,7 +232,7 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
   <div data-reveal="" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:18px">
     <sc-for list="{{ plans }}" as="p" hint-placeholder-count="4">
       <div style="{{ p.card }}" style-hover="transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.10)">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:24px;font-weight:600">{{ p.name }}</span><sc-if value="{{ p.feat }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;background:#0A0A0A;color:#fff;border-radius:8px;padding:3px 10px;font-weight:600;white-space:nowrap">Most chosen</span></sc-if></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:24px;font-weight:600">{{ p.name }}</span><sc-if value="{{ p.feat }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;background:#0A0A0A;color:#fff;border-radius:8px;padding:3px 10px;font-weight:600;white-space:nowrap">For small chambers</span></sc-if></div>
         <div style="font-size:15px;color:#5E5E5E;min-height:46px">{{ p.who }}</div>
         <div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:40px;font-weight:600">{{ p.price }}</span><span style="font-size:14px;color:#5E5E5E">{{ p.per }}</span></div>
         <div style="font-size:13px;color:#5E5E5E;min-height:20px">{{ p.save }}</div>
@@ -353,7 +353,7 @@ class Component extends DCLogic {
       eyebrow = 'Reference ' + S.cfDone.ref; title = S.cfDone.saved ? 'Request saved' : 'Request not saved';
       body = [
         para(S.cfDone.saved ? `Thanks, ${S.cfDone.name}. Your request is recorded and we'll be in touch at ${S.cfDone.email}.` : 'Your browser blocked local storage, so this request could not be recorded. Please allow site data and try again.', 0),
-        h('div', { key: 1, style: { background: '#F0F0EF', border: '1px solid #E3E3E2', borderRadius: 8, padding: '12px 16px', fontSize: 14, color: '#2B2B2B' } }, 'This preview has no mail server: the request is stored in this browser only and no confirmation email is sent.'),
+        h('div', { key: 1, style: { background: '#F0F0EF', border: '1px solid #E3E3E2', borderRadius: 8, padding: '12px 16px', fontSize: 14, color: '#2B2B2B' } }, 'There is no mail server behind this site yet: the request is stored in this browser only and no confirmation email is sent.'),
         h('div', { key: 2, style: { display: 'flex', gap: 10, flexWrap: 'wrap', paddingTop: 4 } }, btn('Done', close, true), btn('Send another', () => this.setState({ cfDone: null })))
       ];
     } else if (kind === 'contact') {
@@ -362,8 +362,8 @@ class Component extends DCLogic {
         para('Ask about plans, Enterprise pricing or anything else. Fields marked * are required.', 'p'),
         h('form', { key: 'f', noValidate: true, onSubmit: e => { e.preventDefault(); this.submitContact(); }, style: { display: 'flex', flexDirection: 'column', gap: 16 } },
           h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,220px),1fr))', gap: 16 } },
-            text('name', 'Your name *', 'Full name'), text('email', 'Work email *', 'you@example.com', 'email'),
-            text('phone', 'Phone (optional)', '+91', 'tel'), text('firm', 'Firm or organisation (optional)', 'e.g. Iyer & Associates'),
+            text('name', 'Your name *', 'Full name'), text('email', 'Work email *', 'you@yourfirm.in', 'email'),
+            text('phone', 'Phone (optional)', '+91', 'tel'), text('firm', 'Firm or organisation (optional)', 'Your firm or organisation'),
             sel('size', 'Team size', [['', 'Select'], ['Just me', 'Just me'], ['2–5', '2–5 people'], ['6–15', '6–15 people'], ['16–50', '16–50 people'], ['50+', 'More than 50']]),
             sel('topic', 'I am asking about', ['General question', 'Solo plan', 'Professional plan', 'Firm plan', 'Enterprise', 'Advocate directory'].map(o => [o, o]))),
           field('msg', 'How can we help? *', h('textarea', { id: 'cf-msg', value: S.cf.msg, onChange: set('msg'), placeholder: "Tell us about your practice and what you need. Please don't include confidential case details.", style: { ...inp(S.cfErr.msg), height: 'auto', minHeight: 110, padding: '12px 14px', resize: 'vertical', lineHeight: 1.5 } })),
@@ -459,6 +459,7 @@ class Component extends DCLogic {
     const ann = S.cycle === 'annual';
     const grid = (op, drift) => React.createElement('div', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: `linear-gradient(rgba(255,255,255,${op}) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,${op}) 1px,transparent 1px)`, backgroundSize: '64px 64px', WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 50% 30%,#000,transparent)', maskImage: 'radial-gradient(ellipse 70% 60% at 50% 30%,#000,transparent)', animation: drift ? 'lsDrift 12s linear infinite' : 'none' } });
     return {
+      today: new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
       heroGrid: grid(.07, true), secGrid: grid(.05, false),
       liveDot: React.createElement('span', { style: { width: 7, height: 7, borderRadius: 4, background: '#16A34A', display: 'block', animation: 'lsPulse 2s ease-out infinite' } }),
       scanLine: React.createElement('div', { 'aria-hidden': true, style: { position: 'absolute', left: 0, right: 0, top: 0, height: '18%', background: 'linear-gradient(180deg,transparent,rgba(10,10,10,.05),transparent)', animation: 'lsScan 3.6s ease-in-out infinite', pointerEvents: 'none' } }),
@@ -473,10 +474,10 @@ class Component extends DCLogic {
       wide, shotCols: wide ? '220px minmax(0,1fr)' : 'minmax(0,1fr)',
       shotNav: ['Dashboard', 'Cases', 'Court Orders', 'Hearings', 'Legal Deadlines', 'AI Case Brain', 'Drafting Studio'].map((label, i) => ({ label, style: { padding: '8px 10px', borderRadius: 8, background: i === 0 ? '#FFFFFF' : 'transparent', fontWeight: i === 0 ? 600 : 400, color: i === 0 ? '#0A0A0A' : '#363636' } })),
       heroRows: [
-        { t: '10:30', title: 'Kapoor Textiles v. Meridian Exports', court: 'Delhi HC · Court 34', tag: 'Conflict', chip: chip('#FDECEA', '#B42318') },
-        { t: '10:30', title: 'State v. Arjun Verma', court: 'Saket · Court 412', tag: 'Conflict', chip: chip('#FDECEA', '#B42318') },
-        { t: '12:00', title: 'Sharma v. DDA', court: 'Delhi HC · Court 9', tag: 'Brief ready', chip: chip('#F0F0EF', '#2B2B2B') },
-        { t: '2:15', title: 'Mehta v. Mehta', court: 'Family Court, Dwarka', tag: 'Mediation', chip: chip('#EDEDED', '#363636') }
+        { t: '10:30', title: 'Commercial suit', court: 'High Court · court number', tag: 'Conflict', chip: chip('#FDECEA', '#B42318') },
+        { t: '10:30', title: 'Bail application', court: 'District court · court number', tag: 'Conflict', chip: chip('#FDECEA', '#B42318') },
+        { t: '12:00', title: 'Writ petition', court: 'High Court · court number', tag: 'Brief ready', chip: chip('#F0F0EF', '#2B2B2B') },
+        { t: '2:15', title: 'Family matter', court: 'Family court', tag: 'Mediation', chip: chip('#EDEDED', '#363636') }
       ].map((r, i) => ({ ...r, delay: 600 + i * 90 })),
       auds: AUD.map((a, i) => ({ label: a.label, go: () => this.setState({ aud: i }), style: { border: 0, background: 'transparent', padding: '14px 20px', fontSize: 17, whiteSpace: 'nowrap', color: S.aud === i ? '#0A0A0A' : '#5E5E5E', fontWeight: S.aud === i ? 600 : 400, borderBottom: S.aud === i ? '3px solid #0A0A0A' : '3px solid transparent', marginBottom: -1 } })),
       aud: { ...A, ...audCta, feats: A.feats.map(([ic, t, d]) => ({ icon: icon(ic), t, d })) },

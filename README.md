@@ -26,7 +26,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 ## Accounts and data
 
 - The app starts empty. On first sign-in you set up your firm, then add your own clients, cases, hearings, orders and invoices.
-- Email and password accounts are created on the device and stored there as a salted hash. They do not sync between devices.
+- Sign-in is with Google only. Set the Client ID below before anyone can sign in.
 - All data is kept in the browser. Export a backup, restore one, or erase everything from Settings.
 
 ## Google sign-in

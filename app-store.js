@@ -173,22 +173,6 @@
   const pickFile = (accept, multiple) => new Promise(res => { const i = document.createElement('input'); i.type = 'file'; if (accept) i.accept = accept; i.multiple = !!multiple; i.onchange = () => res([...i.files]); i.click(); });
   const size = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 
-  /* ---------- accounts on this device (salted SHA-256; no server) ---------- */
-  const AK = 'ls.accounts';
-  const accounts = () => { try { return JSON.parse(localStorage.getItem(AK) || '{}') || {}; } catch (e) { return {}; } };
-  async function digest(salt, pw) {
-    const data = new TextEncoder().encode(salt + '|' + pw);
-    if (window.crypto && crypto.subtle) { const b = await crypto.subtle.digest('SHA-256', data); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
-    let h1 = 0xdeadbeef, h2 = 0x41c6ce57; for (const c of data) { h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); } return 'f' + (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16);
-  }
-  const auth = {
-    has: email => !!accounts()[email.toLowerCase()],
-    any: () => Object.keys(accounts()).length > 0,
-    async create(email, name, pw) { const a = accounts(), salt = uid('s'); a[email.toLowerCase()] = { name, salt, hash: await digest(salt, pw) }; try { localStorage.setItem(AK, JSON.stringify(a)); return true; } catch (e) { return false; } },
-    async check(email, pw) { const x = accounts()[email.toLowerCase()]; return x && x.hash === await digest(x.salt, pw) ? x : null; },
-    remove(email) { const a = accounts(); delete a[email.toLowerCase()]; try { localStorage.setItem(AK, JSON.stringify(a)); } catch (e) {} }
-  };
-
-  window.LS = { auth, KEY, load, save, reset, seed, iso, parse, valid, today, addDays, diffDays, fmt, dmy, dayMon, longDate, isWeekend, nextWorking, t12, t12ap, nowHM, uid, inr, initials, short, pad,
+  window.LS = { KEY, load, save, reset, seed, iso, parse, valid, today, addDays, diffDays, fmt, dmy, dayMon, longDate, isWeekend, nextWorking, t12, t12ap, nowHM, uid, inr, initials, short, pad,
     limitation, readOrder, answer, download, csv, ics, docx, htmlToRuns, files, pickFile, size };
 })();

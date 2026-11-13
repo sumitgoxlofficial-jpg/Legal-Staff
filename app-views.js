@@ -192,31 +192,11 @@
       'Continue with Google');
   }
   function LoginForm({ app }) {
-    const [mode, setMode] = useState(L.auth.any() ? 'pw' : 'new'), [email, setEmail] = useState(''), [pw, setPw] = useState(''), [name, setName] = useState(''), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
-    const inp = { height: 46, border: '1px solid ' + K.line, background: '#FFFFFF', borderRadius: 8, padding: '0 14px', fontSize: 15, color: K.ink, outline: 'none' };
-    const lab = { fontSize: 14, color: K.txt }, pri = { height: 48, border: 0, borderRadius: 8, background: K.ink, color: '#fff', fontSize: 16, fontWeight: 600, opacity: busy ? .6 : 1 };
-    const okMail = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
-    const link = (t, fn) => h('a', { href: '#', onClick: e => { e.preventDefault(); setErr(''); fn(); }, style: { fontSize: 'inherit' } }, t);
-    const errEl = err && h('div', { role: 'alert', style: { fontSize: 13.5, color: K.red, background: K.redBg, borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 } }, err);
-    const field = (label, el, right) => h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } }, h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 } }, h('label', { style: lab }, label), right), el);
-    const mailEl = field('Work email', h('input', { value: email, onChange: e => setEmail(e.target.value), placeholder: 'you@yourfirm.in', type: 'email', autoComplete: 'username', style: inp }));
-    async function submit() {
-      const em = email.trim(); if (busy) return;
-      if (mode === 'forgot') { if (!okMail(em)) return setErr('Enter the email address you sign in with.'); if (!L.auth.has(em)) return setErr('There is no account with this email on this device.'); setPw(''); setErr(''); return setMode('reset'); }
-      if (!okMail(em)) return setErr('Enter your work email address.');
-      if (mode === 'new' || mode === 'reset') { if (mode === 'new' && name.trim().length < 2) return setErr('Enter your full name.'); if (pw.length < 8) return setErr('Choose a password of at least 8 characters.'); if (mode === 'new' && L.auth.has(em)) return setErr('An account with this email already exists on this device. Sign in instead.');
-        setBusy(true); const ok = await L.auth.create(em, name.trim() || app.db.user.name, pw); setBusy(false); if (!ok) return setErr('Could not save the account. Browser storage is full or blocked.'); return app.signIn(em, { name: name.trim(), provider: 'password' }); }
-      if (!L.auth.has(em)) return setErr('There is no account with this email on this device. Create one, or continue with Google.');
-      setBusy(true); const acc = await L.auth.check(em, pw); setBusy(false); if (!acc) return setErr('That password is not right.'); app.signIn(em, { name: acc.name, provider: 'password' });
-    }
-    const wrap = (...c) => h('form', { noValidate: true, onSubmit: e => { e.preventDefault(); submit(); }, style: { display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 440 } }, ...c);
-    const pwEl = (label, right) => field(label, h('input', { value: pw, onChange: e => setPw(e.target.value), type: 'password', placeholder: '••••••••••', autoComplete: mode === 'pw' ? 'current-password' : 'new-password', style: inp }), right);
-    if (mode === 'forgot') return wrap(h('div', { style: { fontSize: 14, color: K.txt, background: K.soft2, borderRadius: 8, padding: '12px 14px', lineHeight: 1.55 } }, 'Passwords are kept only on this device and cannot be emailed. Confirm your email to set a new password. Your cases and other data are not affected.'), mailEl, errEl, h('button', { type: 'submit', style: pri }, 'Continue'), h('div', { style: { fontSize: 14 } }, link('Back to sign in', () => setMode('pw'))));
-    if (mode === 'reset') return wrap(h('div', { style: { fontSize: 14, color: K.txt } }, 'Set a new password for ', h('b', null, email.trim()), '.'), pwEl('New password (8 characters or more)'), errEl, h('button', { type: 'submit', style: pri }, 'Save password and sign in'));
-    if (mode === 'new') return wrap(field('Full name', h('input', { value: name, onChange: e => setName(e.target.value), placeholder: 'Your name', autoComplete: 'name', style: inp })), mailEl, pwEl('Password (8 characters or more)'), errEl, h('button', { type: 'submit', style: pri }, 'Create account'), h(GoogleBtn, { app, onError: setErr }),
-      h('div', { style: { fontSize: 13, color: K.mut } }, 'Already have an account? ', link('Sign in', () => setMode('pw')), ' · ', h('a', { href: 'index.html#pricing' }, 'See plans')));
-    return wrap(mailEl, pwEl('Password', link('Forgot password?', () => setMode('forgot'))), errEl, h('button', { type: 'submit', style: pri }, 'Sign in'), h(GoogleBtn, { app, onError: setErr }),
-      h('div', { style: { fontSize: 13, color: K.mut } }, 'New to Legal Staff? ', link('Create an account', () => setMode('new')), ' · ', h('a', { href: 'index.html#pricing' }, 'See plans')));
+    const [err, setErr] = useState('');
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 440 } },
+      h(GoogleBtn, { app, onError: setErr }),
+      err && h('div', { role: 'alert', style: { fontSize: 13.5, color: K.red, background: K.redBg, borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 } }, err),
+      h('div', { style: { fontSize: 13, color: K.mut, lineHeight: 1.55 } }, 'Sign in with the Google account you use for work. New to Legal Staff? ', h('a', { href: 'index.html#pricing' }, 'See plans')));
   }
 
   /* ---------- module screens ---------- */
