@@ -264,7 +264,8 @@
       c5.st = fr < 0 ? 'fail' : 'info';
       c5.d = 'File between ' + D.short(coa) + ' and ' + D.fmt(fileBy) + ' (one month, excluding the day the cause of action arose). ' +
         (fr < 0 ? 'That date passed ' + plural(-fr, 'day') + ' ago: the complaint now needs an application showing sufficient cause for the delay (proviso to s.142(1)(b)).' : D.diff(today, coa) > 0 ? 'The filing window has not opened yet.' : plural(fr, 'day') + ' left as of ' + D.short(today) + '.') +
-        ' File before the court with jurisdiction under s.142(2).';
+        ' File before the court with jurisdiction under s.142(2).' +
+        (D.weekend(fileBy) ? ' This last day is a ' + DOW_LONG[D.dow(fileBy)] + ' — if the court is closed, check the court calendar and plan to file earlier.' : '');
       var used = Math.max(0, D.diff(coa, today));
       res.meters.push({ t: 'Complaint window', used: Math.min(used, D.diff(coa, fileBy) + 5), allowed: D.diff(coa, fileBy), unit: 'days', label: D.diff(today, coa) > 0 ? 'Opens on ' + D.short(coa) : fr >= 0 ? 'Today is day ' + used + ' of ' + D.diff(coa, fileBy) : 'Window closed ' + plural(-fr, 'day') + ' ago', over: fr < 0, pending: D.diff(today, coa) > 0 });
     }
