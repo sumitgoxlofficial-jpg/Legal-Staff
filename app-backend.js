@@ -34,12 +34,15 @@
     on, client: sb,
     async session() { const s = ok(await sb.auth.getSession()).session; uid = s ? s.user.id : ''; return s; },
     async signInGoogle(token, nonce) { const d = ok(await sb.auth.signInWithIdToken({ provider: 'google', token, nonce })); uid = d.user.id; return d.session; },
+    /* Email sign-in: Supabase emails a one-time code (and a sign-in link that opens /app). */
+    async sendOtp(email) { ok(await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + '/app' } })); },
+    async verifyOtp(email, token) { const d = ok(await sb.auth.verifyOtp({ email, token, type: 'email' })); uid = d.user.id; return d.session; },
     async signOut() { firmId = ''; uid = ''; snap = {}; try { await sb.auth.signOut(); } catch (e) {} },
     async firms() { return ok(await sb.rpc('my_firms')); },
     async createFirm(v) { return ok(await sb.rpc('create_firm', { p_name: v.firm, p_city: v.city, p_address: v.address || v.city, p_user_name: v.name, p_role: v.role })); },
     /* Builds the app's working data for one firm. */
     async load(id, session) {
-      firmId = id; const d = window.LS.seed(); d.firmId = id; d.session = { email: session.user.email, provider: 'google' };
+      firmId = id; const d = window.LS.seed(); d.firmId = id; d.session = { email: session.user.email, provider: (session.user.app_metadata || {}).provider || 'google' };
       const [firm, recs, us] = await Promise.all([sb.from('firms').select('*').eq('id', id).single(), sb.from('records').select('kind,id,data,updated_at').eq('firm_id', id).order('updated_at', { ascending: false }).limit(20000), sb.from('user_state').select('data').eq('firm_id', id).eq('user_id', uid).maybeSingle()]);
       const f = ok(firm); d.firm = { name: f.name, city: f.city, address: f.address, gstin: f.gstin };
       if (f.state && f.state.lim) d.lim = f.state.lim; if (f.state && Array.isArray(f.state.agents) && f.state.agents.length) d.agents = f.state.agents;

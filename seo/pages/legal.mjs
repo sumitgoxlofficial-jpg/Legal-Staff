@@ -125,7 +125,7 @@ function about() {
    ===================================================================================== */
 function privacy() {
   const collect = table('What we collect and why', ['Data', 'What it includes', 'Why we use it', 'Basis'], [
-    ['Google sign-in', 'Your name, email address and profile picture, as shared by Google when you choose to sign in.', 'To create your account, sign you in and show who did what inside your firm.', 'Consent'],
+    ['Sign-in (Google or email code)', 'If you use Google: your name, email address and profile picture, as shared by Google. If you use an email code: your email address, to which we send a one-time code.', 'To create your account, sign you in and show who did what inside your firm.', 'Consent'],
     ['Firm and team details', 'Firm or chamber name, team members’ names, emails, roles and phone numbers.', 'To set up your workspace, control who can see what, and send reminders to the right person.', 'Consent; contract with the firm'],
     ['Practice data your firm enters', 'Cases, parties, clients, hearings, orders, documents, notes, tasks and invoices.', 'To provide the service to your firm. We act as a <b>data processor</b> for this data (see below).', 'On the firm’s instructions'],
     ['Advocate directory applications', 'Name, enrolment number, State Bar Council, enrolment year, city, email, mobile, practice areas, courts, languages, and the names of the verification documents you attach.', 'To verify and, once approved, publish your directory profile. Contact details are used to reach you about the application.', 'Consent'],
@@ -172,7 +172,7 @@ function privacy() {
         <li>Row-level security in the database, so each firm can reach only its own records.</li>
         <li>Private storage for documents, reached only by signed-in members of the firm.</li>
         <li>Encryption in transit (HTTPS) between your browser and our services.</li>
-        <li>Sign-in through Google, so we never store your password.</li>
+        <li>Sign-in through Google or a one-time email code, so we never store a password.</li>
         <li>Access logging where our providers make it available, and access to production data limited to people who need it.</li>
       </ul>
       <p>No method of storing or sending data is perfectly secure, so we cannot promise absolute security. Please keep your Google account secure and remove team members who leave.</p>` },

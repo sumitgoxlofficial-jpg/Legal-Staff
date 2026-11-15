@@ -367,12 +367,40 @@
       h('svg', { width: 18, height: 18, viewBox: '0 0 48 48', 'aria-hidden': true }, h('path', { fill: '#EA4335', d: 'M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.2C12.4 13.7 17.7 9.5 24 9.5z' }), h('path', { fill: '#4285F4', d: 'M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.500-4.800 7.200l7.700 6c4.500-4.200 6.900-10.300 6.900-17.700z'.replace(/(\d)00\b/g, '$1') }), h('path', { fill: '#FBBC05', d: 'M10.500 28.600A14.500 14.500 0 0 1 9.700 24c0-1.600.300-3.100.800-4.600l-7.900-6.200A24 24 0 0 0 0 24c0 3.900.900 7.500 2.600 10.800l7.900-6.200z'.replace(/(\d)00\b/g, '$1') }), h('path', { fill: '#34A853', d: 'M24 48c6.500 0 11.900-2.100 15.900-5.800l-7.700-6c-2.100 1.400-4.900 2.300-8.200 2.300-6.300 0-11.600-4.200-13.500-9.900l-7.900 6.200C6.500 42.600 14.600 48 24 48z'.replace(/(\d)00\b/g, '$1') })),
       'Continue with Google');
   }
+  /* Email sign-in with a one-time code. Shown only when the server is connected (Supabase sends the email). */
+  function EmailOtp({ app, onError }) {
+    const [step, setStep] = useState('email'), [email, setEmail] = useState(''), [code, setCode] = useState(''), [busy, setBusy] = useState(false), [wait, setWait] = useState(0);
+    React.useEffect(() => { if (!wait) return; const t = setTimeout(() => setWait(w => w - 1), 1000); return () => clearTimeout(t); }, [wait]);
+    const input = { height: 48, border: '1px solid ' + K.line, borderRadius: 8, padding: '0 14px', fontSize: 15, color: K.ink, background: '#fff', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' };
+    const btn = dis => ({ height: 48, border: 0, borderRadius: 8, background: K.ink, color: '#fff', fontSize: 15, fontWeight: 600, cursor: dis ? 'default' : 'pointer', opacity: dis ? 0.6 : 1, fontFamily: 'inherit' });
+    const link = { background: 'none', border: 0, padding: 0, color: K.ink, textDecoration: 'underline', textUnderlineOffset: 2, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' };
+    const msg = e => { const m = (e && e.message) || ''; return /rate|too many|seconds/i.test(m) ? 'Too many attempts. Please wait a minute and try again.' : /expired|invalid/i.test(m) ? 'That code is wrong or has expired. Check the latest email or send a new code.' : (m || 'Something went wrong. Please try again.'); };
+    const send = async e => { e && e.preventDefault(); const v = email.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return onError('Enter a valid email address.');
+      onError(''); setBusy(true); try { await LSB.sendOtp(v); setEmail(v); setCode(''); setStep('code'); setWait(60); } catch (x) { onError(msg(x)); } setBusy(false); };
+    const verify = async e => { e.preventDefault(); const c = code.replace(/\D/g, ''); if (c.length < 6) return onError('Enter the code from the email.');
+      onError(''); setBusy(true); try { await app.emailSignIn(email, c); } catch (x) { onError(msg(x)); setBusy(false); } };
+    if (step === 'email') return h('form', { onSubmit: send, noValidate: true, style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+      h('label', { htmlFor: 'ls-otp-email', style: { fontSize: 13.5, fontWeight: 600, color: K.ink } }, 'Work email'),
+      h('input', { id: 'ls-otp-email', type: 'email', inputMode: 'email', autoComplete: 'email', placeholder: 'you@chambers.in', value: email, onChange: e => setEmail(e.target.value), style: input }),
+      h('button', { type: 'submit', disabled: busy, style: btn(busy) }, busy ? 'Sending code…' : 'Email me a sign-in code'));
+    return h('form', { onSubmit: verify, noValidate: true, style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+      h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.55 } }, 'We sent a code to ', h('b', null, email), '. It expires in a few minutes. Check spam if you don\'t see it.'),
+      h('label', { htmlFor: 'ls-otp-code', style: { fontSize: 13.5, fontWeight: 600, color: K.ink } }, 'Sign-in code'),
+      h('input', { id: 'ls-otp-code', autoFocus: true, inputMode: 'numeric', autoComplete: 'one-time-code', maxLength: 10, placeholder: '123456', value: code, onChange: e => setCode(e.target.value.replace(/[^\d]/g, '')), style: Object.assign({}, input, { letterSpacing: 6, fontSize: 20, fontVariantNumeric: 'tabular-nums' }) }),
+      h('button', { type: 'submit', disabled: busy, style: btn(busy) }, busy ? 'Signing in…' : 'Verify and sign in'),
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 13, color: K.mut } },
+        h('button', { type: 'button', style: link, onClick: () => { onError(''); setStep('email'); } }, 'Use a different email'),
+        wait ? h('span', null, 'Resend code in ' + wait + 's') : h('button', { type: 'button', style: link, disabled: busy, onClick: send }, 'Resend code')));
+  }
   function LoginForm({ app }) {
     const [err, setErr] = useState('');
     return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 440 } },
       h(GoogleBtn, { app, onError: setErr }),
+      window.LSB && LSB.on && h('div', { 'aria-hidden': true, style: { display: 'flex', alignItems: 'center', gap: 12, color: K.mut, fontSize: 12.5 } }, h('span', { style: { flex: 1, height: 1, background: K.line } }), 'or', h('span', { style: { flex: 1, height: 1, background: K.line } })),
+      window.LSB && LSB.on && h(EmailOtp, { app, onError: setErr }),
       err && h('div', { role: 'alert', style: { fontSize: 13.5, color: K.red, background: K.redBg, borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 } }, err),
-      h('div', { style: { fontSize: 13, color: K.mut, lineHeight: 1.55 } }, 'Sign in with the Google account you use for work. New to Legal Staff? ', h('a', { href: 'index.html#pricing' }, 'See plans')),
+      h('div', { style: { fontSize: 13, color: K.mut, lineHeight: 1.55 } }, 'Use your work Google account or work email. New to Legal Staff? ', h('a', { href: 'index.html#pricing' }, 'See plans')),
       h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.55 } }, 'By continuing you agree to the ', h('a', { href: '/terms', target: '_blank', rel: 'noopener' }, 'Terms of Service'), ' and ', h('a', { href: '/privacy', target: '_blank', rel: 'noopener' }, 'Privacy Policy'), '.'));
   }
 
