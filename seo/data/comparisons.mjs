@@ -113,7 +113,7 @@ export const comparisons = [
   },
   {
     slug: 'legacy-legal-erp-vs-legal-staff', navLabel: 'Enterprise legal ERPs vs Legal Staff', navHint: 'Heavy ERPs vs fast, AI-first practice management',
-    title: 'Enterprise legal ERPs vs Legal Staff: Provakil, ManageMyLawsuits, PracticeLeague and a litigation-first alternative',
+    title: 'Enterprise legal ERPs like Provakil, ManageMyLawsuits and PracticeLeague vs Legal Staff',
     metaTitle: 'Enterprise Legal ERP vs Legal Staff for Litigators',
     metaDescription: 'How a typical enterprise legal ERP compares with Legal Staff on implementation, configuration, training, cost model and fit for individual litigators.',
     kicker: 'Enterprise legal ERPs vs Legal Staff',

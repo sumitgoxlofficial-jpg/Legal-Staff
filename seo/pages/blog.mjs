@@ -163,7 +163,7 @@ function hubPage() {
   const crumbs = [{ name: 'Home', path: '/' }, { name: 'Resources', path }];
   const sorted = [...blogs].sort((a, b) => b.updated.localeCompare(a.updated));
   const tools_ = `<div class="blog-tools">
-    <div class="search-box">${icon('search', 18)}<label class="sr-only" for="blog-q">Search guides</label><input id="blog-q" type="search" placeholder="Search guides — e.g. cause list, bail, section 12" autocomplete="off"></div>
+    <div class="search-box">${icon('search', 18)}<label class="sr-only" for="blog-q">Search guides</label><input id="blog-q" type="search" placeholder="Search — e.g. bail, cause list" autocomplete="off"></div>
     <div class="blog-filters" role="group" aria-label="Filter by topic">
       <button type="button" data-filter="all" aria-pressed="true">All <span>${blogs.length}</span></button>
       ${pillars.map(p => `<button type="button" data-filter="${esc(p.id)}" aria-pressed="false">${esc(p.name)} <span>${blogs.filter(b => b.pillar === p.id).length}</span></button>`).join('')}

@@ -503,6 +503,13 @@ export const blogsB = [
           'Legal Staff gives the chamber a shared court diary across all courts with clash detection, a hearing board, task assignment with due dates, and the ability to reassign a hearing to a junior. A daily morning briefing and WhatsApp and email reminders (two days before and on the morning of a hearing) go to the advocate and team once WhatsApp is connected.',
           'After court, an order can be pasted or uploaded; Legal Staff summarises it with paragraph references and picks out the next date, which goes into the diary only after an advocate confirms it. It does not monitor cause lists for you, so the evening board check still matters; Legal Staff makes the result visible to everyone.'
         ]
+      },
+      {
+        heading: "Training juniors through the board",
+        paragraphs: [
+          "A shared board is also a training tool. A junior who can see the whole chamber’s week learns how matters move: which applications are moved before which stage, how long a drafting task usually takes, and why a senior asks for a certified copy on the day of judgment. Pair each new junior with a senior associate for the first month and let them prepare the evening board under supervision.",
+          "Feedback is most useful when it is tied to the task. When a senior reviews a draft, the comments and the corrected version should sit on the same matter, so the junior can compare versions later. Over a year, the chamber builds a record of how its own work is done, which makes the next junior easier to train and protects the practice when someone leaves."
+        ]
       }
     ],
     pitfalls: [
@@ -589,6 +596,13 @@ export const blogsB = [
         paragraphs: [
           'Legal Staff keeps invoices per matter, alongside the diary, so the hearings attended and the tasks completed are on the same screen as the bill. Invoices can carry GST details, and reports show what has been billed and what is outstanding. The software records what you enter; it does not decide the GST treatment of a client, which remains the advocate’s and the accountant’s decision.'
         ]
+      },
+      {
+        heading: "Handling adjournments, non-effective dates and disputes",
+        paragraphs: [
+          "Per-appearance billing raises one recurring question: is an adjourned or non-effective date billable? There is no single rule; it is a matter of agreement with the client. Many advocates bill a reduced fee for a date on which the matter was not reached, and a full fee where they appeared and the matter was heard. Whatever you choose, write it in the fee letter and apply it consistently.",
+          "When a client queries a bill, the strongest answer is a dated list of appearances with the outcome of each, drawn from the diary, together with copies of the orders. That is far easier to produce when every hearing and its outcome were recorded on the day. Keep fee correspondence on the matter too, so the history of what was agreed is not lost in an inbox."
+        ]
       }
     ],
     pitfalls: [
@@ -671,6 +685,13 @@ export const blogsB = [
           'Client updates go only to the numbers recorded on the client record.',
           'Summaries are drafts until an advocate has checked them against the order.',
           'Documents are shared through the portal, not as loose attachments.'
+        ]
+      },
+      {
+        heading: "Writing an update the client can act on",
+        paragraphs: [
+          "A good update is short and specific. For example: Matter: recovery suit against the supplier, District Court. Today: the defendant sought time to file its reply; the court allowed two weeks on costs. Next date: 12 December. Action for you: please send the original delivery challans by 1 December. That is enough for a client to plan, and it avoids characterising the court’s reasons, which belongs in a fuller discussion.",
+          "Avoid predictions in written updates. Phrases like we will win or this will be decided next time create expectations the chamber cannot control. If the client needs advice on prospects, give it in a meeting or a considered note, not in a message sent from the corridor. Where a matter is sensitive, a neutral line such as there is an update on your matter, please call when convenient is often the safest message."
         ]
       }
     ],
@@ -758,6 +779,13 @@ export const blogsB = [
           'Legal Staff is a web-based practice and case management workspace for Indian advocates and law firms. It reads pasted or uploaded court orders, summarises them with paragraph references and proposes the next date for an advocate to confirm. Case import by CNR works where a court-data provider is connected; it does not scrape every court website or cause list. The court diary covers all your courts with clash detection, reassignment, .ics export and a morning briefing, and WhatsApp and email reminders go out once the WhatsApp Business API is connected.',
           'It has a limitation tracker that shows every exclusion and needs advocate approval, an AI Case Brain that answers only from the case’s own documents with citations, reference notes on provisions (not a full case-law database), a drafting studio with templates and DOCX/PDF export, a per-case document vault, team roles, tasks, client portal and per-matter GST invoices. Each firm’s data is isolated. It is web-only, with no native iOS or Android app, and it works in mobile browsers. Plans run from Solo to Enterprise. If your priority is a full case-law research database or an offline desktop system, Legal Staff alone will not meet it.'
         ]
+      },
+      {
+        heading: "Running a two-week trial",
+        paragraphs: [
+          "A useful trial has a plan. In week one, add ten live matters from at least three different forums, upload their latest orders and enter the next dates and any limitation dates. Invite one junior and one clerk. In week two, run the chamber’s actual daily routine through the product: the evening board, reassignments, after-court updates and one client update.",
+          "At the end, ask each person what they did in the software and what they still did on paper or WhatsApp. The second list is the real verdict. A product that the senior likes but the clerk avoids will not survive the first busy month. Score each criterion in the checklist from your own notes rather than from the vendor’s brochure, and repeat the same trial for each product you are considering."
+        ]
       }
     ],
     pitfalls: [
@@ -842,6 +870,13 @@ export const blogsB = [
           'Retention: decide a policy with your seniors for closed matters and apply it consistently.',
           'Access: limit sensitive folders to the people working on the matter.',
           'Originals: the scan never replaces an original the court or client may need.'
+        ]
+      },
+      {
+        heading: "Moving existing files into the new structure",
+        paragraphs: [
+          "Do not try to digitise the entire archive at once. Start with active matters that have a hearing in the next month: create the standard folders, scan the vakalatnama, the latest pleadings and the last few order sheets, and enter the next date. Then work backwards through the remaining active matters, and leave closed files until there is a specific reason to retrieve them.",
+          "Give one person ownership of the migration and a weekly target, and check a sample of matters for naming and folder consistency in the first fortnight. Small inconsistencies at the start become permanent habits. Once the structure is in place, make it part of opening every new matter, so that the vakalatnama and the first order go into the right folders on day one."
         ]
       }
     ],

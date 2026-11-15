@@ -134,7 +134,7 @@ function hubPage() {
     ['whatsapp', 'Reminders that name the court', 'WhatsApp and email reminders two days before and on the morning, with the court number and item number.']
   ].map(([ic, t, p], i) => `<div class="card ls-reveal" style="--ls-delay:${i * 80}ms"><span class="card-ic">${icon(ic, 22)}</span><h3>${t}</h3><p>${p}</p></div>`).join('')}</div>
   <p class="muted ct-hub-note ls-reveal">Court websites, eCourts services and the National Judicial Data Grid remain the source of record. Import by CNR works where a court-data provider is connected; Legal Staff does not scrape cause lists.</p>`;
-  const body = `${hero({ kicker: 'Courts and tribunals', title: 'Court and tribunal guides for Indian litigators', lead: 'How orders and cause lists look in each forum, and how Legal Staff turns them into confirmed diary dates, clash alerts and WhatsApp reminders for your chamber.', crumbs, source: 'Courts hub', chips: ['Supreme Court', '10 High Courts', 'District courts', 'Tribunals and commissions'] })}
+  const body = `${hero({ kicker: 'Courts and tribunals', title: 'Court and tribunal guides for Indian litigators', lead: 'How orders and cause lists look in each forum, and how Legal Staff turns them into confirmed diary dates, clash alerts and WhatsApp reminders for your chamber.', crumbs, source: 'Courts hub', chips: ['Supreme Court', `${courts.filter(c => c.type === 'high').length} High Courts`, 'District courts', 'Tribunals and commissions'] })}
 ${section({ id: 'how', kicker: 'Across every forum', title: 'The same workflow, adapted to each court', inner: how })}
 ${section({ id: 'all', tone: 'tone-soft', kicker: 'Guides', title: 'Choose your court or tribunal', inner: groups })}
 ${ctaBand({ source: 'Courts hub CTA' })}`;
