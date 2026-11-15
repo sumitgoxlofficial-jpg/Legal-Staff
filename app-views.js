@@ -13,25 +13,197 @@
     input: { height: 38, border: '1px solid ' + K.line, background: '#FFFFFF', borderRadius: 8, padding: '0 12px', fontSize: 14, color: K.ink, width: '100%', outline: 'none' },
     row: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }
   };
-  const Btn = ({ primary, danger, small, onClick, children, disabled, title, style }) => h('button', { onClick, disabled, title, type: 'button', style: Object.assign({ whiteSpace: 'nowrap', height: small ? 30 : 36, padding: small ? '0 10px' : '0 16px', borderRadius: 8, fontSize: small ? 12.5 : 13.5, fontWeight: primary ? 500 : 400, border: primary ? 0 : '1px solid ' + (danger ? '#F4B8B1' : K.line), background: primary ? K.ink : '#FFFFFF', color: primary ? '#fff' : (danger ? K.red : K.ink), opacity: disabled ? .45 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }, style) }, children);
+
+  /* ---------- motion helpers ---------- */
+  const reduced = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  /* Count a number up inside an element. Edits the existing text node in place so React keeps owning it; stops if React changes the text. */
+  function countUp(el, dur) {
+    if (!el || reduced() || !window.requestAnimationFrame || !document.createTreeWalker) return;
+    const tn = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode(); if (!tn) return;
+    const orig = tn.nodeValue, m = /^([^\d]*)(\d[\d,]*)(\.\d+)?(.*)$/.exec(orig); if (!m || m[3]) return;
+    const to = +m[2].replace(/,/g, ''); if (!(to > 0) || to > 1e9) return;
+    const t0 = performance.now(), d = dur || 700; let last = m[1] + '0' + m[4]; tn.nodeValue = last;
+    const step = now => { if (tn.nodeValue !== last) return; const k = Math.min(1, (now - t0) / d); if (k >= 1) { tn.nodeValue = orig; return; }
+      last = tn.nodeValue = m[1] + Math.round(to * (1 - Math.pow(1 - k, 3))).toLocaleString('en-IN') + m[4]; requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
+  function CountUp({ value }) { const ref = React.useRef(null); React.useLayoutEffect(() => { countUp(ref.current); }, []); return h('span', { ref, className: 'ls-count' }, value); }
+
+  /* ---------- illustrations: monochrome ink line art, soft grey fills, a silver gradient that echoes the logo ---------- */
+  const INK = '#0A0A0A', LT = '#C9C9C9';
+  const ln = { fill: 'none', stroke: INK, strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', vectorEffect: 'non-scaling-stroke' };
+  const P = (d, o) => h('path', Object.assign({ d }, ln, o));
+  const F = (d, fill, o) => h('path', Object.assign({ d }, ln, { fill }, o));
+  const R = (x, y, w, hh, rx, fill, o) => h('rect', Object.assign({ x, y, width: w, height: hh, rx }, ln, { fill: fill || '#FFFFFF' }, o));
+  const Ci = (cx, cy, r, fill, o) => h('circle', Object.assign({ cx, cy, r }, ln, { fill: fill || '#FFFFFF' }, o));
+  const G = (className, ...k) => h('g', { className }, ...k);
+  const lite = { stroke: LT };
+  const bg = nb => nb ? null : h('g', null, h('circle', { cx: 80, cy: 58, r: 46, fill: '#F2F2F1' }), h('ellipse', { cx: 80, cy: 104, rx: 38, ry: 3.5, fill: '#E8E8E7' }), P('M30 30h6 M33 27v6 M128 96h6 M131 93v6', { stroke: '#BDBDBD' }));
+  const spark = (x, y, r, fill) => F(`M${x} ${y - r}l${r * .28} ${r * .72} ${r * .72} ${r * .28}-${r * .72} ${r * .28}-${r * .28} ${r * .72}-${r * .28}-${r * .72}-${r * .72}-${r * .28} ${r * .72}-${r * .28}z`, fill);
+  const SCENES = {
+    cases: (sv, nb) => h('g', null, bg(nb),
+      F('M40 44a4 4 0 0 1 4-4h22l6 6h44a4 4 0 0 1 4 4v42a4 4 0 0 1-4 4H44a4 4 0 0 1-4-4z', '#F0F0EF'),
+      R(52, 28, 50, 40, 3), P('M60 37h24 M60 44h34 M60 51h20', lite),
+      F('M38 58a4 4 0 0 1 4-4h76a4 4 0 0 1 4 4l-3 34a4 4 0 0 1-4 4H45a4 4 0 0 1-4-4z', '#FFFFFF'),
+      R(66, 68, 28, 9, 2, '#F0F0EF', { stroke: 'none' }), P('M70 72.5h16'),
+      G('ls-art-bob', Ci(118, 34, 11, sv), P('M113 34l3.5 3.5 6-7'))),
+    calendar: (sv, nb) => h('g', null, bg(nb),
+      R(40, 32, 80, 64, 8), F('M40 40a8 8 0 0 1 8-8h64a8 8 0 0 1 8 8v8H40z', INK), P('M58 26v12 M102 26v12'),
+      ...[0, 1, 2].map(r => [0, 1, 2, 3, 4].map(c => (r === 1 && c === 3) ? null : h('rect', { key: r + '-' + c, x: 50 + c * 13, y: 56 + r * 12, width: 8, height: 6, rx: 1.5, fill: '#E5E5E5' }))),
+      Ci(93, 71, 7, sv), P('M89.5 71l2.5 2.5 4-4.5'),
+      G('ls-art-bob2', Ci(122, 90, 12), P('M122 84v6l4 3'))),
+    order: (sv, nb) => h('g', null, bg(nb),
+      F('M53 22h40l16 16v60a3 3 0 0 1-3 3H53a3 3 0 0 1-3-3V25a3 3 0 0 1 3-3z', '#FFFFFF'), P('M93 22v13a3 3 0 0 0 3 3h13'),
+      P('M60 34h22', { strokeWidth: 2 }), P('M60 48h40 M60 56h40 M60 64h30', lite),
+      R(58, 71, 34, 9, 2, '#EDEDED', { stroke: 'none' }), P('M62 75.5h22'),
+      G('ls-art-bob', Ci(106, 88, 13, sv), Ci(106, 88, 8.5, 'none', { strokeDasharray: '2 2.5', vectorEffect: undefined }), P('M102 88l3 3 5-6'))),
+    documents: (sv, nb) => h('g', null, bg(nb),
+      h('g', { transform: 'rotate(-8 76 58)' }, R(50, 26, 50, 64, 3, '#F5F5F4')),
+      R(58, 30, 50, 64, 3), P('M66 42h26 M66 50h34 M66 58h34 M66 66h22', lite),
+      R(66, 75, 20, 10, 2, '#F0F0EF', { stroke: 'none' }), h('text', { x: 69.5, y: 82.6, fontSize: 6.5, fontWeight: 700, fill: INK, fontFamily: 'Instrument Sans, system-ui, sans-serif' }, 'PDF'),
+      G('ls-art-bob', Ci(112, 88, 12, INK), P('M112 94v-11 M107.5 87.5l4.5-4.5 4.5 4.5', { stroke: '#FFFFFF' }))),
+    clients: (sv, nb) => h('g', null, bg(nb),
+      R(62, 26, 62, 42, 6, '#F5F5F4'), P('M96 38h18 M96 45h12', lite),
+      R(36, 44, 78, 50, 6), Ci(58, 63, 9, sv), P('M45 86a13 11 0 0 1 26 0'), P('M80 60h24 M80 68h18 M80 76h22', lite),
+      G('ls-art-bob', Ci(124, 86, 9), P('M124 82v8 M120 86h8'))),
+    invoice: (sv, nb) => h('g', null, bg(nb),
+      F('M54 20h52v76l-6.5-4-6.5 4-6.5-4-6.5 4-6.5-4-6.5 4-6.5-4-6.5 4z', '#FFFFFF'),
+      P('M73 31h14 M73 36h14 M77 31c6 0 6 10 0 10h-3l9 8'), P('M62 58h20 M62 66h16 M62 74h22 M90 58h8 M90 66h8 M90 74h8', lite), P('M62 84h36', { strokeWidth: 2 }),
+      G('ls-art-bob', Ci(116, 84, 11, sv), Ci(116, 84, 6.5, 'none'))),
+    team: (sv, nb) => h('g', null, bg(nb),
+      P('M60 40q20-16 40 0', { stroke: '#BDBDBD', strokeDasharray: '2 3', vectorEffect: undefined, className: 'ls-art-flow' }),
+      Ci(52, 60, 9), P('M38 88a14 12 0 0 1 28 0'), Ci(108, 60, 9), P('M94 88a14 12 0 0 1 28 0'),
+      Ci(80, 50, 13, sv), F('M60 92a20 17 0 0 1 40 0z', '#FFFFFF')),
+    research: (sv, nb) => h('g', null, bg(nb),
+      F('M80 42c-10-6-24-7-38-4v50c14-3 28-2 38 4z', '#FFFFFF'), F('M80 42c10-6 24-7 38-4v50c-14-3-28-2-38 4z', '#FFFFFF'), P('M80 42v50'),
+      P('M50 50c8-1.5 16-1 22 1 M50 58c8-1.5 16-1 22 1 M50 66c8-1.5 16-1 22 1 M50 74c8-1.5 16-1 22 1 M88 51c6-2 14-2.5 22-1', lite),
+      G('ls-art-bob', Ci(106, 68, 12, 'rgba(255,255,255,.88)'), Ci(106, 68, 8, 'none', { stroke: sv, strokeWidth: 3 }), P('M115 77l9 9', { strokeWidth: 3 }))),
+    chat: (sv, nb) => h('g', null, bg(nb),
+      R(34, 28, 64, 30, 10), F('M46 57l-5 9 12-8', '#FFFFFF'), P('M46 39h36 M46 47h24', lite),
+      R(60, 64, 68, 30, 10, INK), F('M114 93l7 8 0-9z', INK),
+      ...[82, 94, 106].map((x, i) => h('circle', { key: x, cx: x, cy: 79, r: 2.6, fill: '#FFFFFF', className: 'ls-art-dot', style: { animationDelay: i * .15 + 's' } })),
+      G('ls-art-bob2', spark(122, 30, 9, sv))),
+    shield: (sv, nb) => h('g', null, bg(nb),
+      F('M80 22l30 11v22c0 20-13 32-30 39-17-7-30-19-30-39V33z', sv), P('M80 30l22 8v17c0 15-9.5 24-22 29.5', { stroke: '#FFFFFF', strokeOpacity: .9 }),
+      P('M67 58l9 9 17-19', { strokeWidth: 2.5 })),
+    empty: (sv, nb) => h('g', null, bg(nb),
+      G('ls-art-bob', R(62, 22, 36, 28, 3), P('M69 31h22 M69 38h14', lite)),
+      F('M42 68l12-24h52l12 24v20a4 4 0 0 1-4 4H46a4 4 0 0 1-4-4z', '#FFFFFF'), F('M42 68h24a14 9 0 0 0 28 0h24v20a4 4 0 0 1-4 4H46a4 4 0 0 1-4-4z', '#F5F5F4')),
+    deadline: (sv, nb) => h('g', null, bg(nb),
+      h('circle', { cx: 78, cy: 60, r: 34, fill: 'none', stroke: '#E5E5E5', strokeWidth: 4 }),
+      h('circle', { cx: 78, cy: 60, r: 34, fill: 'none', stroke: INK, strokeWidth: 4, strokeLinecap: 'round', strokeDasharray: '64 400', transform: 'rotate(-90 78 60)', className: 'ls-art-arc' }),
+      Ci(78, 60, 27), P('M78 37v3 M78 80v3 M55 60h3 M98 60h3', lite), P('M78 46v14l9 6'), Ci(78, 60, 2, INK),
+      G('ls-art-bob', P('M113 22h14 M113 44h14'), F('M115 22c0 7 10 7 10 11s-10 4-10 11h10c0-7-10-7-10-11s10-4 10-11z', sv))),
+    tasks: (sv, nb) => h('g', null, bg(nb),
+      R(50, 26, 60, 72, 6), R(66, 20, 28, 11, 3, INK),
+      ...[0, 1, 2].map(i => { const y = 46 + i * 16; return h('g', { key: i }, R(60, y - 5, 10, 10, 2, i < 2 ? INK : '#FFFFFF'), i < 2 ? P(`M62.5 ${y}l2 2 3.5-4`, { stroke: '#FFFFFF' }) : null, P(`M76 ${y}h${[24, 20, 26][i]}`, lite)); }),
+      G('ls-art-bob2', spark(122, 34, 8, sv))),
+    court: (sv, nb) => h('g', null, bg(nb),
+      F('M40 48l40-22 40 22z', sv), R(44, 48, 72, 5, 1),
+      ...[50, 62, 74, 86, 98, 110].map(x => R(x - 2.5, 53, 5, 33, 1, '#FFFFFF', { key: x })),
+      R(42, 86, 76, 6, 1), R(36, 92, 88, 6, 1),
+      G('ls-art-bob', Ci(124, 30, 7, INK), h('circle', { cx: 124, cy: 30, r: 2.2, fill: '#FFFFFF' }))),
+    agents: (sv, nb) => h('g', null, bg(nb),
+      P('M68 30v8 M80 30v8 M92 30v8 M68 82v8 M80 82v8 M92 82v8 M48 50h8 M48 60h8 M48 70h8 M104 50h8 M104 60h8 M104 70h8'),
+      R(56, 38, 48, 44, 8), R(65, 47, 30, 26, 4, sv), G('ls-art-pulse', spark(80, 60, 8, INK))),
+    reports: (sv, nb) => h('g', null, bg(nb),
+      R(38, 28, 84, 66, 6), P('M48 40h24', lite), P('M46 84h68'),
+      R(52, 66, 9, 18, 1.5, '#E5E5E5', { stroke: 'none' }), R(66, 58, 9, 26, 1.5, '#E5E5E5', { stroke: 'none' }), R(80, 62, 9, 22, 1.5, '#E5E5E5', { stroke: 'none' }), R(94, 48, 9, 36, 1.5, INK, { stroke: 'none' }),
+      P('M54 58l14-8 14 4 14-14 14 2', { className: 'ls-art-draw', vectorEffect: undefined }), Ci(110, 42, 3, sv)),
+    portal: (sv, nb) => h('g', null, bg(nb),
+      R(34, 30, 92, 62, 6), P('M34 42h92'), h('circle', { cx: 41, cy: 36, r: 1.6, fill: INK }), h('circle', { cx: 47, cy: 36, r: 1.6, fill: '#BDBDBD' }), h('circle', { cx: 53, cy: 36, r: 1.6, fill: '#BDBDBD' }),
+      Ci(56, 62, 8, sv), P('M44 82a12 10 0 0 1 24 0'), P('M78 56h36 M78 64h28 M78 72h32', lite),
+      G('ls-art-bob', Ci(124, 30, 9, INK), P('M120.5 30l2.5 2.5 4.5-5', { stroke: '#FFFFFF' }))),
+    settings: (sv, nb) => h('g', null, bg(nb),
+      R(40, 32, 80, 58, 8), P('M52 48h56 M52 61h56 M52 74h56', { stroke: '#D4D4D4' }),
+      G('ls-art-slide', Ci(66, 48, 5, INK)), G('ls-art-slide2', Ci(94, 61, 5, sv)), Ci(76, 74, 5)),
+    scales: (sv, nb) => h('g', null, bg(nb),
+      P('M80 30v58'), R(68, 88, 24, 6, 2), Ci(80, 28, 3.5, sv),
+      h('g', { className: 'ls-art-sway' }, P('M50 40h60'), P('M54 40l-10 22 M54 40l10 22 M106 40l-10 22 M106 40l10 22', { stroke: '#8A8A8A' }),
+        F('M42 62h24a12 7 0 0 1-24 0z', sv), F('M94 62h24a12 7 0 0 1-24 0z', sv))),
+    sunrise: (sv) => h('g', null,
+      P('M24 52h16 M150 44h22 M158 50h10', { stroke: '#D4D4D4' }),
+      h('g', { className: 'ls-art-rays' }, P('M100 34v-10 M70 46l-7-7 M130 46l7-7 M58 70H46 M142 70h12', { stroke: '#BDBDBD' })),
+      h('g', { className: 'ls-art-rise' }, F('M62 92a38 38 0 0 1 76 0z', sv)),
+      F('M80 76l20-11 20 11z', '#FFFFFF'), R(82, 76, 36, 3, .8), ...[86, 94, 102, 110].map(x => R(x, 79, 3.5, 10, .8, '#FFFFFF', { key: x })),
+      P('M18 92h164'), P('M40 100h26 M134 100h30', { stroke: '#D4D4D4' })),
+    setup: (sv) => h('g', null,
+      h('ellipse', { cx: 220, cy: 104, rx: 150, ry: 3.5, fill: '#EDEDEC' }),
+      h('g', { transform: 'translate(-6 0)' }, SCENES.documents(sv, true)),
+      P('M126 58h66', { stroke: '#BDBDBD', strokeDasharray: '3 6', vectorEffect: undefined, className: 'ls-art-flow' }),
+      h('circle', { cx: 220, cy: 58, r: 44, fill: '#F2F2F1' }), h('g', { transform: 'translate(140 0)' }, SCENES.scales(sv, true)),
+      P('M248 58h66', { stroke: '#BDBDBD', strokeDasharray: '3 6', vectorEffect: undefined, className: 'ls-art-flow' }),
+      h('g', { transform: 'translate(286 0)' }, SCENES.calendar(sv, true)))
+  };
+  const VB = { setup: '0 0 440 116', sunrise: '0 0 200 112' };
+  let artN = 0;
+  function Art({ name, style, className, tile }) {
+    const id = React.useRef(null); if (!id.current) id.current = 'ls-sv' + (++artN);
+    const sv = 'url(#' + id.current + ')', sc = SCENES[name] || SCENES.empty;
+    return h('svg', { viewBox: tile ? '30 14 100 100' : (VB[name] || '0 0 160 120'), 'aria-hidden': true, focusable: 'false', className: 'ls-art ' + (className || ''), style },
+      h('defs', null, h('linearGradient', { id: id.current, x1: 0, y1: 0, x2: 1, y2: 1 }, h('stop', { offset: 0, stopColor: '#FFFFFF' }), h('stop', { offset: .45, stopColor: '#E2E2E2' }), h('stop', { offset: .72, stopColor: '#ADADAD' }), h('stop', { offset: 1, stopColor: '#F2F2F2' }))),
+      sc(sv, tile));
+  }
+  const art = {}; Object.keys(SCENES).forEach(k => { art[k] = p => h(Art, Object.assign({ name: k }, p)); });
+  /* Pick an illustration from an empty-state title. */
+  const artFor = t => { t = String(t || '').toLowerCase();
+    return /case/.test(t) ? 'cases' : /hearing|listed|calendar|date/.test(t) ? 'calendar' : /order/.test(t) ? 'order' : /document|evidence|file|upload|exhibit/.test(t) ? 'documents'
+      : /client/.test(t) ? 'clients' : /invoice|fee|payment|bill/.test(t) ? 'invoice' : /member|team|invite/.test(t) ? 'team' : /note|research|match|result/.test(t) ? 'research'
+      : /task/.test(t) ? 'tasks' : /deadline|limitation/.test(t) ? 'deadline' : /application|available|admin|verif/.test(t) ? 'shield' : /agent|run/.test(t) ? 'agents'
+      : /question|chat|answer|ask/.test(t) ? 'chat' : /report/.test(t) ? 'reports' : /portal/.test(t) ? 'portal' : 'empty'; };
+
+  /* Sign-in panel composition: the logo with faint orbiting rings and floating reminder cards. */
+  const miniIc = { bell: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4z M10 20a2 2 0 0 0 4 0', check: 'M5 12.5l4.5 4.5L19 7.5', sun: 'M12 4v2 M5.6 6.6l1.4 1.4 M18.4 6.6L17 8 M3 15h18 M7 15a5 5 0 0 1 10 0 M6 19h12' };
+  const mini = (cls, ic, title, sub, pulse) => h('div', { className: 'ls-mini ' + cls, 'aria-hidden': true },
+    h('span', { className: 'ls-mini-ic' }, h('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: INK, strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }, h('path', { d: miniIc[ic] }))),
+    h('span', null, h('b', null, title, pulse && h('i', { className: 'ls-mini-dot ls-pulse' })), h('span', { className: 'ls-mini-sub' }, sub)));
+  function LoginStage() {
+    return h(React.Fragment, null,
+      mini('m1', 'bell', 'Hearing today · 10:30 AM', 'Delhi HC · Court 4 · Item 12', true),
+      mini('m2', 'check', 'Next date confirmed', '14 Jan 2027 · added to calendar'),
+      mini('m3', 'sun', 'Morning briefing sent', '7:30 AM · on WhatsApp and email'),
+      h('div', { className: 'ls-login-stage' },
+        h('div', { className: 'ls-orbits', 'aria-hidden': true }, h('span', { className: 'ls-ring-o r1' }), h('span', { className: 'ls-ring-o r2' }, h('i', { className: 'ls-odot' })), h('span', { className: 'ls-ring-o r3' }, h('i', { className: 'ls-odot' }))),
+        h('img', { src: 'assets/ls-logo-white.png', alt: 'Legal Staff', className: 'ls-login-logo', style: { height: 'min(34vh,260px)', width: 'auto', display: 'block', position: 'relative' } })));
+  }
+  /* Booting screen: a faint skeleton of the workspace behind the logo, ring pulse and an indeterminate bar. */
+  function Boot({ text }) {
+    const bar = (w, hh, extra) => h('div', { className: 'ls-shimmer', style: Object.assign({ width: w, height: hh, borderRadius: 6 }, extra) });
+    return h(React.Fragment, null,
+      h('div', { className: 'ls-boot-skel', 'aria-hidden': true },
+        h('div', { className: 'ls-boot-side' }, bar('70%', 22), h('div', { style: { height: 18 } }), ...[80, 64, 72, 58, 76, 62, 70, 54].map((w, i) => bar(w + '%', 12, { key: i, marginTop: 14 }))),
+        h('div', { className: 'ls-boot-main' }, bar('100%', 36, { borderRadius: 8 }), bar('34%', 22, { marginTop: 26 }),
+          h('div', { className: 'ls-boot-grid' }, ...[0, 1, 2, 3].map(i => bar('100%', 96, { key: i, borderRadius: 12 }))), bar('100%', 220, { borderRadius: 12, marginTop: 18 }))),
+      h('div', { className: 'ls-boot-center' },
+        h('span', { className: 'ls-boot-mark ls-ring' }, h('img', { src: 'assets/ls-mark-black.png', alt: '', style: { height: 34, display: 'block' } })),
+        h('span', { style: { fontWeight: 600, fontSize: 20, letterSpacing: '-.02em' } }, 'Legal Staff'),
+        h('div', { className: 'ls-boot-bar', role: 'progressbar', 'aria-label': 'Loading' }, h('i')),
+        h('div', { style: { fontSize: 14.5, color: '#5E5E5E', fontStyle: 'italic', textAlign: 'center', padding: '0 16px' } }, text)));
+  }
+  const Btn = ({ primary, danger, small, onClick, children, disabled, title, style }) => h('button', { onClick, disabled, title, type: 'button', className: 'ls-btn', style: Object.assign({ whiteSpace: 'nowrap', height: small ? 30 : 36, padding: small ? '0 10px' : '0 16px', borderRadius: 8, fontSize: small ? 12.5 : 13.5, fontWeight: primary ? 500 : 400, border: primary ? 0 : '1px solid ' + (danger ? '#F4B8B1' : K.line), background: primary ? K.ink : '#FFFFFF', color: primary ? '#fff' : (danger ? K.red : K.ink), opacity: disabled ? .45 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }, style) }, children);
   const Chip = ({ tone, children }) => h('span', { style: { fontSize: 12, fontWeight: 500, borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap', background: tone === 'red' ? K.redBg : (tone === 'grey' ? '#EDEDED' : K.soft2), color: tone === 'red' ? K.red : (tone === 'grey' ? K.txt : K.ink) } }, children);
   const Card = ({ title, right, children, pad, style }) => h('section', { style: Object.assign({}, X.card, { padding: pad === 0 ? 0 : (pad || '22px 24px') }, style) },
     (title || right) && h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14, padding: pad === 0 ? '18px 22px 0' : 0 } }, h('h2', { style: X.h2 }, title), right), children);
-  const Page = ({ kicker, title, sub, actions, children, max }) => h('div', { style: Object.assign({}, X.page, max ? { maxWidth: max } : null) },
+  const Page = ({ kicker, title, sub, actions, children, max, art }) => h('div', { style: Object.assign({}, X.page, max ? { maxWidth: max } : null) },
     h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end', justifyContent: 'space-between' } },
-      h('div', null, kicker && h('div', { style: Object.assign({ marginBottom: 6 }, X.kicker) }, kicker), h('h1', { style: X.h1 }, title), sub && h('div', { style: X.sub }, sub)),
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 } }, art && h('div', { className: 'ls-page-art' }, h(Art, { name: art, tile: true, style: { width: 50, height: 50 } })),
+        h('div', { style: { minWidth: 0 } }, kicker && h('div', { style: Object.assign({ marginBottom: 6 }, X.kicker) }, kicker), h('h1', { style: X.h1 }, title), sub && h('div', { style: X.sub }, sub))),
       actions && h('div', { style: X.row }, actions)), children);
-  const Empty = ({ title, text }) => h('div', { style: { padding: '44px 22px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' } }, h('div', { style: { fontSize: 16, fontWeight: 600 } }, title), text && h('div', { style: { color: K.mut, fontSize: 14, maxWidth: 380 } }, text));
+  const Empty = ({ title, text, art, small }) => { const a = art || (artFor(title) !== 'empty' ? artFor(title) : artFor(text));
+    return h('div', { className: 'ls-empty', style: { padding: small ? '20px 16px 24px' : '36px 22px 44px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: small ? 6 : 8, textAlign: 'center' } },
+      art !== false && h(Art, { name: a, style: { width: small ? 104 : 156, height: 'auto', marginBottom: small ? 2 : 6 } }),
+      h('div', { style: { fontSize: small ? 15 : 16, fontWeight: 600 } }, title), text && h('div', { style: { color: K.mut, fontSize: small ? 13.5 : 14, maxWidth: 380 } }, text)); };
   /* cols: [{ label, w, get(row) }] */
   const Table = ({ cols, rows, onRow, empty, min }) => {
     const grid = { display: 'grid', gridTemplateColumns: cols.map(c => c.w || '1fr').join(' '), gap: 16, alignItems: 'center', padding: '14px 22px' };
     return h('section', { style: Object.assign({}, X.card, { overflowX: 'auto' }) }, h('div', { style: { minWidth: min || 760 } },
       h('div', { style: Object.assign({}, grid, X.kicker, { padding: '12px 22px', borderBottom: '1px solid ' + K.line }) }, cols.map((c, i) => h('span', { key: i }, c.label))),
-      rows.map((r, i) => h(onRow ? 'button' : 'div', { key: r.id || i, type: onRow ? 'button' : undefined, onClick: onRow ? () => onRow(r) : undefined, style: Object.assign({}, grid, { width: '100%', textAlign: 'left', border: 0, borderBottom: i < rows.length - 1 ? '1px solid ' + K.line : 0, background: '#FFFFFF', color: K.ink, fontSize: 13.5 }) }, cols.map((c, j) => h('span', { key: j, style: { minWidth: 0, color: j ? K.txt : K.ink, fontWeight: j ? 400 : 500 } }, c.get(r))))),
+      rows.map((r, i) => h(onRow ? 'button' : 'div', { key: r.id || i, type: onRow ? 'button' : undefined, onClick: onRow ? () => onRow(r) : undefined, className: 'ls-row' + (onRow ? ' ls-row-btn' : ''), style: Object.assign({}, grid, { animationDelay: Math.min(i, 10) * 28 + 'ms', width: '100%', textAlign: 'left', border: 0, borderBottom: i < rows.length - 1 ? '1px solid ' + K.line : 0, background: '#FFFFFF', color: K.ink, fontSize: 13.5 }) }, cols.map((c, j) => h('span', { key: j, style: { minWidth: 0, color: j ? K.txt : K.ink, fontWeight: j ? 400 : 500 } }, c.get(r))))),
       !rows.length && h(Empty, empty || { title: 'Nothing here yet' })));
   };
-  const Modal = ({ title, sub, onClose, children, width }) => h('div', { onMouseDown: e => { if (e.target === e.currentTarget) onClose(); }, style: { position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(32,30,29,.35)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', overflowY: 'auto' } },
-    h('div', { role: 'dialog', 'aria-modal': true, style: Object.assign({}, X.card, { width: '100%', maxWidth: width || 520, padding: '24px 26px', boxShadow: '0 24px 64px rgba(0,0,0,.18)', display: 'flex', flexDirection: 'column', gap: 16 }) },
+  const Modal = ({ title, sub, onClose, children, width, art }) => h('div', { onMouseDown: e => { if (e.target === e.currentTarget) onClose(); }, className: 'ls-backdrop', style: { position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(32,30,29,.35)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', overflowY: 'auto' } },
+    h('div', { role: 'dialog', 'aria-modal': true, className: 'ls-dialog', style: Object.assign({}, X.card, { width: '100%', maxWidth: width || 520, padding: '24px 26px', boxShadow: '0 24px 64px rgba(0,0,0,.18)', display: 'flex', flexDirection: 'column', gap: 16 }) },
+      art && h('div', { className: 'ls-modal-art' }, h(Art, { name: art, style: { width: '100%', maxWidth: 400, height: 'auto', display: 'block' } })),
       h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' } }, h('div', null, h('h2', { style: { fontSize: 18, fontWeight: 600, margin: 0 } }, title), sub && h('div', { style: X.sub }, sub)),
         h('button', { onClick: onClose, 'aria-label': 'Close', style: { border: 0, background: 'none', fontSize: 22, lineHeight: 1, color: K.mut } }, '×')), children));
   const Field = ({ label, error, children, half }) => h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, flex: half ? '1 1 180px' : '1 1 100%', minWidth: 0 } }, label && h('label', { style: { fontSize: 13, color: K.txt } }, label), children, error && h('div', { style: { fontSize: 12.5, color: K.red } }, error));
@@ -53,14 +225,14 @@
           : f.type === 'textarea' ? h('textarea', { value: v[f.k], placeholder: f.ph, rows: f.rows || 4, onChange: e => setV(Object.assign({}, v, { [f.k]: e.target.value })), style: Object.assign({}, X.input, { height: 'auto', padding: '10px 12px', resize: 'vertical', lineHeight: 1.5 }) })
             : h('input', { type: f.type === 'number' ? 'text' : (f.type || 'text'), inputMode: f.type === 'number' ? 'decimal' : undefined, value: v[f.k], placeholder: f.ph, onChange: e => setV(Object.assign({}, v, { [f.k]: e.target.value })), style: X.input })))),
       note && h('div', { style: { fontSize: 12.5, color: K.mut } }, note),
-      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, onCancel && h(Btn, { onClick: onCancel }, 'Cancel'), h('button', { type: 'submit', style: { height: 36, padding: '0 16px', borderRadius: 8, fontSize: 13.5, fontWeight: 500, border: 0, background: K.ink, color: '#fff' } }, submit || 'Save')));
+      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, onCancel && h(Btn, { onClick: onCancel }, 'Cancel'), h('button', { type: 'submit', className: 'ls-btn', style: { height: 36, padding: '0 16px', borderRadius: 8, fontSize: 13.5, fontWeight: 500, border: 0, background: K.ink, color: '#fff' } }, submit || 'Save')));
   };
-  const Toggle = ({ on, onChange, label }) => h('button', { type: 'button', role: 'switch', 'aria-checked': !!on, 'aria-label': label, onClick: () => onChange(!on), style: { width: 40, height: 22, borderRadius: 11, border: 0, padding: 2, background: on ? K.ink : '#C4C4C4', display: 'flex', justifyContent: on ? 'flex-end' : 'flex-start', flexShrink: 0, transition: 'background .15s' } }, h('span', { style: { width: 18, height: 18, borderRadius: 9, background: '#fff', display: 'block' } }));
-  const Stat = ({ label, value, note, red }) => h('div', { style: Object.assign({}, X.card, { padding: '18px 20px', flex: '1 1 180px' }) }, h('div', { style: { fontSize: 13, color: K.mut } }, label), h('div', { style: { fontSize: 26, fontWeight: 600, letterSpacing: '-.02em', marginTop: 4, fontVariantNumeric: 'tabular-nums' } }, value), note && h('div', { style: { fontSize: 13, color: red ? K.red : K.mut, marginTop: 4 } }, note));
+  const Toggle = ({ on, onChange, label }) => h('button', { type: 'button', role: 'switch', 'aria-checked': !!on, 'aria-label': label, onClick: () => onChange(!on), style: { width: 40, height: 22, borderRadius: 11, border: 0, padding: 2, background: on ? K.ink : '#C4C4C4', display: 'flex', justifyContent: 'flex-start', flexShrink: 0, transition: 'background .2s ease' } }, h('span', { style: { width: 18, height: 18, borderRadius: 9, background: '#fff', display: 'block', transform: on ? 'translateX(18px)' : 'none', transition: 'transform .22s var(--ls-ease-out)', boxShadow: '0 1px 2px rgba(0,0,0,.2)' } }));
+  const Stat = ({ label, value, note, red }) => h('div', { className: 'ls-lift', style: Object.assign({}, X.card, { padding: '18px 20px', flex: '1 1 180px' }) }, h('div', { style: { fontSize: 13, color: K.mut } }, label), h('div', { style: { fontSize: 26, fontWeight: 600, letterSpacing: '-.02em', marginTop: 4, fontVariantNumeric: 'tabular-nums' } }, typeof value === 'string' || typeof value === 'number' ? h(CountUp, { value }) : value), note && h('div', { style: { fontSize: 13, color: red ? K.red : K.mut, marginTop: 4 } }, note));
   const Search = ({ value, onChange, placeholder, width }) => h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, background: '#FFFFFF', border: '1px solid ' + K.line, borderRadius: 8, padding: '0 12px', height: 38, minWidth: width || 240 } }, h('span', { style: { color: '#7A7A7A' } }, '⌕'), h('input', { value, onChange: e => onChange(e.target.value), placeholder, style: { border: 0, outline: 'none', flex: 1, fontSize: 14, background: 'transparent', minWidth: 0 } }));
   const Select = ({ value, onChange, options, style }) => h('select', { value, onChange: e => onChange(e.target.value), style: Object.assign({}, X.input, { width: 'auto', minWidth: 160 }, style) }, options.map(o => h('option', { key: o[0], value: o[0] }, o[1])));
   const Line = ({ children, last }) => h('div', { style: { display: 'flex', gap: 12, alignItems: 'center', padding: '12px 0', borderTop: '1px solid ' + K.line, fontSize: 14 } }, children);
-  const Bars = ({ rows, fmt }) => { const mx = Math.max(1, ...rows.map(r => r[1])); return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } }, rows.map(([k, n]) => h('div', { key: k, style: { display: 'grid', gridTemplateColumns: 'minmax(110px,1.2fr) 2fr auto', gap: 12, alignItems: 'center', fontSize: 13.5 } }, h('span', { style: { color: K.txt, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, k), h('span', { style: { height: 8, background: K.soft2, borderRadius: 4, overflow: 'hidden' } }, h('span', { style: { display: 'block', height: '100%', width: (n / mx * 100) + '%', background: K.ink } })), h('span', { style: { fontVariantNumeric: 'tabular-nums', fontWeight: 500 } }, fmt ? fmt(n) : n))), !rows.length && h('div', { style: { color: K.mut, fontSize: 14 } }, 'No data yet.')); };
+  const Bars = ({ rows, fmt }) => { const mx = Math.max(1, ...rows.map(r => r[1])); return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } }, rows.map(([k, n]) => h('div', { key: k, style: { display: 'grid', gridTemplateColumns: 'minmax(110px,1.2fr) 2fr auto', gap: 12, alignItems: 'center', fontSize: 13.5 } }, h('span', { style: { color: K.txt, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, k), h('span', { style: { height: 8, background: K.soft2, borderRadius: 4, overflow: 'hidden' } }, h('span', { className: 'ls-grow-x', style: { display: 'block', height: '100%', width: (n / mx * 100) + '%', background: K.ink } })), h('span', { style: { fontVariantNumeric: 'tabular-nums', fontWeight: 500 } }, fmt ? fmt(n) : n))), !rows.length && h('div', { style: { color: K.mut, fontSize: 14 } }, 'No data yet.')); };
 
   /* ---------- shared data helpers ---------- */
   const caseOf = (d, id) => d.cases.find(c => c.id === id) || { title: '—', no: '' };
@@ -144,7 +316,7 @@
   function onboard(app) {
     const d = app.db;
     const must = window.LSB && LSB.on && !d.firmId;
-    app.modal(() => h(Modal, { title: 'Set up your practice', sub: 'These details appear on your letterhead, invoices and briefings. You can change them later in Settings.', onClose: () => must ? app.toast('Set up your practice to continue, or sign out from the account menu.') : app.modal(null) },
+    app.modal(() => h(Modal, { art: 'setup', title: 'Set up your practice', sub: 'These details appear on your letterhead, invoices and briefings. You can change them later in Settings.', onClose: () => must ? app.toast('Set up your practice to continue, or sign out from the account menu.') : app.modal(null) },
       h(Form, { init: { name: d.user.name, role: d.user.role || 'Advocate', firm: d.firm.name || app.pendingFirm || '', city: d.firm.city, address: d.firm.address }, submit: 'Start using Legal Staff',
         fields: [{ k: 'name', label: 'Your full name', req: true, half: true }, { k: 'role', label: 'Designation', type: 'select', options: ['Advocate', 'Managing Partner', 'Partner', 'Associate', 'Junior Advocate', 'Paralegal', 'Office Manager'], half: true }, { k: 'firm', label: 'Firm or chamber name', req: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'address', label: 'Office address', half: true }],
         onSubmit: v => { if (window.LSB && LSB.on && !app.db.firmId) { app.modal(null); return app.createFirm(v); } app.mut(db => { const name = v.name.trim(), old = db.user.name; db.user.name = name; db.user.role = v.role; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + name;
@@ -215,7 +387,7 @@
     const mine = d.tasks.filter(t => t.who === me && (all || !t.done)).sort((a, b) => a.due.localeCompare(b.due));
     const hs = d.hearings.filter(x => x.assignee === me && x.date >= L.today() && L.diffDays(x.date, L.today()) <= 7).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     const drafts = Object.keys(d.drafts || {});
-    return h(Page, { kicker: 'Overview', title: 'My Workspace', sub: `${mine.filter(t => !t.done).length} open tasks · ${hs.length} hearings in the next 7 days`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addTask(app) }, '+ New task')] },
+    return h(Page, { art: 'tasks', kicker: 'Overview', title: 'My Workspace', sub: `${mine.filter(t => !t.done).length} open tasks · ${hs.length} hearings in the next 7 days`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addTask(app) }, '+ New task')] },
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 20 } },
         h(Card, { title: 'My tasks', right: h(Btn, { small: true, onClick: () => setAll(!all) }, all ? 'Hide completed' : 'Show completed') }, mine.map(t => h(TaskRow, { key: t.id, app, t, showCase: true })), !mine.length && h(Empty, { title: 'No open tasks', text: 'Tasks assigned to you appear here.' })),
         h('div', { style: { display: 'flex', flexDirection: 'column', gap: 20 } },
@@ -229,7 +401,7 @@
     d.hearings.forEach(x => { const b = by[x.court]; if (!b) return; if (x.date >= L.today()) { if (L.diffDays(x.date, L.today()) <= 14) b.up++; if (!b.next || x.date < b.next) b.next = x.date; } else if (/adjourn|time sought|time to|given \d|weeks/i.test(x.outcome || '')) b.adj++; });
     const rows = Object.values(by).sort((a, b) => b.n - a.n), nw = L.nextWorking(L.addDays(L.today(), 1));
     const list = d.hearings.filter(x => x.date === nw).sort((a, b) => a.time.localeCompare(b.time));
-    return h(Page, { kicker: 'Practice', title: 'Court Intelligence', sub: `${rows.length} court${rows.length === 1 ? '' : 's'} · figures are computed from your own cases and hearings` },
+    return h(Page, { art: 'court', kicker: 'Practice', title: 'Court Intelligence', sub: `${rows.length} court${rows.length === 1 ? '' : 's'} · figures are computed from your own cases and hearings` },
       h(Table, { min: 720, cols: [{ label: 'Court', w: 'minmax(220px,2fr)', get: r => r.court }, { label: 'Open matters', get: r => r.n }, { label: 'Hearings · 14 days', get: r => r.up }, { label: 'Next listing', get: r => r.next ? L.fmt(r.next) : '—' }, { label: 'Adjournments recorded', get: r => r.adj }], rows, empty: { title: 'No courts yet', text: 'Courts appear once you add cases.' } }),
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 20 } },
         h(Card, { title: 'Your list for ' + L.fmt(nw, { weekday: 'long', day: 'numeric', month: 'short' }) }, list.map(x => h(Line, { key: x.id }, h('div', { style: { width: 70, fontVariantNumeric: 'tabular-nums', color: K.mut, fontSize: 13 } }, L.t12ap(x.time)), h('div', { style: { flex: 1, minWidth: 0 } }, caseOf(d, x.caseId).title, h('div', { style: { fontSize: 12, color: K.mut } }, [x.court, x.item, x.assignee].filter(Boolean).join(' · '))), h(Btn, { small: true, onClick: () => app.go('case', x.caseId) }, 'Open'))), !list.length && h(Empty, { title: 'Nothing listed', text: 'No hearings are recorded for the next working day.' })),
@@ -249,14 +421,14 @@
         h('div', null, h('div', { style: Object.assign({ marginBottom: 6 }, X.kicker) }, 'Notes'), h('textarea', { defaultValue: cl.notes, rows: 3, placeholder: 'Saved when you click away', onBlur: e => { const v = e.target.value; if (v !== cl.notes) app.mut(db => { db.clients.find(x => x.id === cl.id).notes = v; }, 'Notes saved'); }, style: Object.assign({}, X.input, { height: 'auto', padding: '10px 12px', resize: 'vertical' }) })),
         h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { danger: true, disabled: !!cs.length, title: cs.length ? 'Clients with cases cannot be deleted' : '', onClick: () => { app.mut(db => { db.clients = db.clients.filter(x => x.id !== cl.id); }, 'Client deleted'); app.modal(null); } }, 'Delete'), h(Btn, { onClick: () => edit(cl) }, 'Edit'), h(Btn, { primary: true, onClick: () => newCase(app, { clientId: cl.id }) }, '+ New case'))); });
     const rows = d.clients.filter(c => !q || (c.name + c.contact + c.city + c.email).toLowerCase().includes(q.toLowerCase()));
-    return h(Page, { kicker: 'Practice', title: 'Clients CRM', sub: `${d.clients.length} clients · click a row for cases, contact details and notes`, actions: [h(Search, { key: 0, value: q, onChange: setQ, placeholder: 'Search clients' }), h(Btn, { key: 1, primary: true, onClick: () => edit(null) }, '+ New client')] },
+    return h(Page, { art: 'clients', kicker: 'Practice', title: 'Clients CRM', sub: `${d.clients.length} clients · click a row for cases, contact details and notes`, actions: [h(Search, { key: 0, value: q, onChange: setQ, placeholder: 'Search clients' }), h(Btn, { key: 1, primary: true, onClick: () => edit(null) }, '+ New client')] },
       h(Table, { onRow: view, cols: [{ label: 'Client', w: 'minmax(220px,2fr)', get: c => h('span', null, c.name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, c.contact)) }, { label: 'Phone', get: c => c.phone || '—' }, { label: 'City', get: c => c.city || '—' }, { label: 'Cases', w: '80px', get: c => d.cases.filter(x => x.clientId === c.id).length }, { label: 'Outstanding', get: c => L.inr(d.invoices.filter(i => i.clientId === c.id && !i.paid).reduce((a, i) => a + i.amount + gstOf(i.amount), 0)) }, { label: 'Portal', w: '90px', get: c => h(Chip, { tone: c.portal ? '' : 'grey' }, c.portal ? 'Enabled' : 'Off') }], rows, empty: { title: 'No clients match', text: 'Try another search or add a client.' } }));
   }
   function Docs({ app, kind }) {
     const d = app.db, ev = kind === 'evidence', [q, setQ] = useState(''), [cf, setCf] = useState('');
     const rows = d.docs.filter(x => x.kind === kind && (!cf || x.caseId === cf) && (!q || (x.name + x.meta + (x.exhibit || '')).toLowerCase().includes(q.toLowerCase())));
     const cols = [{ label: ev ? 'Exhibit' : 'Type', w: '90px', get: x => h('span', { style: { fontSize: 11, fontWeight: 600, border: '1px solid ' + K.line, borderRadius: 6, padding: '3px 6px', background: K.soft } }, ev ? (x.exhibit || '—') : x.ext) }, { label: ev ? 'Item' : 'Document', w: 'minmax(220px,2.2fr)', get: x => h('span', null, x.name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, ev ? (x.custody || x.meta) : x.meta)) }, { label: 'Case', w: '1.4fr', get: x => caseOf(d, x.caseId).title }, { label: 'Added', get: x => L.dayMon(x.added || d.anchor) }, { label: '', w: '190px', get: x => h('span', { style: { display: 'flex', gap: 6, justifyContent: 'flex-end' } }, h(Btn, { small: true, onClick: () => openDoc(app, x) }, 'Download'), h(Btn, { small: true, danger: true, onClick: () => confirmBox(app, 'Delete this ' + (ev ? 'evidence record' : 'document') + '?', `"${x.name}" will be removed from the case file.`, 'Delete', () => { if (window.LSB && LSB.on) { if (x.file) LSB.removeFile(x.id, x.file); } else L.files.del(x.id); app.mut(db => { db.docs = db.docs.filter(y => y.id !== x.id); }, 'Deleted'); }) }, 'Delete')) }];
-    return h(Page, { kicker: 'Practice', title: ev ? 'Evidence' : 'Documents', sub: `${rows.length} of ${d.docs.filter(x => x.kind === kind).length} ${ev ? 'exhibits and evidence records' : 'documents'} across your cases`, actions: [h(Select, { key: 0, value: cf, onChange: setCf, options: [['', 'All cases'], ...caseOpts(d)] }), h(Search, { key: 1, value: q, onChange: setQ, placeholder: ev ? 'Search evidence' : 'Search documents' }), h(Btn, { key: 2, primary: true, onClick: () => uploadDoc(app, kind, cf) }, ev ? '+ Add evidence' : '+ Upload')] },
+    return h(Page, { art: 'documents', kicker: 'Practice', title: ev ? 'Evidence' : 'Documents', sub: `${rows.length} of ${d.docs.filter(x => x.kind === kind).length} ${ev ? 'exhibits and evidence records' : 'documents'} across your cases`, actions: [h(Select, { key: 0, value: cf, onChange: setCf, options: [['', 'All cases'], ...caseOpts(d)] }), h(Search, { key: 1, value: q, onChange: setQ, placeholder: ev ? 'Search evidence' : 'Search documents' }), h(Btn, { key: 2, primary: true, onClick: () => uploadDoc(app, kind, cf) }, ev ? '+ Add evidence' : '+ Upload')] },
       h(Table, { cols, rows, min: 860, empty: { title: ev ? 'No evidence recorded' : 'No documents', text: 'Change the filter or add a file.' } }));
   }
   const LIB = [
@@ -282,7 +454,7 @@
     const d = app.db, [q, setQ] = useState(''), [only, setOnly] = useState(false);
     const words = q.toLowerCase().split(/\s+/).filter(w => w.length > 1);
     const scored = LIB.map(e => { const hay = (e.ref + ' ' + e.title + ' ' + e.text + ' ' + e.tags).toLowerCase(); return [words.reduce((n, w) => n + (hay.includes(w) ? 1 : 0), 0), e]; }).filter(x => (!words.length || x[0] > 0) && (!only || d.research.includes(x[1].id))).sort((a, b) => b[0] - a[0]).map(x => x[1]);
-    return h(Page, { kicker: 'AI', title: 'AI Legal Research', sub: 'Search the built-in reference notes on provisions used in your matters', max: 980, actions: [h(Btn, { key: 1, onClick: () => setOnly(!only), style: only ? { background: K.soft2, borderColor: K.ink } : null }, only ? 'Showing saved' : `Saved (${d.research.length})`)] },
+    return h(Page, { art: 'research', kicker: 'AI', title: 'AI Legal Research', sub: 'Search the built-in reference notes on provisions used in your matters', max: 980, actions: [h(Btn, { key: 1, onClick: () => setOnly(!only), style: only ? { background: K.soft2, borderColor: K.ink } : null }, only ? 'Showing saved' : `Saved (${d.research.length})`)] },
       h('div', { style: { display: 'flex', gap: 8, background: '#FFFFFF', border: '1px solid ' + K.line, borderRadius: 10, padding: '6px 6px 6px 14px' } }, h('input', { value: q, onChange: e => setQ(e.target.value), placeholder: 'e.g. condonation of delay, cheque notice, certified copy…', autoFocus: true, style: { flex: 1, border: 0, outline: 'none', fontSize: 15, background: 'transparent', minWidth: 0 } }), q && h(Btn, { onClick: () => setQ('') }, 'Clear')),
       h('div', { style: { fontSize: 13, color: K.mut } }, `${scored.length} of ${LIB.length} notes${words.length ? ' match' : ''}. These are short reference notes, not a case-law database. Check the bare act and current authorities before relying on them.`),
       scored.map(e => { const saved = d.research.includes(e.id); return h(Card, { key: e.id }, h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' } }, h('div', null, h('div', { style: { fontSize: 12.5, color: K.mut } }, e.ref), h('div', { style: { fontSize: 16, fontWeight: 600, marginTop: 2 } }, e.title)), h('div', { style: X.row }, h(Btn, { small: true, onClick: () => { try { navigator.clipboard.writeText(`${e.ref} — ${e.title}. ${e.text}`); app.toast('Copied to clipboard'); } catch (x) { app.toast('Copy is not available in this browser'); } } }, 'Copy'), h(Btn, { small: true, onClick: () => app.mut(db => { db.research = saved ? db.research.filter(x => x !== e.id) : [...db.research, e.id]; }, saved ? 'Removed from saved' : 'Saved') }, saved ? 'Saved ✓' : 'Save'))), h('p', { style: { fontSize: 14.5, lineHeight: 1.65, color: K.txt, margin: '10px 0 0', maxWidth: 820 } }, e.text)); }),
@@ -298,7 +470,7 @@
   }
   function Agents({ app }) {
     const d = app.db;
-    return h(Page, { kicker: 'AI', title: 'AI Agents', sub: `${d.agents.filter(a => a.on).length} of ${d.agents.length} agents enabled`, max: 1100 },
+    return h(Page, { art: 'agents', kicker: 'AI', title: 'AI Agents', sub: `${d.agents.filter(a => a.on).length} of ${d.agents.length} agents enabled`, max: 1100 },
       h('div', { style: { fontSize: 13, color: K.mut, background: K.soft2, borderRadius: 8, padding: '10px 14px', lineHeight: 1.55 } }, window.LSB && LSB.on ? 'Run now shows the result here. The daily briefing is also sent each morning by email and WhatsApp to members who have those switched on, once those services are connected.' : 'Agents run in this browser when you press Run now. Scheduled delivery needs the server to be connected.'),
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,440px),1fr))', gap: 20 } }, d.agents.map(a => h(Card, { key: a.id },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' } }, h('div', null, h('div', { style: { fontSize: 16, fontWeight: 600 } }, a.name), h('div', { style: { fontSize: 14, color: K.txt, marginTop: 4, lineHeight: 1.5 } }, a.what), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 6 } }, a.when)), h(Toggle, { on: a.on, label: 'Enable ' + a.name, onChange: v => app.mut(db => { db.agents.find(x => x.id === a.id).on = v; }, a.name + (v ? ' enabled' : ' paused')) })),
@@ -310,7 +482,7 @@
     const invite = () => (window.LSB && LSB.on && !d.isOwner) ? app.toast('Only the firm owner can invite or change members.') : app.modal(() => h(Modal, { title: 'Invite a team member', onClose: () => app.modal(null) }, h(Form, { submit: 'Add to team', onCancel: () => app.modal(null), note: window.LSB && LSB.on ? 'They join your firm the first time they sign in with this Google account. Tell them the site address; no invitation email is sent.' : 'No invitation email is sent in this browser-only version. The member is added with the status "Invited".', fields: [{ k: 'name', label: 'Full name', req: true }, { k: 'email', label: 'Work email', type: 'email', req: true, check: v => d.team.some(u => u.email.toLowerCase() === v.toLowerCase()) ? 'This email is already on the team' : '' }, { k: 'role', label: 'Role', type: 'select', options: roles }], onSubmit: v => { app.mut(db => { db.team.push({ id: L.uid('u'), name: v.name.trim(), title: (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + v.name.trim(), role: v.role, email: v.email.trim(), status: 'Invited' }); }, 'Team member added'); app.modal(null); } })));
     const edit = u => (window.LSB && LSB.on && !d.isOwner) ? app.toast('Only the firm owner can invite or change members.') : app.modal(() => h(Modal, { title: u.title, sub: u.email, onClose: () => app.modal(null) }, h(Form, { init: { role: u.role, status: u.status }, submit: 'Save', onCancel: () => app.modal(null), fields: [{ k: 'role', label: 'Role', type: 'select', options: roles, half: true }, { k: 'status', label: 'Status', type: 'select', options: ['Active', 'Invited', 'Suspended'], half: true }], onSubmit: v => { app.mut(db => { Object.assign(db.team.find(x => x.id === u.id), v); }, 'Team member updated'); app.modal(null); } }),
       u.name !== d.user.name && h('div', { style: { borderTop: '1px solid ' + K.line, paddingTop: 14, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' } }, h('span', { style: { fontSize: 13, color: K.mut } }, 'Their tasks and hearings stay assigned by name.'), h(Btn, { danger: true, onClick: () => { app.mut(db => { db.team = db.team.filter(x => x.id !== u.id); }, 'Removed from team'); app.modal(null); } }, 'Remove from team'))));
-    return h(Page, { kicker: 'Firm', title: 'Team', sub: `${d.team.length} members · click a row to change role or status`, actions: [h(Btn, { key: 1, primary: true, onClick: invite }, '+ Invite member')] },
+    return h(Page, { art: 'team', kicker: 'Firm', title: 'Team', sub: `${d.team.length} members · click a row to change role or status`, actions: [h(Btn, { key: 1, primary: true, onClick: invite }, '+ Invite member')] },
       h(Table, { onRow: edit, cols: [{ label: 'Member', w: 'minmax(220px,2fr)', get: u => h('span', null, u.title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, u.email)) }, { label: 'Role', w: '1.2fr', get: u => u.role }, { label: 'Cases', get: u => d.cases.filter(c => c.team.includes(u.name) && c.status !== 'archived' && c.status !== 'disposed').length }, { label: 'Open tasks', get: u => { const n = openTasks(d).filter(t => t.who === u.name), o = n.filter(overdue).length; return n.length + (o ? ` (${o} overdue)` : ''); } }, { label: 'Hearings · 7 days', get: u => d.hearings.filter(x => x.assignee === u.name && x.date >= L.today() && L.diffDays(x.date, L.today()) <= 7).length }, { label: 'Status', w: '100px', get: u => h(Chip, { tone: u.status === 'Active' ? '' : (u.status === 'Suspended' ? 'red' : 'grey') }, u.status) }], rows: d.team }));
   }
   function invoiceView(app, id) {
@@ -328,7 +500,7 @@
     const rows = d.invoices.filter(i => f === 'all' || (f === 'paid' ? i.paid : !i.paid)).sort((a, b) => b.date.localeCompare(a.date));
     const create = () => needCase(app) || app.modal(() => h(Modal, { title: 'New invoice', onClose: () => app.modal(null) }, h(Form, { init: { date: T, caseId: (caseOpts(d)[0] || [''])[0] }, submit: 'Create invoice', onCancel: () => app.modal(null), note: 'GST at 18% is added to the amount.', fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d) }, { k: 'desc', label: 'Description', req: true, ph: 'Professional fees — drafting and appearance' }, { k: 'amount', label: 'Amount before GST (₹)', type: 'number', req: true, half: true, check: v => v && isNaN(+v.replace(/,/g, '')) ? 'Enter a number' : '' }, { k: 'date', label: 'Invoice date', type: 'date', req: true, half: true }],
       onSubmit: v => { let id; app.mut(db => { const c = caseOf(db, v.caseId), n = Math.max(0, ...db.invoices.map(i => +String(i.no).split('-').pop() || 0)) + 1, ino = 'INV-' + L.today().slice(0, 4) + '-' + String(n).padStart(3, '0'); id = L.uid('i'); db.invoices.unshift({ id, no: ino, clientId: c.clientId || '', caseId: v.caseId, date: v.date, amount: Math.round(+String(v.amount).replace(/,/g, '') * 100) / 100, paid: false, paidOn: '', desc: v.desc.trim() }); logIt(db, 'Invoice ' + ino + ' raised', v.caseId); }, 'Invoice created'); invoiceView(app, id); } })));
-    return h(Page, { kicker: 'Firm', title: 'Billing & Finance', sub: `${d.invoices.length} invoices · ${unpaid.length} unpaid`, actions: [h(Btn, { key: 0, onClick: () => L.csv('invoices.csv', [['Invoice', 'Client', 'Case', 'Date', 'Amount', 'GST', 'Total', 'Status', 'Paid on'], ...d.invoices.map(i => [i.no, clientOf(d, i.clientId).name, caseOf(d, i.caseId).title, i.date, i.amount, gstOf(i.amount), tot(i), i.paid ? 'Paid' : 'Unpaid', i.paidOn])]) }, 'Export CSV'), h(Btn, { key: 1, primary: true, onClick: create }, '+ New invoice')] },
+    return h(Page, { art: 'invoice', kicker: 'Firm', title: 'Billing & Finance', sub: `${d.invoices.length} invoices · ${unpaid.length} unpaid`, actions: [h(Btn, { key: 0, onClick: () => L.csv('invoices.csv', [['Invoice', 'Client', 'Case', 'Date', 'Amount', 'GST', 'Total', 'Status', 'Paid on'], ...d.invoices.map(i => [i.no, clientOf(d, i.clientId).name, caseOf(d, i.caseId).title, i.date, i.amount, gstOf(i.amount), tot(i), i.paid ? 'Paid' : 'Unpaid', i.paidOn])]) }, 'Export CSV'), h(Btn, { key: 1, primary: true, onClick: create }, '+ New invoice')] },
       h('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap' } }, h(Stat, { label: 'Collected this month', value: L.inr(d.invoices.filter(i => i.paid && i.paidOn.slice(0, 7) === ym).reduce((a, i) => a + i.amount, 0)), note: 'Fees, before GST' }), h(Stat, { label: 'Outstanding', value: L.inr(unpaid.reduce((a, i) => a + i.amount, 0)), note: unpaid.length + ' unpaid invoices' }), h(Stat, { label: 'Overdue by 30+ days', value: L.inr(od.reduce((a, i) => a + i.amount, 0)), note: od.length + ' invoices', red: od.length > 0 })),
       h('div', { style: { display: 'flex', gap: 6 } }, [['all', 'All'], ['unpaid', 'Unpaid'], ['paid', 'Paid']].map(([k, l]) => h('button', { key: k, onClick: () => setF(k), style: { height: 34, padding: '0 14px', borderRadius: 8, fontSize: 13, border: '1px solid ' + (f === k ? K.ink : K.line), background: f === k ? K.ink : '#fff', color: f === k ? '#fff' : K.txt } }, l))),
       h(Table, { onRow: i => invoiceView(app, i.id), min: 860, cols: [{ label: 'Invoice', w: '130px', get: i => i.no }, { label: 'Client', w: 'minmax(180px,1.6fr)', get: i => h('span', null, clientOf(d, i.clientId).name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, caseOf(d, i.caseId).title)) }, { label: 'Date', get: i => L.fmt(i.date) }, { label: 'Fees', get: i => L.inr(i.amount) }, { label: 'Total with GST', get: i => L.inr(tot(i)) }, { label: 'Status', w: '110px', get: i => h(Chip, { tone: i.paid ? '' : (L.diffDays(T, i.date) > 30 ? 'red' : 'grey') }, i.paid ? 'Paid' : (L.diffDays(T, i.date) > 30 ? 'Overdue' : 'Unpaid')) }], rows, empty: { title: 'No invoices in this view' } }));
@@ -343,7 +515,7 @@
     const d = app.db, set = (id, fn, msg) => app.mut(db => fn(db.clients.find(x => x.id === id)), msg);
     const preview = cl => app.modal(() => { const c = app.db.clients.find(x => x.id === cl.id); return h(Modal, { title: 'What ' + c.name + ' sees', sub: 'Built from the sharing choices for this client', onClose: () => app.modal(null), width: 560 }, h('div', { style: { background: K.soft, border: '1px solid ' + K.line, borderRadius: 8, padding: '14px 16px', fontSize: 14, lineHeight: 1.65, whiteSpace: 'pre-line', color: K.txt } }, portalText(app.db, c)), h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => { try { navigator.clipboard.writeText(portalText(app.db, c)); app.toast('Update copied to clipboard'); } catch (e) { app.toast('Copy is not available in this browser'); } } }, 'Copy as text'), h(Btn, { primary: true, onClick: () => app.modal(null) }, 'Done'))); });
     const sh = (c, k, label) => h('label', { style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: c.portal ? K.txt : '#9E9E9E' } }, h('input', { type: 'checkbox', checked: !!c.share[k], disabled: !c.portal, onChange: e => set(c.id, x => { x.share[k] = e.target.checked; }) }), label);
-    return h(Page, { kicker: 'Firm', title: 'Client Portal', sub: `${d.clients.filter(c => c.portal).length} of ${d.clients.length} clients have portal access switched on` },
+    return h(Page, { art: 'portal', kicker: 'Firm', title: 'Client Portal', sub: `${d.clients.filter(c => c.portal).length} of ${d.clients.length} clients have portal access switched on` },
       h('div', { style: { fontSize: 13, color: K.mut, background: K.soft2, borderRadius: 8, padding: '10px 14px', lineHeight: 1.55 } }, 'Clients do not have their own login yet. Use the preview to see exactly what would be shared, and copy it to send yourself.'),
       h(Table, { min: 860, cols: [{ label: 'Client', w: 'minmax(200px,1.6fr)', get: c => h('span', null, c.name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, (n => n + (n === 1 ? ' case' : ' cases'))(d.cases.filter(x => x.clientId === c.id).length))) }, { label: 'Access', w: '90px', get: c => h(Toggle, { on: c.portal, label: 'Portal access for ' + c.name, onChange: v => set(c.id, x => { x.portal = v; }, v ? 'Portal access switched on' : 'Portal access switched off') }) }, { label: 'Shares', w: 'minmax(280px,2fr)', get: c => h('span', { style: { display: 'flex', gap: 14, flexWrap: 'wrap' } }, sh(c, 'dates', 'Hearing dates'), sh(c, 'orders', 'Order summaries'), sh(c, 'invoices', 'Invoices')) }, { label: '', w: '110px', get: c => h(Btn, { small: true, disabled: !c.portal, onClick: () => preview(c) }, 'Preview') }], rows: d.clients }));
   }
@@ -357,7 +529,7 @@
       ['Fees billed by month (₹)', months.map(m => [L.fmt(m + '-01', { month: 'short', year: '2-digit' }), d.invoices.filter(i => i.date.slice(0, 7) === m).reduce((a, i) => a + i.amount, 0)]), n => L.inr(n)]
     ];
     const tdone = d.tasks.filter(t => t.done).length;
-    return h(Page, { kicker: 'Firm', title: 'Reports', sub: 'Computed live from your cases, hearings, tasks and invoices', actions: [h(Btn, { key: 1, onClick: () => L.csv('legal-staff-report.csv', R.flatMap(([t, rows]) => [[t], ...rows.map(r => ['', r[0], r[1]]), []])) }, 'Export CSV'), h(Btn, { key: 2, onClick: () => window.print() }, 'Print')] },
+    return h(Page, { art: 'reports', kicker: 'Firm', title: 'Reports', sub: 'Computed live from your cases, hearings, tasks and invoices', actions: [h(Btn, { key: 1, onClick: () => L.csv('legal-staff-report.csv', R.flatMap(([t, rows]) => [[t], ...rows.map(r => ['', r[0], r[1]]), []])) }, 'Export CSV'), h(Btn, { key: 2, onClick: () => window.print() }, 'Print')] },
       h('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap' } }, h(Stat, { label: 'Open cases', value: live.length, note: d.cases.length + ' in total' }), h(Stat, { label: 'Hearings · next 30 days', value: d.hearings.filter(x => x.date >= T && L.diffDays(x.date, T) <= 30).length }), h(Stat, { label: 'Tasks completed', value: tdone + ' / ' + d.tasks.length, note: d.tasks.filter(overdue).length + ' overdue', red: d.tasks.some(overdue) }), h(Stat, { label: 'Collection rate', value: Math.round(d.invoices.filter(i => i.paid).reduce((a, i) => a + i.amount, 0) / Math.max(1, d.invoices.reduce((a, i) => a + i.amount, 0)) * 100) + '%', note: 'of fees billed' })),
       h('div', { className: 'ls-print', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 20 } }, R.map(([t, rows, f]) => h(Card, { key: t, title: t }, h(Bars, { rows, fmt: f })))));
   }
@@ -365,7 +537,7 @@
     const d = app.db, s = d.settings, set = (k, v, msg) => app.mut(db => { db.settings[k] = v; }, msg || 'Setting saved');
     const row = (label, sub, ctl) => h(Line, null, h('div', { style: { flex: 1, minWidth: 0 } }, label, sub && h('div', { style: { fontSize: 12.5, color: K.mut } }, sub)), ctl);
     const formCard = (title, obj, fields, key) => h(Card, { title }, h(Form, { key: key + app.state.rev0, fields, init: obj, submit: 'Save', onSubmit: v => app.mut(db => { Object.assign(db[key], v); if (key === 'user') { const u = db.team.find(x => x.email === obj.email) || db.team[0]; const old = u.name; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + v.name.trim(); Object.assign(u, { name: v.name.trim(), title: db.user.title, role: v.role, email: v.email }); if (old !== u.name) { db.tasks.forEach(t => { if (t.who === old) t.who = u.name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = u.name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? u.name : n); }); } } }, 'Saved') }));
-    return h(Page, { kicker: 'Firm', title: 'Settings', sub: window.LSB && LSB.on ? 'Saved to your firm\'s account' : 'Everything here is saved on this device', max: 1100 },
+    return h(Page, { art: 'settings', kicker: 'Firm', title: 'Settings', sub: window.LSB && LSB.on ? 'Saved to your firm\'s account' : 'Everything here is saved on this device', max: 1100 },
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,440px),1fr))', gap: 20, alignItems: 'start' } },
         formCard('Firm profile', d.firm, [{ k: 'name', label: 'Firm name', req: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'gstin', label: 'GSTIN (optional)', half: true, check: v => v && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/i.test(v) ? 'A GSTIN has 15 characters, e.g. 07AAAAA0000A1Z5' : '' }, { k: 'address', label: 'Address on letterhead and invoices' }], 'firm'),
         formCard('Your profile', d.user, [{ k: 'name', label: 'Full name', req: true, half: true }, { k: 'role', label: 'Designation', req: true, half: true }, { k: 'email', label: 'Work email', type: 'email', req: true, half: true }, { k: 'phone', label: 'Mobile (WhatsApp)', type: 'tel', half: true }], 'user'),
@@ -376,13 +548,13 @@
   }
   function Orders({ app }) {
     const d = app.db, rows = d.orders.slice().sort((a, b) => b.date.localeCompare(a.date)), need = rows.filter(o => !o.confirmed && o.nextDate).length;
-    return h(Page, { kicker: 'Practice', title: 'Court Orders', sub: `${rows.length} orders · ${need} awaiting your confirmation`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addOrder(app) }, '+ Add court order')] },
+    return h(Page, { art: 'order', kicker: 'Practice', title: 'Court Orders', sub: `${rows.length} orders · ${need} awaiting your confirmation`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addOrder(app) }, '+ Add court order')] },
       h(Table, { onRow: o => app.go('order', o.id), min: 860, cols: [{ label: 'Case', w: 'minmax(220px,1.6fr)', get: o => h('span', null, caseOf(d, o.caseId).title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, caseOf(d, o.caseId).no)) }, { label: 'Order dated', w: '110px', get: o => L.dmy(o.date) }, { label: 'Summary', w: 'minmax(240px,2.4fr)', get: o => h('span', null, o.summary, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, o.source)) }, { label: 'Next date', w: '110px', get: o => o.nextDate ? L.dmy(o.nextDate) : '—' }, { label: 'Status', w: '150px', get: o => h(Chip, { tone: o.confirmed || !o.nextDate ? '' : 'red' }, o.confirmed ? 'Confirmed' : (o.nextDate ? 'Needs confirmation' : 'No date found')) }], rows, empty: { title: 'No orders yet', text: 'Add an order to extract the next date.' } }));
   }
   const MODULES = { workspace: Workspace, courts: Courts, clients: Clients, documents: p => h(Docs, { app: p.app, kind: 'document' }), evidence: p => h(Docs, { app: p.app, kind: 'evidence' }), research: Research, agents: Agents, team: Team, billing: Billing, portal: Portal, reports: Reports, settings: Settings, orders: Orders };
 
   /* ---------- top-bar dropdowns ---------- */
-  function Drop({ style, children, onClose }) { return h(React.Fragment, null, h('div', { onClick: onClose, style: { position: 'fixed', inset: 0, zIndex: 58 } }), h('div', { style: Object.assign({}, X.card, { position: 'absolute', zIndex: 60, boxShadow: '0 16px 48px rgba(0,0,0,.14)', padding: 6, minWidth: 260 }, style) }, children)); }
+  function Drop({ style, children, onClose }) { return h(React.Fragment, null, h('div', { onClick: onClose, style: { position: 'fixed', inset: 0, zIndex: 58 } }), h('div', { className: 'ls-drop', style: Object.assign({}, X.card, { position: 'absolute', zIndex: 60, boxShadow: '0 16px 48px rgba(0,0,0,.14)', padding: 6, minWidth: 260 }, style) }, children)); }
   const Item = ({ onClick, children, sub }) => h('button', { type: 'button', onClick, style: { display: 'block', width: '100%', textAlign: 'left', border: 0, background: 'none', borderRadius: 8, padding: '9px 10px', fontSize: 13.5, color: K.ink, lineHeight: 1.45 }, onMouseEnter: e => { e.currentTarget.style.background = K.soft2; }, onMouseLeave: e => { e.currentTarget.style.background = 'none'; } }, children, sub && h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, sub));
   function searchAll(d, q) {
     const s = q.toLowerCase().trim(); if (s.length < 2) return [];
@@ -394,5 +566,5 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { h, K, X, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks };
+  window.LSV = { h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks };
 })();

@@ -406,17 +406,23 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  state = { cycle: 'annual', faq: 0, aud: 0, w: window.innerWidth, menu: false, modal: null, cf: this.blankForm(), cfErr: {}, cfDone: null, busy: false };
+  state = { cycle: 'annual', faq: 0, aud: 0, w: window.innerWidth, menu: false, modal: null, cf: this.blankForm(), cfErr: {}, cfDone: null, busy: false, cnt: this.calm() ? 6 : 30, ai: this.calm() ? 5 : 0 };
+  calm() { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } }
   blankForm(topic) { return { name: '', email: '', phone: '', firm: '', size: '', topic: topic || 'General question', msg: '', consent: false }; }
   componentDidMount() {
     this.onR = () => this.setState({ w: window.innerWidth });
     this.onKey = e => { if (e.key === 'Escape') { if (this.state.modal) this.closeModal(); else if (this.state.menu) this.setState({ menu: false }); } };
     this.onHash = () => this.applyHash();
     window.addEventListener('resize', this.onR); window.addEventListener('keydown', this.onKey); window.addEventListener('hashchange', this.onHash);
-    setTimeout(() => { this.reveal(); this.applyHash(true); }, 30);
+    setTimeout(() => { this.initMotion(); this.applyHash(true); }, 30);
   }
-  componentDidUpdate() { try { document.documentElement.style.overflow = this.state.modal ? 'hidden' : ''; } catch (e) {} }
-  componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('keydown', this.onKey); window.removeEventListener('hashchange', this.onHash); this.io && this.io.disconnect(); }
+  componentDidUpdate() { try { document.documentElement.style.overflow = this.state.modal ? 'hidden' : ''; } catch (e) {} if (this.motionOn) { this.scanReveal(); this.placeKnob(); } }
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.onR); window.removeEventListener('keydown', this.onKey); window.removeEventListener('hashchange', this.onHash);
+    this.io && this.io.disconnect();
+    if (this.onScroll) document.removeEventListener('scroll', this.onScroll, true);
+    (this.timers || []).forEach(clearTimeout); cancelAnimationFrame(this.raf || 0); cancelAnimationFrame(this.rafC || 0);
+  }
   applyHash(initial) {
     const id = (window.location.hash || '').slice(1);
     if (!id) return;
@@ -550,22 +556,253 @@ class Component extends DCLogic {
           h('button', { type: 'button', onClick: close, 'aria-label': 'Close', style: { width: 40, height: 40, flexShrink: 0, border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, fontSize: 20, lineHeight: 1, color: '#0A0A0A', padding: 0 } }, '×')),
         ...body));
   }
-  reveal() {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
-    const ease = 'cubic-bezier(.2,.7,.2,1)';
-    this.io = new IntersectionObserver(es => es.forEach(e => {
-      if (!e.isIntersecting) return;
-      const t = e.target; t.style.opacity = 1; t.style.transform = 'none';
-      t.querySelectorAll('[data-bar]').forEach(b => b.style.transform = 'scaleX(1)');
-      this.io.unobserve(t);
-    }), { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-    document.querySelectorAll('[data-reveal]').forEach(el => {
-      const d = +(el.dataset.delay || 0), y = +(el.dataset.dist || 24);
-      el.style.transition = `opacity .8s ${ease} ${d}ms, transform .8s ${ease} ${d}ms`;
-      el.style.opacity = 0; el.style.transform = `translateY(${y}px)`;
-      el.querySelectorAll('[data-bar]').forEach(b => { b.style.transform = 'scaleX(0)'; b.style.transition = `transform 1s ${ease} ${+(b.dataset.delay || 0)}ms`; });
-      this.io.observe(el);
+  /* ---------- motion: one reveal system (motion.css .ls-reveal / .ls-reveal-scale + .ls-in), scroll chrome, and two scripted moments ---------- */
+  initMotion() {
+    this.rm = this.calm(); this.t0 = Date.now(); this.timers = []; this.motionOn = true;
+    this.onScroll = () => { if (this.raf) return; this.raf = requestAnimationFrame(() => { this.raf = 0; this.paintScroll(); }); };
+    document.addEventListener('scroll', this.onScroll, { capture: true, passive: true });
+    this.paintScroll();
+    if (!this.rm && 'IntersectionObserver' in window)
+      this.io = new IntersectionObserver(es => es.forEach(e => { if (!e.isIntersecting) return; this.io.unobserve(e.target); this.enter(e.target); }), { threshold: 0, rootMargin: '0px 0px -9% 0px' });
+    this.scanReveal(); this.placeKnob();
+    try { document.fonts && document.fonts.ready.then(() => this.placeKnob()); } catch (e) {}
+  }
+  /* observes reveal targets that are new since the last render (tab switches and sc-if remount them) */
+  scanReveal() {
+    document.querySelectorAll('.ls-reveal:not([data-ls-seen]),.ls-reveal-scale:not([data-ls-seen]),[data-ls-trigger]:not([data-ls-seen])').forEach(el => {
+      el.setAttribute('data-ls-seen', '');
+      if (this.io) this.io.observe(el); else this.enter(el);
     });
+  }
+  enter(el) {
+    el.classList.add('ls-in');
+    const t = el.getAttribute('data-ls-trigger');
+    if (t === 'ai') this.playAi();
+    if (t === 'count') this.playCount();
+  }
+  paintScroll() {
+    const b = document.body, de = document.documentElement;
+    const top = Math.max(window.scrollY || 0, b.scrollTop || 0, de.scrollTop || 0);
+    const max = Math.max(b.scrollHeight - b.clientHeight, de.scrollHeight - de.clientHeight, 1);
+    const hd = document.getElementById('ls-header');
+    if (hd) { if (top > 12) hd.setAttribute('data-scrolled', ''); else hd.removeAttribute('data-scrolled'); }
+    const pb = document.getElementById('ls-progress');
+    if (pb) pb.style.setProperty('--p', Math.min(1, top / max).toFixed(4));
+    const hero = !this.rm && top < 1600 && document.getElementById('top');
+    if (hero) hero.style.setProperty('--sy', (top * 0.22).toFixed(1));
+  }
+  /* sliding pill behind the active billing cycle */
+  placeKnob() {
+    const box = document.getElementById('ls-cycle'); if (!box) return;
+    const btn = box.querySelector('button[aria-pressed="true"]'), k = box.querySelector('.lp-knob');
+    if (!btn || !k) return;
+    k.style.setProperty('--kx', btn.offsetLeft + 'px'); k.style.setProperty('--kw', btn.offsetWidth + 'px');
+    if (!k.hasAttribute('data-ready')) requestAnimationFrame(() => k.setAttribute('data-ready', ''));
+  }
+  /* limitation card: days left run down from 30 to 6 once the mock has settled */
+  playCount() {
+    if (this.counted) return; this.counted = true;
+    if (this.rm) { this.setState({ cnt: 6 }); return; }
+    const go = () => {
+      const t0 = performance.now(), dur = 1300;
+      const step = now => { const p = Math.min(1, (now - t0) / dur), v = Math.round(30 - 24 * (1 - Math.pow(1 - p, 3))); if (v !== this.state.cnt) this.setState({ cnt: v }); if (p < 1) this.rafC = requestAnimationFrame(step); };
+      this.rafC = requestAnimationFrame(step);
+    };
+    this.timers.push(setTimeout(go, Math.max(0, 1900 - (Date.now() - this.t0))));
+  }
+  /* AI conversation: question, typing, streamed answer, citations, then the unverified suggestion */
+  playAi() {
+    if (this.aiPlayed) return; this.aiPlayed = true;
+    if (this.rm) { this.setState({ ai: 5 }); return; }
+    const at = (ms, v) => this.timers.push(setTimeout(() => this.setState({ ai: v }), ms));
+    const stream = this.answerText().split(' ').length * 30;
+    at(250, 1); at(1000, 2); at(2300, 3); at(2300 + stream + 200, 4); at(2300 + stream + 800, 5);
+  }
+  answerText() { return 'The last order gave the other side two weeks to file a reply to the pending application and listed the matter for the next date. Your rejoinder, if any, is due before then.'; }
+  /* ---------- original line illustrations (1.5px ink, soft grey fills, silver accents), built as React SVG ---------- */
+  art() {
+    if (this._art) return this._art;
+    const h = React.createElement, INK = '#0A0A0A', F = 'Instrument Sans, system-ui, sans-serif';
+    const A = (cls, d, extra) => ({ className: cls, style: { '--d': (d || 0) + 'ms', ...(extra || {}) } });
+    const sv = (vb, kids, style) => h('svg', { viewBox: vb, className: 'lp-svg', fill: 'none', 'aria-hidden': true, focusable: 'false', style: { display: 'block', width: '100%', height: '100%', overflow: 'visible', ...(style || {}) } }, ...kids);
+    const rr = (x, y, w, hh, r) => `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + hh - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + hh}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + hh - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+    const line = (d, delay, props) => h('path', { d, stroke: INK, strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', pathLength: 1, ...A('lp-d', delay), ...(props || {}) });
+    const T = (x, y, size, txt, props) => h('text', { x, y, fontSize: size, fontFamily: F, fill: INK, ...(props || {}) }, txt);
+    const bar = (x, y, w, fill, delay, hh) => h('rect', { x, y, width: w, height: hh || 6, rx: (hh || 6) / 2, fill, ...A('lp-grow', delay) });
+    const chat = (cx, cy, s) => h('path', { d: `M${cx - 4.5 * s} ${cy - 3.5 * s}h${9 * s}a${1.5 * s} ${1.5 * s} 0 0 1 ${1.5 * s} ${1.5 * s}v${4 * s}a${1.5 * s} ${1.5 * s} 0 0 1 -${1.5 * s} ${1.5 * s}h-${5 * s}l-${3 * s} ${2.5 * s}v-${2.5 * s}a${1.5 * s} ${1.5 * s} 0 0 1 -${1.5 * s} -${1.5 * s}v-${4 * s}a${1.5 * s} ${1.5 * s} 0 0 1 ${1.5 * s} -${1.5 * s}z`, fill: '#FFFFFF' });
+    const person = (cx, cy, stroke) => h('g', null,
+      h('circle', { cx, cy: cy - 5, r: 5, stroke: stroke || INK, strokeWidth: 1.5 }),
+      h('path', { d: `M${cx - 9} ${cy + 10}a9 9 0 0 1 18 0`, stroke: stroke || INK, strokeWidth: 1.5, strokeLinecap: 'round' }));
+    const tick = (d, delay, color) => h('path', { d, stroke: color || '#FFFFFF', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', pathLength: 1, ...A('lp-d', delay) });
+
+    /* shared gradients, defined once for the page */
+    const defs = h('svg', { 'aria-hidden': true, width: 0, height: 0, style: { position: 'absolute', width: 0, height: 0, overflow: 'hidden' } },
+      h('defs', null,
+        h('linearGradient', { id: 'lpSilver', x1: 0, y1: 0, x2: 1, y2: 1 },
+          h('stop', { offset: '0', stopColor: '#FFFFFF' }), h('stop', { offset: '.38', stopColor: '#D9D9D9' }), h('stop', { offset: '.62', stopColor: '#8E8E8E' }), h('stop', { offset: '1', stopColor: '#F2F2F2' })),
+        h('linearGradient', { id: 'lpScan', x1: 0, y1: 0, x2: 0, y2: 1 },
+          h('stop', { offset: '0', stopColor: INK, stopOpacity: 0 }), h('stop', { offset: '1', stopColor: INK, stopOpacity: .13 }))));
+
+    /* How it works — one illustration per step (o = the step's own reveal delay) */
+    const step1 = o => sv('0 0 240 150', [
+      h('path', { d: rr(40, 22, 160, 112, 12), fill: '#FFFFFF' }), line(rr(40, 22, 160, 112, 12), o),
+      line('M40 46H200', o + 250, { stroke: '#E5E5E5' }),
+      h('rect', { x: 52, y: 29, width: 90, height: 11, rx: 3, fill: '#F0F0EF', ...A('lp-fade', o + 300) }),
+      T(57, 37, 7, 'CNR', { fill: '#8A8A8A', fontWeight: 600, ...A('lp-fade', o + 350) }),
+      ...[0, 1, 2, 3, 4, 5].map(i => h('circle', { key: i, cx: 78 + i * 8, cy: 34.5, r: 1.6, fill: INK, ...A('lp-pop', o + 450 + i * 80) })),
+      h('rect', { x: 148, y: 29, width: 42, height: 11, rx: 3, fill: INK, ...A('lp-fade', o + 400) }),
+      T(169, 37, 7, 'Import', { fill: '#FFFFFF', textAnchor: 'middle', fontWeight: 600, ...A('lp-fade', o + 400) }),
+      ...['Parties', 'Court', 'Judge', 'Stage'].map((l, i) => h('g', { key: l },
+        T(52, 64 + i * 18, 7.5, l, { fill: '#8A8A8A', ...A('lp-fade', o + 800 + i * 140) }),
+        bar(90, 59 + i * 18, [84, 62, 72, 50][i], i === 3 ? '#8A8A8A' : INK, o + 900 + i * 140))),
+      h('g', A('lp-pop', o + 1600), h('circle', { cx: 198, cy: 24, r: 13, fill: INK }), h('path', { d: 'M198 18.5v11M192.5 24h11', stroke: '#FFFFFF', strokeWidth: 1.8, strokeLinecap: 'round' }))
+    ]);
+    const step2 = o => sv('0 0 240 150', [
+      h('path', { d: 'M72 14H148L172 38V138H72Z', fill: '#FFFFFF' }), line('M72 14H148L172 38V138H72Z', o), line('M148 14V38H172', o + 300),
+      T(84, 32, 7, 'ORDER', { fill: '#8A8A8A', fontWeight: 600, letterSpacing: 1.2, ...A('lp-fade', o + 300) }),
+      h('rect', { x: 80, y: 84.5, width: 84, height: 11, rx: 3, fill: INK, fillOpacity: .07, ...A('lp-fade', o + 1500) }),
+      ...[46, 56, 66, 76, 90, 102, 112, 122].map((y, i) => h('rect', { key: y, x: 84, y: y - 1.5, height: 3, rx: 1.5, width: [62, 74, 54, 70, 60, 72, 48, 64][i], fill: i === 4 ? INK : '#D9D9D9', ...A('lp-grow', o + 350 + i * 60) })),
+      T(58, 93, 8, '¶4', { fill: '#8A8A8A', fontWeight: 600, ...A('lp-fade', o + 1500) }),
+      h('g', A('lp-scan', o + 900), h('rect', { x: 73, y: 16, width: 98, height: 16, fill: 'url(#lpScan)' }), h('path', { d: 'M73 32H171', stroke: INK, strokeOpacity: .35 })),
+      h('g', A('lp-lift', o + 1650), h('g', { className: 'ls-float' },
+        h('rect', { x: 146, y: 66, width: 84, height: 26, rx: 13, fill: INK }),
+        h('path', { d: 'M156 74.5h9v8.5h-9z M156 77.5h9 M158.5 73v3 M162.5 73v3', stroke: '#FFFFFF', strokeWidth: 1.1, strokeLinecap: 'round', strokeLinejoin: 'round' }),
+        T(170, 82.5, 9.5, 'Next date', { fill: '#FFFFFF', fontWeight: 600 })))
+    ]);
+    const cells = [];
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 7; c++) if (!(r === 2 && c === 4)) cells.push([r, c]);
+    const step3 = o => sv('0 0 240 150', [
+      h('path', { d: rr(48, 20, 144, 116, 12), fill: '#FFFFFF' }), line(rr(48, 20, 144, 116, 12), o), line('M48 44H192', o + 200),
+      line('M80 13V27', o + 300, { strokeWidth: 2 }), line('M160 13V27', o + 300, { strokeWidth: 2 }),
+      bar(60, 29, 44, INK, o + 400), bar(168, 29.5, 12, '#D9D9D9', o + 450, 5),
+      ...cells.map(([r, c]) => h('rect', { key: r + '-' + c, x: 61 + c * 17, y: 52 + r * 19, width: 14, height: 12, rx: 3, fill: '#F0F0EF', ...A('lp-fade', o + 400 + (r * 7 + c) * 16) })),
+      h('rect', { x: 128, y: 89, width: 18, height: 16, rx: 4, fill: INK, ...A('lp-pop', o + 1750) }),
+      tick('M132.5 97.5l3 3 6-6', o + 1950),
+      h('g', A('lp-cursor', o + 800), h('path', { d: 'M143 99v15l4.2-3.9 2.9 6.3 2.6-1.2-2.9-6.2 5.7-.4z', fill: '#FFFFFF', stroke: INK, strokeWidth: 1.2, strokeLinejoin: 'round' })),
+      h('g', A('lp-pop', o + 2200),
+        h('rect', { x: 152, y: 120, width: 82, height: 24, rx: 12, fill: '#FFFFFF', stroke: INK, strokeWidth: 1.2 }),
+        h('circle', { cx: 164, cy: 132, r: 6, fill: INK }), h('path', { d: 'M161.3 132.2l1.8 1.8 3.6-3.6', stroke: '#FFFFFF', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round' }),
+        T(174, 135.2, 9, 'Confirmed', { fontWeight: 600 }))
+    ]);
+    const step4 = o => sv('0 0 240 150', [
+      h('path', { d: rr(86, 6, 68, 138, 14), fill: '#FFFFFF' }), line(rr(86, 6, 68, 138, 14), o), line('M112 15H128', o + 250),
+      T(120, 46, 19, '7:30', { textAnchor: 'middle', fontWeight: 600, ...A('lp-fade', o + 450) }),
+      T(120, 58, 7.5, 'AM IST', { textAnchor: 'middle', fill: '#8A8A8A', fontWeight: 600, letterSpacing: .8, ...A('lp-fade', o + 550) }),
+      bar(98, 122, 44, '#F0F0EF', o + 600), bar(98, 131, 30, '#F0F0EF', o + 650),
+      h('g', { transform: 'translate(26 28)' }, h('g', A('lp-bell', o + 1500), h('path', { d: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4z M10 21h4', stroke: INK, strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', fill: '#FFFFFF' }))),
+      h('g', A('lp-sr', o + 900), h('g', { className: 'ls-float', style: { animationDelay: '-1.5s' } },
+        h('rect', { x: 124, y: 70, width: 110, height: 42, rx: 11, fill: '#FFFFFF', stroke: '#E5E5E5' }),
+        h('circle', { cx: 142, cy: 91, r: 10, fill: '#25D366' }), chat(142, 90.5, 0.9),
+        T(158, 88, 8.5, 'Hearing today', { fontWeight: 600 }), T(158, 100, 7.5, 'Court · 12:00 PM', { fill: '#5E5E5E' }))),
+      h('g', A('lp-sl', o + 1250), h('g', { className: 'ls-float', style: { animationDelay: '-3.5s' } },
+        h('rect', { x: 6, y: 100, width: 100, height: 30, rx: 9, fill: '#FFFFFF', stroke: '#E5E5E5' }),
+        h('circle', { cx: 21, cy: 115, r: 7, fill: '#25D366' }), chat(21, 114.6, 0.62),
+        T(33, 118, 8, '2 days before', { fontWeight: 600 })))
+    ]);
+    const conn = o => h('div', { 'aria-hidden': true, style: { position: 'absolute', right: -41, top: 78, width: 40, height: 20, pointerEvents: 'none' } },
+      sv('0 0 40 20', [
+        line('M5 10H33', o + 700, { stroke: '#BDBDBD' }), line('M29 6l4 4-4 4', o + 1000, { stroke: '#8A8A8A' }),
+        h('circle', { cx: 6, cy: 10, r: 2.2, fill: INK, ...A('lp-travel', o + 1300) })
+      ]));
+
+    /* Platform — one scene per audience */
+    const audA = sv('0 0 420 250', [
+      T(28, 40, 13, 'Today', { fontWeight: 600 }), T(392, 40, 11, '4 courts', { textAnchor: 'end', fill: '#8A8A8A' }),
+      line('M70 56V228', 100, { stroke: '#E5E5E5' }),
+      ...['10:30', '12:00', '2:15', '4:00'].map((t, i) => T(28, 80 + i * 44, 10, t, { fill: '#8A8A8A', fontWeight: 600, ...A('lp-fade', 150 + i * 60) })),
+      h('rect', { x: 84, y: 62, width: 146, height: 30, rx: 7, fill: '#FDECEA', stroke: '#B42318', ...A('lp-grow', 300) }),
+      h('rect', { x: 238, y: 62, width: 154, height: 30, rx: 7, fill: '#FDECEA', stroke: '#B42318', ...A('lp-grow', 420) }),
+      T(96, 81, 11, 'High Court', { fontWeight: 600, ...A('lp-fade', 650) }), T(250, 81, 11, 'District court', { fontWeight: 600, ...A('lp-fade', 750) }),
+      h('g', A('lp-pop', 1000), h('rect', { x: 196, y: 52, width: 48, height: 18, rx: 9, fill: '#B42318' }), T(220, 64.5, 9, 'Clash', { fill: '#FFFFFF', fontWeight: 600, textAnchor: 'middle' })),
+      h('rect', { x: 84, y: 106, width: 210, height: 30, rx: 7, fill: '#F0F0EF', ...A('lp-grow', 560) }), T(96, 125, 11, 'High Court · brief ready', { ...A('lp-fade', 850) }),
+      h('rect', { x: 84, y: 150, width: 160, height: 30, rx: 7, fill: '#F0F0EF', ...A('lp-grow', 680) }), T(96, 169, 11, 'Family court', { ...A('lp-fade', 950) }),
+      h('rect', { x: 84, y: 194, width: 120, height: 30, rx: 7, fill: '#FFFFFF', stroke: '#D9D9D9', strokeDasharray: '3 4', ...A('lp-grow', 800) }), T(96, 213, 11, 'Drafting time', { fill: '#8A8A8A', ...A('lp-fade', 1050) }),
+      h('g', A('lp-up', 1200), h('g', { className: 'ls-float', style: { animationDelay: '-2s' } },
+        h('rect', { x: 250, y: 178, width: 150, height: 48, rx: 12, fill: '#FFFFFF', stroke: '#E5E5E5' }),
+        h('circle', { cx: 272, cy: 202, r: 11, fill: '#25D366' }), chat(272, 201.5, 1),
+        T(290, 198, 11, 'Reminder sent', { fontWeight: 600 }), T(290, 212, 10, '7:30 AM IST', { fill: '#5E5E5E' })))
+    ]);
+    const nodes = [[70, 64, 'Partner'], [350, 64, 'Junior'], [70, 186, 'Paralegal'], [350, 186, 'Accounts']];
+    const audB = sv('0 0 420 250', [
+      ...nodes.map(([x, y], i) => line(`M${x < 200 ? 160 : 260} ${y < 125 ? 112 : 138}C${x < 200 ? 120 : 300} ${y < 125 ? 112 : 138} ${x < 200 ? x + 26 : x - 26} ${y} ${x < 200 ? x + 24 : x - 24} ${y}`, 500 + i * 160, i === 3 ? { stroke: '#BDBDBD', strokeDasharray: '1 0' } : null)),
+      h('g', A('lp-pop', 200), h('rect', { x: 160, y: 95, width: 100, height: 60, rx: 12, fill: INK }),
+        T(210, 120, 12, 'Case', { fill: '#FFFFFF', fontWeight: 600, textAnchor: 'middle' }),
+        h('rect', { x: 182, y: 130, width: 56, height: 4, rx: 2, fill: '#FFFFFF', fillOpacity: .35 }), h('rect', { x: 190, y: 139, width: 40, height: 4, rx: 2, fill: '#FFFFFF', fillOpacity: .2 })),
+      ...nodes.map(([x, y, l], i) => h('g', { key: l, ...A('lp-pop', 900 + i * 160) },
+        h('circle', { cx: x, cy: y, r: 24, fill: i === 3 ? '#FFFFFF' : '#F5F5F4', stroke: i === 3 ? '#BDBDBD' : INK, strokeWidth: 1.5 }),
+        person(x, y + 1, i === 3 ? '#8A8A8A' : INK),
+        T(x, y + 42, 11, l, { textAnchor: 'middle', fill: i === 3 ? '#8A8A8A' : '#363636', fontWeight: 600 }))),
+      h('g', A('lp-pop', 1700), h('circle', { cx: 306, cy: 162, r: 11, fill: '#FFFFFF', stroke: '#BDBDBD' }),
+        h('path', { d: 'M302 161h8v6h-8z M303.5 161v-2a2.5 2.5 0 0 1 5 0v2', stroke: '#8A8A8A', strokeWidth: 1.2, strokeLinejoin: 'round' })),
+      T(210, 232, 10, 'Access follows the assignment', { textAnchor: 'middle', fill: '#8A8A8A', ...A('lp-fade', 1800) })
+    ]);
+    const forums = ['High Courts', 'District courts', 'Tribunals'];
+    const audC = sv('0 0 420 250', [
+      h('path', { d: rr(20, 26, 172, 190, 14), fill: '#FFFFFF' }), line(rr(20, 26, 172, 190, 14), 0, { stroke: '#D9D9D9' }),
+      T(38, 52, 12, 'Matters', { fontWeight: 600 }), T(176, 52, 10, 'All forums', { textAnchor: 'end', fill: '#8A8A8A' }),
+      ...[0, 1, 2, 3].map(i => h('g', { key: i },
+        h('circle', { cx: 42, cy: 78 + i * 32, r: 4, fill: i === 2 ? '#8A8A8A' : INK, ...A('lp-pop', 300 + i * 120) }),
+        bar(56, 75 + i * 32, [96, 78, 88, 70][i], '#D9D9D9', 350 + i * 120))),
+      ...forums.map((f, i) => line(`M168 ${78 + i * 32}C214 ${78 + i * 32} 214 ${60 + i * 65} 246 ${60 + i * 65}`, 700 + i * 160)),
+      line('M168 174C214 174 214 190 246 190', 1180, { stroke: '#BDBDBD' }),
+      ...forums.map((f, i) => h('g', { key: f, ...A('lp-sr', 1000 + i * 160) },
+        h('rect', { x: 248, y: 40 + i * 65, width: 152, height: 40, rx: 10, fill: '#F5F5F4', stroke: INK, strokeWidth: 1.5 }),
+        h('path', { d: `M262 ${68 + i * 65}h16 M264 ${66 + i * 65}v-8 M270 ${66 + i * 65}v-8 M276 ${66 + i * 65}v-8 M261 ${56 + i * 65}l9-5 9 5z`, stroke: INK, strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }),
+        T(290, 64 + i * 65, 11.5, f, { fontWeight: 600 }))),
+      h('g', A('lp-pop', 1600), h('rect', { x: 36, y: 200, width: 136, height: 28, rx: 14, fill: INK }),
+        h('path', { d: 'M50 209h8 M50 214h8 M50 219h5', stroke: '#FFFFFF', strokeWidth: 1.3, strokeLinecap: 'round' }),
+        T(66, 218, 10.5, 'Audit log exported', { fill: '#FFFFFF', fontWeight: 600 }))
+    ]);
+
+    /* Security — shield and lock inside slow orbits */
+    const orb = (r, angle) => [180 + r * Math.cos(angle * Math.PI / 180), 180 + r * Math.sin(angle * Math.PI / 180)];
+    const vb = { transformBox: 'view-box', transformOrigin: '180px 180px' };
+    const sec = h('div', { style: { width: 'min(100%,360px)', aspectRatio: '1 / 1' } }, sv('0 0 360 360', [
+      h('circle', { cx: 180, cy: 180, r: 158, stroke: '#FFFFFF', strokeOpacity: .07 }),
+      h('circle', { cx: 180, cy: 180, r: 76, stroke: '#FFFFFF', strokeOpacity: .12 }),
+      h('g', { className: 'lp-orbit', style: vb },
+        h('circle', { cx: 180, cy: 180, r: 116, stroke: '#FFFFFF', strokeOpacity: .18, strokeDasharray: '2 7' }),
+        ...[[20, 'M-4 5a4 4 0 0 1 8 0 M0 -1a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z'], [140, 'M-3.5 -5h5l2 2v8h-7z M-1.5 0h3 M-1.5 2.5h3'], [260, 'M1.5 -1.5a3 3 0 1 0-3 3 M-1.5 1.5l-4 4 M-4 4l1.5 1.5']].map(([a, d]) => {
+          const [x, y] = orb(116, a);
+          return h('g', { key: a, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})` },
+            h('circle', { r: 15, fill: '#0A0A0A', stroke: '#4A4A4A' }), h('path', { d, stroke: '#D9D9D9', strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }));
+        })),
+      h('g', { className: 'lp-orbit-rev', style: vb },
+        ...[[80, 4, .5], [200, 3, .35], [320, 5, .8]].map(([a, r, op]) => { const [x, y] = orb(158, a); return h('circle', { key: a, cx: x, cy: y, r, fill: '#FFFFFF', fillOpacity: op }); })),
+      h('circle', { cx: 180, cy: 180, r: 60, stroke: '#FFFFFF', strokeOpacity: .3, className: 'lp-pulse' }),
+      h('circle', { cx: 180, cy: 180, r: 60, stroke: '#FFFFFF', strokeOpacity: .3, className: 'lp-pulse', style: { animationDelay: '1.7s' } }),
+      h('path', { d: 'M180 116L228 133V176C228 207 207 228 180 239C153 228 132 207 132 176V133Z', fill: '#141414' }),
+      h('path', { d: 'M180 116L228 133V176C228 207 207 228 180 239C153 228 132 207 132 176V133Z', stroke: 'url(#lpSilver)', strokeWidth: 2, strokeLinejoin: 'round', pathLength: 1, ...A('lp-d', 200) }),
+      h('path', { d: 'M180 128L216 141V176C216 200 200 216 180 225C160 216 144 200 144 176V141Z', stroke: '#FFFFFF', strokeOpacity: .12, pathLength: 1, ...A('lp-d', 500) }),
+      h('path', { d: 'M166 178V168a14 14 0 0 1 28 0V178', stroke: 'url(#lpSilver)', strokeWidth: 3, strokeLinecap: 'round', pathLength: 1, ...A('lp-d', 800) }),
+      h('g', A('lp-pop', 1000), h('rect', { x: 158, y: 176, width: 44, height: 34, rx: 7, fill: 'url(#lpSilver)' }),
+        h('circle', { cx: 180, cy: 190, r: 4.2, fill: '#0A0A0A' }), h('path', { d: 'M180 193v7', stroke: '#0A0A0A', strokeWidth: 3, strokeLinecap: 'round' }))
+    ]));
+
+    /* Final call to action — the mark inside slow rings */
+    const cta = h('div', { 'aria-hidden': true, style: { position: 'relative', width: 180, height: 180, margin: '0 0 -18px' } },
+      sv('0 0 180 180', [
+        h('circle', { cx: 90, cy: 90, r: 58, stroke: '#E5E5E5' }),
+        h('g', { className: 'lp-orbit', style: { transformBox: 'view-box', transformOrigin: '90px 90px', animationDuration: '50s' } },
+          h('circle', { cx: 90, cy: 90, r: 74, stroke: '#BDBDBD', strokeDasharray: '2 7' }), h('circle', { cx: 164, cy: 90, r: 3.5, fill: INK })),
+        h('g', { className: 'lp-orbit-rev', style: { transformBox: 'view-box', transformOrigin: '90px 90px' } },
+          h('circle', { cx: 90, cy: 90, r: 88, stroke: '#EFEFEF' }), h('circle', { cx: 90, cy: 2, r: 2.5, fill: '#8A8A8A' }))
+      ], { position: 'absolute', inset: 0 }),
+      h('img', { src: 'assets/ls-mark-black.png', alt: '', style: { position: 'absolute', left: '50%', top: '50%', height: 64, transform: 'translate(-50%,-50%)' } }));
+
+    /* Hero — faint rotating rings behind the headline */
+    const vb2 = { transformBox: 'view-box', transformOrigin: '500px 500px' };
+    const rings = h('svg', { 'aria-hidden': true, className: 'lh-rings', viewBox: '0 0 1000 1000', fill: 'none', style: { position: 'absolute', left: '50%', top: -170, width: 1000, height: 1000, marginLeft: -500, pointerEvents: 'none' } },
+      h('g', { className: 'lh-par' },
+        h('circle', { cx: 500, cy: 500, r: 250, stroke: '#FFFFFF', strokeOpacity: .06 }),
+        h('g', { className: 'lp-orbit', style: { ...vb2, animationDuration: '120s' } },
+          h('circle', { cx: 500, cy: 500, r: 360, stroke: '#FFFFFF', strokeOpacity: .1, strokeDasharray: '2 10' }),
+          h('circle', { cx: 860, cy: 500, r: 3, fill: '#FFFFFF', fillOpacity: .55 }), h('circle', { cx: 245, cy: 245, r: 2, fill: '#FFFFFF', fillOpacity: .35 })),
+        h('g', { className: 'lp-orbit-rev', style: { ...vb2, animationDuration: '160s' } },
+          h('circle', { cx: 500, cy: 500, r: 470, stroke: '#FFFFFF', strokeOpacity: .05 }), h('circle', { cx: 500, cy: 970, r: 2.5, fill: '#FFFFFF', fillOpacity: .3 }))));
+
+    this._art = { defs, steps: [step1, step2, step3, step4], conn, aud: [audA, audB, audC], sec, cta, rings, chat };
+    return this._art;
   }
   renderVals() {
     const S = this.state, wide = S.w >= 1100, narrow = S.w < 560, h = React.createElement;
