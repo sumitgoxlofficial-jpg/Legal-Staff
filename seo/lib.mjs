@@ -9,7 +9,7 @@ import { pillars } from './data/pillars.mjs';
 
 export const SITE = {
   name: 'Legal Staff',
-  url: (process.env.SITE_URL || 'https://legal-staff-neon.vercel.app').replace(/\/$/, ''),
+  url: (process.env.SITE_URL || 'https://legalstaff.in').replace(/\/$/, ''),
   locale: 'en_IN',
   logo: '/assets/ls-logo-black.png',
   mark: '/assets/ls-mark-black.png',

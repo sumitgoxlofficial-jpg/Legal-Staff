@@ -5,4 +5,4 @@ Disallow: /app.html
 Disallow: /supabase/
 Disallow: /seo/
 
-Sitemap: https://legal-staff-neon.vercel.app/sitemap.xml
+Sitemap: https://legalstaff.in/sitemap.xml
