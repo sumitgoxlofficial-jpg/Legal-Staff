@@ -200,12 +200,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}">
       <button class="ls-btn" onClick="{{ openDrawer }}" style="border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;height:36px;width:44px;font-size:18px;color:#0A0A0A">≡</button>
     </sc-if>
-    <div style="position:relative;flex:1 1 60px;min-width:0;max-width:520px;display:flex;align-items:center;gap:10px;background:#F5F5F4;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;height:36px">
-      <input id="ls-search" value="{{ searchQ }}" onChange="{{ setSearch }}" onFocus="{{ searchFocus }}" onBlur="{{ searchBlur }}" onKeyDown="{{ searchKey }}" placeholder="Search cases, CNR, parties, documents…" style="border:0;background:transparent;outline:none;flex:1;font-size:14px;color:#0A0A0A;min-width:0">
-      <span style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:11px;color:#7A7A7A;border:1px solid #E5E5E5;border-radius:8px;padding:1px 5px">⌘K</span>
+    <div style="position:relative;flex:1 1 60px;min-width:0;max-width:520px;display:flex;align-items:center;gap:8px;background:#F5F5F4;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;height:36px">
+      <input id="ls-search" value="{{ searchQ }}" onChange="{{ setSearch }}" onFocus="{{ searchFocus }}" onBlur="{{ searchBlur }}" onKeyDown="{{ searchKey }}" placeholder="{{ searchPh }}" aria-label="Search cases, CNR, parties, documents" style="border:0;background:transparent;outline:none;flex:1;font-size:14px;color:#0A0A0A;min-width:0;width:100%">
+      <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><span style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:11px;color:#7A7A7A;border:1px solid #E5E5E5;border-radius:8px;padding:1px 5px">⌘K</span></sc-if>
       {{ searchDrop }}
     </div>
-    <div style="flex:1"></div>
+    <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><div style="flex:1"></div></sc-if>
     <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><button class="ls-btn" onClick="{{ newCase }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500;white-space:nowrap">+ New case</button></sc-if>
     <button class="ls-btn" onClick="{{ alertsMenu }}" style="white-space:nowrap;height:36px;padding:0 12px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A;display:flex;align-items:center;gap:6px">Alerts <sc-if value="{{ hasAlerts }}" hint-placeholder-val="{{ true }}"><span style="background:#B42318;color:#fff;border-radius:8px;font-size:11px;padding:0 6px;font-weight:600">{{ alertCount }}</span></sc-if></button>
     <button onClick="{{ togglePanel }}" style="{{ copilotBtn }}">Copilot</button>
@@ -634,7 +634,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div style="display:flex;flex-direction:column;gap:20px">
             <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-                <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">AI summary</h2>
+                <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">Key points <span style="font-weight:400;font-size:12.5px;color:#5E5E5E">· first sentence of each paragraph</span></h2>
                 <span style="font-size:12px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 10px;font-weight:500">{{ ord.sumChip }}</span>
               </div>
               {{ ord.pointsEl }}
@@ -1076,6 +1076,8 @@ class Component extends DCLogic {
     } catch (e) { this.setState({ auth: 'login' }); this.toast('Could not load your firm: ' + e.message); }
   }
   async reload(id) { const d = await LSB.load(id || this.db.firmId, this.sess); this.loadedAt = Date.now(); this.buf = null; this.db = d; LS.save(d); this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1, auth: 'in' })); this.loadQueue(); }
+  /* Owner only (Settings): waits for any save in flight, deletes the firm's files and records on the server, then reloads. */
+  async eraseFirm() { clearTimeout(this.syncT); this.syncT = null; if (LSB.pending()) await LSB.sync(this.db).catch(() => {}); const n = await LSB.eraseFirm(this.db); await this.reload(); return n; }
   afterEnter() { this.grow(); const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
     if (i >= 0) { this.setState({ plan: i, paid: false, cycle: q.get('cycle') === 'monthly' ? 'monthly' : 'annual' }); history.replaceState(null, '', location.pathname + '#/pricing'); this.applyRoute(); } }
   async googleSignIn(token, nonce) { const s = await LSB.signInGoogle(token, nonce); await this.enter(s); }
@@ -1438,7 +1440,7 @@ class Component extends DCLogic {
       expanded: exp, collapsed: !exp, notMobile: !mobile, toggleCollapse: () => this.mut(db => { db.settings.collapsed = !db.settings.collapsed; }), collapseLabel: st.collapsed ? '»' : '« Collapse sidebar',
       showLogin: S.auth === 'login', booting: S.auth === 'boot', loginStage: h(V.LoginStage), bootView: h(V.Boot, { text: 'Loading your workspace…' }), loginForm: h(V.LoginForm, { app: this }),
       firmName: D.firm.name || 'Your practice', firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')) || 'LS', firmLine: [D.sub.plan ? D.sub.plan + ' plan' : 'No plan yet', D.firm.city].filter(Boolean).join(' · '), firmAddress: D.firm.address, firmMenu: openMenu('firm'),
-      userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userEmail: D.user.email, userMenu: openMenu('user'),
+      userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userEmail: D.user.email, searchPh: mobile ? 'Search…' : 'Search cases, CNR, parties, documents…', userMenu: openMenu('user'),
       searchQ: S.search, setSearch: e => this.setState({ search: e.target.value, searchOpen: true }), searchFocus: () => this.setState({ searchOpen: true, menu: null }), searchBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 150), searchKey: e => { if (e.key === 'Enter' && results[0]) pick(results[0]); }, searchDrop,
       newCase: () => V.newCase(this), importCnr: () => V.importCnr(this), help: () => V.help(this), alertsMenu: openMenu('alerts'), alertCount: alerts.length, hasAlerts: alerts.length > 0, overlay,
       toast: S.toast, hasToast: !!S.toast, goCases: () => this.go('cases'),
