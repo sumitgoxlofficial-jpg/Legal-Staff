@@ -267,7 +267,7 @@ const data = {
   },
   patna: {
     name: 'Patna', type: 'city', state: 'Bihar', stateKey: 'bihar',
-    hook: 'RoC Patna, Bihar stamp duty and the state’s startup policy',
+    hook: 'RoC Patna, Bihar stamp duty and the Bihar startup policy for founders',
     intro: 'Patna is Bihar’s capital and its main commercial centre, and founders incorporate here for agri and food-processing ventures, edtech, healthcare, construction and businesses that supply state government projects. A Patna registered office places the company under RoC Patna, which covers the whole of Bihar.',
     stampDuty: { moaAoaNote: 'Bihar stamp duty on the MoA and AoA is paid with the SPICe+ filing. Rent agreements for Patna premises attract Bihar stamp duty separately.' },
     ecosystem: [
@@ -619,7 +619,7 @@ const data = {
   dehradun: {
     name: 'Dehradun', type: 'city', state: 'Uttarakhand', stateKey: 'uttarakhand',
     hook: 'the Uttarakhand RoC, state stamp duty and Dehradun’s research, education and tourism base',
-    intro: 'Dehradun is Uttarakhand’s capital and a long-standing centre for national research institutes, boarding schools and colleges, as well as a base for tourism, wellness and hill-state manufacturing businesses. Founders incorporate here to build on that institutional ecosystem and the state’s industrial estates, and the company is registered with the Registrar that has jurisdiction over Uttarakhand.',
+    intro: 'Dehradun is Uttarakhand’s capital and a long-standing centre for national research institutes, boarding schools and colleges, as well as a base for tourism, wellness and hill-state manufacturing businesses. Founders incorporate here to build on that institutional ecosystem and the state’s industrial estates, and a Dehradun registered office places the company under {roc}.',
     stampDuty: { moaAoaNote: 'Uttarakhand stamp duty on the MoA and AoA is paid with the SPICe+ filing. Rent agreements for Dehradun premises attract Uttarakhand stamp duty separately.' },
     ecosystem: [
       'National institutions such as the Forest Research Institute and CSIR-Indian Institute of Petroleum are based in Dehradun, and ONGC has major establishments in the city.',
@@ -627,7 +627,7 @@ const data = {
       'Uttarakhand’s startup policy offers recognition and support to eligible startups registered in the state, and IIT Roorkee in the same state runs a major incubator.',
       'Tourism, adventure travel and wellness businesses serve visitors to Mussoorie, Rishikesh and the wider Garhwal region.'
     ],
-    highlights: [{ label: 'Typical founders', value: 'Tourism and wellness, pharma and FMCG, edtech' }, { label: 'Industrial estates', value: 'SIDCUL (e.g. Selaqui)' }, { label: 'Professional tax', value: 'Check the current state position' }],
+    highlights: [{ label: 'Typical founders', value: 'Tourism and wellness, pharma and FMCG, edtech' }, { label: 'Industrial estates', value: 'SIDCUL (e.g. Selaqui)' }, { label: 'Nearby institution', value: 'IIT Roorkee (same state)' }],
     officeTips: [
       'Homestay and tourism founders often register at the property itself; make sure the property owner’s NOC and electricity bill match the address exactly.',
       'Units in SIDCUL estates are on allotted land; check that the lease permits the activity and any sub-letting.',
@@ -635,7 +635,7 @@ const data = {
     ],
     nearby: ['delhi-ncr', 'chandigarh', 'lucknow', 'uttar-pradesh'],
     faqs: [
-      { q: 'Which RoC handles companies registered in Dehradun?', a: 'Companies with a registered office in Uttarakhand are under the Registrar that has jurisdiction over the state — see the RoC section above, and confirm the current office on the MCA website, as jurisdictions are occasionally reorganised.' },
+      { q: 'Which RoC handles companies registered in Dehradun?', a: 'Companies with a registered office in Uttarakhand are administered by {roc}. RoC jurisdictions are occasionally reorganised, so we confirm the current mapping on the MCA website before filing; incorporation itself is processed online by the Central Registration Centre.' },
       { q: 'Can I register a homestay or tour business in Dehradun as a company?', a: 'Yes. A private limited company or LLP can run homestays, tours and wellness retreats. You may separately need registration under the state’s tourism or homestay scheme, GST, and FSSAI if you serve food.' },
       { q: 'Is an LLP better than a company for a small Dehradun tourism business?', a: 'An LLP is simpler to run and does not need an audit below the prescribed turnover and contribution thresholds, which suits partner-run tourism businesses. Choose a company if you plan to raise equity investment.' },
       { q: 'How long does company registration in Dehradun take?', a: 'Once DSCs are issued and documents are complete, SPICe+ approval typically takes 7–15 working days, the same as elsewhere in India.' }

@@ -8,7 +8,7 @@ export const blogsA = [
     pillar: 'mca-v3-incorporation',
     title: 'Fixing SPICe+ Part B Resubmission Remarks on MCA V3',
     metaTitle: 'SPICe+ Part B Resubmission Remarks: How to Fix on MCA V3',
-    metaDescription: 'ROC marked your SPICe+ Part B for resubmission? Read the remarks, fix MoA, address proof, DSC and AGILE-PRO-S issues, and resubmit on MCA V3 before the deadline.',
+    metaDescription: 'Got SPICe+ Part B remarks from the ROC? Read them, fix MoA, address proof, DSC and AGILE-PRO-S issues, and resubmit on MCA V3 before the deadline.',
     published: '2026-08-04', updated: '2026-11-10', readMinutes: 9,
     keywords: ['SPICe+ resubmission', 'SPICe+ Part B remarks', 'MCA V3 resubmit form', 'ROC objection incorporation', 'RSUB SPICe+', 'company incorporation rejected'],
     excerpt: 'The ROC has sent your SPICe+ back with remarks. Here is how to read them, fix every point in one pass and resubmit on the V3 portal without losing your name.',
@@ -92,7 +92,7 @@ export const blogsA = [
     pillar: 'mca-v3-incorporation',
     title: 'SPICe+ Part A vs Direct Part B: Avoiding Rule 8 Name Rejections',
     metaTitle: 'SPICe+ Name Rejection: Rule 8, 8A & 8B Explained',
-    metaDescription: 'Why MCA rejects company names under rules 8, 8A and 8B, when to reserve the name in SPICe+ Part A or RUN first, and how to choose a name that clears the first time.',
+    metaDescription: 'Why MCA rejects company names under rules 8, 8A and 8B, when to reserve a name via SPICe+ Part A or RUN first, and how to pick a name that clears first time.',
     published: '2026-08-11', updated: '2026-11-08', readMinutes: 9,
     keywords: ['company name rejection', 'rule 8 Companies Incorporation Rules', 'rule 8A undesirable name', 'rule 8B prior approval words', 'SPICe+ Part A', 'RUN name reservation'],
     excerpt: 'Most name rejections come from three rules. Learn what rules 8, 8A and 8B test for, and when it is worth reserving the name before filing Part B.',
@@ -174,7 +174,7 @@ export const blogsA = [
     pillar: 'mca-v3-incorporation',
     title: 'Registering a Pvt Ltd on a Residential or Virtual Office: NOC & Geo-Coordinates',
     metaTitle: 'Virtual or Home Office as Registered Office: NOC & Proofs',
-    metaDescription: 'Can a Pvt Ltd use a home or virtual office as its registered office? Proofs, owner NOC, utility bill age, INC-22, geo-tagged photos and ROC physical checks explained.',
+    metaDescription: 'Can a Pvt Ltd use a home or virtual office as its registered office? Owner NOC, utility bill age, INC-22, geo-tagged photos and ROC physical checks explained.',
     published: '2026-08-18', updated: '2026-11-05', readMinutes: 8,
     keywords: ['registered office proof', 'virtual office company registration', 'residential address registered office', 'INC-22 geo coordinates', 'NOC for registered office', 'rule 25B physical verification'],
     excerpt: 'A home or a virtual office can be your registered office, but only with the right proofs and a real ability to receive notices. Here is what MCA V3 and the ROC check.',
@@ -220,6 +220,13 @@ export const blogsA = [
           `Moving the registered office within the same city needs a board resolution and INC-22; moving across ROC or state jurisdictions needs further approvals and alteration of the MoA.`,
           `Keep copies of the NOC, agreement and photos in the statutory records so you can answer a verification quickly.`
         ]
+      },
+      {
+        heading: 'What happens at a physical verification',
+        paragraphs: [
+          `Section 12(9) lets the Registrar physically verify a company's registered office if there is reason to believe the company is not carrying on business or operations there. Rule 25B of the Companies (Incorporation) Rules, 2014 sets out the procedure: the verification is done in the presence of independent witnesses from the locality, and the officer records the visit with photographs of the premises.`,
+          `If the registered office is found not capable of receiving and acknowledging communications, the Registrar can issue notice and, if the default is not explained, start action to remove the company's name from the register under section 248. Answering quickly with the NOC, agreement, utility bill, photos of the name board and evidence that notices are being received is usually the way out — which is why those documents belong in the statutory file, not in a founder's email.`
+        ]
       }
     ],
     pitfalls: [
@@ -248,8 +255,8 @@ export const blogsA = [
     slug: 'indian-subsidiary-registration-foreign-director-documents-fema',
     pillar: 'mca-v3-incorporation',
     title: 'Incorporating an Indian Subsidiary with Foreign Directors: Apostille & FEMA Checklist',
-    metaTitle: 'Indian Subsidiary Registration: Foreign Director & FEMA Steps',
-    metaDescription: 'Set up an Indian subsidiary with foreign directors: apostilled documents, the resident-director rule in section 149(3), FDI route checks, FC-GPR and FIRMS reporting.',
+    metaTitle: 'Indian Subsidiary Setup: Foreign Directors & FEMA Steps',
+    metaDescription: 'Set up an Indian subsidiary with foreign directors: apostilled documents, the resident-director rule in section 149(3), FDI route checks and FC-GPR on FIRMS.',
     published: '2026-08-25', updated: '2026-11-12', readMinutes: 10,
     keywords: ['Indian subsidiary registration', 'foreign director documents apostille', 'resident director section 149(3)', 'FC-GPR FIRMS portal', 'FDI automatic route', 'wholly owned subsidiary India'],
     excerpt: 'Foreign parent, foreign directors, Indian company: the documents to apostille, the resident-director rule, and the FEMA reports that follow incorporation.',
@@ -408,4 +415,413 @@ export const blogsA = [
       blogs: ['cas-4-certificate-captive-consumption-gst-valuation', 'post-incorporation-compliance-checklist-first-60-days-sh1-adt1', 'spice-plus-part-b-resubmission-remarks-mca-v3']
     }
   },
+
+  /* ------------------------------------------------------------------ 6 */
+  {
+    slug: 'practicing-cma-certification-mca-roc-forms-spice-plus',
+    pillar: 'cma-certifications',
+    title: 'Practicing CMA Certification for SPICe+, INC-20A & ROC Forms',
+    metaTitle: 'Can a Practising CMA Certify SPICe+, INC-20A & ROC Forms?',
+    metaDescription: 'Which MCA forms a practising Cost Accountant can certify alongside CAs and CSs, which are reserved for CSs, and how UDIN, DSC and verification work on MCA V3.',
+    published: '2026-09-08', updated: '2026-11-09', readMinutes: 9,
+    keywords: ['practising CMA certification', 'cost accountant certify MCA forms', 'SPICe+ professional certification', 'INC-20A certification', 'UDIN ICMAI', 'MCA V3 DSC professional'],
+    excerpt: 'A practising Cost Accountant can certify most MCA e-forms, including SPICe+ and INC-20A. Here is where CMAs stand alongside CAs and CSs, and what a proper certificate involves.',
+    summary: [
+      `Many MCA e-forms must be certified by a professional in whole-time practice before they are filed. Under the Companies (Registration Offices and Fees) Rules, 2014, that professional can generally be a chartered accountant, a company secretary or a cost accountant in practice. For incorporation, section 7(1)(b) of the Companies Act, 2013 specifically lists an advocate, a chartered accountant, a cost accountant or a company secretary in practice as the professional who can make the declaration of compliance.`,
+      `So a practising CMA can certify SPICe+, INC-20A, DIR-3 KYC, INC-22, DIR-12, PAS-3, CHG-1, AOC-4 and most event-based forms. A small number of documents are reserved by the Act for company secretaries in practice — the MGT-8 certification of the annual return for prescribed companies, the signature on MGT-7 for those companies, and the secretarial audit report (MR-3). Cost audit, by contrast, is reserved for cost accountants.`,
+      `A good certificate is more than a DSC on a form. It rests on a check of original documents, a working file, a UDIN generated on the institute's portal and a professional who is registered as such on MCA V3. That is what protects both the company and the certifying member if the filing is questioned later.`
+    ],
+    steps: {
+      heading: 'Step-by-step: how a practising CMA certifies an MCA form',
+      items: [
+        { title: 'Confirm the form allows CMA certification', text: `Check the certification block in the e-form. Most forms offer chartered accountant, company secretary or cost accountant in whole-time practice; a few documents are reserved for one profession by the Act.` },
+        { title: 'Verify originals and the board record', text: `Inspect the source documents — identity and address proofs for SPICe+, the bank statement showing subscription money for INC-20A, the board resolution and consent for DIR-12 — and match them to the form fields.` },
+        { title: 'Keep a working file', text: `Record what was checked, by whom and when. Keep copies of the documents relied on. This is your evidence if the ROC, the institute or a court asks how the certification was made.` },
+        { title: 'Generate the UDIN', text: `Generate a Unique Document Identification Number on the ICMAI UDIN portal for the certificate, as the Institute requires for certificates issued by its members, and quote it where the form or the certificate allows.` },
+        { title: 'Sign with your DSC on MCA V3', text: `The certifying member uses a valid Class 3 DSC associated with a professional user ID on MCA V3, with membership number and certificate-of-practice details that MCA can validate.` },
+        { title: 'File and retain the acknowledgement', text: `Once the company files, keep the SRN and challan in the working file. If remarks are raised, re-verify any changed facts before re-certifying.` }
+      ]
+    },
+    rules: {
+      heading: 'Who can certify what: a quick reference',
+      caption: 'General position under the Companies Act, 2013 and rules; always check the certification block in the current version of each e-form.',
+      headers: ['Form / document', 'Purpose', 'Certified by', 'Timing / consequence'],
+      rows: [
+        ['SPICe+ (INC-32) declaration', 'Compliance with incorporation requirements, section 7(1)(b)', 'Advocate, CA, CMA or CS in practice engaged in formation', 'At incorporation; false declaration attracts section 448'],
+        ['INC-20A', 'Declaration that subscribers have paid for their shares', 'CA, CS or CMA in practice', 'Within 180 days of incorporation; section 10A penalty if missed'],
+        ['DIR-3 KYC (e-form)', 'Annual KYC of directors', 'CA, CS or CMA in practice', 'By 30 September; ₹5,000 fee for late filing and deactivated DIN'],
+        ['AOC-4 and most event forms (DIR-12, PAS-3, INC-22, CHG-1, SH-7)', 'Financial statements and changes', 'CA, CS or CMA in practice', 'AOC-4 within 30 days of the AGM; ₹100 per day additional fee'],
+        ['MGT-7 / MGT-8 for prescribed companies', 'Annual return certification', 'CS in practice only', 'Within 60 days of the AGM; ₹100 per day additional fee'],
+        ['Cost audit report (CRA-3), filed in CRA-4', 'Cost audit under section 148', 'Cost accountant in practice only', 'CRA-4 within 30 days of receiving the report'],
+        ['Section 448 / 447', 'False statements in any return, report or certificate', 'Applies to anyone making it', 'Punishable as fraud']
+      ]
+    },
+    sections: [
+      {
+        heading: 'Why companies use a CMA desk for certification',
+        paragraphs: [
+          `For founders the question is usually practical: who can sign today, verify properly, and stand behind the certificate? Practising cost accountants are part of the same certification framework as CAs and CSs for most MCA forms, and they also hold the exclusive role in cost audit and a recognised role in GST certificates (such as ITC-02) and FEMA valuations.`,
+          `Using one desk for SPICe+, INC-20A, CAS-4 or CMA data reports, and the valuation for an FC-GPR means the same professional understands the company's capital, address and business — fewer inconsistencies between filings.`
+        ],
+        bullets: [
+          `A certificate should be issued only after the professional has seen the evidence — not on the basis of a scanned form alone.`,
+          `If the company has an in-house CS, a practising CMA can still certify forms the rules allow, but MGT-8 and secretarial audit stay with a CS in practice.`,
+          `Professional fees for certification are separate from MCA government fees, which are paid at actuals.`
+        ]
+      },
+      {
+        heading: 'What the certifying professional checks on the common forms',
+        paragraphs: [
+          `The checks differ by form, but the principle is the same: every material fact in the form should be traceable to a document the professional has seen. For SPICe+, that means identity and address proofs of every subscriber and director, the registered-office proofs and owner NOC, the consents and declarations, and the MoA and AoA as signed.`,
+          `For INC-20A, the focus is on money: a bank statement of the company showing that each subscriber has paid the value of the shares agreed in the MoA, and — where applicable — the approval of any sectoral regulator. For DIR-3 KYC, the professional checks the director's identity, address, mobile number and email against original records, because the OTPs and DIN status depend on them.`,
+          `For event-based forms such as DIR-12 (change in directors), PAS-3 (allotment) and SH-7 (change in capital), the checks centre on the board and shareholder resolutions, the notice and quorum, the consents, and whether the event was filed within 30 days. A late form is still certified — but the additional fee, and any penalty exposure, should be pointed out to the company in writing.`
+        ]
+      }
+    ],
+    pitfalls: [
+      { title: 'Certifying without seeing originals', text: `A DSC on a form is a professional statement. Always verify the source documents and keep a record.` },
+      { title: 'No UDIN on the certificate', text: `Certificates without the institute's UDIN may be rejected by banks and authorities and can lead to disciplinary questions.` },
+      { title: 'Expired DSC or unmapped professional ID', text: `An expired DSC or a professional account without validated membership details blocks the upload on MCA V3.` },
+      { title: 'Using a CMA where the Act reserves the role', text: `MGT-8 and secretarial audit belong to CSs in practice; cost audit belongs to CMAs. Check before engaging.` },
+      { title: 'Certifying an old INC-20A bank statement', text: `INC-20A rests on proof that subscribers actually paid. A statement that does not show the subscription credits is not enough.` }
+    ],
+    faqs: [
+      { q: 'Can a practising cost accountant certify SPICe+?', a: 'Yes. Section 7(1)(b) of the Companies Act, 2013 allows the declaration to be made by an advocate, a chartered accountant, a cost accountant or a company secretary in practice who is engaged in the formation, and the e-form certification can be done by a practising CA, CS or CMA.' },
+      { q: 'Which forms can a CMA not certify?', a: 'Documents reserved by the Act for company secretaries in practice — such as the MGT-8 certificate on the annual return of prescribed companies and the secretarial audit report — cannot be certified by a CMA. Always check the certification block on the current form.' },
+      { q: 'Is UDIN mandatory for CMA certificates?', a: 'The Institute of Cost Accountants of India requires its members to generate a UDIN for certificates they issue. Many banks and authorities also check UDIN before accepting a certificate.' },
+      { q: 'How quickly can a certificate be issued?', a: 'If the documents are complete, many certifications can be done on the same day. Delays usually come from missing originals, mismatched details or an expired DSC — so send everything together.' }
+    ],
+    related: {
+      services: ['cma-ca-cs-certification-services', 'private-limited-company-registration', 'roc-annual-compliance'],
+      tools: ['roc-compliance-calendar'],
+      compare: ['legacy-portals-vs-dedicated-cma-legal-desk'],
+      blogs: ['inc-20a-late-filing-penalty-after-180-days-condonation', 'spice-plus-part-b-resubmission-remarks-mca-v3', 'dir-3-kyc-deactivated-din-reactivation-fee-process', 'cost-audit-applicability-turnover-limit-cra-1-cra-4']
+    }
+  },
+
+  /* ------------------------------------------------------------------ 7 */
+  {
+    slug: 'cost-audit-applicability-turnover-limit-cra-1-cra-4',
+    pillar: 'cma-certifications',
+    title: 'Cost Records (CRA-1) vs Cost Audit (CRA-2/CRA-3/CRA-4): Turnover Thresholds',
+    metaTitle: 'Cost Audit Applicability: CRA-1 to CRA-4 Turnover Limits',
+    metaDescription: 'When a company must keep cost records in CRA-1 and when cost audit applies: turnover thresholds in the 2014 rules, exemptions, and CRA-2 and CRA-4 due dates.',
+    published: '2026-09-15', updated: '2026-11-11', readMinutes: 10,
+    keywords: ['cost audit applicability', 'cost records CRA-1', 'CRA-2 due date', 'CRA-4 filing', 'Companies (Cost Records and Audit) Rules 2014', 'section 148 cost audit'],
+    excerpt: 'Cost records and cost audit are separate tests with separate thresholds. Here is how to check both, and the CRA forms and dates that follow.',
+    summary: [
+      `Section 148 of the Companies Act, 2013 lets the Central Government require specified companies to keep cost records and, above higher thresholds, to have those records audited. The detail is in the Companies (Cost Records and Audit) Rules, 2014, which list the covered industries in two tables: Table A for regulated sectors and Table B for non-regulated sectors, each mapped to customs tariff or service codes.`,
+      `The first test is cost records. A company producing goods or providing services listed in the rules must maintain cost records in Form CRA-1 if its overall turnover from all products and services in the immediately preceding financial year was ₹35 crore or more. The second test is cost audit: for Table A companies, overall turnover of ₹50 crore or more and turnover of ₹25 crore or more from the individual covered product or service; for Table B, ₹100 crore and ₹35 crore respectively.`,
+      `If cost audit applies, the board appoints a cost accountant in practice within 180 days of the start of the financial year, intimates the appointment in CRA-2, the auditor reports in CRA-3, and the company files the report in CRA-4 within 30 days of receiving it. The thresholds and exemptions have been amended before, so check the current text of the rules against your latest audited numbers each year.`
+    ],
+    steps: {
+      heading: 'Step-by-step: checking applicability and staying compliant',
+      items: [
+        { title: 'Map your products and services to the tables', text: `Identify the customs tariff headings (for goods) or service descriptions that apply to your revenue lines and check whether they appear in Table A or Table B of rule 3. If none of your activities is covered, the rules do not apply.` },
+        { title: 'Test the cost-records threshold', text: `Take overall turnover from all products and services for the immediately preceding financial year. At ₹35 crore or more, with a covered activity, cost records in CRA-1 are required for the current year.` },
+        { title: 'Check the exemptions', text: `Micro and small enterprises classified under the MSMED Act are excluded from the cost-records requirement. For cost audit, the rules also exclude companies whose foreign-exchange export revenue exceeds 75% of total revenue and companies operating from a special economic zone, among others. Read the current exemption text.` },
+        { title: 'Test the cost-audit threshold', text: `For Table A: overall turnover ₹50 crore or more and the individual covered product or service ₹25 crore or more. For Table B: ₹100 crore or more overall and ₹35 crore or more for the individual product or service.` },
+        { title: 'Appoint the cost auditor and file CRA-2', text: `The board appoints a cost accountant in practice (not the statutory auditor) within 180 days of the start of the financial year, with remuneration later ratified by shareholders. File CRA-2 within 30 days of the board meeting or within 180 days of the start of the year, whichever is earlier.` },
+        { title: 'Receive CRA-3 and file CRA-4', text: `The cost auditor submits the report in CRA-3 to the board within 180 days of the end of the financial year. The company files it with the Central Government in CRA-4 within 30 days of receipt, with the board's explanations on any qualifications.` }
+      ]
+    },
+    rules: {
+      heading: 'Cost records and cost audit: thresholds and forms',
+      caption: 'Thresholds as stated in rules 3 and 4 of the Companies (Cost Records and Audit) Rules, 2014 as amended. Confirm current text and MCA fees before acting.',
+      headers: ['Form / test', 'Purpose', 'Threshold / due date', 'Fee / consequence'],
+      rows: [
+        ['Rule 3 — cost records', 'Maintain cost records for covered products/services', 'Overall turnover ₹35 crore or more in the preceding year', 'Default punishable under section 148(8)'],
+        ['CRA-1', 'Format of cost records (maintained, not filed)', 'Maintained for each financial year and preserved for eight years', 'Not filed with MCA'],
+        ['Rule 4 — cost audit, Table A', 'Regulated sectors', 'Overall ≥ ₹50 crore and individual product/service ≥ ₹25 crore', 'Cost audit mandatory'],
+        ['Rule 4 — cost audit, Table B', 'Non-regulated sectors', 'Overall ≥ ₹100 crore and individual product/service ≥ ₹35 crore', 'Cost audit mandatory'],
+        ['CRA-2', 'Intimation of appointment of the cost auditor', 'Within 30 days of the board meeting or 180 days of the start of the year, whichever is earlier', 'Normal fee; additional fee if late'],
+        ['CRA-3', 'Cost audit report by the cost auditor to the board', 'Within 180 days of the end of the financial year', 'Prepared by a cost accountant in practice'],
+        ['CRA-4', 'Filing of the cost audit report with the Central Government (XBRL)', 'Within 30 days of receiving the report', 'Normal fee; additional fee if late']
+      ]
+    },
+    sections: [
+      {
+        heading: 'Cost records are not the same as cost audit',
+        paragraphs: [
+          `Many companies discover the cost-records requirement late because they assume it only matters once cost audit applies. In fact a company can cross the ₹35 crore cost-records threshold years before it needs a cost audit, and the records must still be kept in the CRA-1 format — material, employee cost, overheads, by product or service, reconciled with the financial accounts.`,
+          `Keeping cost records properly also prepares you for the audit: when turnover crosses the audit thresholds, a year of clean records makes the first cost audit much easier.`
+        ],
+        bullets: [
+          `"Turnover" for these tests is the overall turnover from all products and services in the immediately preceding financial year, not only the covered product.`,
+          `Turnover crossing a threshold in one year makes the requirement apply to the following year.`,
+          `The cost auditor must be independent of the statutory audit — the statutory auditor cannot also be the cost auditor.`
+        ]
+      },
+      {
+        heading: 'What a cost auditor will ask for',
+        paragraphs: [
+          `Expect requests for production and sales quantities, consumption records, a product-wise cost sheet, a reconciliation of cost and financial profit, details of related-party transactions and any captive consumption. If you also need CAS-4 certificates for GST valuation, the same cost data supports them.`
+        ]
+      }
+    ],
+    pitfalls: [
+      { title: 'Testing on the wrong year\'s turnover', text: `Applicability is based on the immediately preceding financial year. Use audited figures and re-test every year.` },
+      { title: 'Missing the 180-day appointment window', text: `If the cost auditor is not appointed within 180 days of the start of the year, both the appointment and CRA-2 become late.` },
+      { title: 'Assuming exemptions without reading them', text: `MSE and export-oriented exemptions have conditions. Document why you rely on one.` },
+      { title: 'Appointing the statutory auditor', text: `The statutory auditor cannot act as cost auditor. Appoint a separate cost accountant in practice.` },
+      { title: 'Not ratifying remuneration', text: `Cost-auditor remuneration fixed by the board must be ratified by shareholders. Put it on the AGM or EGM agenda.` }
+    ],
+    faqs: [
+      { q: 'What is the turnover limit for maintaining cost records?', a: 'A company engaged in a product or service listed in the rules must maintain cost records if its overall turnover from all products and services in the immediately preceding financial year was ₹35 crore or more, unless an exemption applies.' },
+      { q: 'When does cost audit become mandatory?', a: 'For regulated sectors (Table A), when overall turnover is ₹50 crore or more and the individual covered product or service is ₹25 crore or more. For non-regulated sectors (Table B), the limits are ₹100 crore and ₹35 crore respectively, based on the preceding year.' },
+      { q: 'Is Form CRA-1 filed with MCA?', a: 'No. CRA-1 is the format in which cost records are maintained. CRA-2 (appointment of cost auditor) and CRA-4 (cost audit report) are the forms filed with MCA.' },
+      { q: 'Who can be appointed as cost auditor?', a: 'A cost accountant in practice or a firm of cost accountants. The company\'s statutory auditor cannot be appointed as its cost auditor.' }
+    ],
+    related: {
+      services: ['cma-ca-cs-certification-services', 'roc-annual-compliance'],
+      tools: ['roc-compliance-calendar'],
+      compare: ['legacy-portals-vs-dedicated-cma-legal-desk'],
+      blogs: ['cas-4-certificate-captive-consumption-gst-valuation', 'practicing-cma-certification-mca-roc-forms-spice-plus', 'virtual-compliance-officer-vs-in-house-cs-cost-india']
+    }
+  },
+
+  /* ------------------------------------------------------------------ 8 */
+  {
+    slug: 'cma-data-project-report-format-msme-bank-loan-cgtmse',
+    pillar: 'cma-certifications',
+    title: 'How to Get a Certified CMA Project Report for MSME Bank & CGTMSE Loans',
+    metaTitle: 'CMA Data & Project Report for MSME Bank and CGTMSE Loans',
+    metaDescription: 'What bank CMA data contains (Forms I to VI), how lenders read projections, DSCR and current ratio, and how to prepare a certified project report for CGTMSE.',
+    published: '2026-09-22', updated: '2026-11-13', readMinutes: 10,
+    keywords: ['CMA data for bank loan', 'CMA report format', 'project report for MSME loan', 'CGTMSE loan', 'DSCR calculation', 'MPBF working capital'],
+    excerpt: 'Bank "CMA data" is a six-form credit monitoring statement, not a cost audit. Here is what goes into it, how lenders test it, and how to make it hold up.',
+    summary: [
+      `When a bank asks an MSME for "CMA data", it means the Credit Monitoring Arrangement statements — a standard set of historical and projected financials that lenders use to assess working-capital and term-loan proposals. The format is usually six forms: existing and proposed limits, an operating statement, an analysis of the balance sheet, a comparative statement of current assets and current liabilities, the computation of maximum permissible bank finance, and a fund-flow statement.`,
+      `A project report wraps this data in a narrative: the business, promoters, project cost and means of finance, capacity and assumptions, and the key ratios — debt service coverage ratio (DSCR), current ratio, debt-equity and interest coverage. Lenders compare your projections with your history and with the industry; aggressive, unexplained jumps are the most common reason a proposal stalls.`,
+      `For collateral-free loans to micro and small enterprises, banks can seek a guarantee from the Credit Guarantee Fund Trust for Micro and Small Enterprises (CGTMSE). The guarantee ceiling and fee have been revised several times — the ceiling went up to ₹5 crore in 2023 and a further increase to ₹10 crore was announced in the Union Budget 2025-26 — so confirm the current limit, coverage and fee with your lender.`
+    ],
+    steps: {
+      heading: 'Step-by-step: preparing CMA data and a project report',
+      items: [
+        { title: 'Collect three years of history', text: `Audited financial statements for the last two or three years, the current year's provisional figures, GST returns, bank statements and the stock and debtor statements submitted to existing lenders. Projections are only credible if they start from reconciled actuals.` },
+        { title: 'Set out the project and the funding ask', text: `Describe the expansion or new project, the cost (land, building, plant, pre-operative expenses, margin for working capital) and the means of finance — promoter contribution, term loan, working-capital limit, any subsidy.` },
+        { title: 'Build assumptions you can defend', text: `Capacity utilisation, selling prices, raw-material costs, credit periods for debtors and creditors, and inventory holding. Tie each to evidence: orders, quotations, past performance or industry data.` },
+        { title: 'Prepare Forms I to VI', text: `Populate the six CMA forms for the past years, the current estimate and the projected years (often the loan tenure). Make sure the balance sheet balances every year and that the cash flow ties to it.` },
+        { title: 'Compute and stress-test the ratios', text: `Calculate DSCR (average and year-wise), current ratio, TOL/TNW, debt-equity and interest coverage. Run a downside case — lower sales or margins — to show the loan is still serviceable.` },
+        { title: 'Get it reviewed and certified', text: `Have a practising professional review the report for consistency and certify it in the bank's format with a UDIN. Many lenders accept reports certified by a practising CA or cost accountant; check the bank's requirement.` },
+        { title: 'Prepare the CGTMSE and Udyam papers', text: `Keep your Udyam registration current, as eligibility for MSE schemes depends on it. Ask the bank whether the proposal will be covered under CGTMSE and what the annual guarantee fee will be.` }
+      ]
+    },
+    rules: {
+      heading: 'The six CMA forms and what lenders look for',
+      caption: 'Format names follow common bank practice; individual lenders use their own templates. Ratio benchmarks vary by bank, sector and loan type.',
+      headers: ['Form / item', 'Contents', 'Period covered', 'What the lender tests'],
+      rows: [
+        ['Form I', 'Particulars of existing and proposed bank limits', 'Current', 'Total exposure, other lenders'],
+        ['Form II', 'Operating statement: sales, cost of production, profit', 'Past 2–3 years, current, projected', 'Growth, margins, consistency with GST returns'],
+        ['Form III', 'Analysis of balance sheet: liabilities and assets', 'Past, current, projected', 'Net worth, leverage (TOL/TNW, debt-equity)'],
+        ['Form IV', 'Current assets and current liabilities, with holding periods', 'Past, current, projected', 'Inventory and debtor days, creditor days'],
+        ['Form V', 'Maximum permissible bank finance (MPBF)', 'Current and projected', 'Working-capital gap, margin, assessed limit'],
+        ['Form VI', 'Fund-flow statement', 'Past, current, projected', 'Long-term sources vs long-term uses'],
+        ['Key ratios', 'DSCR, current ratio, interest coverage', 'Projected loan tenure', 'Serviceability with a cushion — benchmarks are set by each bank']
+      ]
+    },
+    sections: [
+      {
+        heading: 'How banks size working-capital limits',
+        paragraphs: [
+          `Two methods are common. For smaller limits, many banks use the turnover method associated with the Nayak Committee: working-capital requirement taken as 25% of projected annual turnover, of which the bank finances 20% and the borrower brings 5% as margin. For larger limits, banks assess the working-capital gap and apply a margin — the "second method of lending" from the Tandon Committee requires the borrower to fund 25% of total current assets from long-term sources.`,
+          `Your Form IV and Form V must support the limit you ask for. If your projected debtor days are far shorter than your history, explain why — a new customer contract, factoring or a change in terms.`
+        ]
+      },
+      {
+        heading: 'DSCR and the other ratios',
+        paragraphs: [
+          `DSCR measures whether cash from operations covers the loan instalments and interest. A common form is (profit after tax + depreciation + interest on term loan) ÷ (term-loan instalment + interest on term loan) for each year. Lenders look at both the average and the weakest year.`,
+          `There is no single statutory benchmark; each bank sets its own. Treat any DSCR close to 1 as a red flag and show how a cushion is maintained in a downside case.`
+        ],
+        bullets: [
+          `Current ratio: current assets ÷ current liabilities, including bank borrowings for working capital.`,
+          `TOL/TNW: total outside liabilities ÷ tangible net worth — a leverage check.`,
+          `Interest coverage: EBITDA ÷ interest — how comfortably profits cover interest.`
+        ]
+      }
+    ],
+    pitfalls: [
+      { title: 'Projections that do not match history', text: `Doubling sales in year one without orders or capacity evidence is the fastest way to lose a credit officer's confidence.` },
+      { title: 'Balance sheet that does not balance', text: `A mismatch in any projected year signals a broken model. Reconcile every year before submitting.` },
+      { title: 'Ignoring GST return figures', text: `Lenders compare reported sales with GST returns and bank credits. Explain any differences.` },
+      { title: 'Uncertified or unsigned reports', text: `A report without the professional's signature, membership number and UDIN may be returned. Ask the bank what certification it needs.` },
+      { title: 'Assuming CGTMSE cover is automatic', text: `Coverage is decided by the lender within the scheme rules and carries an annual fee. Ask early.` }
+    ],
+    faqs: [
+      { q: 'Is a bank "CMA report" the same as a Cost and Management Accountant report?', a: 'No. In lending, CMA stands for Credit Monitoring Arrangement — a standard set of financial statements. It can be prepared or certified by a practising chartered accountant or cost accountant, depending on what your bank accepts.' },
+      { q: 'How many years of projections are needed?', a: 'Banks usually want projections for the current year and future years — often covering the full tenure of a term loan, and at least one to two years for a working-capital limit. Ask your bank for its template.' },
+      { q: 'What is the CGTMSE limit for collateral-free loans?', a: 'The CGTMSE guarantee ceiling has been raised over time — to ₹5 crore in 2023, with a further increase to ₹10 crore announced in the Union Budget 2025-26. Coverage percentages and the annual guarantee fee depend on the loan size and borrower category, so confirm the current terms with your lender.' },
+      { q: 'What DSCR do banks expect?', a: 'There is no fixed statutory number; each lender sets its own benchmark by sector and loan type. A DSCR that stays comfortably above 1 in every projected year, including a downside case, is what makes a proposal credible.' }
+    ],
+    related: {
+      services: ['cma-ca-cs-certification-services', 'msme-udyam-dpiit-startup-registration'],
+      tools: ['incorporation-cost-calculator'],
+      compare: ['legacy-portals-vs-dedicated-cma-legal-desk'],
+      blogs: ['cost-audit-applicability-turnover-limit-cra-1-cra-4', 'startup-share-valuation-report-registered-valuer-cma-fema', '80-iac-tax-exemption-rejection-reasons-startup-india-dpiit']
+    }
+  },
+
+  /* ------------------------------------------------------------------ 9 */
+  {
+    slug: 'cas-4-certificate-captive-consumption-gst-valuation',
+    pillar: 'cma-certifications',
+    title: 'CAS-4 Certification Explained: Captive Consumption & Job-Work Valuation Under GST',
+    metaTitle: 'CAS-4 Certificate: Captive Consumption & GST Valuation',
+    metaDescription: 'How CAS-4 cost of production supports GST valuation between distinct or related persons under rules 28 and 30, what a cost accountant certifies, and job work.',
+    published: '2026-09-29', updated: '2026-11-07', readMinutes: 9,
+    keywords: ['CAS-4 certificate', 'cost of production captive consumption', 'GST valuation rule 30', 'rule 28 related person valuation', '110% cost of production', 'job work GST ITC-04'],
+    excerpt: 'Supplying goods to your own branch in another state, or to a related company, can require a cost-based value under GST. CAS-4 is how that cost is measured and certified.',
+    summary: [
+      `Under GST, a supply between distinct persons (for example two GST registrations of the same company in different states) or between related persons is valued under rule 28 of the CGST Rules: at open market value, or the value of goods of like kind and quality, and failing those, under rule 30 or rule 31. Rule 30 values the supply at 110% of the cost of production or manufacture, or the cost of acquisition, of the goods.`,
+      `CAS-4 — the Cost Accounting Standard on cost of production for captive consumption issued by the Institute of Cost Accountants of India — is the established method for working out that cost. It sets out which costs go in (materials, direct employee cost, direct expenses, works overheads, a share of quality control, R&D and production-related administration) and which stay out (selling and distribution, interest, profit). A practising cost accountant certifies the computation, which you keep as support for the value declared.`,
+      `Rule 28 also has a valuable relief: where the recipient is eligible for full input tax credit, the value declared in the invoice is deemed to be the open market value. In many inter-unit transfers this makes the exercise simpler — but not where the recipient's credit is restricted, such as units with exempt supplies.`
+    ],
+    steps: {
+      heading: 'Step-by-step: getting a CAS-4 based value in place',
+      items: [
+        { title: 'Identify supplies that need a cost-based value', text: `List stock transfers to other GSTINs of the same entity, supplies to related parties, and any supplies where there is no comparable open market price. Note whether the recipient can take full ITC.` },
+        { title: 'Check rule 28 before going to rule 30', text: `Try open market value and like-kind-and-quality first. If the recipient is eligible for full ITC, the invoice value can be deemed open market value under rule 28. Use rule 30 only when the earlier tests do not give a value.` },
+        { title: 'Build the CAS-4 cost sheet', text: `Compile product-wise cost of production for the period: materials (net of recoverable taxes), direct employee cost, direct expenses, works overheads, quality control, R&D and production administration, adjusted for opening and closing work-in-progress and credits for scrap.` },
+        { title: 'Apply the 110% rule', text: `Under rule 30, the taxable value is 110% of the cost of production. Apply it per unit to transfers in the period, and update the cost periodically — many companies use the previous year's audited cost with a true-up.` },
+        { title: 'Get it certified by a practising CMA', text: `A cost accountant in practice reviews the cost sheet against the books, issues the CAS-4 certificate with a UDIN, and notes the method and period. Keep it with your GST records.` },
+        { title: 'Reconcile and review annually', text: `Reconcile the cost used for invoicing with the audited cost after year-end. Where the cost was materially understated, consider differential tax payment to avoid disputes.` }
+      ]
+    },
+    rules: {
+      heading: 'GST valuation and job-work provisions',
+      caption: 'References are to the CGST Act, 2017 and CGST Rules, 2017. Confirm the current text and due dates on the GST portal.',
+      headers: ['Provision / form', 'What it covers', 'Timing / limit', 'Consequence'],
+      rows: [
+        ['Schedule I, CGST Act', 'Supplies between distinct or related persons are supplies even without consideration', 'Each transfer', 'GST payable on the valued amount'],
+        ['Rule 28', 'Value between distinct or related persons: open market value, like kind and quality, then rule 30/31', 'Each transfer', 'Invoice value deemed open market value if the recipient gets full ITC'],
+        ['Rule 30', 'Value at 110% of cost of production, manufacture or acquisition', 'Where earlier methods fail', 'Under-valuation leads to differential tax, interest and penalty'],
+        ['CAS-4', 'Method for computing cost of production for captive consumption', 'Per product, per period', 'Certified by a cost accountant in practice'],
+        ['Section 143 — job work', 'Inputs and capital goods sent to a job worker without paying tax', 'Inputs back within 1 year; capital goods within 3 years', 'If not returned in time, treated as a supply on the date sent'],
+        ['ITC-04', 'Statement of goods sent to and received from job workers', 'Half-yearly if AATO above ₹5 crore; annually otherwise (by 25 April / 25 October)', 'Late filing attracts fee and scrutiny']
+      ]
+    },
+    sections: [
+      {
+        heading: 'What goes into CAS-4 cost of production',
+        paragraphs: [
+          `CAS-4 builds cost from the bottom up. The aim is the cost of producing the goods at the point they are transferred — not the price you would charge an outside customer.`
+        ],
+        bullets: [
+          `Included: materials consumed (net of taxes for which credit is available), direct employee cost, direct expenses, works overheads, quality control, research and development, and administrative overheads relating to production.`,
+          `Adjusted: opening and closing work-in-progress, credits for recoveries such as scrap and by-products.`,
+          `Excluded: selling and distribution costs, interest and finance charges, abnormal losses, and profit.`,
+          `Packing: primary packing needed to make the goods marketable is typically included; secondary packing for transport usually is not.`
+        ]
+      },
+      {
+        heading: 'Job work: where CAS-4 does and does not matter',
+        paragraphs: [
+          `Sending goods to a job worker for processing is not a supply if the conditions of section 143 are met: the goods are sent under a challan and come back within one year (inputs) or three years (capital goods). The job worker charges GST on its job-work service. In this case CAS-4 valuation is not needed for the movement itself.`,
+          `If the goods are not returned within the time limit, they are treated as supplied on the day they were sent out, and you will need to value them — which is where cost-based valuation and CAS-4 can come back into the picture.`
+        ]
+      }
+    ],
+    pitfalls: [
+      { title: 'Using rule 30 when rule 28 relief applies', text: `If the recipient branch is eligible for full ITC, the invoice value can be deemed open market value. Check before building a full cost sheet.` },
+      { title: 'Including interest and selling costs', text: `CAS-4 excludes interest, selling and distribution costs and profit. Including them overstates value; excluding production overheads understates it.` },
+      { title: 'Stale cost data', text: `A cost sheet from several years ago does not reflect current input prices. Update periodically and reconcile with audited numbers.` },
+      { title: 'No certificate on file', text: `Without a cost accountant's certificate and working papers, a department audit is harder to defend.` },
+      { title: 'Ignoring job-work time limits', text: `Inputs not returned within one year (capital goods three years) become deemed supplies. Track challans and file ITC-04 on time.` }
+    ],
+    faqs: [
+      { q: 'Is a CAS-4 certificate mandatory under GST?', a: 'GST law does not name CAS-4, but rule 30 requires a value based on cost of production, and CAS-4 is the recognised standard for computing it. A certificate from a practising cost accountant is the usual way to support the value in an audit.' },
+      { q: 'What is the 110% rule in GST valuation?', a: 'Under rule 30 of the CGST Rules, where value cannot be determined under the earlier rules, the value of supply is 110% of the cost of production or manufacture, or of the cost of acquisition, of the goods.' },
+      { q: 'Do stock transfers to another state need CAS-4 valuation?', a: 'A transfer to a GST registration of the same entity in another state is a supply between distinct persons. If the receiving unit is eligible for full ITC, the invoice value is deemed open market value under rule 28. Otherwise a cost-based value under rule 30, often computed using CAS-4, may be needed.' },
+      { q: 'Who can issue a CAS-4 certificate?', a: 'CAS-4 is a standard of the Institute of Cost Accountants of India, and certificates are issued by cost accountants in practice, with a UDIN.' }
+    ],
+    related: {
+      services: ['cma-ca-cs-certification-services', 'msme-udyam-dpiit-startup-registration'],
+      tools: ['roc-compliance-calendar'],
+      compare: ['legacy-portals-vs-dedicated-cma-legal-desk'],
+      blogs: ['cost-audit-applicability-turnover-limit-cra-1-cra-4', 'convert-proprietorship-to-pvt-ltd-gst-itc-02-transfer', 'practicing-cma-certification-mca-roc-forms-spice-plus']
+    }
+  },
+
+  /* ------------------------------------------------------------------ 10 */
+  {
+    slug: 'startup-share-valuation-report-registered-valuer-cma-fema',
+    pillar: 'cma-certifications',
+    title: 'Startup Share Valuation Under Income Tax & FEMA: Registered Valuer vs CMA/CA',
+    metaTitle: 'Startup Share Valuation: Registered Valuer vs CMA or CA',
+    metaDescription: 'Who can value startup shares for FEMA pricing, Companies Act preferential allotments and income-tax rules, how angel tax changed, and how to pick a valuer.',
+    published: '2026-10-06', updated: '2026-11-15', readMinutes: 11,
+    keywords: ['startup share valuation', 'registered valuer section 247', 'FEMA pricing guidelines valuation', 'rule 11UA valuation', 'angel tax abolished', 'valuation for FC-GPR'],
+    excerpt: 'One funding round can need three valuations for three laws. Here is who is allowed to sign each, and what changed after angel tax was abolished.',
+    summary: [
+      `A priced funding round in an Indian private company can trigger valuation requirements under three separate laws, and each law names its own valuer. Under FEMA, shares issued to a non-resident must be priced at or above fair value, certified by a chartered accountant, a SEBI-registered merchant banker or a practising cost accountant. Under the Companies Act, 2013, a preferential allotment by a private company under section 62(1)(c) needs a valuation report from a registered valuer under section 247. Income-tax rules have their own valuation methods and, for some purposes, specify a merchant banker.`,
+      `The biggest recent change is on the income-tax side. The Finance (No. 2) Act, 2024 abolished the "angel tax" in section 56(2)(viib) of the Income-tax Act, 1961 for all classes of investors from assessment year 2025-26, so premium received on issuing shares is no longer taxed under that provision. Valuation under rule 11UA still matters for other purposes — for example where an investor or other recipient acquires shares below fair market value. The Income-tax Act, 2025 has applied from 1 April 2026 with renumbered sections and rules; confirm the current position and references with your tax adviser for each transaction.`,
+      `In practice, one professional can often cover more than one role: a cost accountant or chartered accountant who is also an IBBI-registered valuer for securities or financial assets can sign both the FEMA certificate and the Companies Act report, if independence rules allow. The work is to map each requirement first, then decide who signs what.`
+    ],
+    steps: {
+      heading: 'Step-by-step: valuing shares for a funding round',
+      items: [
+        { title: 'Map every law that applies', text: `Is any investor a non-resident (FEMA)? Is the issue a preferential allotment under section 62(1)(c) (Companies Act)? Are any shares being transferred, or issued to employees, where income-tax valuation applies? List each requirement before appointing a valuer.` },
+        { title: 'Choose the valuer for each requirement', text: `FEMA: CA, SEBI-registered merchant banker or practising cost accountant. Companies Act section 62(1)(c) and other section 247 cases: an IBBI-registered valuer. Income-tax: as specified in the current rules for the method used.` },
+        { title: 'Agree the valuation date and method', text: `Use a date close to the board approval of the issue. Discounted cash flow is common for early-stage companies; net asset value and market multiples are used where relevant. Under FEMA the method must be an internationally accepted pricing methodology on an arm's length basis.` },
+        { title: 'Prepare defensible projections', text: `Projections drive DCF value. Base them on the business plan the investors saw, with explained assumptions for growth, margins and capital needs. Keep the version history.` },
+        { title: 'Issue at or above the FEMA floor', text: `For shares issued to a non-resident, the issue price must not be less than the fair value in the certificate. Pass the board and shareholder resolutions, and complete the allotment within the FEMA timeline after receiving funds.` },
+        { title: 'File and keep the reports', text: `Attach the valuation certificate to FC-GPR on the FIRMS portal within 30 days of allotment, file PAS-3 for the allotment and MGT-14 for the special resolution where required, and keep all reports in the statutory records for audit and due diligence.` }
+      ]
+    },
+    rules: {
+      heading: 'Who signs which valuation',
+      caption: 'General position at the time of writing. Income-tax references are to the 1961 Act and Income-tax Rules, 1962; confirm the equivalents under the Income-tax Act, 2025.',
+      headers: ['Law / provision', 'When it applies', 'Who can value', 'Timing / consequence'],
+      rows: [
+        ['FEMA (Non-debt Instruments) Rules, 2019 — pricing', 'Issue of shares to, or transfer between, residents and non-residents', 'Chartered accountant, SEBI-registered merchant banker or practising cost accountant', 'Issue not below fair value; report in FC-GPR / FC-TRS'],
+        ['Section 62(1)(c) and rule 13, Share Capital rules', 'Preferential allotment by an unlisted company', 'Registered valuer under section 247', 'Price based on the registered valuer\'s report'],
+        ['Section 247, Companies Act 2013', 'Any valuation the Act requires (e.g. sweat equity, certain non-cash transactions, schemes)', 'IBBI-registered valuer for the asset class', 'Valuer liable for misconduct; independence rules apply'],
+        ['Section 56(2)(viib) (1961 Act)', 'Former "angel tax" on share premium above fair market value', 'Not applicable from AY 2025-26 (abolished)', 'No tax under this provision for later years'],
+        ['Rule 11UA (1962 Rules)', 'Fair market value of unquoted shares for other income-tax provisions', 'Method-dependent; some methods require a merchant banker', 'Shortfall can be taxed in the recipient\'s hands'],
+        ['Rule 3(8) (1962 Rules) — ESOPs', 'Fair market value of unlisted shares for perquisite tax on ESOP exercise', 'Category I merchant banker', 'Valuation as on the exercise date (within the prescribed window)']
+      ]
+    },
+    sections: [
+      {
+        heading: 'Registered valuer vs CMA or CA: not either-or',
+        paragraphs: [
+          `A "registered valuer" is a person registered with the Insolvency and Bankruptcy Board of India under the Companies (Registered Valuers and Valuation) Rules, 2017, for a specific asset class such as securities or financial assets. Many registered valuers are cost accountants or chartered accountants who have passed the IBBI examination and joined a registered valuers organisation.`,
+          `So the practical question is not "registered valuer or CMA?" but "which certificate does this law ask for, and does my professional hold that status?" A practising cost accountant can issue the FEMA pricing certificate in their own right. The same person can sign the section 62 report only if they are also a registered valuer for securities or financial assets.`
+        ],
+        bullets: [
+          `Ask for the IBBI registration number and asset class if you need a Companies Act valuation.`,
+          `Ask for the certificate of practice and UDIN for a FEMA certificate from a CA or CMA.`,
+          `Check independence: the statutory auditor or an interested party may be restricted from acting.`
+        ]
+      },
+      {
+        heading: 'After angel tax: why valuation still matters',
+        paragraphs: [
+          `The abolition of section 56(2)(viib) removed the tax on share premium, which was the main income-tax concern for startups raising money. Valuation is still needed for FEMA pricing, Companies Act allotments, secondary transfers, ESOP perquisites and, increasingly, for investor due diligence.`,
+          `Because the Income-tax Act, 2025 replaced the 1961 Act from 1 April 2026, provisions and rule numbers referred to in older valuation reports and shareholder agreements may now map to new sections. Ask your tax adviser to confirm the current provision before relying on a rule number in a new report.`
+        ]
+      }
+    ],
+    pitfalls: [
+      { title: 'One valuation for every purpose', text: `A FEMA certificate from a CA does not satisfy section 62(1)(c) unless the signer is also a registered valuer. Map requirements first.` },
+      { title: 'Stale valuation date', text: `A report dated months before the allotment may not reflect fair value at issue. Keep the valuation date close to the board approval.` },
+      { title: 'Issuing to non-residents below fair value', text: `FEMA sets a floor for issues to non-residents. Pricing below it is a contravention that needs compounding.` },
+      { title: 'Projections that differ from the pitch deck', text: `Investors and authorities compare documents. Use one consistent set of projections, with documented changes.` },
+      { title: 'Relying on old section numbers', text: `With the Income-tax Act, 2025 in force, confirm the current provision before citing a 1961-Act section in a new report or agreement.` }
+    ],
+    faqs: [
+      { q: 'Can a cost accountant value shares for FEMA?', a: 'Yes. Under the FEMA (Non-debt Instruments) Rules, 2019, the fair value of unlisted shares issued to a non-resident can be certified by a chartered accountant, a SEBI-registered merchant banker or a practising cost accountant, using an internationally accepted pricing methodology on an arm\'s length basis.' },
+      { q: 'Do I need a registered valuer for a startup funding round?', a: 'If the shares are issued by way of preferential allotment under section 62(1)(c) of the Companies Act, 2013, the price must be supported by a registered valuer\'s report. Other requirements — FEMA pricing, ESOP perquisites — have their own valuer rules.' },
+      { q: 'Is angel tax still applicable to startups?', a: 'Section 56(2)(viib) of the Income-tax Act, 1961 was abolished for all classes of investors from assessment year 2025-26. The Income-tax Act, 2025 applies from 1 April 2026, so confirm the current position with a tax adviser for your transaction, as other valuation-based provisions continue.' },
+      { q: 'Which valuation method is used for early-stage startups?', a: 'Discounted cash flow is the most common for companies with limited history, sometimes cross-checked with recent transaction prices or market multiples. The method must be one the relevant law accepts and must be applied by the valuer that law names.' }
+    ],
+    related: {
+      services: ['cma-ca-cs-certification-services', 'msme-udyam-dpiit-startup-registration'],
+      tools: ['roc-compliance-calendar'],
+      compare: ['legacy-portals-vs-dedicated-cma-legal-desk'],
+      blogs: ['indian-subsidiary-registration-foreign-director-documents-fema', 'legal-due-diligence-checklist-indian-seed-startups-cap-table', '80-iac-tax-exemption-rejection-reasons-startup-india-dpiit', 'cma-data-project-report-format-msme-bank-loan-cgtmse']
+    }
+  }
 ];

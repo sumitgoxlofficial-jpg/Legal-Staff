@@ -15,8 +15,9 @@
     var terms = (q.value || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
     var shown = 0;
     cards.forEach(function (c) {
-      var hay = c.getAttribute('data-search') || '';
-      var ok = (filter === 'all' || c.getAttribute('data-pillar') === filter) && terms.every(function (t) { return hay.indexOf(t) !== -1; });
+      // Match at the start of a word, so "din" finds DIN but not "including".
+      var hay = ' ' + (c.getAttribute('data-search') || '').replace(/[^a-z0-9₹+]+/g, ' ');
+      var ok = (filter === 'all' || c.getAttribute('data-pillar') === filter) && terms.every(function (t) { return hay.indexOf(' ' + t.replace(/[^a-z0-9₹+]+/g, ' ').trim()) !== -1; });
       c.hidden = !ok; if (ok) { shown++; c.classList.add('ls-in'); }
     });
     groups.forEach(function (g) {
