@@ -85,7 +85,7 @@ const data = {
       { q: 'Should I register my NCR startup in Delhi, Gurugram or Noida?', a: 'There is no single answer. Delhi and Gurugram share one Registrar (RoC Delhi & Haryana), while Noida falls under the Uttar Pradesh Registrar at Kanpur. Stamp duty, Shops and Establishments rules and state incentives differ in all three. Most founders pick the state where their main office and team will actually be, so that GST and labour registrations line up with the registered office.' },
       { q: 'Does professional tax apply in Delhi NCR?', a: 'Delhi, Haryana and Uttar Pradesh do not currently levy professional tax on salaried employees, which keeps payroll compliance simpler than in states such as Maharashtra or Karnataka. Confirm the position each year, as state laws can change.' },
       { q: 'Can my GST registration be in Gurugram if the company is registered in Delhi?', a: 'Yes. GST is registered state-wise for each place of business, so a Delhi company with an office in Gurugram registers for GST in Haryana for that office (and in Delhi too if it supplies from there). The registered office and the GST address do not have to be the same.' },
-      { q: 'How long does company registration in Delhi NCR take?', a: 'Once DSCs are ready and the name is approved, SPICe+ applications are typically approved in 7–15 working days, regardless of which NCR state you choose. Delays usually come from address-proof mismatches or name objections, not from the location.' }
+      { q: 'Which NCR address has the lowest stamp duty?', a: 'It depends on your authorised capital, because Delhi, Haryana and Uttar Pradesh use different schedules. Run your capital through our calculator for each state. For a typical small startup the difference is modest, so where your team actually sits usually matters more.' }
     ]
   },
   gurgaon: {
@@ -135,7 +135,7 @@ const data = {
       { q: 'Which RoC is a Noida company registered under?', a: 'Even though Noida is in NCR, companies with a registered office in Uttar Pradesh fall under the Registrar of Companies at Kanpur, not the Delhi Registrar. Since filings are online, this rarely affects day-to-day work, but it matters for any matter that needs the RoC’s attention.' },
       { q: 'Is Noida a good place to register an electronics or hardware startup?', a: 'Noida has an established electronics manufacturing ecosystem and authority-allotted industrial land, which is why many hardware businesses register here. Factory licences, pollution-board consents and land allotment run separately from company incorporation, so plan those in parallel.' },
       { q: 'Can I use my Noida flat as the registered office?', a: 'Yes, the Companies Act allows a residential address as a registered office. You need proof of address (a recent utility bill) and an NOC from the owner if the flat is not in a director’s name. Using the flat as a working office with staff may need permissions under local rules.' },
-      { q: 'What does it cost to register a company in Noida?', a: 'Costs are MCA fees (often nil for small authorised capital under SPICe+), Uttar Pradesh stamp duty on the MoA and AoA, DSCs, and professional fees. Our incorporation cost calculator gives a line-by-line estimate for an Uttar Pradesh address.' }
+      { q: 'Does a Noida company also need GST registration in Delhi?', a: 'Only if it has a place of business in Delhi. A Noida company supplying Delhi customers from its Noida office registers for GST in Uttar Pradesh and charges IGST on interstate supplies. If you also keep a Delhi office or warehouse, you register in Delhi for that place too.' }
     ]
   },
   hyderabad: {
@@ -287,7 +287,7 @@ const data = {
       { q: 'Which RoC handles companies registered in Patna?', a: 'Companies with a registered office anywhere in Bihar are under the Registrar of Companies, Patna. Incorporation is processed online by the Central Registration Centre, so no office visit is needed.' },
       { q: 'Can a Patna startup get support under the Bihar startup policy?', a: 'Startups registered in Bihar that meet the policy’s eligibility criteria can apply for recognition and support such as seed funding through the state’s startup portal. Benefits and conditions are revised from time to time, so check the current policy before applying.' },
       { q: 'Should a Patna contractor register as a company to bid for government work?', a: 'Many tenders require bidders to be a registered company or firm with GST, PAN and a minimum turnover or experience. A private limited company makes it easier to build a track record that survives changes in ownership. Check the specific tender’s eligibility clauses.' },
-      { q: 'How long does company registration in Patna take?', a: 'The location does not change the MCA timeline: once DSCs are issued and documents are in order, SPICe+ approval typically takes 7–15 working days. Most delays come from name objections or address-proof issues.' }
+      { q: 'Can a Patna company open a branch in another state?', a: 'Yes. A company can operate anywhere in India; it registers for GST in each state where it has a place of business and under that state’s Shops and Establishments law. The registered office stays in Patna unless you formally shift it.' }
     ]
   },
   ranchi: {
@@ -312,7 +312,7 @@ const data = {
       { q: 'Which RoC handles companies registered in Ranchi?', a: 'Companies with a registered office anywhere in Jharkhand — Ranchi, Jamshedpur, Dhanbad or Bokaro — are under the Registrar of Companies, Ranchi.' },
       { q: 'Can a Ranchi company become a vendor to PSUs?', a: 'Yes. Vendor registration with public-sector companies is separate from incorporation and typically asks for the certificate of incorporation, PAN, GST registration, bank details and, in many cases, Udyam registration to claim MSE benefits under public procurement policy.' },
       { q: 'Should I register under Udyam after incorporating in Ranchi?', a: 'Udyam registration is free and recommended for micro, small and medium enterprises. It helps with priority-sector lending, the MSME delayed-payment protections and public-procurement preferences for micro and small enterprises.' },
-      { q: 'What is the cost of company registration in Ranchi?', a: 'You pay MCA fees (often nil for small authorised capital), Jharkhand stamp duty on the MoA and AoA, DSCs for directors and our professional fee. Use the incorporation cost calculator with Jharkhand selected for a line-by-line estimate.' }
+      { q: 'Are Jamshedpur and Dhanbad under the same RoC as Ranchi?', a: 'Yes. Every district of Jharkhand falls under RoC Ranchi, so a company can move its registered office between Ranchi, Jamshedpur, Dhanbad or Bokaro with a board resolution and INC-22 within 30 days, without Regional Director approval.' }
     ]
   },
   bokaro: {
@@ -387,7 +387,7 @@ const data = {
       { q: 'Which RoC handles companies registered in Lucknow?', a: 'Companies with a registered office anywhere in Uttar Pradesh, including Lucknow, are under the Registrar of Companies, Kanpur. All filings are online, so you do not need to visit Kanpur.' },
       { q: 'Can I move my company from Lucknow to Noida later?', a: 'Yes. Since both are in Uttar Pradesh and under the same Registrar, the board can approve the change and you file INC-22 within 30 days with the new address proof. No Regional Director approval is needed.' },
       { q: 'Is a Lucknow nutraceutical or herbal startup subject to extra licences?', a: 'Incorporation is the same as for any company, but food and nutraceutical products need an FSSAI licence, and Ayurvedic or herbal medicines need a licence from the state AYUSH licensing authority. Plan these alongside incorporation.' },
-      { q: 'What does it cost to register a company in Lucknow?', a: 'MCA fees, Uttar Pradesh stamp duty, DSCs and our professional fee. Stamp duty depends on authorised capital, so our calculator shows the estimate for your chosen capital with Uttar Pradesh selected.' }
+      { q: 'Do Lucknow chikankari and apparel brands need any special registration?', a: 'No special company registration is needed. Apparel brands usually need GST, a trademark for the brand name and an IEC if they export. If you market products as Lucknow chikankari, make sure they meet the GI specification and consider registering as an authorised user of the geographical indication.' }
     ]
   },
   chandigarh: {
@@ -437,7 +437,7 @@ const data = {
       { q: 'Which RoC handles companies registered in Indore?', a: 'Companies with a registered office anywhere in Madhya Pradesh, including Indore and Bhopal, are under the Registrar of Companies, Gwalior. Filings are online, so you will not need to travel to Gwalior.' },
       { q: 'Should an Indore trading business become a private limited company?', a: 'A company gives limited liability, makes it easier to raise bank finance and bring in partners, and is often preferred by large distributors and brands. A small, closely held trading business may find an LLP simpler. Our comparison guide sets out the trade-offs.' },
       { q: 'Is professional tax payable in Madhya Pradesh?', a: 'Yes. Madhya Pradesh levies professional tax on employers and employees, subject to the constitutional cap of ₹2,500 per person per year.' },
-      { q: 'How long does company registration in Indore take?', a: 'Once DSCs are issued and documents are in order, SPICe+ approval typically takes 7–15 working days. The location has little effect on the timeline.' }
+      { q: 'Can an Indore company move its registered office to Bhopal?', a: 'Yes. Indore and Bhopal are both in Madhya Pradesh and under {roc}, so the move needs only a board resolution and INC-22 within 30 days with the new address proof.' }
     ]
   },
   kochi: {
@@ -487,7 +487,7 @@ const data = {
       { q: 'Which RoC handles companies registered in Surat?', a: 'Companies with a registered office in Gujarat, including Surat, are under the Registrar of Companies, Ahmedabad. All filings are online.' },
       { q: 'Should a Surat diamond trader register as a company or an LLP?', a: 'Both give limited liability. A private limited company suits businesses that need bank finance, plan to bring in outside investors or want a clearer path to scale. An LLP suits partner-run firms that want lighter compliance. We usually recommend deciding after looking at your banking and export plans.' },
       { q: 'Do I need an IEC for a Surat textile export company?', a: 'Yes. Export of goods requires an Importer-Exporter Code from the DGFT, issued online against the company’s PAN. You may also want registration with the relevant export promotion council to access certain benefits.' },
-      { q: 'What does it cost to register a company in Surat?', a: 'MCA fees, Gujarat stamp duty on the MoA and AoA, DSCs and our professional fee. Our calculator, with Gujarat selected, gives a line-by-line estimate for your authorised capital.' }
+      { q: 'Do Surat textile traders need e-way bills?', a: 'Generally yes. Under GST, an e-way bill is needed to move goods whose consignment value exceeds the notified threshold (₹50,000 in most cases), including interstate dispatches of fabric. It is a GST compliance rather than part of incorporation, but it should be set up from the first dispatch.' }
     ]
   },
   coimbatore: {
@@ -513,7 +513,7 @@ const data = {
       { q: 'Is a Coimbatore company registered with RoC Chennai or RoC Coimbatore?', a: 'Companies with a registered office in Coimbatore are under RoC Coimbatore, which covers a group of western Tamil Nadu districts. Chennai and the remaining districts are under RoC Chennai. Incorporation itself is processed centrally through SPICe+.' },
       { q: 'Can a Coimbatore partnership firm convert into a company?', a: 'Yes. A partnership firm can convert into a company under Part I of Chapter XXI of the Companies Act, or into an LLP under the LLP Act. Conversion can carry tax benefits if the conditions of the Income-tax Act are met, so plan it with your auditor.' },
       { q: 'Do I need Udyam registration for a Coimbatore manufacturing company?', a: 'It is optional but strongly recommended for MSMEs. Udyam helps with priority-sector lending, protection against delayed payments under the MSMED Act and public-procurement preferences for micro and small enterprises.' },
-      { q: 'What does it cost to register a company in Coimbatore?', a: 'MCA fees, Tamil Nadu stamp duty on the MoA and AoA, DSCs and our professional fee. The cost is the same as for a Chennai company with the same authorised capital.' }
+      { q: 'Can a Coimbatore company have its factory in Tiruppur or Erode?', a: 'Yes. The registered office and the factory can be in different districts. The factory needs its own factory licence, pollution-control consent and GST registration as an additional place of business. Only if the registered office itself moves to a district under RoC Chennai is Regional Director confirmation needed.' }
     ]
   },
   visakhapatnam: {
@@ -538,7 +538,7 @@ const data = {
       { q: 'Which RoC handles companies registered in Visakhapatnam?', a: 'Companies with a registered office in Andhra Pradesh are under the Registrar of Companies for Andhra Pradesh, located at Vijayawada, not the Hyderabad Registrar that covers Telangana.' },
       { q: 'Can I start a logistics or shipping company in Vizag as a private limited company?', a: 'Yes. Incorporation is the standard SPICe+ process. Depending on the activity you may also need customs broker, multimodal transport or freight-forwarding registrations, and an IEC for import-export.' },
       { q: 'Is Vizag a good base for a pharma company?', a: 'Vizag has an established pharmaceutical manufacturing cluster. Beyond incorporation, a pharma unit needs drug manufacturing licences, pollution-control consents and, for exports, regulatory approvals in target markets.' },
-      { q: 'How long does company registration in Visakhapatnam take?', a: 'Once DSCs are issued and documents are complete, SPICe+ approval typically takes 7–15 working days, the same as elsewhere in India.' }
+      { q: 'Can I keep a Hyderabad registered office and operate in Vizag?', a: 'Yes. The company stays under the Telangana Registrar and registers for GST in Andhra Pradesh for the Vizag premises. Many founders do this until the Andhra Pradesh operation becomes the main business, then shift the registered office with Regional Director approval.' }
     ]
   },
   bhubaneswar: {
@@ -563,7 +563,7 @@ const data = {
       { q: 'Which RoC handles companies registered in Bhubaneswar?', a: 'Companies with a registered office in Odisha are under the Registrar of Companies, Cuttack. Filings are online, so you rarely need to visit the office.' },
       { q: 'Can a Bhubaneswar startup get Startup Odisha recognition?', a: 'Startups registered in Odisha that meet the programme’s criteria can apply for Startup Odisha recognition, which unlocks state incentives such as monthly allowances or grants under the current policy. The benefits are revised periodically, so check the latest guidelines.' },
       { q: 'Should I register for DPIIT recognition as well?', a: 'Usually yes. DPIIT recognition under Startup India is national and opens up benefits such as self-certification under certain labour and environmental laws and eligibility to apply for the section 80-IAC tax holiday. It complements state recognition.' },
-      { q: 'What does it cost to register a company in Bhubaneswar?', a: 'MCA fees, Odisha stamp duty on the MoA and AoA, DSCs and our professional fee. Our calculator gives a line-by-line estimate with Odisha selected.' }
+      { q: 'Can a mining-services company keep its registered office in Bhubaneswar?', a: 'Yes. Many mining-services firms keep the registered office in Bhubaneswar and run project sites in the mining districts. Each site that holds goods or staff may need GST registration as an additional place of business, and contract-labour licences where applicable.' }
     ]
   },
   guwahati: {
@@ -588,7 +588,7 @@ const data = {
       { q: 'Which RoC handles companies registered in Guwahati?', a: 'Companies with a registered office in Assam fall under the Registrar of Companies located at Shillong, which serves Assam and other North-Eastern states. All incorporation and annual filings are online.' },
       { q: 'Can a Guwahati company claim North East industrial incentives?', a: 'Central and state schemes for the North East offer benefits such as capital and interest subsidies to eligible units. The conditions — new unit, sector, investment size and location — differ by scheme and change over time, so check the current notification before planning around them.' },
       { q: 'Should a tea or agri business in Assam register as a company or an LLP?', a: 'A company suits businesses that need bank finance, investors or government contracts. An LLP suits partner-run businesses that want limited liability with lighter compliance. Agricultural income has special tax treatment, so take tax advice for tea or plantation activity.' },
-      { q: 'How long does company registration in Guwahati take?', a: 'Once DSCs are issued and documents are complete, SPICe+ approval typically takes 7–15 working days, the same as elsewhere in India.' }
+      { q: 'Does a Guwahati company need Inner Line Permits to work in other North-Eastern states?', a: 'Inner Line Permits apply to individuals, not companies. Staff travelling to states such as Arunachal Pradesh, Nagaland, Mizoram and Manipur need permits under those states’ rules, and the company registers for GST in any state where it keeps a place of business.' }
     ]
   },
   raipur: {
@@ -613,7 +613,7 @@ const data = {
       { q: 'Which RoC handles companies registered in Raipur?', a: 'Companies with a registered office in Chhattisgarh are under the Registrar of Companies located at Bilaspur. Since filings are online, you will not normally need to visit the office.' },
       { q: 'Should a Raipur rice mill register as a company?', a: 'Many rice mills run as partnerships or proprietorships. Converting to a company or LLP helps with bank finance, succession and limited liability. The right choice depends on your partners, borrowing plans and tax position.' },
       { q: 'Do I need Udyam registration for a Raipur manufacturing unit?', a: 'It is optional but useful: Udyam gives access to MSME benefits such as priority-sector lending, protection against delayed payments under the MSMED Act and public-procurement preferences for micro and small enterprises.' },
-      { q: 'What does it cost to register a company in Raipur?', a: 'MCA fees, Chhattisgarh stamp duty on the MoA and AoA, DSCs and our professional fee. Use the incorporation cost calculator with Chhattisgarh selected for an estimate.' }
+      { q: 'Do Raipur steel or sponge-iron units need environmental approvals?', a: 'Plant approvals are separate from incorporation. Steel and sponge-iron units typically need consent to establish and operate from the Chhattisgarh Environment Conservation Board and, depending on capacity, an environmental clearance. Plan these before committing to a project timeline.' }
     ]
   },
   dehradun: {
@@ -638,7 +638,7 @@ const data = {
       { q: 'Which RoC handles companies registered in Dehradun?', a: 'Companies with a registered office in Uttarakhand are administered by {roc}. RoC jurisdictions are occasionally reorganised, so we confirm the current mapping on the MCA website before filing; incorporation itself is processed online by the Central Registration Centre.' },
       { q: 'Can I register a homestay or tour business in Dehradun as a company?', a: 'Yes. A private limited company or LLP can run homestays, tours and wellness retreats. You may separately need registration under the state’s tourism or homestay scheme, GST, and FSSAI if you serve food.' },
       { q: 'Is an LLP better than a company for a small Dehradun tourism business?', a: 'An LLP is simpler to run and does not need an audit below the prescribed turnover and contribution thresholds, which suits partner-run tourism businesses. Choose a company if you plan to raise equity investment.' },
-      { q: 'How long does company registration in Dehradun take?', a: 'Once DSCs are issued and documents are complete, SPICe+ approval typically takes 7–15 working days, the same as elsewhere in India.' }
+      { q: 'Can a company from another state set up a unit in a SIDCUL estate?', a: 'Yes. A company registered elsewhere can set up a factory in a SIDCUL estate and register it for GST and local licences as an additional place of business. Some state incentives expect a local presence, so check the scheme conditions first.' }
     ]
   },
 
@@ -766,7 +766,7 @@ const data = {
       { q: 'Is RoC Patna the only Registrar for Bihar?', a: 'Yes. Companies with a registered office anywhere in Bihar are under the Registrar of Companies, Patna.' },
       { q: 'Can a startup outside Patna get Bihar startup policy support?', a: 'Yes. The policy applies to eligible startups registered anywhere in Bihar. Applications are made through the state’s startup portal, and benefits are revised from time to time.' },
       { q: 'Do I need FSSAI registration for a food-processing company in Bihar?', a: 'Yes. Any food business, including processing and packaging, needs FSSAI registration or a licence depending on its size. This is separate from company incorporation and is usually done right after.' },
-      { q: 'What does it cost to register a company in Bihar?', a: 'MCA fees (often nil for small authorised capital), Bihar stamp duty on the MoA and AoA, DSCs and our professional fee. Our calculator gives an estimate with Bihar selected.' }
+      { q: 'Does a Bihar company need professional tax registration?', a: 'Yes. Bihar levies professional tax under its own Act. The company registers as an employer, deducts the tax from salaries above the threshold and pays it to the state, subject to the constitutional cap of ₹2,500 per person per year.' }
     ]
   },
   'uttar-pradesh': {
@@ -791,7 +791,7 @@ const data = {
       { q: 'Which RoC handles companies in Uttar Pradesh?', a: 'All companies with a registered office in Uttar Pradesh — including Noida, Ghaziabad and Lucknow — are under the Registrar of Companies, Kanpur.' },
       { q: 'Is there professional tax in Uttar Pradesh?', a: 'No. Uttar Pradesh does not currently levy professional tax on salaried employees.' },
       { q: 'Does a Noida company get UP startup policy benefits?', a: 'Yes, if it meets the policy’s eligibility criteria. Noida is in Uttar Pradesh, so startups registered there are covered by the UP policy, not by Delhi or Haryana schemes.' },
-      { q: 'What does it cost to register a company in Uttar Pradesh?', a: 'MCA fees, UP stamp duty on the MoA and AoA, DSCs and our professional fee. Our calculator gives a line-by-line estimate with Uttar Pradesh selected.' }
+      { q: 'Is a Ghaziabad company also under RoC Kanpur?', a: 'Yes. Ghaziabad, like Noida, is in Uttar Pradesh, so companies registered there fall under RoC Kanpur rather than the Delhi Registrar, and pay Uttar Pradesh stamp duty on the MoA and AoA.' }
     ]
   },
   gujarat: {
@@ -867,7 +867,7 @@ const data = {
       { q: 'Which RoC handles companies in Telangana?', a: 'All companies with a registered office in Telangana are under the Registrar of Companies, Hyderabad. Andhra Pradesh has a separate Registrar.' },
       { q: 'Which Shops and Establishments law applies in Telangana?', a: 'The Telangana Shops and Establishments Act, 1988, with registration through the state labour department’s online system.' },
       { q: 'Is professional tax payable in Telangana?', a: 'Yes. Telangana levies professional tax on employers and employees, subject to the ₹2,500 annual cap per person.' },
-      { q: 'What does it cost to register a company in Telangana?', a: 'MCA fees, Telangana stamp duty on the MoA and AoA, DSCs and our professional fee. Our calculator gives an estimate with Telangana selected.' }
+      { q: 'Can a Telangana startup get space at T-Hub?', a: 'T-Hub runs selection-based programmes; admission depends on the programme and the startup’s stage, not just where it is incorporated. Selected startups may be able to use the facility as a registered office if T-Hub issues an NOC and a utility bill.' }
     ]
   },
   'west-bengal': {
@@ -892,7 +892,7 @@ const data = {
       { q: 'Which RoC handles companies in West Bengal?', a: 'All companies with a registered office in West Bengal are under the Registrar of Companies, Kolkata.' },
       { q: 'Is professional tax payable in West Bengal?', a: 'Yes. West Bengal levies professional tax on employers and employees, subject to the ₹2,500 annual cap per person.' },
       { q: 'Which Shops and Establishments law applies in West Bengal?', a: 'The West Bengal Shops and Establishments Act, 1963. Registration is done online through the state labour department.' },
-      { q: 'What does it cost to register a company in West Bengal?', a: 'MCA fees, West Bengal stamp duty on the MoA and AoA, DSCs and our professional fee. Our calculator gives an estimate with West Bengal selected.' }
+      { q: 'Can a Darjeeling or Dooars tea company keep its registered office in Kolkata?', a: 'Yes. Many plantation companies keep the registered office in Kolkata while the estates are in north Bengal or Assam. The estates need their own registrations — GST for each place of business and Tea Board registration for tea manufacturers and exporters.' }
     ]
   }
 };

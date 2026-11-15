@@ -81,15 +81,13 @@ function locationPage(l) {
       ${cities.length ? `<p>City guides in ${esc(l.name)}: ${cities.map(c => `<a href="${locPath(c.slug)}">${esc(c.name)}</a>`).join(', ')}.</p>` : ''}</div>
     <dl class="loc-facts ls-reveal">${[{ label: 'Jurisdictional RoC', value: roc.office }, ...l.highlights.filter(h => !/^registrars?$/i.test(h.label))].slice(0, 4).map(h => `<div><dt>${esc(h.label)}</dt><dd>${esc(h.value)}</dd></div>`).join('')}</dl></div>`;
 
-  // RoC
+  // RoC (+ other guides whose office resolves to the same Registrar)
+  const rocKey = o => rocFor(o).office.replace(/\s*\(.*\)$/, '');
+  const shared = locations.filter(o => o.slug !== l.slug && rocKey(o) === rocKey(l)).slice(0, 8);
   const rocInner = `<div class="loc-roc ls-reveal"><div class="loc-roc-ic">${icon('building', 26)}</div><div>
       <p class="loc-roc-k">Registrar for a registered office ${esc(where)}</p><h3 class="h3">${esc(roc.office)}</h3><p class="muted">Jurisdiction: ${esc(roc.jurisdiction)}.</p></div></div>
-    <div class="grid3 loc-roc-points">
-      <div class="card ls-reveal"><span class="card-ic">${icon('rocket', 22)}</span><h3>Incorporation</h3><p>SPICe+ applications are processed by the Central Registration Centre (CRC). Once approved, your company is allotted a CIN and mapped to ${esc(roc.office)}.</p></div>
-      <div class="card ls-reveal" style="--ls-delay:80ms"><span class="card-ic">${icon('doc', 22)}</span><h3>Ongoing filings</h3><p>Annual returns (MGT-7/7A), financial statements (AOC-4), INC-20A, DIR-3 KYC and event-based forms are filed online on the MCA V3 portal and tracked against this Registrar.</p></div>
-      <div class="card ls-reveal" style="--ls-delay:160ms"><span class="card-ic">${icon('pin', 22)}</span><h3>Changing address</h3><p>A move within the same Registrar needs a board resolution and INC-22 within 30 days. Moving to another Registrar in the same state needs Regional Director confirmation (INC-23); another state needs an MoA change under section 13.</p></div>
-    </div>
-    <p class="muted loc-small">Office addresses are listed on the MCA website’s Registrar of Companies contact page. Every incorporation and annual filing is online, so a visit is rarely needed.</p>`;
+    <p class="loc-roc-note ls-reveal">SPICe+ applications are approved by the Central Registration Centre; after that, the company’s annual and event-based filings on the MCA V3 portal are administered by ${esc(roc.office)}.${shared.length ? ` Other places in our guides under the same Registrar: ${shared.map(o => `<a href="${locPath(o.slug)}">${esc(o.name)}</a>`).join(', ')}.` : ''}</p>
+    <p class="muted loc-small">Office addresses are on the MCA website’s RoC contact page; filings are online, so a visit is rarely needed.</p>`;
 
   // Stamp duty (from stamp-duty.mjs)
   const sdRows = sd ? [['Memorandum of Association (MoA)', sd.moa.summary], ['Articles of Association (AoA)', sd.aoa.summary], ['LLP agreement', sd.llpAgreement.summary]] : [];
@@ -104,24 +102,24 @@ function locationPage(l) {
 
   // Registered office
   const officeInner = `<div class="loc-split"><ul class="checklist loc-one">${l.officeTips.map(t => `<li class="ls-reveal"><span class="tick">${icon('check', 14)}</span><span><b>${esc(fill(l, t))}</b></span></li>`).join('')}</ul>
-    <div class="card ls-reveal"><span class="card-ic">${icon('doc', 22)}</span><h3>Address proof the RoC expects</h3><ul class="loc-list"><li>Utility bill (electricity, gas, water or telephone) not older than two months</li><li>NOC from the owner, or from the co-working operator</li><li>Rent, lease or leave-and-licence agreement where the premises are rented</li><li>The office must be able to receive post; the RoC can verify it physically under section 12</li></ul></div></div>`;
+    <div class="card ls-reveal"><span class="card-ic">${icon('doc', 22)}</span><h3>Address proof the RoC expects</h3><ul class="loc-list"><li>Utility bill not older than two months</li><li>Owner’s or operator’s NOC</li><li>Rent or leave-and-licence agreement</li></ul></div></div>`;
 
   // Process
   const steps = [
-    { when: 'Day 1–2', title: 'Pick the structure and reserve a name', text: 'Choose a private limited company, LLP or OPC, then reserve the name through SPICe+ Part A (or RUN-LLP for an LLP). We run trademark and MCA name searches first to avoid objections.', forms: ['SPICe+ Part A', 'RUN-LLP'] },
-    { when: 'Day 1–3', title: 'Digital signatures for directors', text: 'Each director and subscriber gets a Class 3 DSC after video or Aadhaar-based verification. DINs for up to three directors are allotted inside SPICe+.', forms: ['DSC'] },
-    { when: 'Day 2–4', title: `Registered office proof ${where}`, text: `Collect a recent utility bill, the owner’s or operator’s NOC and the rent agreement for the ${l.type === 'state' ? l.name : l.name} address. This address fixes your Registrar (${roc.office}) and your stamp duty state.`, forms: ['NOC', 'Utility bill'] },
-    { when: 'Day 3–6', title: `SPICe+ filing with ${stateTitle(l)} stamp duty paid online`, text: `We file SPICe+ Part B with the e-MoA and e-AoA. ${stateTitle(l)} stamp duty is calculated and paid electronically in the same filing, and AGILE-PRO-S applies for GST, EPFO, ESIC and a bank account (and professional tax where the state levies it).`, forms: ['INC-32', 'INC-33', 'INC-34', 'INC-35'] },
-    { when: 'Day 6–15', title: `Approval and mapping to ${roc.office}`, text: `The Central Registration Centre approves the application and issues the certificate of incorporation with CIN, PAN and TAN. Your company is then administered by ${roc.office}. Timelines depend on MCA processing and any resubmission.`, forms: ['Certificate of incorporation'] },
-    { when: 'After incorporation', title: `First compliances ${where}`, text: `Open the bank account, appoint the first auditor within 30 days, file INC-20A within 180 days, and register under the ${stateTitle(l)} Shops and Establishments law and for professional tax where applicable.`, forms: ['INC-20A', 'ADT-1', 'GST'] }
+    { when: 'Day 1–2', title: 'Structure and name', text: 'Pick Pvt Ltd, LLP or OPC and reserve the name (SPICe+ Part A or RUN-LLP) after a trademark search.', forms: ['SPICe+ Part A', 'RUN-LLP'] },
+    { when: 'Day 1–3', title: 'Directors’ DSCs', text: 'Class 3 DSCs for each director; DINs are allotted inside SPICe+.', forms: ['DSC'] },
+    { when: 'Day 2–4', title: `Registered office proof ${where}`, text: `Utility bill, NOC and rent agreement for the address — it fixes your Registrar (${roc.office}).`, forms: ['NOC'] },
+    { when: 'Day 3–6', title: `SPICe+ with ${stateTitle(l)} stamp duty paid online`, text: `e-MoA, e-AoA and AGILE-PRO-S filed together; ${stateTitle(l)} stamp duty is paid electronically in the same filing.`, forms: ['INC-32', 'INC-33', 'INC-34', 'INC-35'] },
+    { when: 'Day 6–15', title: `Certificate, then ${roc.office}`, text: `CRC issues the certificate with CIN, PAN and TAN; ${roc.office} handles your filings from then on.`, forms: ['CIN'] },
+    { when: 'After incorporation', title: `First compliances ${where}`, text: `Bank account, first auditor within 30 days, INC-20A within 180 days, and ${stateTitle(l)} Shops and Establishments registration.`, forms: ['INC-20A', 'GST'] }
   ];
   const timeline = `<ol class="timeline">${steps.map(t => `<li class="ls-reveal"><span class="t-when">${esc(t.when)}</span><h3>${esc(t.title)}</h3><p>${esc(t.text)}</p><div class="t-forms">${t.forms.map(f => `<span class="tag">${esc(f)}</span>`).join('')}</div></li>`).join('')}</ol>`;
 
   // Entity options
   const entities = `<div class="grid3">
-    <a class="card ls-reveal ls-lift loc-card-link" href="/services/private-limited-company-registration"><span class="card-ic">${icon('building', 22)}</span><h3>Private limited company</h3><p>Best for founders raising equity, issuing ESOPs or selling to enterprises. Needs two directors (one resident in India) and two shareholders.</p>${pvtFee ? `<p class="loc-from">From ${inr(pvtFee)} + govt fees ${icon('arrow', 14)}</p>` : ''}</a>
-    <a class="card ls-reveal ls-lift loc-card-link" style="--ls-delay:80ms" href="/services/llp-registration-india"><span class="card-ic">${icon('handshake', 22)}</span><h3>Limited liability partnership</h3><p>Suits partner-run firms and professional practices that want limited liability with lighter compliance. Filed on the FiLLiP form.</p>${llpFee ? `<p class="loc-from">From ${inr(llpFee)} + govt fees ${icon('arrow', 14)}</p>` : ''}</a>
-    <a class="card ls-reveal ls-lift loc-card-link" style="--ls-delay:160ms" href="/compare/pvt-ltd-vs-llp-vs-opc"><span class="card-ic">${icon('scale', 22)}</span><h3>Not sure? Compare all three</h3><p>Pvt Ltd vs LLP vs One Person Company on cost, compliance, funding and tax — side by side.</p><p class="loc-from">See the comparison ${icon('arrow', 14)}</p></a>
+    <a class="card ls-reveal ls-lift loc-card-link" href="/services/private-limited-company-registration"><span class="card-ic">${icon('building', 22)}</span><h3>Private limited company</h3><p>For equity funding and ESOPs.</p>${pvtFee ? `<p class="loc-from">From ${inr(pvtFee)} + govt fees ${icon('arrow', 14)}</p>` : ''}</a>
+    <a class="card ls-reveal ls-lift loc-card-link" style="--ls-delay:80ms" href="/services/llp-registration-india"><span class="card-ic">${icon('handshake', 22)}</span><h3>Limited liability partnership</h3><p>For partner-run firms; lighter compliance.</p>${llpFee ? `<p class="loc-from">From ${inr(llpFee)} + govt fees ${icon('arrow', 14)}</p>` : ''}</a>
+    <a class="card ls-reveal ls-lift loc-card-link" style="--ls-delay:160ms" href="/compare/pvt-ltd-vs-llp-vs-opc"><span class="card-ic">${icon('scale', 22)}</span><h3>Not sure? Compare all three</h3><p>Pvt Ltd vs LLP vs OPC, side by side.</p><p class="loc-from">See the comparison ${icon('arrow', 14)}</p></a>
   </div>`;
 
   // Related: nearby + state/city links + core services
