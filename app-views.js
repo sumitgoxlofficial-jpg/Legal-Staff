@@ -372,7 +372,8 @@
     return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 440 } },
       h(GoogleBtn, { app, onError: setErr }),
       err && h('div', { role: 'alert', style: { fontSize: 13.5, color: K.red, background: K.redBg, borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 } }, err),
-      h('div', { style: { fontSize: 13, color: K.mut, lineHeight: 1.55 } }, 'Sign in with the Google account you use for work. New to Legal Staff? ', h('a', { href: 'index.html#pricing' }, 'See plans')));
+      h('div', { style: { fontSize: 13, color: K.mut, lineHeight: 1.55 } }, 'Sign in with the Google account you use for work. New to Legal Staff? ', h('a', { href: 'index.html#pricing' }, 'See plans')),
+      h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.55 } }, 'By continuing you agree to the ', h('a', { href: '/terms', target: '_blank', rel: 'noopener' }, 'Terms of Service'), ' and ', h('a', { href: '/privacy', target: '_blank', rel: 'noopener' }, 'Privacy Policy'), '.'));
   }
 
   /* ---------- module screens ---------- */

@@ -178,7 +178,7 @@ export function footer() {
       <p class="f-h">Practice management software by city</p>
       <ul>${cityLinks.map(([href, label]) => `<li><a href="${href}">${esc(label)}</a></li>`).join('')}<li><a href="/advocate-software-in-india">All cities</a></li></ul>
     </div>
-    <div class="f-bottom"><span>© ${new Date().getFullYear()} ${esc(SITE.name)}</span><span><a href="/">Home</a> · <a href="/#pricing">Pricing</a> · <a href="/directory">Advocate directory</a> · <a href="/app">Sign in</a> · <a href="/sitemap.xml">Sitemap</a></span></div>
+    <div class="f-bottom"><span>© ${new Date().getFullYear()} ${esc(SITE.name)}</span><span><a href="/">Home</a> · <a href="/#pricing">Pricing</a> · <a href="/directory">Advocate directory</a> · <a href="/app">Sign in</a> · <a href="/sitemap.xml">Sitemap</a></span><span><a href="/about">About</a> · <a href="/privacy">Privacy policy</a> · <a href="/cookies">Cookie policy</a> · <a href="/terms">Terms</a> · <a href="/refund-policy">Refunds</a> · <a href="/data-rights">Your data rights</a></span></div>
   </div>
 </footer>`;
 }
@@ -239,7 +239,8 @@ ${footer()}
 ${bookingModal()}
 <script src="/config.js"></script>
 <script src="/static/site.js" defer></script>
-${scripts.map(s => `<script src="${s}" defer></script>`).join('\n')}
+<script src="/static/consent.js" defer></script>
+${scripts.filter(s => s !== '/static/consent.js').map(s => `<script src="${s}" defer></script>`).join('\n')}
 </body>
 </html>
 `;

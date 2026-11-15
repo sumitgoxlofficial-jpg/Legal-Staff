@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { SITE } from './lib.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MODULES = ['feature', 'court', 'compare', 'city', 'tools', 'blog'];
+const MODULES = ['feature', 'court', 'compare', 'city', 'tools', 'blog', 'legal'];
 const MANIFEST = join(ROOT, 'seo', '.generated.json');
 
 // Remove files written by the previous build so renamed or deleted routes don't linger.
