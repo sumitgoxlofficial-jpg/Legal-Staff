@@ -93,7 +93,7 @@
     if (r.pre) { const end = addDays(l.judgment, r.pre); start = addDays(end, 1); row(`${r.pre} days to pay after receiving the notice end`, 'NI Act, s.138(c)', dmy(end)); row('Cause of action arises (no payment within 15 days)', 'NI Act, s.142(1)(b)', dmy(start)); }
     const from = addDays(start, 1), base = addPeriod(start, n, u);
     row('Exclude the day the period starts from', 'Limitation Act, 1963, s.12(1)', 'from ' + dmy(from));
-    row('Limitation period' + (r.custom ? '' : ': ' + r.kind.toLowerCase()), basis + ' · ' + CHECK, period(n, u) + ' → ' + dmy(base));
+    row('Limitation period' + (r.custom ? '' : ' · ' + r.kind), basis + ' · ' + CHECK, period(n, u) + ' → ' + dmy(base));
     const needsReady = !!(copy && valid(l.applied) && !valid(l.ready));
     const copyDays = copy && valid(l.applied) && valid(l.ready) ? Math.max(0, diffDays(l.ready, l.applied)) : 0;
     if (copy) row(valid(l.applied) ? `Time to obtain certified copy (applied ${dmy(l.applied).slice(0, 5)}, ready ${valid(l.ready) ? dmy(l.ready).slice(0, 5) : '?'})` : 'No certified copy applied for', valid(l.applied) ? 'Limitation Act, s.12(2)' : 'Limitation Act, s.12(2) · no time excluded', '+' + copyDays + ' days');
