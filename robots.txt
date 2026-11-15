@@ -1,8 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /app
-Disallow: /app.html
-Disallow: /supabase/
-Disallow: /seo/
-
-Sitemap: https://legal-staff-neon.vercel.app/sitemap.xml

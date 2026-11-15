@@ -1,4 +1,151 @@
 {
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/services",
+      "destination": "/features",
+      "permanent": true
+    },
+    {
+      "source": "/services/:slug",
+      "destination": "/features",
+      "permanent": true
+    },
+    {
+      "source": "/company-registration-in-:place",
+      "destination": "/advocate-software-in-india",
+      "permanent": true
+    },
+    {
+      "source": "/blog/80-iac-tax-exemption-rejection-reasons-startup-india-dpiit",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/cas-4-certificate-captive-consumption-gst-valuation",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/cma-data-project-report-format-msme-bank-loan-cgtmse",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/convert-proprietorship-to-pvt-ltd-gst-itc-02-transfer",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/cost-audit-applicability-turnover-limit-cra-1-cra-4",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/dir-3-kyc-deactivated-din-reactivation-fee-process",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/director-loan-private-limited-company-section-185-dpt3",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/hire-dedicated-remote-paralegal-india-clm-research",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/inc-20a-late-filing-penalty-after-180-days-condonation",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/indian-subsidiary-registration-foreign-director-documents-fema",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/legal-due-diligence-checklist-indian-seed-startups-cap-table",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/posh-external-committee-member-service-india-compliance",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/post-incorporation-compliance-checklist-first-60-days-sh1-adt1",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/practicing-cma-certification-mca-roc-forms-spice-plus",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/saas-msa-vendor-influencer-contract-legal-review-india",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/spice-plus-part-a-name-rejection-rules-rule-8",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/spice-plus-part-b-resubmission-remarks-mca-v3",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/startup-share-valuation-report-registered-valuer-cma-fema",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/virtual-compliance-officer-vs-in-house-cs-cost-india",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/blog/virtual-office-company-registration-mca-v3-geo-coordinates",
+      "destination": "/blog",
+      "permanent": true
+    },
+    {
+      "source": "/compare/in-house-cs-vs-virtual-compliance-officer",
+      "destination": "/compare",
+      "permanent": true
+    },
+    {
+      "source": "/compare/legacy-portals-vs-dedicated-cma-legal-desk",
+      "destination": "/compare",
+      "permanent": true
+    },
+    {
+      "source": "/compare/pvt-ltd-vs-llp-vs-opc",
+      "destination": "/compare",
+      "permanent": true
+    },
+    {
+      "source": "/tools/incorporation-cost-calculator",
+      "destination": "/tools",
+      "permanent": true
+    },
+    {
+      "source": "/tools/roc-compliance-calendar",
+      "destination": "/tools",
+      "permanent": true
+    },
+    {
+      "source": "/tools/trademark-class-finder",
+      "destination": "/tools",
+      "permanent": true
+    }
+  ]
 }

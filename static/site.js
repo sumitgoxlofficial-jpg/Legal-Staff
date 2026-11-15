@@ -65,14 +65,14 @@
     var row = { name: v.name, email: v.email, phone: v.phone, firm: v.firm, topic: v.topic, message: v.message, source: source.slice(0, 200) };
     var cfg = window.LS_CONFIG || {};
     var done = function (remote) {
-      btn.disabled = false; btn.textContent = 'Request a call back';
-      $('.book-done-text', modal).textContent = remote ? 'Thanks, ' + v.name.split(' ')[0] + '. A practising professional will call you back within one working day.' : 'Saved in this browser. The server is not connected, so please also email or call us to be sure we receive it.';
+      btn.disabled = false; btn.textContent = 'Request a demo';
+      $('.book-done-text', modal).textContent = remote ? 'Thanks, ' + v.name.split(' ')[0] + '. We\'ll get in touch within one working day to fix a demo time.' : 'Saved in this browser. The server is not connected, so please also email or call us to be sure we receive it.';
       $('.book-form-wrap', modal).hidden = true; $('.book-done', modal).hidden = false; form.reset();
     };
     if (cfg.supabaseUrl && cfg.supabaseKey && window.fetch) {
       fetch(cfg.supabaseUrl.replace(/\/$/, '') + '/rest/v1/contact_requests', { method: 'POST', headers: { apikey: cfg.supabaseKey, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(row) })
         .then(function (r) { if (!r.ok) return r.text().then(function (t) { throw new Error(t || ('HTTP ' + r.status)); }); done(true); })
-        .catch(function () { btn.disabled = false; btn.textContent = 'Request a call back'; err.textContent = 'Could not send just now. Check your connection and try again.'; err.hidden = false; });
+        .catch(function () { btn.disabled = false; btn.textContent = 'Request a demo'; err.textContent = 'Could not send just now. Check your connection and try again.'; err.hidden = false; });
     } else {
       try { var a = JSON.parse(localStorage.getItem('ls.contact.requests') || '[]'); a.push(Object.assign({ at: new Date().toISOString() }, row)); localStorage.setItem('ls.contact.requests', JSON.stringify(a)); } catch (x) {}
       done(false);

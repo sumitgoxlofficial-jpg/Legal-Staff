@@ -1,8 +1,9 @@
 // Legal Staff — static SEO site toolkit: head/meta, JSON-LD, layout, header, footer matrix and shared blocks.
 // Every page is rendered to plain HTML at build time (node seo/build.mjs), so crawlers get full content without JavaScript.
-import { services } from './data/services.mjs';
+import { features } from './data/features.mjs';
+import { courts } from './data/courts.mjs';
+import { cities } from './data/cities.mjs';
 import { comparisons } from './data/comparisons.mjs';
-import { locations } from './data/locations.mjs';
 import { tools } from './data/tools.mjs';
 import { pillars } from './data/pillars.mjs';
 
@@ -14,7 +15,7 @@ export const SITE = {
   mark: '/assets/ls-mark-black.png',
   ogImage: '/assets/ls-logo-black.png',
   email: '',
-  tagline: 'Practice management, compliance desk and legal staffing for Indian advocates, startups and firms',
+  tagline: 'Practice and case management for Indian advocates and law firms',
   updated: process.env.SITE_UPDATED || new Date().toISOString().slice(0, 10)
 };
 
@@ -30,15 +31,11 @@ export const ld = {
   website: () => ({ '@context': 'https://schema.org', '@type': 'WebSite', '@id': abs('/#website'), name: SITE.name, url: SITE.url, inLanguage: 'en-IN', publisher: { '@id': abs('/#org') } }),
   breadcrumb: items => ({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name, item: abs(it.path) })) }),
   faqPage: faqs => ({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faqs.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }),
-  legalService: ({ name, description, path, areaServed = 'IN', offers = [] }) => ({
-    '@context': 'https://schema.org', '@type': 'LegalService', name, description, url: abs(path), provider: { '@id': abs('/#org') },
-    areaServed: typeof areaServed === 'string' ? { '@type': areaServed === 'IN' ? 'Country' : 'Place', name: areaServed === 'IN' ? 'India' : areaServed } : areaServed,
-    ...(offers.length ? { hasOfferCatalog: { '@type': 'OfferCatalog', name: name + ' plans', itemListElement: offers.map(o => ({ '@type': 'Offer', name: o.name, description: o.desc, ...(o.price ? { price: String(o.price), priceCurrency: 'INR' } : {}) })) } } : {})
-  }),
-  professionalService: ({ name, description, path, city, region }) => ({
-    '@context': 'https://schema.org', '@type': 'ProfessionalService', name, description, url: abs(path), provider: { '@id': abs('/#org') },
-    areaServed: { '@type': city ? 'City' : 'State', name: city || region, ...(city && region ? { containedInPlace: { '@type': 'State', name: region } } : {}) },
-    address: { '@type': 'PostalAddress', addressCountry: 'IN', ...(region ? { addressRegion: region } : {}), ...(city ? { addressLocality: city } : {}) }
+  softwareApplication: ({ name = SITE.name, description, path = '/', featureList = [] } = {}) => ({
+    '@context': 'https://schema.org', '@type': 'SoftwareApplication', '@id': abs('/#app'), name, description: description || 'Practice and case management for Indian advocates and law firms: reads court orders, picks out the next hearing date, sends WhatsApp reminders and keeps cases, documents and research in one workspace.',
+    url: abs(path), applicationCategory: 'BusinessApplication', applicationSubCategory: 'Legal practice management', operatingSystem: 'Web',
+    offers: { '@type': 'AggregateOffer', priceCurrency: 'INR', lowPrice: '6999', highPrice: '39999', offerCount: '3' }, publisher: { '@id': abs('/#org') },
+    ...(featureList.length ? { featureList } : {})
   }),
   article: ({ title, description, path, published, modified, section, keywords = [] }) => ({
     '@context': 'https://schema.org', '@type': 'Article', headline: clip(title, 110), description, url: abs(path), mainEntityOfPage: abs(path),
@@ -108,43 +105,51 @@ const ICON = {
   menu: 'M4 7h16 M4 12h16 M4 17h16',
   close: 'M6 6l12 12 M18 6L6 18',
   spark: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
+  order: 'M14 3H6v18h12V7z M14 3v4h4 M9 13h6 M9 17h4',
+  whatsapp: 'M4 20l1.3-3.9A8 8 0 1 1 8 19.2z M9 9.5c.3 1.6 1.9 3.6 4 4.5l1.2-1.1 1.8.9-.4 1.6c-3.3.2-7-3.3-7.1-6.6L10 8.5l.8 1.8z',
+  folder: 'M3 6h6l2 2h10v12H3z',
+  gavel: 'M14 4l6 6 M12 6l6 6 M13 5l-6 6 3 3 6-6 M9 14l-6 6 M4 21h8',
   print: 'M7 8V3h10v5 M5 8h14a2 2 0 0 1 2 2v6h-4 M7 16H3v-6a2 2 0 0 1 2-2 M7 13h10v8H7z'
 };
 export const icon = (k, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[k] || ICON.doc}"/></svg>`;
 
 /* ---------------- header ---------------- */
-const TOP_CITIES = ['bangalore', 'mumbai', 'delhi-ncr', 'gurgaon', 'noida', 'hyderabad', 'pune', 'chennai', 'kolkata', 'ahmedabad', 'jaipur', 'lucknow', 'chandigarh', 'patna', 'ranchi'];
-export const locPath = slug => `/company-registration-in-${slug}`;
+const TOP_CITIES = ['delhi', 'mumbai', 'bengaluru', 'chennai', 'kolkata', 'hyderabad', 'prayagraj', 'chandigarh', 'ahmedabad', 'pune', 'patna', 'ranchi', 'jaipur', 'lucknow', 'kochi'];
+const TOP_COURTS = ['supreme-court-of-india', 'delhi-high-court', 'bombay-high-court', 'madras-high-court', 'calcutta-high-court', 'karnataka-high-court', 'allahabad-high-court', 'punjab-and-haryana-high-court', 'ecourts-district-and-sessions-courts', 'nclt-and-nclat', 'consumer-courts-ncdrc-scdrc', 'drt-debt-recovery-tribunal'];
+export const cityPath = slug => `/advocate-software-in-${slug}`;
 
 export function header(active = '') {
-  const svcItems = services.map(s => `<a href="/services/${s.slug}" class="nav-dd-item"><span class="nav-dd-ic">${icon(s.icon, 18)}</span><span><b>${esc(s.navLabel)}</b><small>${esc(s.navHint)}</small></span></a>`).join('');
-  const toolItems = tools.map(t => `<a href="/tools/${t.slug}" class="nav-dd-item"><span class="nav-dd-ic">${icon(t.icon, 18)}</span><span><b>${esc(t.navLabel)}</b><small>${esc(t.navHint)}</small></span></a>`).join('');
-  const cmpItems = comparisons.map(c => `<a href="/compare/${c.slug}" class="nav-dd-item"><span class="nav-dd-ic">${icon('scale', 18)}</span><span><b>${esc(c.navLabel)}</b><small>${esc(c.navHint)}</small></span></a>`).join('');
+  const item = (href, ic, label, hint) => `<a href="${href}" class="nav-dd-item"><span class="nav-dd-ic">${icon(ic, 18)}</span><span><b>${esc(label)}</b><small>${esc(hint)}</small></span></a>`;
+  const featItems = features.map(f => item(`/features/${f.slug}`, f.icon, f.navLabel, f.navHint)).join('');
+  const courtItems = TOP_COURTS.map(sl => courts.find(c => c.slug === sl)).filter(Boolean).map(c => `<a href="/courts/${c.slug}" class="nav-dd-item nav-dd-plain"><span class="nav-dd-ic">${icon('gavel', 18)}</span><span><b>${esc(c.name)}</b></span></a>`).join('') + `<a href="/courts" class="nav-dd-item nav-dd-plain"><span class="nav-dd-ic">${icon('arrow', 18)}</span><span><b>All courts &amp; tribunals</b></span></a>`;
+  const toolItems = tools.map(t => item(`/tools/${t.slug}`, t.icon, t.navLabel, t.navHint)).join('');
+  const cmpItems = comparisons.map(c => item(`/compare/${c.slug}`, 'scale', c.navLabel, c.navHint)).join('');
   const dd = (key, label, items, wide) => `<div class="nav-dd${active === key ? ' is-active' : ''}"><button class="nav-link nav-dd-btn" type="button" aria-expanded="false">${label}${icon('chevron', 14)}</button><div class="nav-dd-panel${wide ? ' wide' : ''}" role="menu">${items}</div></div>`;
   return `<a class="skip" href="#main">Skip to content</a>
 <header class="site-header" id="top">
   <div class="wrap nav">
     <a class="brand" href="/" aria-label="${esc(SITE.name)} home"><img src="/assets/ls-mark-white.png" alt="" width="28" height="28"><span>${esc(SITE.name)}</span></a>
     <nav class="nav-links" aria-label="Main">
-      ${dd('services', 'Services', svcItems, true)}
-      <a class="nav-link${active === 'cma' ? ' is-active' : ''}" href="/services/cma-ca-cs-certification-services">CMA &amp; Legal Desk</a>
-      ${dd('tools', 'Free Tools', toolItems)}
+      ${dd('features', 'Features', featItems, true)}
+      ${dd('courts', 'Courts', courtItems, true)}
+      ${dd('tools', 'Free Advocate Tools', toolItems)}
       ${dd('compare', 'Compare', cmpItems)}
-      <a class="nav-link${active === 'blog' ? ' is-active' : ''}" href="/blog">Resources</a>
+      <a class="nav-link${active === 'blog' ? ' is-active' : ''}" href="/blog">Blog</a>
     </nav>
     <div class="nav-cta">
-      <a class="nav-link nav-signin" href="/app.html">Sign in</a>
-      <button class="btn btn-light btn-sm" type="button" data-book="Header">Book a free call</button>
+      <a class="nav-link nav-signin" href="/app">Sign in</a>
+      <a class="btn btn-light btn-sm" href="/#pricing">Start free</a>
       <button class="nav-burger" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav">${icon('menu', 22)}</button>
     </div>
   </div>
   <div class="mobile-nav" id="mobile-nav" hidden>
     <div class="wrap">
-      <p class="mn-h">Services</p>${services.map(s => `<a href="/services/${s.slug}">${esc(s.navLabel)}</a>`).join('')}
-      <p class="mn-h">Free tools</p>${tools.map(t => `<a href="/tools/${t.slug}">${esc(t.navLabel)}</a>`).join('')}
-      <p class="mn-h">Compare</p>${comparisons.map(c => `<a href="/compare/${c.slug}">${esc(c.navLabel)}</a>`).join('')}
-      <p class="mn-h">More</p><a href="/blog">Resources &amp; blog</a><a href="/directory.html">Find an advocate</a><a href="/app.html">Sign in</a>
-      <button class="btn btn-light" type="button" data-book="Mobile menu">Book a free call</button>
+      <p class="mn-h">Features</p>${features.map(f => `<a href="/features/${f.slug}">${esc(f.navLabel)}</a>`).join('')}
+      <p class="mn-h">Courts</p>${TOP_COURTS.slice(0, 6).map(sl => courts.find(c => c.slug === sl)).filter(Boolean).map(c => `<a href="/courts/${c.slug}">${esc(c.name)}</a>`).join('')}<a href="/courts">All courts &amp; tribunals</a>
+      <p class="mn-h">Free advocate tools</p>${tools.map(t => `<a href="/tools/${t.slug}">${esc(t.navLabel)}</a>`).join('')}
+      <p class="mn-h">More</p>${comparisons.map(c => `<a href="/compare/${c.slug}">${esc(c.navLabel)}</a>`).join('')}<a href="/blog">Blog</a><a href="/directory">Find an advocate</a><a href="/app">Sign in</a>
+      <a class="btn btn-light" href="/#pricing">Start free</a>
+      <button class="btn btn-ghost-light" type="button" data-book="Mobile menu" style="margin-top:8px;width:100%">Book a demo</button>
     </div>
   </div>
 </header>`;
@@ -153,22 +158,27 @@ export function header(active = '') {
 /* ---------------- footer SEO matrix ---------------- */
 export function footer() {
   const col = (title, links) => `<div class="f-col"><p class="f-h">${title}</p><ul>${links.map(([href, label]) => `<li><a href="${href}">${esc(label)}</a></li>`).join('')}</ul></div>`;
-  const cityLinks = TOP_CITIES.map(s => locations.find(l => l.slug === s)).filter(Boolean).map(l => [locPath(l.slug), `Company registration in ${l.name}`]);
+  const cityLinks = TOP_CITIES.map(s => cities.find(c => c.slug === s)).filter(Boolean).map(c => [cityPath(c.slug), `Advocate software in ${c.name}`]);
+  const courtLinks = TOP_COURTS.map(s => courts.find(c => c.slug === s)).filter(Boolean).map(c => [`/courts/${c.slug}`, c.name]);
   return `<footer class="site-footer">
   <div class="wrap">
     <div class="f-top">
-      <div class="f-brand"><img src="/assets/ls-logo-white.png" alt="${esc(SITE.name)}" width="132" height="66" loading="lazy"><p>${esc(SITE.tagline)}. Information on this site is general guidance, not legal advice; fees and due dates change, so confirm current figures before filing.</p>
-        <button class="btn btn-light btn-sm" type="button" data-book="Footer">Book a free 15-min call</button></div>
-      ${col('Services', services.map(s => [`/services/${s.slug}`, s.navLabel]))}
-      ${col('Free tools', [...tools.map(t => [`/tools/${t.slug}`, t.navLabel]), ['/blog', 'All guides & resources']])}
+      <div class="f-brand"><img src="/assets/ls-logo-white.png" alt="${esc(SITE.name)}" width="132" height="66" loading="lazy"><p>${esc(SITE.tagline)}. Legal Staff is software: it does not give legal advice, and AI output must be reviewed by an advocate.</p>
+        <a class="btn btn-light btn-sm" href="/#pricing">Start free</a></div>
+      ${col('Features', features.map(f => [`/features/${f.slug}`, f.navLabel]))}
+      ${col('Free advocate tools', [...tools.map(t => [`/tools/${t.slug}`, t.navLabel]), ['/blog', 'Blog & guides']])}
       ${col('Compare', comparisons.map(c => [`/compare/${c.slug}`, c.navLabel]))}
       ${col('Guides by topic', pillars.map(p => [`/blog#${p.id}`, p.name]))}
     </div>
     <div class="f-cities">
-      <p class="f-h">Company registration by city</p>
-      <ul>${cityLinks.map(([href, label]) => `<li><a href="${href}">${esc(label)}</a></li>`).join('')}<li><a href="/company-registration-in-india">All cities &amp; states</a></li></ul>
+      <p class="f-h">Courts &amp; tribunals</p>
+      <ul>${courtLinks.map(([href, label]) => `<li><a href="${href}">${esc(label)}</a></li>`).join('')}<li><a href="/courts">All courts &amp; tribunals</a></li></ul>
     </div>
-    <div class="f-bottom"><span>© ${new Date().getFullYear()} ${esc(SITE.name)}</span><span><a href="/">Home</a> · <a href="/directory.html">Advocate directory</a> · <a href="/app.html">Sign in</a> · <a href="/sitemap.xml">Sitemap</a></span></div>
+    <div class="f-cities">
+      <p class="f-h">Practice management software by city</p>
+      <ul>${cityLinks.map(([href, label]) => `<li><a href="${href}">${esc(label)}</a></li>`).join('')}<li><a href="/advocate-software-in-india">All cities</a></li></ul>
+    </div>
+    <div class="f-bottom"><span>© ${new Date().getFullYear()} ${esc(SITE.name)}</span><span><a href="/">Home</a> · <a href="/#pricing">Pricing</a> · <a href="/directory">Advocate directory</a> · <a href="/app">Sign in</a> · <a href="/sitemap.xml">Sitemap</a></span></div>
   </div>
 </footer>`;
 }
@@ -181,13 +191,13 @@ export const faqBlock = (faqs, title = 'Frequently asked questions') => `<sectio
   <div class="faq">${faqs.map((f, i) => `<details class="faq-item ls-reveal" style="--ls-delay:${Math.min(i, 6) * 60}ms"${i === 0 ? ' open' : ''}><summary><span>${esc(f.q)}</span><i aria-hidden="true"></i></summary><div class="faq-a"><p>${esc(f.a)}</p></div></details>`).join('')}</div>
 </div></section>`;
 
-export const ctaBand = ({ title = 'Talk to a practising professional before you file', text = 'Book a free 15-minute call. We review your situation, list what you need and quote a fixed fee — no obligation.', label = 'Book a free 15-min call', source = 'CTA band' } = {}) => `<section class="cta-band"><div class="wrap">
+export const ctaBand = ({ title = 'Let Legal Staff read your orders and keep your diary', text = 'Every case, order and hearing date in one place, with WhatsApp reminders before each date. Set up your chamber in minutes.', label = 'Start free', source = 'CTA band' } = {}) => `<section class="cta-band"><div class="wrap">
   <div class="cta-in ls-reveal-scale"><div class="cta-rings" aria-hidden="true"><span></span><span></span><span></span></div>
     <h2 class="h2 light">${esc(title)}</h2><p>${esc(text)}</p>
-    <div class="row-btns"><button class="btn btn-light" type="button" data-book="${esc(source)}">${esc(label)} ${icon('arrow', 16)}</button><a class="btn btn-ghost-light" href="/tools/incorporation-cost-calculator">Estimate your costs</a></div>
+    <div class="row-btns"><a class="btn btn-light" href="/#pricing">${esc(label)} ${icon('arrow', 16)}</a><button class="btn btn-ghost-light" type="button" data-book="${esc(source)}">Book a demo</button></div>
   </div></div></section>`;
 
-export const disclaimer = (extra = '') => `<p class="disclaimer">${icon('shield', 16)}<span>General information, not legal or tax advice. Government fees, stamp duty and due dates are revised from time to time; confirm the current figures on the MCA, state stamp and Income Tax portals or with a practising professional before filing.${extra ? ' ' + esc(extra) : ''}</span></p>`;
+export const disclaimer = (extra = '') => `<p class="disclaimer">${icon('shield', 16)}<span>General information for advocates, not legal advice. Statutes, rules and court practice directions change; check the bare Act, the latest amendments and your court's rules before relying on any date or section.${extra ? ' ' + esc(extra) : ''}</span></p>`;
 
 /* ---------------- booking modal (posts to Supabase contact_requests, falls back to this browser) ---------------- */
 const bookingModal = () => `<div class="modal" id="book" hidden aria-hidden="true">
@@ -195,21 +205,21 @@ const bookingModal = () => `<div class="modal" id="book" hidden aria-hidden="tru
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="book-title">
     <button class="modal-x" type="button" data-close aria-label="Close">${icon('close', 20)}</button>
     <div class="book-form-wrap">
-      <p class="kicker">Free 15-minute call</p>
-      <h2 id="book-title" class="h3">Book a structuring call</h2>
-      <p class="muted">Tell us what you need. A practising professional calls you back with a checklist and a fixed quote.</p>
+      <p class="kicker">Free 20-minute demo</p>
+      <h2 id="book-title" class="h3">Book a demo of Legal Staff</h2>
+      <p class="muted">We'll walk you through order reading, the court diary and WhatsApp reminders with your own courts in mind.</p>
       <form class="book-form" novalidate>
         <div class="grid2"><label>Name<input name="name" autocomplete="name" required></label><label>Phone<input name="phone" type="tel" inputmode="tel" autocomplete="tel" required></label></div>
         <label>Work email<input name="email" type="email" autocomplete="email" required></label>
-        <div class="grid2"><label>Company or firm<input name="firm" autocomplete="organization"></label>
-          <label>Need help with<select name="topic">${services.map(s => `<option>${esc(s.navLabel)}</option>`).join('')}<option>Something else</option></select></label></div>
+        <div class="grid2"><label>Chamber or firm<input name="firm" autocomplete="organization"></label>
+          <label>Most interested in<select name="topic">${features.map(f => `<option>${esc(f.navLabel)}</option>`).join('')}<option>Everything</option></select></label></div>
         <label>Anything we should know? <span class="muted">(optional)</span><textarea name="message" rows="3"></textarea></label>
         <label class="check"><input type="checkbox" name="consent" required> I agree to be contacted about this request.</label>
         <p class="form-err" role="alert" hidden></p>
-        <button class="btn btn-dark btn-block" type="submit">Request a call back</button>
+        <button class="btn btn-dark btn-block" type="submit">Request a demo</button>
       </form>
     </div>
-    <div class="book-done" hidden><div class="done-ic">${icon('check', 28)}</div><h2 class="h3">Request received</h2><p class="muted book-done-text">We'll call you back within one working day.</p><button class="btn btn-dark" type="button" data-close>Done</button></div>
+    <div class="book-done" hidden><div class="done-ic">${icon('check', 28)}</div><h2 class="h3">Request received</h2><p class="muted book-done-text">We'll get in touch within one working day to fix a time.</p><button class="btn btn-dark" type="button" data-close>Done</button></div>
   </div>
 </div>`;
 
@@ -236,14 +246,14 @@ ${scripts.map(s => `<script src="${s}" defer></script>`).join('\n')}
 }
 
 /* ---------------- section helpers ---------------- */
-export const hero = ({ kicker, title, lead, crumbs, primary = 'Book a free 15-min call', source = 'Hero', secondary, chips = [], art = '' }) => `<section class="hero"><div class="hero-bg" aria-hidden="true"><div class="hero-grid"></div><div class="hero-glow"></div></div>
+export const hero = ({ kicker, title, lead, crumbs, primary = 'Start free', primaryHref = '/#pricing', source = 'Hero', secondary, chips = [], art = '' }) => `<section class="hero"><div class="hero-bg" aria-hidden="true"><div class="hero-grid"></div><div class="hero-glow"></div></div>
   <div class="wrap hero-in${art ? ' has-art' : ''}">
     <div class="hero-copy">
       ${crumbs ? breadcrumbs(crumbs) : ''}
       ${kicker ? `<p class="kicker light lh" style="--d:60ms">${esc(kicker)}</p>` : ''}
       <h1 class="h1 lh" style="--d:120ms">${esc(title)}</h1>
       ${lead ? `<p class="lead lh" style="--d:220ms">${esc(lead)}</p>` : ''}
-      <div class="row-btns lh" style="--d:320ms"><button class="btn btn-light" type="button" data-book="${esc(source)}">${esc(primary)} ${icon('arrow', 16)}</button>${secondary ? `<a class="btn btn-ghost-light" href="${secondary.href}">${esc(secondary.label)}</a>` : ''}</div>
+      <div class="row-btns lh" style="--d:320ms"><a class="btn btn-light" href="${primaryHref}">${esc(primary)} ${icon('arrow', 16)}</a>${secondary ? `<a class="btn btn-ghost-light" href="${secondary.href}">${esc(secondary.label)}</a>` : `<button class="btn btn-ghost-light" type="button" data-book="${esc(source)}">Book a demo</button>`}</div>
       ${chips.length ? `<ul class="chips lh" style="--d:420ms">${chips.map(c => `<li>${icon('check', 14)}${esc(c)}</li>`).join('')}</ul>` : ''}
     </div>
     ${art ? `<div class="hero-art lh" style="--d:300ms" aria-hidden="true">${art}</div>` : ''}
@@ -256,4 +266,4 @@ export const section = ({ id = '', kicker = '', title, lead = '', inner, tone = 
 
 export const relatedLinks = (title, links) => links.length ? `<section class="section tone-soft"><div class="wrap"><h2 class="h3 ls-reveal">${esc(title)}</h2><div class="rel-grid">${links.map((l, i) => `<a class="rel-card ls-reveal ls-lift" style="--ls-delay:${(i % 4) * 70}ms" href="${l.href}"><span class="rel-k">${esc(l.kind)}</span><b>${esc(l.label)}</b>${l.hint ? `<small>${esc(l.hint)}</small>` : ''}<span class="rel-go">${icon('arrow', 16)}</span></a>`).join('')}</div></div></section>` : '';
 
-export { TOP_CITIES };
+export { TOP_CITIES, TOP_COURTS };

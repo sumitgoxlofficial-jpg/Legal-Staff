@@ -1,9 +1,6 @@
-// Free tool registry (navigation, footer, sitemap). The tool pages themselves live in seo/pages/tools.mjs.
+// Free advocate tools (navigation, footer, sitemap). Pages are rendered by seo/pages/tools.mjs.
 export const tools = [
-  { slug: 'incorporation-cost-calculator', icon: 'calc', navLabel: 'Incorporation cost calculator', navHint: 'MCA fee, stamp duty, PAN/TAN, DSC by state',
-    title: 'Company Incorporation & State Stamp Duty Calculator', short: 'Incorporation cost calculator' },
-  { slug: 'roc-compliance-calendar', icon: 'calendar', navLabel: 'ROC compliance calendar', navHint: 'Every due date and late fee for your entity',
-    title: 'Startup Annual ROC & Tax Compliance Calendar Generator', short: 'ROC compliance calendar' },
-  { slug: 'trademark-class-finder', icon: 'search', navLabel: 'Trademark class finder', navHint: 'All 45 classes with Indian business examples',
-    title: 'Trademark Class & NIC Code Search Tool', short: 'Trademark class finder' }
+  { slug: 'bns-ipc-crpc-bnss-converter', icon: 'scale', navLabel: 'IPC → BNS section converter', navHint: 'IPC/BNS, CrPC/BNSS and IEA/BSA both ways', title: 'IPC to BNS, CrPC to BNSS & IEA to BSA Section Converter' },
+  { slug: 'limitation-period-calculator', icon: 'clock', navLabel: 'Limitation period calculator', navHint: 'Filing deadline with section 12 exclusions', title: 'Court Limitation & Filing Deadline Calculator' },
+  { slug: 'section-138-ni-act-timeline-calculator', icon: 'doc', navLabel: 'Section 138 NI Act timeline', navHint: 'Cheque bounce notice and complaint deadlines', title: 'Cheque Bounce Section 138 NI Act Timeline Calculator' }
 ];

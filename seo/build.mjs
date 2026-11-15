@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { SITE } from './lib.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MODULES = ['service', 'compare', 'location', 'tools', 'blog'];
+const MODULES = ['feature', 'court', 'compare', 'city', 'tools', 'blog'];
 const MANIFEST = join(ROOT, 'seo', '.generated.json');
 
 // Remove files written by the previous build so renamed or deleted routes don't linger.
@@ -48,5 +48,5 @@ const urls = [...staticPages, ...out].map(p => `  <url><loc>${SITE.url}${p.path 
 writeFileSync(join(ROOT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`);
 writeFileSync(join(ROOT, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /app.html\nDisallow: /supabase/\nDisallow: /seo/\n\nSitemap: ${SITE.url}/sitemap.xml\n`);
 
-const byType = out.reduce((a, p) => { const k = p.path.split('/')[1].replace(/^company-registration-in-.*/, 'locations') || 'root'; a[k] = (a[k] || 0) + 1; return a; }, {});
+const byType = out.reduce((a, p) => { const k = p.path.split('/')[1].replace(/^advocate-software-in-.*/, 'cities') || 'root'; a[k] = (a[k] || 0) + 1; return a; }, {});
 console.log(`Built ${out.length} pages`, byType, `→ sitemap.xml has ${urls.length} URLs`);
