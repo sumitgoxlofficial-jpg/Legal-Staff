@@ -1,7 +1,8 @@
 // /blog (resources hub) and /blog/<slug> (articles). Data: seo/data/blogs.mjs (merges blogs-a + blogs-b), pillars: seo/data/pillars.mjs.
 import { blogs } from '../data/blogs.mjs';
 import { pillars } from '../data/pillars.mjs';
-import { services } from '../data/services.mjs';
+import { features } from '../data/features.mjs';
+import { courts } from '../data/courts.mjs';
 import { tools } from '../data/tools.mjs';
 import { comparisons } from '../data/comparisons.mjs';
 import { page, seoHead, ld, hero, section, ctaBand, breadcrumbs, disclaimer, icon, esc } from '../lib.mjs';
@@ -13,10 +14,10 @@ const alertIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" s
 
 // One-line descriptions for the hub sections (keyed by pillar id; unknown pillars simply get none).
 const PILLAR_INTRO = {
-  'mca-v3-incorporation': 'SPICe+ on the MCA V3 portal, name approval, registered office proof, foreign-owned subsidiaries and converting an existing business.',
-  'cma-certifications': 'Which certificates a practising Cost Accountant can sign, cost records and cost audit, bank CMA data, CAS-4 and share valuation.',
-  'post-incorp-compliance': 'The first-year filings, director KYC, loans from directors and Startup India tax benefits — with the late-fee traps.',
-  'legal-staffing': 'Remote paralegals, virtual compliance officers, contract review and outsourced POSH and due-diligence support.'
+  'court-diary-whatsapp': 'Next-date tracking, cause lists, WhatsApp hearing reminders and moving your diary from paper to one calendar for every court.',
+  'ai-order-reader-research': 'How AI reads orders, drafts and summaries you can verify, research without invented citations, and keeping client files confidential.',
+  'procedural-limitation': 'Limitation, written statement, section 138 and IBC timelines, and the new BNS, BNSS and BSA section numbers, worked through step by step.',
+  'chamber-management': 'Running a chamber: juniors and clerks, the daily hearing board, client updates, documents and per-hearing billing.'
 };
 
 /* ---------------- validation ---------------- */
@@ -41,20 +42,24 @@ function validate(b, i) {
   if (b.faqs.length !== 4) warn(`has ${b.faqs.length} FAQs (contract says exactly 4)`);
 }
 
-/* ---------------- PillarCTA: sticky sidebar lead magnet, chosen by the article's pillar ---------------- */
-export function PillarCTA(pillarId) {
+/* ---------------- AdvocateCTA: sticky sidebar card, chosen by the article's pillar (stacks after the article on mobile) ---------------- */
+export function AdvocateCTA(pillarId) {
   const p = pillarById(pillarId);
-  if (!p) throw new Error('PillarCTA: unknown pillar ' + pillarId);
-  const svc = services.find(s => s.slug === p.cta.service);
-  return `<div class="pillar-cta" data-pillar="${esc(p.id)}">
+  if (!p) throw new Error('AdvocateCTA: unknown pillar ' + pillarId);
+  const f = features.find(x => x.slug === p.cta.feature);
+  return `<div class="pillar-cta advocate-cta" data-pillar="${esc(p.id)}">
     <div class="pc-rings" aria-hidden="true"><span></span><span></span></div>
     <span class="pc-k">${esc(p.name)}</span>
-    <h3>${esc(p.cta.title)}</h3>
+    <p class="pc-title">${esc(p.cta.title)}</p>
     <ul>${p.cta.points.map(pt => `<li>${icon('check', 15)}<span>${esc(pt)}</span></li>`).join('')}</ul>
-    <button class="btn btn-light btn-block" type="button" data-book="Blog: ${esc(p.name)}" data-topic="${esc(p.cta.topic)}">${esc(p.cta.label)} ${icon('arrow', 16)}</button>
-    <a class="pc-link" href="/services/${esc(p.cta.service)}">${esc(svc ? `See ${svc.navLabel} plans` : 'See the service')} ${icon('arrow', 14)}</a>
+    <div class="pc-btns">
+      <a class="btn btn-light btn-block" href="/#pricing">${esc(p.cta.label || 'Start free')} ${icon('arrow', 16)}</a>
+      <button class="btn btn-ghost-light btn-block" type="button" data-book="Blog: ${esc(p.name)}">Book a demo</button>
+    </div>
+    ${f ? `<a class="pc-link" href="/features/${esc(f.slug)}">See ${esc(f.navLabel)} ${icon('arrow', 14)}</a>` : ''}
   </div>`;
 }
+export const PillarCTA = AdvocateCTA;
 
 /* ---------------- shared bits ---------------- */
 const metaLine = (b, p) => `<span>${esc(p.name)}</span><span>${b.readMinutes} min read</span><span>Updated <time datetime="${b.updated}">${fmtDate(b.updated)}</time></span>`;
@@ -68,11 +73,13 @@ const card = (b, i) => {
 
 function relatedFor(b) {
   const out = [];
-  for (const sl of b.related.services || []) { const s = services.find(x => x.slug === sl); if (s) out.push({ kind: 'Service', label: s.navLabel, hint: s.navHint, href: `/services/${s.slug}` }); }
-  for (const sl of b.related.tools || []) { const t = tools.find(x => x.slug === sl); if (t) out.push({ kind: 'Free tool', label: t.title || t.navLabel, href: `/tools/${t.slug}` }); }
-  for (const sl of b.related.compare || []) { const c = comparisons.find(x => x.slug === sl); if (c) out.push({ kind: 'Compare', label: c.title || c.navLabel, href: `/compare/${c.slug}` }); }
+  const r = b.related || {};
+  for (const sl of r.features || []) { const f = features.find(x => x.slug === sl); if (f) out.push({ kind: 'Feature', label: f.navLabel, hint: f.navHint, href: `/features/${f.slug}` }); }
+  for (const sl of r.courts || []) { const c = courts.find(x => x.slug === sl); if (c) out.push({ kind: 'Court', label: c.name, href: `/courts/${c.slug}` }); }
+  for (const sl of r.tools || []) { const t = tools.find(x => x.slug === sl); if (t) out.push({ kind: 'Free tool', label: t.title || t.navLabel, href: `/tools/${t.slug}` }); }
+  for (const sl of r.compare || []) { const c = comparisons.find(x => x.slug === sl); if (c) out.push({ kind: 'Compare', label: c.title || c.navLabel, href: `/compare/${c.slug}` }); }
   // Sibling guides: only link posts that exist (the other data file may still be partial); top up from the same pillar.
-  const sib = (b.related.blogs || []).map(sl => blogs.find(x => x.slug === sl)).filter(x => x && x.slug !== b.slug);
+  const sib = (r.blogs || []).map(sl => blogs.find(x => x.slug === sl)).filter(x => x && x.slug !== b.slug);
   for (const x of blogs) { if (sib.length >= 3) break; if (x.pillar === b.pillar && x.slug !== b.slug && !sib.includes(x)) sib.push(x); }
   for (const x of sib) out.push({ kind: 'Guide', label: x.title, href: `/blog/${x.slug}` });
   return out;
@@ -86,11 +93,11 @@ function articlePage(b) {
   const toc = [
     ['summary', 'Executive summary'],
     ['steps', b.steps.heading || 'Step-by-step guide'],
-    ['rules', b.rules.heading || 'Statutory rules and forms'],
+    ['rules', b.rules.heading || 'Rules at a glance'],
     ...b.sections.map((s, i) => [`more-${i + 1}`, s.heading]),
     ['pitfalls', 'Common pitfalls'],
     ['faq', 'Frequently asked questions'],
-    ['related', 'Related services and guides']
+    ['related', 'Related features and guides']
   ];
   const tocList = `<ol>${toc.map(([id, t]) => `<li><a href="#${id}">${esc(t)}</a></li>`).join('')}</ol>`;
   const rel = relatedFor(b);
@@ -103,7 +110,7 @@ function articlePage(b) {
     <h2 id="steps">${esc(b.steps.heading || 'Step-by-step guide')}</h2>
     <ol class="post-steps">${b.steps.items.map(s => `<li class="ls-reveal"><h3>${esc(s.title)}</h3><p>${esc(s.text)}</p></li>`).join('')}</ol>
 
-    <h2 id="rules">${esc(b.rules.heading || 'Statutory rules and forms')}</h2>
+    <h2 id="rules">${esc(b.rules.heading || 'Rules at a glance')}</h2>
     <div class="table-wrap" tabindex="0" role="region" aria-label="${esc(b.rules.caption || b.rules.heading)}"><table>
       ${b.rules.caption ? `<caption>${esc(b.rules.caption)}</caption>` : ''}
       <thead><tr>${b.rules.headers.map(h => `<th scope="col">${esc(h)}</th>`).join('')}</tr></thead>
@@ -120,13 +127,13 @@ function articlePage(b) {
 
     ${disclaimer()}
 
-    <h2 id="related">Related services and guides</h2>
+    <h2 id="related">Related features and guides</h2>
     <div class="rel-grid">${rel.map(l => `<a class="rel-card ls-lift" href="${l.href}"><span class="rel-k">${esc(l.kind)}</span><b>${esc(l.label)}</b>${l.hint ? `<small>${esc(l.hint)}</small>` : ''}<span class="rel-go">${icon('arrow', 16)}</span></a>`).join('')}</div>
   </article>`;
 
   const aside = `<aside class="post-aside" aria-label="On this page and next steps">
     <nav class="toc toc-desktop" aria-label="On this page"><p>On this page</p>${tocList}</nav>
-    ${PillarCTA(b.pillar)}
+    ${AdvocateCTA(b.pillar)}
   </aside>`;
 
   const head = `<section class="hero post-hero"><div class="hero-bg" aria-hidden="true"><div class="hero-grid"></div><div class="hero-glow"></div></div>
@@ -140,7 +147,7 @@ function articlePage(b) {
 
   const body = `${head}
 <section class="section post-section"><div class="wrap"><div class="post-layout">${prose}${aside}</div></div></section>
-${ctaBand({ title: p.cta.title, text: 'Book a free 15-minute call. A practising professional reviews your case, lists what is missing and quotes a fixed fee.', label: p.cta.label, source: `Blog CTA band: ${p.name}` })}`;
+${ctaBand({ title: p.cta.title, text: 'Orders read and summarised, next dates confirmed into one diary, and WhatsApp reminders before every hearing. Set up your chamber in minutes.', label: p.cta.label || 'Start free', source: `Blog CTA band: ${p.name}` })}`;
 
   const jsonld = [
     ld.article({ title: b.title, description: b.metaDescription, path, published: b.published, modified: b.updated, section: p.name, keywords: b.keywords }),
@@ -156,7 +163,7 @@ function hubPage() {
   const crumbs = [{ name: 'Home', path: '/' }, { name: 'Resources', path }];
   const sorted = [...blogs].sort((a, b) => b.updated.localeCompare(a.updated));
   const tools_ = `<div class="blog-tools">
-    <div class="search-box">${icon('search', 18)}<label class="sr-only" for="blog-q">Search guides</label><input id="blog-q" type="search" placeholder="Search guides — e.g. INC-20A, CAS-4, DIN" autocomplete="off"></div>
+    <div class="search-box">${icon('search', 18)}<label class="sr-only" for="blog-q">Search guides</label><input id="blog-q" type="search" placeholder="Search guides — e.g. cause list, bail, section 12" autocomplete="off"></div>
     <div class="blog-filters" role="group" aria-label="Filter by topic">
       <button type="button" data-filter="all" aria-pressed="true">All <span>${blogs.length}</span></button>
       ${pillars.map(p => `<button type="button" data-filter="${esc(p.id)}" aria-pressed="false">${esc(p.name)} <span>${blogs.filter(b => b.pillar === p.id).length}</span></button>`).join('')}
@@ -167,14 +174,14 @@ function hubPage() {
     const list = sorted.filter(b => b.pillar === p.id);
     return `<section class="blog-group" id="${esc(p.id)}" data-group="${esc(p.id)}">
       <div class="bg-head"><h2 class="h3">${esc(p.name)}</h2>${PILLAR_INTRO[p.id] ? `<p class="muted">${esc(PILLAR_INTRO[p.id])}</p>` : ''}</div>
-      ${list.length ? `<div class="post-grid">${list.map(card).join('')}</div>` : `<p class="muted">New guides on this topic are on the way. <a href="/services/${esc(p.cta.service)}">See the related service</a>.</p>`}
+      ${list.length ? `<div class="post-grid">${list.map(card).join('')}</div>` : `<p class="muted">New guides on this topic are on the way. <a href="/features/${esc(p.cta.feature)}">See the related feature</a>.</p>`}
     </section>`;
   }).join('');
-  const body = `${hero({ kicker: 'Resources', title: 'Guides for Indian founders, finance teams and firms', lead: 'Step-by-step guides to MCA V3 filings, CMA and CA certifications, first-year ROC compliance and legal staffing — with the forms, due dates and penalties in one place.', crumbs, source: 'Blog hub', chips: [`${blogs.length} in-depth guides`, 'Forms, due dates and fees in tables', 'Updated for 2026'] })}
-${section({ id: 'guides', inner: `${tools_}<div class="blog-groups">${groups}</div><p class="blog-empty muted" hidden>No guide matches that search. Try a form name such as SPICe+, INC-20A or DIR-3 KYC, or <button type="button" class="linkish" data-book="Blog search: no result">ask us directly</button>.</p>` })}
+  const body = `${hero({ kicker: 'Resources for advocates', title: 'Practical guides for Indian advocates and chambers', lead: 'Court diaries and next-date tracking, WhatsApp hearing reminders, reading orders with AI, limitation and procedural timelines, and running a chamber — written for litigators, with the rules in tables.', crumbs, source: 'Blog hub', chips: [`${blogs.length} in-depth guides`, 'Procedure and timelines in tables', 'Updated for 2026'] })}
+${section({ id: 'guides', inner: `${tools_}<div class="blog-groups">${groups}</div><p class="blog-empty muted" hidden>No guide matches that search. Try a term such as cause list, written statement or section 138, or <button type="button" class="linkish" data-book="Blog search: no result">ask us directly</button>.</p>` })}
 ${ctaBand({ source: 'Blog hub CTA' })}`;
-  const jsonld = [ld.breadcrumb(crumbs), ld.itemList('Legal Staff guides', sorted.map(b => ({ name: b.title, path: `/blog/${b.slug}` })))];
-  return { path, priority: 0.8, changefreq: 'weekly', html: page({ head: seoHead({ title: 'Guides: MCA V3, CMA Certification & ROC Compliance', description: 'Practical guides on SPICe+ and MCA V3 filings, practising CMA certificates, cost audit, first-year ROC compliance and remote legal staffing for Indian companies.', path, jsonld }), body, active: 'blog', scripts: ['/static/blog.js'] }) };
+  const jsonld = [ld.breadcrumb(crumbs), ld.itemList('Legal Staff guides for advocates', sorted.map(b => ({ name: b.title, path: `/blog/${b.slug}` })))];
+  return { path, priority: 0.8, changefreq: 'weekly', html: page({ head: seoHead({ title: 'Guides for Advocates: Court Diary, AI & Procedure', description: 'Practical guides for Indian advocates: next-date tracking, WhatsApp hearing reminders, AI order reading, limitation timelines and running a chamber.', path, jsonld }), body, active: 'blog', scripts: ['/static/blog.js'] }) };
 }
 
 export function pages() {
