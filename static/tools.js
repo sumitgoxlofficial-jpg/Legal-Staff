@@ -237,7 +237,7 @@
         var nd = D.diff(info, notice);
         if (nd < 0) { c2.st = 'fail'; c2.d = 'The notice date (' + D.short(notice) + ') is before the information of dishonour (' + D.short(info) + '). Check the dates.'; }
         else if (nd <= 30) { c2.st = 'pass'; c2.d = 'Sent on day ' + nd + ' (' + D.short(notice) + '). The 30th day was ' + D.short(noticeBy) + '.'; }
-        else { c2.st = 'fail'; c2.d = 'Sent on day ' + nd + ' (' + D.short(notice) + '), after the 30-day window closed on ' + D.short(noticeBy) + '. A complaint on this notice is not maintainable; a fresh presentation within the cheque\'s validity may be the only route — take advice.'; }
+        else { c2.st = 'fail'; c2.d = 'Sent on day ' + nd + ' (' + D.short(notice) + '), after the 30-day window closed on ' + D.short(noticeBy) + '. A complaint based on this notice is likely to fail; consider whether the cheque can be presented again within its validity — take advice.'; }
         res.meters.push({ t: 'Notice window', used: Math.max(0, nd), allowed: 30, unit: 'days', label: 'Notice sent on day ' + nd + ' of 30', over: nd > 30 });
       }
     }

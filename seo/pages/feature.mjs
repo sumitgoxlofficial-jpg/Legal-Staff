@@ -129,7 +129,7 @@ function featurePage(f) {
   const body = `${hero({ kicker: f.kicker, title: f.title, lead: f.lead, crumbs, source: `Feature hero: ${f.navLabel}`, chips: f.chips, art: heroArt(f) })}
 ${section({ id: 'problem', kicker: 'Problem vs solution', title: 'What changes with Legal Staff', inner: ps })}
 <section class="section tone-dark fp-sec" id="preview"><div class="wrap">${preview}</div></section>
-${section({ id: 'how', kicker: 'How it works', title: `How the ${f.navLabel.toLowerCase()} works`, inner: steps })}
+${section({ id: 'how', kicker: 'How it works', title: 'From first step to daily habit', inner: steps })}
 ${section({ id: 'who', tone: 'tone-soft', kicker: 'Who it’s for', title: 'Built for the way litigators work', inner: uses })}
 ${faqBlock(f.faqs)}
 ${relatedLinks('Related features, courts and guides', rel)}

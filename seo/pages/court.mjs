@@ -106,7 +106,7 @@ function courtPage(c) {
     ...(c.related.courts || []).map(courtBySlug).filter(Boolean).map(x => ({ kind: 'Court', label: x.name, href: `/courts/${x.slug}` }))
   ];
 
-  const body = `${hero({ kicker: `${TYPE_LABEL[c.type] || 'Court'} · ${c.short}`, title: c.title, lead: c.lead, crumbs, source: `Court hero: ${c.short}`, chips, art: heroArt(c) })}
+  const body = `${hero({ kicker: (TYPE_LABEL[c.type] || 'Court') === c.short ? c.short : `${TYPE_LABEL[c.type] || 'Court'} · ${c.short}`, title: c.title, lead: c.lead, crumbs, source: `Court hero: ${c.short}`, chips, art: heroArt(c) })}
 ${section({ id: 'overview', kicker: 'Overview', title: `How Legal Staff fits a day at the ${c.short}`, inner: intro })}
 ${section({ id: 'orders', tone: 'tone-soft', kicker: 'Order reading', title: `How orders from the ${c.short} look`, lead: 'Upload or paste an order or a cause list entry. Legal Staff reads it, summarises it with paragraph references and picks out the next date. Nothing reaches your diary until you confirm it.', inner: format })}
 ${section({ id: 'workflow', kicker: 'Workflow', title: `From order to reminder: ${c.short} matters in Legal Staff`, inner: flow })}

@@ -850,8 +850,8 @@ export const cities = [
       'Legal Staff gives a Dhanbad chamber one diary for district courts, industrial tribunals and the High Court. Orders are summarised and next dates confirmed, juniors get WhatsApp reminders, and each matter’s documents sit in its own private vault.'
     ],
     courts: [
-      { name: 'Jharkhand High Court (Ranchi)', short: 'Jharkhand HC', kind: 'High Court', court: 'jharkhand-high-court', note: 'Writs, appeals and revisions from Dhanbad go to the High Court at Ranchi.' },
-      { name: 'Civil Court, Dhanbad', short: 'Civil Court', kind: 'District courts', court: 'ecourts-district-and-sessions-courts', note: 'The district and sessions courts for Dhanbad district.' },
+      { name: 'Jharkhand High Court (Ranchi)', short: 'Jharkhand HC', kind: 'High Court', court: 'jharkhand-high-court', note: 'Dhanbad falls under the Jharkhand High Court, so challenges to tribunal awards and appeals from the district are argued in Ranchi.' },
+      { name: 'Civil Court, Dhanbad', short: 'Civil Court', kind: 'District courts', court: 'ecourts-district-and-sessions-courts', note: 'Sessions trials, civil suits, family matters and compensation claims for Dhanbad district are heard here.' },
       { name: 'Central Government Industrial Tribunals, Dhanbad', short: 'CGIT Dhanbad', kind: 'Tribunal', note: 'Central Government Industrial Tribunal-cum-Labour Courts sit in Dhanbad and hear industrial disputes, including many from the coal sector.' },
       { name: 'Dhanbad district consumer commission', short: 'Consumer Comm.', kind: 'Consumer', court: 'consumer-courts-ncdrc-scdrc', note: 'District-level consumer complaints.' }
     ],
@@ -868,12 +868,12 @@ export const cities = [
     ],
     faqs: [
       { q: 'Can Legal Staff track industrial tribunal matters?', a: 'Yes. Add the tribunal as the forum; orders, documents and reminders work as for any court.' },
-      { q: 'Does it work for Jharkhand High Court matters from Dhanbad?', a: 'Yes. All forums sit on one diary, so Ranchi dates appear alongside local hearings.' },
+      { q: 'Can a tribunal award and the writ against it be kept together?', a: 'Yes. Link the writ in the Jharkhand High Court to the tribunal matter under the same client, with the award, the orders and the next dates for both on file.' },
       { q: 'Can I raise invoices for corporate clients?', a: 'Yes. Per-matter invoices with GST can be raised from the case.' },
       { q: 'How do I start?', a: 'Sign in with Google from the pricing section on the home page, or book a demo to see Legal Staff with your own matters.' }
     ],
     nearby: ['bokaro', 'ranchi', 'kolkata', 'patna'],
-    features: ['digital-advocate-diary', 'case-document-management', 'chamber-team-collaboration'],
-    blogs: ['track-cases-district-court-high-court-nclt-single-dashboard', 'per-hearing-appearance-billing-retainer-invoicing-indian-advocates']
+    features: ['chamber-team-collaboration', 'ai-court-order-reader', 'case-document-management'],
+    blogs: ['per-hearing-appearance-billing-retainer-invoicing-indian-advocates', 'summarize-charge-sheets-arbitral-awards-judgments-ai-india']
   }
 ];

@@ -146,7 +146,7 @@ function limitationPage() {
   return toolPage({
     slug: 'limitation-period-calculator', art: 'limitation',
     metaTitle: 'Limitation Period Calculator with Section 12 Exclusion',
-    description: 'Free limitation calculator for Indian advocates: written statements (30/90/120 days), first appeals, SLPs and money suits, with s.12 certified-copy exclusion shown step by step.',
+    description: 'Free limitation calculator for advocates: written statements (30/90/120 days), first appeals, SLPs and money suits, with s.12 certified-copy days excluded step by step.',
     kicker: 'Free advocate tool · Limitation Act, 1963',
     lead: 'Work out the last day to file a written statement, first appeal, SLP or money suit. The calculator excludes the day of judgment and the certified-copy time under section 12, and shows every step so you can check it.',
     chips: ['Section 12 exclusion', 'Order VIII Rule 1 (30/90/120 days)', 'Weekend flag (s.4)'], panel, how, faqs, rel

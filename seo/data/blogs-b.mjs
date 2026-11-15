@@ -207,7 +207,7 @@ export const blogsB = [
     rules: {
       heading: 'High-frequency section conversions',
       caption: 'Commonly used IPC, CrPC and Evidence Act sections and their BNS, BNSS and BSA equivalents',
-      headers: ['Subject', 'Old section', 'New section', 'Note'],
+      headers: ['Subject', 'Old', 'New', 'Note'],
       rows: [
         ['Murder (punishment)', 'IPC 302', 'BNS 103(1)', 'Definition of murder is in BNS 101'],
         ['Cheating and dishonestly inducing delivery of property', 'IPC 420', 'BNS 318(4)', 'BNS 318 consolidates the cheating provisions'],
