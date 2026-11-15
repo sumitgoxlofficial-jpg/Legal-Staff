@@ -64,8 +64,11 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const url = Deno.env.get("SUPABASE_URL")!, admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const cron = Deno.env.get("CRON_SECRET");
-    if (cron && req.headers.get("x-cron-secret") === cron) {
+    // The daily job sends a shared secret: either the CRON_SECRET function secret, or the one kept in Vault (checked by cron_secret_ok).
+    const cron = Deno.env.get("CRON_SECRET"), hdr = req.headers.get("x-cron-secret");
+    let isCron = !!(cron && hdr === cron);
+    if (!isCron && hdr) { const { data } = await admin.rpc("cron_secret_ok", { s: hdr }); isCron = data === true; }
+    if (isCron) {
       const { data: firms } = await admin.from("firms").select("id,name");
       let sent = 0; for (const f of firms ?? []) sent += (await briefFirm(admin, f, null)).filter((r) => r.ok).length;
       return json({ sent });
