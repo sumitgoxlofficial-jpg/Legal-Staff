@@ -251,7 +251,7 @@ function tmPage() {
   ];
   const data = { businessTypes, headings: Object.fromEntries(tmClasses.map(c => [c.n, c.heading])) };
   return toolPage({ slug: 'trademark-class-finder', metaTitle: 'Trademark Class Finder India: All 45 Classes & NIC Codes',
-    metaDescription: 'Search all 45 Nice trademark classes with plain-English descriptions and Indian business examples for SaaS, D2C, pharma, EdTech and FinTech, plus NIC 2008 codes.',
+    metaDescription: 'Search all 45 Nice trademark classes in plain English with Indian business examples for SaaS, D2C, pharma, EdTech and FinTech, plus suggested NIC 2008 codes.',
     kicker: 'Free tool · Trademark classes', lead: 'Search all 45 Nice classes in plain English, filter by sector, and pick your business type to see the classes founders usually file in — with suggested NIC 2008 codes for your incorporation and Udyam forms.',
     chips: ['All 45 classes', 'Indian business examples', 'NIC 2008 suggestions'],
     body: `${json('tm-data', data)}${app}${how}`, faqs,
@@ -272,7 +272,7 @@ ${section({ tone: 'tone-soft', kicker: 'Why we built these', title: 'Numbers you
 ${relatedLinks('Services behind the tools', svcLinks(['private-limited-company-registration', 'llp-registration-india', 'roc-annual-compliance', 'msme-udyam-dpiit-startup-registration']))}
 ${ctaBand({ source: 'Tools hub CTA' })}`;
   const jsonld = [ld.breadcrumb(crumbs), ld.itemList('Free tools', tools.map(t => ({ name: t.title, path: `/tools/${t.slug}` })))];
-  return { path, priority: 0.7, changefreq: 'monthly', html: page({ head: seoHead({ title: 'Free Incorporation & ROC Compliance Tools for Founders', description: 'Free tools for Indian founders: company and LLP incorporation cost and stamp duty calculator, ROC compliance calendar with late fees, and trademark class finder.', path, jsonld }), body, active: 'tools' }) };
+  return { path, priority: 0.7, changefreq: 'monthly', html: page({ head: seoHead({ title: 'Free Incorporation & ROC Compliance Tools for Founders', description: 'Free tools for Indian founders: an incorporation cost and stamp duty calculator, a ROC compliance calendar with late fees, and a trademark class finder.', path, jsonld }), body, active: 'tools' }) };
 }
 
 export function pages() {

@@ -555,8 +555,9 @@ html:not(.ls-js) .tool-actions, html:not(.ls-js) .tm-controls, html:not(.ls-js) 
 
 @media (max-width: 520px) {
   .tool-inputs, .tool-out { padding: 18px; }
-  .cal-item { grid-template-columns: 54px minmax(0, 1fr); gap: 12px; }
-  .cal-date { height: 56px; }
+  .cal-item { grid-template-columns: 58px minmax(0, 1fr); gap: 12px; }
+  .cal-date { height: 58px; }
+  .cal-date span { font-size: 10.5px; white-space: nowrap; }
   .tool-actions .btn { flex: 1; }
 }
 

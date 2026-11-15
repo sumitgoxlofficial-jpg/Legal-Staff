@@ -237,7 +237,7 @@
         total = days * lf.rate;
         lines.push([inr(lf.rate) + ' \u00d7 ' + days + ' days', total]);
         if (lf.base) lines.push(['Normal filing fee (payable in any case)', normalFee(base, inp.capital, data), true]);
-      } else if (lf.type === 'flat') { total = lf.amount; lines.push([lf.label, total]); }
+      } else if (lf.type === 'flat') { total = lf.amount; lines.push(['Fixed additional fee / late fee', total]); }
       else if (lf.type === 'multiplier') {
         var nf = normalFee(base, inp.capital, data), band = lf.bands.filter(function (b) { return days <= b.upToDays; })[0] || lf.bands[lf.bands.length - 1];
         total = nf * band.times;
