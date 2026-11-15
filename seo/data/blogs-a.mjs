@@ -267,7 +267,7 @@ export const blogsA = [
         { title: 'Get DSCs and plan DIN allotment', text: `Foreign directors can obtain Class 3 DSCs from Indian certifying authorities using passport-based verification. DINs for up to three proposed directors can be allotted through SPICe+ itself.` },
         { title: 'File SPICe+ with the parent as subscriber', text: `Reserve the name, then file Part B with the e-MoA and e-AoA signed for the parent by its authorised representative, the registered-office proofs and the professional's declaration. Open the bank account through AGILE-PRO-S or directly with an AD Category-I bank.` },
         { title: 'Receive funds and allot shares', text: `The parent remits the subscription money from abroad through banking channels; the bank issues the inward remittance documents and completes KYC of the remitter. Shares must be issued within 60 days of receipt of the money, or it must be refunded, as provided in the FEMA non-debt instruments rules.` },
-        { title: 'Report on FIRMS and file post-incorporation forms', text: `File FC-GPR on the FIRMS portal within 30 days of allotment, with the valuation certificate and the company secretary's declaration. Then complete INC-20A within 180 days, appoint the first auditor within 30 days, and diarise the FLA return (due 15 July each year).` }
+        { title: 'Report on FIRMS and file post-incorporation forms', text: `File FC-GPR on the FIRMS portal within 30 days of allotment, with the valuation certificate and the declarations and certificates the form asks for. Then complete INC-20A within 180 days, appoint the first auditor within 30 days, and diarise the FLA return (due 15 July each year).` }
       ]
     },
     rules: {
