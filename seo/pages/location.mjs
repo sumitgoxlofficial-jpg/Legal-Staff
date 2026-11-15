@@ -79,7 +79,7 @@ function locationPage(l) {
   const overview = `<div class="loc-split"><div class="prose ls-reveal"><p>${esc(fill(l, l.intro))}</p>
       ${sp ? `<p>This page covers ${esc(l.name)} specifically. For rules that apply across the state — and other cities in it — see <a href="${locPath(sp.slug)}">company registration in ${esc(sp.name)}</a>.</p>` : ''}
       ${cities.length ? `<p>City guides in ${esc(l.name)}: ${cities.map(c => `<a href="${locPath(c.slug)}">${esc(c.name)}</a>`).join(', ')}.</p>` : ''}</div>
-    <dl class="loc-facts ls-reveal">${[{ label: 'Jurisdictional RoC', value: roc.office }, ...l.highlights].slice(0, 4).map(h => `<div><dt>${esc(h.label)}</dt><dd>${esc(h.value)}</dd></div>`).join('')}</dl></div>`;
+    <dl class="loc-facts ls-reveal">${[{ label: 'Jurisdictional RoC', value: roc.office }, ...l.highlights.filter(h => !/^registrars?$/i.test(h.label))].slice(0, 4).map(h => `<div><dt>${esc(h.label)}</dt><dd>${esc(h.value)}</dd></div>`).join('')}</dl></div>`;
 
   // RoC
   const rocInner = `<div class="loc-roc ls-reveal"><div class="loc-roc-ic">${icon('building', 26)}</div><div>
