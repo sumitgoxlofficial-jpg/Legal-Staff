@@ -68,7 +68,7 @@
 
 /* ---------- reduced motion: no movement, content fully visible ---------- */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; transition-duration: .001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
   .ls-js .ls-reveal, .ls-js .ls-reveal-scale { opacity: 1 !important; transform: none !important; }
   .ls-js .ls-reveal .ls-draw, .ls-js .ls-reveal-scale .ls-draw { stroke-dashoffset: 0 !important; }
   .ls-ring::before, .ls-ring::after { display: none; }

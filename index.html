@@ -61,7 +61,7 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
 .lh-rings{-webkit-mask-image:radial-gradient(closest-side,#000 55%,transparent);mask-image:radial-gradient(closest-side,#000 55%,transparent)}
 /* nav */
 #ls-header{transition:background-color .35s var(--ls-ease),border-color .35s var(--ls-ease),box-shadow .35s var(--ls-ease)}
-#ls-header[data-scrolled]{background:rgba(10,10,10,.8)!important;-webkit-backdrop-filter:saturate(160%) blur(14px);backdrop-filter:saturate(160%) blur(14px);border-bottom-color:#2A2A2A!important;box-shadow:0 10px 30px rgba(0,0,0,.22)}
+#ls-header[data-scrolled]{background:rgba(10,10,10,.93)!important;-webkit-backdrop-filter:saturate(160%) blur(14px);backdrop-filter:saturate(160%) blur(14px);border-bottom-color:#2A2A2A!important;box-shadow:0 10px 30px rgba(0,0,0,.22)}
 .lp-progress{position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,#6E6E6E,#FFFFFF 60%,#BDBDBD);transform-origin:left center;transform:scaleX(var(--p,0));pointer-events:none}
 .lp-nav a{position:relative}
 .lp-nav a::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:1px;background:currentColor;transform:scaleX(0);transform-origin:left center;transition:transform .35s var(--ls-ease)}
@@ -93,7 +93,7 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
 .lp-orbit-rev{animation:ls-spin 110s linear infinite reverse}
 .lp-pulse{animation:lpPulse 3.4s var(--ls-ease-out) infinite}
 /* "Built for" marquee */
-.lp-marquee{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.lp-marquee{position:relative;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
 .lp-track{display:flex;width:max-content;animation:ls-marquee 46s linear infinite}
 .lp-marquee:hover .lp-track{animation-play-state:paused}
 .lp-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -765,7 +765,7 @@ class Component extends DCLogic {
         ...[[20, 'M-4 5a4 4 0 0 1 8 0 M0 -1a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2z'], [140, 'M-3.5 -5h5l2 2v8h-7z M-1.5 0h3 M-1.5 2.5h3'], [260, 'M1.5 -1.5a3 3 0 1 0-3 3 M-1.5 1.5l-4 4 M-4 4l1.5 1.5']].map(([a, d]) => {
           const [x, y] = orb(116, a);
           return h('g', { key: a, transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})` },
-            h('circle', { r: 15, fill: '#0A0A0A', stroke: '#4A4A4A' }), h('path', { d, stroke: '#D9D9D9', strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }));
+            h('circle', { r: 16, fill: '#0A0A0A', stroke: '#4A4A4A' }), h('g', { transform: 'scale(1.35)' }, h('path', { d, stroke: '#D9D9D9', strokeWidth: 1.1, strokeLinecap: 'round', strokeLinejoin: 'round' })));
         })),
       h('g', { className: 'lp-orbit-rev', style: vb },
         ...[[80, 4, .5], [200, 3, .35], [320, 5, .8]].map(([a, r, op]) => { const [x, y] = orb(158, a); return h('circle', { key: a, cx: x, cy: y, r, fill: '#FFFFFF', fillOpacity: op }); })),
@@ -815,9 +815,14 @@ class Component extends DCLogic {
       order: 'M14 3H6v18h12V7z M14 3v4h4 M9 13h6 M9 17h6', bell: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4z M10 21h4',
       pen: 'M4 20h4L19 9l-4-4L4 16z M13.5 6.5l4 4', globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M3 12h18 M12 3a14 14 0 0 1 0 18 M12 3a14 14 0 0 0 0 18',
       rupee: 'M6 4h12 M6 9h12 M9 4a5 5 0 0 1 0 10H6l8 7', team: 'M15 21a6 6 0 0 0-12 0 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M16 11h6',
-      chart: 'M4 20V10 M10 20V4 M16 20v-7 M22 20H2', shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4', key: 'M14 10a4 4 0 1 0-4 4 M10 14l-6 6 M6 18l2 2'
+      chart: 'M4 20V10 M10 20V4 M16 20v-7 M22 20H2', shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4', key: 'M14 10a4 4 0 1 0-4 4 M10 14l-6 6 M6 18l2 2',
+      lock: 'M6 11h12v10H6z M9 11V8a3 3 0 0 1 6 0v3 M12 15v2', log: 'M9 6h11 M9 12h11 M9 18h11 M4.5 6h.01 M4.5 12h.01 M4.5 18h.01', consent: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M8.5 12l2.5 2.5 4.5-5',
+      eyeoff: 'M3 3l18 18 M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-3 3.5 M6.6 6.6C4.3 8.1 3 12 3 12s4 6 9 6c1.6 0 3-.4 4.3-1',
+      person: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0', firm: 'M3 21h18 M5 21V10 M19 21V10 M9.5 21V10 M14.5 21V10 M2 10l10-6 10 6z', corp: 'M4 21V4h10v17 M14 9h6v12 M8 8h2 M8 12h2 M8 16h2 M3 21h18',
+      brain: 'M12 3l1.8 4.6L18.5 9l-4.7 1.6L12 15l-1.8-4.4L5.5 9l4.7-1.4z M18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z'
     };
-    const icon = k => React.createElement('svg', { width: 26, height: 26, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('path', { d: IC[k] }));
+    const icon = (k, size, d) => React.createElement('svg', { width: size || 26, height: size || 26, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lp-svg', 'aria-hidden': true }, React.createElement('path', d == null ? { d: IC[k] } : { d: IC[k], pathLength: 1, className: 'lp-d', style: { '--d': d + 'ms' } }));
+    const ART = this.art(), wide4 = S.w >= 1160;
     const chip = (bg, fg) => ({ fontSize: 13, fontWeight: 600, background: bg, color: fg, borderRadius: 8, padding: '3px 10px', whiteSpace: 'nowrap' });
     const inr = n => '₹' + n.toLocaleString('en-IN');
     const AUD = [
@@ -838,7 +843,41 @@ class Component extends DCLogic {
     ];
     const ann = S.cycle === 'annual';
     const grid = (op, drift) => React.createElement('div', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: `linear-gradient(rgba(255,255,255,${op}) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,${op}) 1px,transparent 1px)`, backgroundSize: '64px 64px', WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 50% 30%,#000,transparent)', maskImage: 'radial-gradient(ellipse 70% 60% at 50% 30%,#000,transparent)', animation: drift ? 'lsDrift 12s linear infinite' : 'none' } });
+    const words = 'Every case, order and hearing date in one place.'.split(' ');
+    const ans = this.answerText().split(' ');
+    const sat = (pos, d, fl, kids) => h('div', { className: 'lh-sat', style: { '--d': d + 'ms', position: 'absolute', zIndex: 3, ...pos } }, h('div', { className: fl }, kids));
+    const satCard = { display: 'flex', gap: 12, alignItems: 'center', background: '#FFFFFF', color: '#0A0A0A', borderRadius: 14, boxShadow: '0 18px 44px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.06)', textAlign: 'left' };
+    const bf = [['person', 'Individual advocates'], ['team', 'Chambers with juniors'], ['firm', 'Law firms'], ['corp', 'Corporate legal teams']];
+    const bfSet = k => bf.concat(bf).map(([ic, l], i) => h('span', { key: k + i, style: { display: 'flex', alignItems: 'center', gap: 10, paddingRight: 56, whiteSpace: 'nowrap', color: '#0A0A0A' } }, h('span', { style: { display: 'flex', color: '#5E5E5E' } }, icon(ic, 20)), l));
     return {
+      svgDefs: ART.defs, heroRings: ART.rings, secArt: ART.sec, ctaMark: ART.cta,
+      headline: h(React.Fragment, null, ...words.map((w, i) => h(React.Fragment, { key: i }, h('span', { className: 'lh-word' + (i >= 6 ? ' ls-silver-text' : ''), style: { '--d': (120 + i * 55) + 'ms' } }, w), i < words.length - 1 ? ' ' : null))),
+      heroSats: wide ? h(React.Fragment, null,
+        sat({ right: -24, top: -64 }, 2050, 'ls-float', h('div', { style: { ...satCard, width: 290, padding: '12px 16px 12px 12px' } },
+          h('span', { style: { width: 38, height: 38, borderRadius: 19, background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }, h('svg', { width: 20, height: 20, viewBox: '0 0 20 20', 'aria-hidden': true }, ART.chat(10, 9.5, 1.15))),
+          h('div', { style: { minWidth: 0, flex: 1 } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, fontWeight: 600 } }, h('span', null, 'WhatsApp reminder'), h('span', { style: { fontWeight: 400, color: '#8A8A8A', fontSize: 12 } }, '7:30 AM')),
+            h('div', { style: { fontSize: 13, color: '#363636', marginTop: 2 } }, 'Writ petition listed today at 12:00')))),
+        sat({ left: -34, top: 236 }, 2250, 'ls-float-slow', h('div', { style: { ...satCard, gap: 10, padding: '10px 16px 10px 10px' } },
+          h('span', { style: { width: 30, height: 30, borderRadius: 15, background: '#0A0A0A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }, h('svg', { width: 14, height: 14, viewBox: '0 0 14 14', fill: 'none', 'aria-hidden': true }, h('path', { d: 'M3 7.2l2.6 2.6L11 4.4', stroke: '#FFFFFF', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }))),
+          h('div', null, h('div', { style: { fontSize: 13, fontWeight: 600 } }, 'Next date confirmed'), h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, 'Added to calendar and history'))))) : null,
+      gauge: h('div', { style: { position: 'relative', width: 60, height: 60, flexShrink: 0 } },
+        h('svg', { viewBox: '0 0 60 60', width: 60, height: 60, 'aria-hidden': true, style: { display: 'block' } },
+          h('circle', { cx: 30, cy: 30, r: 25, fill: 'none', stroke: '#F6E3E1', strokeWidth: 4 }),
+          h('path', { d: 'M30 5a25 25 0 1 1 0 50a25 25 0 1 1 0-50', fill: 'none', stroke: '#B42318', strokeWidth: 4, strokeLinecap: 'round', pathLength: 30, strokeDasharray: S.cnt + ' 30' })),
+        h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 600, color: '#B42318', fontVariantNumeric: 'tabular-nums', lineHeight: 1 } }, String(S.cnt))),
+      builtFor: h(React.Fragment, null, h('span', { className: 'lp-sr-only' }, bf.map(b => b[1]).join(', ')),
+        h('div', { className: 'lp-track', 'aria-hidden': true }, h('div', { style: { display: 'flex' } }, ...bfSet('a')), h('div', { style: { display: 'flex' } }, ...bfSet('b')))),
+      audArt: h('div', { key: 'art' + S.aud, style: { marginTop: 18, background: '#FAFAF9', border: '1px solid #E5E5E5', borderRadius: 16, padding: '6px 4px', aspectRatio: '420 / 250', width: '100%' } }, ART.aud[S.aud]),
+      featGrid: h('div', { key: 'fg' + S.aud, style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,240px),1fr))', gap: '36px 40px' } },
+        ...A.feats.map(([ic, t, d], i) => h('div', { key: t, className: 'lp-feat', style: { '--d': (i * 80) + 'ms', display: 'flex', flexDirection: 'column', gap: 8 } },
+          h('span', { className: 'lp-tile' }, icon(ic, 24, 200 + i * 80)),
+          h('div', { style: { fontSize: 19, fontWeight: 600, marginTop: 6 } }, t),
+          h('div', { style: { fontSize: 16, color: '#5E5E5E', textWrap: 'pretty' } }, d)))),
+      flowCols: wide4 ? 'repeat(4,minmax(0,1fr))' : 'repeat(auto-fit,minmax(min(100%,240px),1fr))',
+      brainIcon: h('span', { style: { display: 'flex' } }, icon('brain', 18)),
+      aiQ: 'lp-ai-q' + (S.ai >= 1 ? ' on' : ''), aiT: 'lp-ai-t' + (S.ai === 2 ? ' on' : ''), aiA: 'lp-ai-a' + (S.ai >= 3 ? ' on' : ''), aiC: 'lp-cite' + (S.ai >= 4 ? ' on' : ''), aiS: 'lp-ai-s' + (S.ai >= 5 ? ' on' : ''),
+      aiWords: h(React.Fragment, null, ...ans.map((w, i) => h('span', { key: i, className: 'lp-w', style: { transitionDelay: (i * 30) + 'ms' } }, w + (i < ans.length - 1 ? ' ' : '')))),
       today: new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
       heroGrid: grid(.07, true), secGrid: grid(.05, false),
       liveDot: React.createElement('span', { style: { width: 7, height: 7, borderRadius: 4, background: '#16A34A', display: 'block', animation: 'lsPulse 2s ease-out infinite' } }),
@@ -866,13 +905,13 @@ class Component extends DCLogic {
         { n: '2', when: 'After each hearing', t: 'The order arrives', d: 'Fetched from an authorised source or uploaded by you. It is read with OCR and summarised with paragraph citations.' },
         { n: '3', when: 'One click', t: 'Confirm the next date', d: 'The date is taken from the order and waits for your approval. Once confirmed, it is added to your calendar and the hearing history.' },
         { n: '4', when: '7:30 AM IST', t: 'Get reminded', d: 'Reminders go out two days before and on the morning of the hearing, by WhatsApp, email and in the app.' }
-      ].map((f, i) => ({ ...f, delay: i * 140, barDelay: 250 + i * 140 })),
+      ].map((f, i) => ({ ...f, delay: i * 140, barDelay: 900 + i * 140, art: ART.steps[i](i * 140), conn: wide4 && i < 3 ? ART.conn(i * 140) : null })),
       principles: [
         { t: 'Every claim has a citation', d: 'Each answer links to the order, pleading or authority it came from.' },
         { t: 'No invented case law', d: 'If a judgment can\'t be verified, it isn\'t presented as a fact.' },
         { t: 'You approve what matters', d: 'Summaries, dates and limitation calculations wait for advocate review.' },
         { t: 'Your cases only', d: 'Answers draw only on cases you have access to. Nothing is shared across firms.' }
-      ],
+      ].map((p, i) => ({ ...p, delay: 120 + i * 90 })),
       security: [
         { t: 'Separated from other firms', d: 'Every record belongs to your organisation and is protected by row-level security in the database.' },
         { t: 'Private document storage', d: 'Files are encrypted, opened through short-lived signed links, and every access is logged.' },
@@ -880,13 +919,13 @@ class Component extends DCLogic {
         { t: 'Audit logs', d: 'Record who viewed, changed or approved what, and when.' },
         { t: 'Consent and data rights', d: 'Consent management, data export and data deletion, designed with reference to the DPDP Act, 2023.' },
         { t: 'Limited support access', d: 'Platform staff can\'t open your case files. Support access is limited to a stated purpose and logged.' }
-      ],
-      cycles: [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: '9px 18px', fontSize: 15, background: S.cycle === k ? '#FFFFFF' : 'transparent', boxShadow: S.cycle === k ? '0 1px 2px rgba(0,0,0,.06)' : 'none', color: '#0A0A0A', fontWeight: S.cycle === k ? 600 : 400 } })),
+      ].map((x, i) => ({ ...x, delay: (i % 3) * 110, icon: icon(['shield', 'lock', 'team', 'log', 'consent', 'eyeoff'][i], 22, 250 + (i % 3) * 110) })),
+      cycles: [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, pressed: S.cycle === k ? 'true' : 'false', go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: narrow ? '9px 14px' : '9px 18px', fontSize: narrow ? 14 : 15, background: 'transparent', color: S.cycle === k ? '#0A0A0A' : '#5E5E5E', fontWeight: S.cycle === k ? 600 : 400 } })),
       plans: P.map(([name, who, m, a, feats], i) => {
         const feat = i === 1;
-        return { name, who, feats, feat, price: m ? inr(ann ? a : m) : 'Custom', per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '', cta: m ? `Choose ${name}` : 'Contact sales',
+        return { name, who, feats, feat, delay: i * 110, price: h('span', { key: S.cycle, className: 'lp-price' }, m ? inr(ann ? a : m) : 'Custom'), per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '', cta: m ? `Choose ${name}` : 'Contact sales',
           href: m ? `app.html?plan=${name.toLowerCase()}&cycle=${S.cycle}` : '#contact', go: m ? () => {} : open('contact', 'Enterprise'),
-          card: { transition: 'transform .3s cubic-bezier(.2,.7,.2,1), box-shadow .3s', background: '#FFFFFF', border: feat ? '2px solid #0A0A0A' : '1px solid #E5E5E5', boxShadow: feat ? '0 8px 24px rgba(0,0,0,.08)' : 'none', borderRadius: 16, padding: 30, display: 'flex', flexDirection: 'column', gap: 10 },
+          card: { flex: 1, transition: 'transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s', background: '#FFFFFF', border: feat ? '2px solid #0A0A0A' : '1px solid #E5E5E5', boxShadow: feat ? '0 8px 24px rgba(0,0,0,.08)' : 'none', borderRadius: 16, padding: 30, display: 'flex', flexDirection: 'column', gap: 10 },
           btn: { height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', border: feat ? 0 : '1px solid #0A0A0A', borderRadius: 8, fontSize: 16, fontWeight: 600, background: feat ? '#0A0A0A' : 'transparent', color: feat ? '#fff' : '#0A0A0A', margin: '8px 0' } };
       }),
       faqs: [
@@ -895,7 +934,7 @@ class Component extends DCLogic {
         ['Can I rely on the limitation calculations?', 'Each calculation shows the provision, the trigger date, every exclusion and the court-holiday check. It is a decision aid that an advocate must review and approve. It is not legal advice.'],
         ['Will my juniors see every case?', 'No. Roles and case assignments control access. Juniors and paralegals see only the cases and documents assigned to them.'],
         ['Does a directory profile include the software?', 'No. The advocate directory is a separate, verified listing. The practice software needs its own paid subscription.']
-      ].map(([q, a], i) => ({ q, a, open: S.faq === i, sign: S.faq === i ? '−' : '+', toggle: () => this.setState({ faq: S.faq === i ? -1 : i }) }))
+      ].map(([q, a], i) => ({ q, a, open: S.faq === i, sign: h('svg', { width: 20, height: 20, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', 'aria-hidden': true, style: { display: 'block', transition: 'transform .4s cubic-bezier(.2,.7,.2,1)', transform: S.faq === i ? 'rotate(180deg)' : 'none' } }, h('path', { d: 'M4 10h12' }), h('path', { d: 'M10 4v12', style: { transformOrigin: '10px 10px', transition: 'transform .4s cubic-bezier(.2,.7,.2,1)', transform: S.faq === i ? 'scaleY(0)' : 'none' } })), toggle: () => this.setState({ faq: S.faq === i ? -1 : i }) }))
     };
   }
 }
