@@ -31,12 +31,12 @@
       firm: { name: '', city: '', address: '', gstin: '' },
       user: { name: '', title: '', role: 'Advocate', email: '', phone: '' },
       sub: { plan: '', cycle: 'annual', since: '', renews: '', history: [] },
-      lim: null, deadlines: [], chats: {}, copilot: [], drafts: {}, notes: '', research: [], watch: [],
+      lim: null, lims: [], deadlines: [], chats: {}, copilot: [], drafts: {}, notes: '', research: [], watch: [],
       agents: [
-        { id: 'briefing', name: 'Daily briefing', what: "Compiles today's hearings, clashes and deadlines for every team member.", when: 'Every day, 7:30 AM IST', on: true, runs: [] },
-        { id: 'sentinel', name: 'Deadline sentinel', what: 'Checks limitation deadlines and overdue tasks and raises alerts.', when: 'Every day, 6:00 AM IST', on: true, runs: [] },
-        { id: 'client', name: 'Client update drafter', what: 'Drafts a plain-language update for the client after each new order.', when: 'When an order is confirmed', on: false, runs: [] },
-        { id: 'causelist', name: 'Cause-list watcher', what: 'Lists your matters for the next working day, court by court.', when: 'Every evening, 7:00 PM IST', on: true, runs: [] }
+        { id: 'briefing', name: 'Daily briefing', what: "Compiles today's hearings, clashes and deadlines for every team member.", when: 'When you press Run now', on: true, runs: [] },
+        { id: 'sentinel', name: 'Deadline sentinel', what: 'Checks limitation deadlines and overdue tasks and raises alerts.', when: 'When you press Run now', on: true, runs: [] },
+        { id: 'client', name: 'Client update drafter', what: 'Drafts a plain-language update for the client after each new order.', when: 'When you press Run now', on: false, runs: [] },
+        { id: 'causelist', name: 'Cause-list watcher', what: 'Lists your matters for the next working day, court by court.', when: 'When you press Run now', on: true, runs: [] }
       ],
       settings: { whatsapp: true, email: true, inapp: true, briefingTime: '07:30', remindDays: 2, sidebar: 'Light', backdrop: 'Wallpaper', density: 'Comfortable', collapsed: false },
       adminStatus: {}, adminNotes: {}
@@ -47,28 +47,78 @@
   const remote = () => !!(window.LSB && window.LSB.on);
   function load() {
     if (remote()) { memory = seed(); return memory; }
-    try { const raw = localStorage.getItem(KEY); if (raw) { const d = JSON.parse(raw); if (d && d.v === 2) return d; } } catch (e) {}
+    try { const raw = localStorage.getItem(KEY); if (raw) { const d = JSON.parse(raw); if (d && d.v === 2) return migrate(d); } } catch (e) {}
     const d = seed(); save(d); return d;
   }
   function save(d) { memory = d; if (remote()) return true; try { localStorage.setItem(KEY, JSON.stringify(d)); return true; } catch (e) { return false; } }
   function reset() { try { localStorage.removeItem(KEY); } catch (e) {} return load(); }
 
-  /* ---------- limitation calculator (rule-based) ---------- */
+  /* ---------- limitation calculator (rule-based) ----------
+     Presets: period n in u (d = days, m = months, y = years) counted from the start event, with s.12(1) excluding the first day,
+     s.12(2) adding the time taken to get a certified copy where copy: true, and s.4 moving a weekend last date to the next working day.
+     Every preset is a starting point: the screen labels each one "check the statute / rules". */
+  const CHECK = 'check the statute / rules';
+  const RULES = [
+    { k: 'cca', label: 'Commercial Courts appeal · 60 days', n: 60, u: 'd', start: 'Date of judgment and decree', basis: 'Commercial Courts Act, 2015, s.13(1A)', copy: true, kind: 'Appeal against a judgment or order of a Commercial Court or Commercial Division' },
+    { k: 'fa_hc', label: 'First appeal to High Court from a decree · 90 days', n: 90, u: 'd', start: 'Date of the decree', basis: 'Limitation Act, 1963, Art. 116(a)', copy: true, kind: 'Appeal under the CPC to a High Court from a decree or order' },
+    { k: 'fa_dc', label: 'Appeal to the District Court · 30 days', n: 30, u: 'd', start: 'Date of the decree or order', basis: 'Limitation Act, 1963, Art. 116(b)', copy: true, kind: 'Appeal under the CPC to any court other than a High Court' },
+    { k: 'review', label: 'Review of a judgment · 30 days', n: 30, u: 'd', start: 'Date of the decree or order', basis: 'Limitation Act, 1963, Art. 124', copy: true, kind: 'Application for review of judgment' },
+    { k: 'revision', label: 'Revision under CPC s.115 · 90 days', n: 90, u: 'd', start: 'Date of the decree or order', basis: 'Limitation Act, 1963, Art. 131', copy: true, kind: 'Revision under s.115 of the Code of Civil Procedure' },
+    { k: 'slp', label: 'SLP to the Supreme Court from a High Court judgment · 90 days', n: 90, u: 'd', start: 'Date of the High Court judgment or order', basis: 'Supreme Court Rules, 2013, Order XXII r.2 / Limitation Act, Art. 133', copy: true, kind: 'Special leave petition (civil) against a High Court judgment' },
+    { k: 'exec', label: 'Execution of a decree · 12 years', n: 12, u: 'y', start: 'Date the decree became enforceable', basis: 'Limitation Act, 1963, Art. 136', copy: false, kind: 'Execution of a decree (other than a decree for a mandatory injunction)' },
+    { k: 'suit', label: 'Suit on a contract or for money · 3 years', n: 3, u: 'y', start: 'Date the cause of action arose (e.g. breach, or the date payment fell due)', basis: 'Limitation Act, 1963, Art. 55 / Art. 113 (generic 3 years; find the specific Article)', copy: false, kind: 'Suit for compensation for breach of contract, or for money due' },
+    { k: 'ni138', label: 'Complaint under s.138 NI Act · 1 month', n: 1, u: 'm', start: 'Date the drawer received the demand notice', basis: 'Negotiable Instruments Act, 1881, s.138(c) and s.142(1)(b)', copy: false, pre: 15, kind: 'Complaint for dishonour of a cheque' },
+    { k: 'consumer', label: 'Consumer appeal to the State Commission · 45 days', n: 45, u: 'd', start: 'Date of the District Commission\'s order', basis: 'Consumer Protection Act, 2019, s.41', copy: false, kind: 'Appeal against an order of a District Consumer Commission' },
+    { k: 'rera', label: 'RERA appeal to the Appellate Tribunal · 60 days', n: 60, u: 'd', start: 'Date a copy of the order was received', basis: 'Real Estate (Regulation and Development) Act, 2016, s.44(2)', copy: false, kind: 'Appeal against an order of the RERA Authority or adjudicating officer' },
+    { k: 'writ', label: 'Writ petition · no fixed period', none: true, start: 'Date of the action or order challenged', basis: 'Articles 226 / 32 of the Constitution: no statutory period; delay and laches apply', copy: false, kind: 'Writ petition' },
+    { k: 'custom', label: 'Custom period', custom: true, start: 'Date of the start event', basis: '', copy: false, kind: 'Custom period' }
+  ];
+  const rule = k => RULES.find(r => r.k === k) || RULES[0];
+  const UNIT = { d: ['day', 'days'], m: ['month', 'months'], y: ['year', 'years'] };
+  const period = (n, u) => n + ' ' + UNIT[u || 'd'][n === 1 ? 0 : 1];
+  const addMonths = (s, n) => { const d = parse(s), day = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() + n); d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); return iso(d); };
+  const addPeriod = (s, n, u) => u === 'y' ? addMonths(s, 12 * n) : u === 'm' ? addMonths(s, n) : addDays(s, n);
+  /* l: { rule, judgment (start event date), applied, ready, n, unit, basis, copy (custom only) }.
+     Returns { due, daysLeft, rows, needsReady, none, r }. needsReady: the certified copy was applied for but its ready date is not entered yet. */
   function limitation(l) {
-    const ready = l.ready || addDays(l.applied, 14);
-    const from = addDays(l.judgment, 1), base = addDays(l.judgment, 60), copyDays = Math.max(0, diffDays(ready, l.applied));
+    const r = rule(l.rule), n = r.custom ? Math.max(1, Math.round(+l.n || 0)) : r.n, u = r.custom ? (l.unit || 'd') : r.u, basis = r.custom ? (l.basis || 'Entered by you') : r.basis;
+    const copy = r.custom ? !!l.copy : r.copy, rows = [], row = (step, b, val) => rows.push({ n: String(rows.length + 1), step, basis: b, val });
+    if (r.none || !valid(l.judgment)) {
+      if (valid(l.judgment)) row(r.start, 'Start event', dmy(l.judgment));
+      row(r.none ? 'No fixed limitation period' : 'Start date missing', r.none ? basis + '. File without delay and explain any delay in the petition. No date is calculated; ' + CHECK + '.' : 'Enter the date of the start event.', 'No date');
+      return { r, none: true, due: '', daysLeft: null, rows, needsReady: false, copyDays: 0 };
+    }
+    let start = l.judgment;
+    row(r.start, 'Start event', dmy(l.judgment));
+    if (r.pre) { const end = addDays(l.judgment, r.pre); start = addDays(end, 1); row(`${r.pre} days to pay after receiving the notice end`, 'NI Act, s.138(c)', dmy(end)); row('Cause of action arises (no payment within 15 days)', 'NI Act, s.142(1)(b)', dmy(start)); }
+    const from = addDays(start, 1), base = addPeriod(start, n, u);
+    row('Exclude the day the period starts from', 'Limitation Act, 1963, s.12(1)', 'from ' + dmy(from));
+    row('Limitation period' + (r.custom ? '' : ': ' + r.kind.toLowerCase()), basis + ' · ' + CHECK, period(n, u) + ' → ' + dmy(base));
+    const needsReady = !!(copy && valid(l.applied) && !valid(l.ready));
+    const copyDays = copy && valid(l.applied) && valid(l.ready) ? Math.max(0, diffDays(l.ready, l.applied)) : 0;
+    if (copy) row(valid(l.applied) ? `Time to obtain certified copy (applied ${dmy(l.applied).slice(0, 5)}, ready ${valid(l.ready) ? dmy(l.ready).slice(0, 5) : '?'})` : 'No certified copy applied for', valid(l.applied) ? 'Limitation Act, s.12(2)' : 'Limitation Act, s.12(2) · no time excluded', '+' + copyDays + ' days');
     const adj = addDays(base, copyDays), due = nextWorking(adj), rolled = due !== adj;
-    return { ready, from, base, copyDays, adj, due, rolled, daysLeft: diffDays(due, today()),
-      rows: [
-        ['1', 'Date of judgment and decree', 'Trigger event', dmy(l.judgment)],
-        ['2', 'Exclude the day of judgment', 'Limitation Act, 1963, s.12(1)', 'from ' + dmy(from)],
-        ['3', 'Limitation period for a commercial appeal', 'Commercial Courts Act, 2015, s.13(1A)', '60 days → ' + dmy(base)],
-        ['4', `Time to obtain certified copy (applied ${dmy(l.applied).slice(0, 5)}, ready ${dmy(ready).slice(0, 5)})`, 'Limitation Act, s.12(2)', '+' + copyDays + ' days'],
-        ['5', 'Adjusted last date', '', dmy(adj)],
-        ['6', 'Check court working day', rolled ? 'Falls on a weekend · s.4 applies, next working day' : 'Weekday · s.4 not triggered. Check the court calendar for holidays.', rolled ? '→ ' + dmy(due) : 'Working day ✓']
-      ].map(([n, step, basis, val]) => ({ n, step, basis, val })) };
+    row('Adjusted last date', '', dmy(adj));
+    row('Check court working day', rolled ? 'Falls on a weekend · s.4 applies, next working day' : 'Weekday · s.4 not triggered. Check the court calendar for holidays.', rolled ? '→ ' + dmy(due) : 'Working day ✓');
+    return { r, none: false, due, daysLeft: diffDays(due, today()), rows, needsReady, copyDays, base, adj, rolled };
   }
-
+  /* Older data kept one calculation in d.lim (firm state). Move it into d.lims, the list of saved calculations, and give an approved one its deadline record. */
+  function migrate(d) {
+    if (!d) return d;
+    if (!Array.isArray(d.lims)) d.lims = []; if (!Array.isArray(d.deadlines)) d.deadlines = [];
+    const o = d.lim;
+    if (o && typeof o === 'object' && o.judgment) {
+      const id = 'llegacy';
+      if (!d.lims.some(x => x.id === id)) {
+        const l = Object.assign({ rule: 'cca', n: '', unit: 'd', basis: '', copy: false }, o, { id });
+        d.lims.unshift(l);
+        const c = limitation(l);
+        if (l.approved && c.due && !d.deadlines.some(x => x.limId === id)) { l.dlId = 'dl' + id; d.deadlines.push({ id: l.dlId, source: 'limitation', limId: id, caseId: l.caseId || '', title: l.title, rule: rule(l.rule).basis, due: c.due, approved: true, done: false }); }
+      }
+      d.lim = null;
+    }
+    return d;
+  }
   /* ---------- order text → next date + points (rule-based) ---------- */
   /* Dates as courts write them: 3.2.2027, 03-02-2027, 3/2/27, 3rd February 2027, 03 Feb 2027, 3rd day of February, 2027, February 3, 2027. */
   const MON = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
@@ -222,5 +272,5 @@
   const size = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 
   window.LS = { KEY, load, save, reset, seed, iso, parse, valid, today, addDays, diffDays, fmt, dmy, dayMon, longDate, isWeekend, nextWorking, t12, t12ap, nowHM, uid, inr, initials, short, pad,
-    LOG_MAX: 300, limitation, readOrder, dateOf, answer, download, csv, ics, docx, htmlToRuns, files, pickFile, size };
+    LOG_MAX: 300, limitation, RULES, rule, period, addMonths, migrate, CHECK, readOrder, dateOf, answer, download, csv, ics, docx, htmlToRuns, files, pickFile, size };
 })();

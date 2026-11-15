@@ -8,9 +8,9 @@
   let hiding = false;
   const kfetch = (u, o) => fetch(u, hiding && o && (!o.body || (typeof o.body === 'string' && o.body.length < 60000)) ? Object.assign({}, o, { keepalive: true }) : o);
   const sb = on ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { global: { fetch: kfetch } }) : null;
-  const KIND = { cases: 'case', clients: 'client', hearings: 'hearing', orders: 'order', tasks: 'task', docs: 'doc', invoices: 'invoice', deadlines: 'deadline', watch: 'watch', log: 'log' };
+  const KIND = { cases: 'case', clients: 'client', hearings: 'hearing', orders: 'order', tasks: 'task', docs: 'doc', invoices: 'invoice', deadlines: 'deadline', lims: 'limitation', watch: 'watch', log: 'log' };
   const USER_KEYS = ['settings', 'notes', 'chats', 'copilot', 'research', 'drafts'];
-  const PAGE = 1000, LOG_MAX = 300, NEWEST_FIRST = { cases: 1, clients: 1, docs: 1, orders: 1, invoices: 1 };
+  const PAGE = 1000, LOG_MAX = 300, NEWEST_FIRST = { cases: 1, clients: 1, docs: 1, orders: 1, invoices: 1, lims: 1 };
   let snap = {}, firmSnap = '', userSnap = '', teamSnap = '', meSnap = '', firmId = '', uid = '', busy = null, again = false;
   const fail = (e, what) => { const m = (e && (e.message || e.error_description || e.error)) || String(e); throw new Error(what ? what + ': ' + m : m); };
   const ok = r => { if (r.error) fail(r.error); return r.data; };
@@ -60,7 +60,10 @@
       recs.forEach(r => { if (by[r.kind]) by[r.kind].push(Object.assign({}, r.data, { id: r.id })); });
       order(d);
       const u = ok(us); if (u && u.data) USER_KEYS.forEach(k => { if (u.data[k] != null) d[k] = k === 'settings' ? Object.assign(d.settings, u.data[k]) : u.data[k]; });
+      /* A calculation kept in the older firm state (one object in firms.state.lim) becomes a 'limitation' record; the next sync stores it and clears the old key. */
+      const legacy = !!(d.lim && d.lim.judgment); window.LS.migrate(d);
       await members(d); await subscription(d); take(d);
+      if (legacy) { delete snap['limitation|llegacy']; delete snap['deadline|dlllegacy']; firmSnap = ''; d.migrated = true; }
       /* Keep only the newest activity entries so the log cannot crowd out practice records. */
       const old = d.log.slice(LOG_MAX); d.log = d.log.slice(0, LOG_MAX);
       if (old.length) { try { await delIds('log', old.map(x => x.id)); old.forEach(x => { delete snap['log|' + x.id]; }); } catch (e) {} }
