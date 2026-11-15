@@ -825,7 +825,7 @@ export const cities = [
       'Employment and service disputes linked to the steel plant and its contractors are a recurring category.',
       'Motor accident claims and land matters are common in district practice.',
       'The Bokaro District Bar Association is the main local bar body.',
-      'High Court work means regular trips to Ranchi, so a single diary for both matters.'
+      'High Court work means regular trips to Ranchi, so local and Ranchi dates need to be planned together.'
     ],
     benefits: [
       { title: 'District and Ranchi in one diary', text: 'See Bokaro civil court and Jharkhand High Court hearings together, with clashes flagged.' },
