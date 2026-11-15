@@ -118,7 +118,7 @@ export const features = [
     }
   },
   {
-    slug: 'digital-advocate-diary', icon: 'calendar', navLabel: 'Digital advocate diary', navHint: 'Cloud court diary with cause-list calendar',
+    slug: 'digital-advocate-diary', icon: 'calendar', navLabel: 'Digital advocate diary', navHint: 'Cloud court diary across every court',
     title: 'Digital advocate diary for every court you appear in',
     metaTitle: 'Digital Advocate Diary and Court Calendar',
     metaDescription: 'A cloud court diary for Indian advocates: week and day views across all your courts, clash alerts, reassign to a junior, .ics export and a morning briefing.',
