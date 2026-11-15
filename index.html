@@ -143,6 +143,23 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
   .lh-par{transform:none}
   .lp-w,.lp-cite,.lp-ai-q,.lp-ai-s,.lp-ai-a{transition:none}
 }
+
+/* ---- pricing background ---- */
+.lp-pbg{position:relative;overflow:hidden;background:linear-gradient(180deg,#FAFAF9 0%,#FFFFFF 38%,#FFFFFF 62%,#F5F5F4 100%);isolation:isolate}
+.lp-pbg-deco{position:absolute;inset:0;pointer-events:none;z-index:0}
+.lp-pbg-grid{position:absolute;inset:0;background-image:linear-gradient(#EFEFEE 1px,transparent 1px),linear-gradient(90deg,#EFEFEE 1px,transparent 1px);background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 45%,#000 30%,transparent 75%);mask-image:radial-gradient(ellipse 70% 60% at 50% 45%,#000 30%,transparent 75%);animation:ls-drift 30s ease-in-out infinite}
+.lp-pbg-glow{position:absolute;border-radius:50%;filter:blur(10px)}
+.lp-pbg-glow.g1{width:620px;height:620px;left:-180px;top:12%;background:radial-gradient(closest-side,rgba(10,10,10,.06),transparent);animation:ls-float-slow 16s ease-in-out infinite}
+.lp-pbg-glow.g2{width:560px;height:560px;right:-160px;bottom:4%;background:radial-gradient(closest-side,rgba(10,10,10,.05),transparent);animation:ls-float-slow 19s ease-in-out infinite reverse}
+.lp-pbg-rings{position:absolute;left:50%;top:58%;width:min(1100px,140vw);height:auto;transform:translate(-50%,-50%);opacity:.9}
+.lp-pbg-spin{transform-origin:400px 400px;animation:ls-spin 120s linear infinite}
+.lp-pbg-orbit{transform-origin:400px 400px;animation:ls-spin 60s linear infinite}
+.lp-pbg-chip{position:absolute;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.88);border:1px solid #E5E5E5;box-shadow:0 10px 30px rgba(10,10,10,.06);font-size:13px;font-weight:500;color:#363636;white-space:nowrap;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.lp-pbg-dot{width:7px;height:7px;border-radius:50%;background:#0A0A0A}
+.lp-pbg-ic{width:20px;height:20px;border-radius:6px;background:#0A0A0A;color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600}
+.lp-pbg-chip.c1{left:4%;top:150px}.lp-pbg-chip.c2{right:4%;top:110px}.lp-pbg-chip.c3{right:6%;bottom:28px}
+@media (max-width:1260px){.lp-pbg-chip{display:none}}
+@media (prefers-reduced-motion:reduce){.lp-pbg-grid,.lp-pbg-glow,.lp-pbg-spin,.lp-pbg-orbit{animation:none!important}}
 </style>
 </helmet>
 <div style="min-height:100vh;background:#FFFFFF;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:17px;line-height:1.55">
@@ -343,7 +360,16 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
   </div>
 </section>
 
-<section id="pricing" style="max-width:1280px;margin:0 auto;padding:clamp(64px,10vw,112px) clamp(20px,4vw,28px);display:flex;flex-direction:column;gap:40px">
+<div class="lp-pbg">
+<div class="lp-pbg-deco" aria-hidden="true">
+  <div class="lp-pbg-grid"></div>
+  <div class="lp-pbg-glow g1"></div><div class="lp-pbg-glow g2"></div>
+  <svg class="lp-pbg-rings" viewBox="0 0 800 800" fill="none"><circle cx="400" cy="400" r="390" stroke="#E5E5E5"/><circle cx="400" cy="400" r="300" stroke="#E5E5E5" stroke-dasharray="2 8" class="lp-pbg-spin"/><circle cx="400" cy="400" r="210" stroke="#EDEDED"/><circle cx="400" cy="10" r="4" fill="#0A0A0A" class="lp-pbg-orbit"/></svg>
+  <div class="lp-pbg-chip c1 ls-float"><span class="lp-pbg-dot"></span>GST invoice with every payment</div>
+  <div class="lp-pbg-chip c2 ls-float" style="animation-delay:-3s"><span class="lp-pbg-dot"></span>Change plan any time</div>
+  <div class="lp-pbg-chip c3 ls-float" style="animation-delay:-1.5s"><span class="lp-pbg-ic">₹</span>Prices in INR, excl. GST</div>
+</div>
+<section id="pricing" style="position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:clamp(64px,10vw,112px) clamp(20px,4vw,28px);display:flex;flex-direction:column;gap:40px">
   <div class="ls-reveal" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px">
     <h2 style="font-weight:600;font-size:clamp(32px,3.8vw,46px);line-height:1.12;letter-spacing:-.025em;margin:0">Simple plans for every size of practice</h2>
     <p style="margin:0;color:#5E5E5E;font-size:17px">All plans are paid subscriptions. Prices exclude 18% GST. Upgrade, downgrade or cancel at any time.</p>
@@ -373,6 +399,7 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
     </sc-for>
   </div>
 </section>
+</div>
 
 <section id="faq" style="background:#F5F5F4">
   <div style="max-width:1280px;margin:0 auto;padding:clamp(64px,9vw,104px) clamp(20px,4vw,28px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:56px;align-items:start">
