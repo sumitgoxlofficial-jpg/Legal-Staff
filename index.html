@@ -160,6 +160,19 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
 .lp-pbg-chip.c1{left:4%;top:150px}.lp-pbg-chip.c2{right:4%;top:110px}.lp-pbg-chip.c3{right:6%;bottom:28px}
 @media (max-width:1260px){.lp-pbg-chip{display:none}}
 @media (prefers-reduced-motion:reduce){.lp-pbg-grid,.lp-pbg-glow,.lp-pbg-spin,.lp-pbg-orbit{animation:none!important}}
+
+/* ---- FAQ background ---- */
+.lp-fbg{position:relative;overflow:hidden;isolation:isolate;background:linear-gradient(180deg,#F5F5F4 0%,#F1F1F0 100%)!important}
+.lp-fbg-deco{position:absolute;inset:0;pointer-events:none;z-index:0}
+.lp-fbg-dots{position:absolute;inset:0;background-image:radial-gradient(#D9D9D8 1px,transparent 1px);background-size:22px 22px;-webkit-mask-image:linear-gradient(90deg,#000 0%,rgba(0,0,0,.5) 45%,transparent 75%);mask-image:linear-gradient(90deg,#000 0%,rgba(0,0,0,.5) 45%,transparent 75%);animation:ls-drift 34s ease-in-out infinite}
+.lp-fbg-glow{position:absolute;width:640px;height:640px;left:-200px;bottom:-260px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.9),transparent);animation:ls-float-slow 18s ease-in-out infinite}
+.lp-fbg-art{position:absolute;left:clamp(-40px,2vw,40px);bottom:-60px;width:min(460px,42vw);height:auto}
+.lp-fbg-spin{transform-origin:260px 260px;animation:ls-spin 110s linear infinite}
+.lp-fbg-orbit{transform-origin:260px 260px;animation:ls-spin 50s linear infinite}
+.lp-fbg-b1{animation:ls-float 7s ease-in-out infinite}
+.lp-fbg-b2{animation:ls-float 7s ease-in-out infinite;animation-delay:-3.5s}
+@media (max-width:900px){.lp-fbg-art{display:none}}
+@media (prefers-reduced-motion:reduce){.lp-fbg-dots,.lp-fbg-glow,.lp-fbg-spin,.lp-fbg-orbit,.lp-fbg-b1,.lp-fbg-b2{animation:none!important}}
 </style>
 </helmet>
 <div style="min-height:100vh;background:#FFFFFF;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:17px;line-height:1.55">
@@ -401,8 +414,16 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
 </section>
 </div>
 
-<section id="faq" style="background:#F5F5F4">
-  <div style="max-width:1280px;margin:0 auto;padding:clamp(64px,9vw,104px) clamp(20px,4vw,28px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:56px;align-items:start">
+<section id="faq" class="lp-fbg" style="background:#F5F5F4">
+  <div class="lp-fbg-deco" aria-hidden="true">
+    <div class="lp-fbg-dots"></div><div class="lp-fbg-glow"></div>
+    <svg class="lp-fbg-art" viewBox="0 0 520 520" fill="none">
+      <circle cx="260" cy="260" r="250" stroke="#E3E3E2"/><circle cx="260" cy="260" r="190" stroke="#E3E3E2" stroke-dasharray="2 8" class="lp-fbg-spin"/><circle cx="260" cy="70" r="4" fill="#0A0A0A" class="lp-fbg-orbit"/>
+      <g class="lp-fbg-b1"><path d="M150 170h170a26 26 0 0 1 26 26v84a26 26 0 0 1-26 26H226l-40 34v-34h-36a26 26 0 0 1-26-26v-84a26 26 0 0 1 26-26z" fill="#FFFFFF" stroke="#D4D4D4" stroke-width="1.5"/><path d="M220 222a19 19 0 1 1 27 17c-6 3-8 7-8 13v4" stroke="#0A0A0A" stroke-width="5" stroke-linecap="round"/><circle cx="239" cy="275" r="4.5" fill="#0A0A0A"/></g>
+      <g class="lp-fbg-b2"><path d="M300 300h96a22 22 0 0 1 22 22v52a22 22 0 0 1-22 22h-20v28l-32-28h-44a22 22 0 0 1-22-22v-52a22 22 0 0 1 22-22z" fill="#0A0A0A"/><path d="M318 334h66 M318 352h44" stroke="#8A8A8A" stroke-width="5" stroke-linecap="round"/><path d="M386 352l6 6 12-14" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>
+    </svg>
+  </div>
+  <div style="position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:clamp(64px,9vw,104px) clamp(20px,4vw,28px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:56px;align-items:start">
     <div class="ls-reveal" style="display:flex;flex-direction:column;gap:14px;max-width:420px">
       <h2 style="font-weight:600;font-size:clamp(30px,3.4vw,42px);line-height:1.12;letter-spacing:-.025em;margin:0">Common questions</h2>
       <p style="margin:0;color:#5E5E5E">Looking for an advocate instead? <a href="directory.html" style="text-decoration:underline;text-underline-offset:2px">Search the directory</a>. There are no rankings and no paid listings.</p>
