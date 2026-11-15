@@ -254,7 +254,7 @@
     const oi = d.invoices.filter(i => !i.paid && L.diffDays(L.today(), i.date) > 30); if (oi.length) out.push({ text: `${oi.length} invoice${oi.length > 1 ? 's are' : ' is'} unpaid for more than 30 days.`, go: () => app.go('billing') });
     return out;
   }
-  const logIt = (d, x, caseId) => d.log.unshift({ ts: L.today() + ' ' + L.nowHM(), caseId: caseId || '', x });
+  const logIt = (d, x, caseId) => { d.log.unshift({ ts: L.today() + ' ' + L.nowHM(), caseId: caseId || '', x }); if (d.log.length > L.LOG_MAX) d.log.length = L.LOG_MAX; };
 
   /* ---------- forms opened from several places ---------- */
   function newCase(app, init) {

@@ -70,12 +70,23 @@
   }
 
   /* ---------- order text → next date + points (rule-based) ---------- */
+  /* Dates as courts write them: 3.2.2027, 03-02-2027, 3/2/27, 3rd February 2027, 03 Feb 2027, 3rd day of February, 2027, February 3, 2027. */
+  const MON = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+  const DATE = `(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4}|\\d{2})(?!\\d)|(\\d{1,2})(?:st|nd|rd|th)?(?:\\s+day\\s+of)?[\\s,.-]*\\b(${MON})\\b\\.?[\\s,.-]*(\\d{4}|\\d{2})(?!\\d)|\\b(${MON})\\b\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s*(\\d{4})(?!\\d)`;
+  const monNo = w => ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(w.slice(0, 3).toLowerCase()) + 1;
+  /* g: the nine DATE groups. Returns yyyy-mm-dd or ''. */
+  function dateOf(g) {
+    const [d, mo, y] = g[0] ? [+g[0], +g[1], g[2]] : g[3] ? [+g[3], monNo(g[4]), g[5]] : [+g[7], monNo(g[6]), g[8]];
+    const s = (y.length === 2 ? '20' + y : y) + '-' + pad(mo) + '-' + pad(d);
+    return valid(s) && iso(parse(s)) === s ? s : '';
+  }
   function readOrder(text) {
     const paras = text.split(/\n\s*\n|\n(?=\s*\d+[.)]\s)/).map(p => p.replace(/^\s*\d+[.)]\s*/, '').replace(/\s+/g, ' ').trim()).filter(Boolean);
     let nextDate = '', nextFrom = '';
-    const re = /(?:list(?:ed)?|re-?notify|renotify|put up|adjourned|next date|fixed|stand over|come up|to come up)[^.\d]{0,60}?(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/i;
-    paras.forEach((p, i) => { const m = re.exec(p); if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; const s = y + '-' + pad(+m[2]) + '-' + pad(+m[1]); if (valid(s)) { nextDate = s; nextFrom = `from ¶${i + 1}, "${m[0]}"`; } } });
-    if (!nextDate) { const all = [...text.matchAll(/(\d{1,2})[./-](\d{1,2})[./-](\d{4})/g)].map(m => m[3] + '-' + pad(+m[2]) + '-' + pad(+m[1])).filter(valid).sort(); const fut = all.filter(s => s >= today()); if (fut.length) { nextDate = fut[fut.length - 1]; nextFrom = 'latest future date found in the text'; } }
+    const re = new RegExp('(?:list(?:ed)?|re-?notify|renotify|put up|adjourned|next date|next hearing|fixed|stand over|come up|to come up)[^.\\d]{0,60}?(?:' + DATE + ')', 'i');
+    paras.forEach((p, i) => { const m = re.exec(p); if (m) { const s = dateOf(m.slice(1)); if (s) { nextDate = s; nextFrom = `from ¶${i + 1}, "${m[0]}"`; } } });
+    /* No listing phrase: take the latest future date, ignoring two-digit years (too easily a section or rule number). */
+    if (!nextDate) { const all = [...text.matchAll(new RegExp(DATE, 'gi'))].filter(m => !(m[1] && m[3].length === 2)).map(m => dateOf(m.slice(1))).filter(Boolean).sort(); const fut = all.filter(s => s >= today()); if (fut.length) { nextDate = fut[fut.length - 1]; nextFrom = 'latest future date found in the text'; } }
     return { paras, nextDate, nextFrom, points: paras.map(p => p.split(/(?<=\.)\s/)[0]) };
   }
 
@@ -126,7 +137,8 @@
   function csv(name, rows) { download(name, new Blob(['﻿' + rows.map(r => r.map(c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(',')).join('\r\n')], { type: 'text/csv' })); }
   function ics(name, list, d) {
     const z = s => s.replace(/[,;\\]/g, m => '\\' + m);
-    const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Legal Staff//Hearings//EN', 'CALSCALE:GREGORIAN'];
+    const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Legal Staff//Hearings//EN', 'CALSCALE:GREGORIAN',
+      'BEGIN:VTIMEZONE', 'TZID:Asia/Kolkata', 'BEGIN:STANDARD', 'DTSTART:19700101T000000', 'TZOFFSETFROM:+0530', 'TZOFFSETTO:+0530', 'TZNAME:IST', 'END:STANDARD', 'END:VTIMEZONE'];
     list.forEach(h => { const c = d.cases.find(x => x.id === h.caseId) || {}; const [hh, mm] = (h.time || '10:30').split(':').map(Number); const st = h.date.replace(/-/g, '') + 'T' + pad(hh) + pad(mm) + '00'; const e = h.date.replace(/-/g, '') + 'T' + pad(Math.min(hh + 1, 23)) + pad(mm) + '00';
       L.push('BEGIN:VEVENT', 'UID:' + h.id + '@legalstaff', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', 'DTSTART;TZID=Asia/Kolkata:' + st, 'DTEND;TZID=Asia/Kolkata:' + e, 'SUMMARY:' + z((c.title || 'Hearing') + ' — ' + (h.purpose || 'Hearing')), 'LOCATION:' + z(h.court || ''), 'DESCRIPTION:' + z([c.no, h.item, h.assignee].filter(Boolean).join(' · ')), 'END:VEVENT'); });
     L.push('END:VCALENDAR'); download(name, new Blob([L.join('\r\n')], { type: 'text/calendar' }));
@@ -170,11 +182,13 @@
   const files = {
     put: (id, file) => idb().then(db => new Promise((res, rej) => { const t = db.transaction('f', 'readwrite'); t.objectStore('f').put(file, id); t.oncomplete = () => res(); t.onerror = () => rej(t.error); })),
     get: id => idb().then(db => new Promise((res, rej) => { const r = db.transaction('f').objectStore('f').get(id); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })),
-    del: id => idb().then(db => new Promise(res => { const t = db.transaction('f', 'readwrite'); t.objectStore('f').delete(id); t.oncomplete = () => res(); t.onerror = () => res(); })).catch(() => {})
+    del: id => idb().then(db => new Promise(res => { const t = db.transaction('f', 'readwrite'); t.objectStore('f').delete(id); t.oncomplete = () => res(); t.onerror = () => res(); })).catch(() => {}),
+    /* Removes every stored file blob in this browser. */
+    clear: () => idb().then(db => new Promise(res => { const t = db.transaction('f', 'readwrite'); t.objectStore('f').clear(); t.oncomplete = () => { db.close(); res(); }; t.onerror = () => res(); })).catch(() => {})
   };
   const pickFile = (accept, multiple) => new Promise(res => { const i = document.createElement('input'); i.type = 'file'; if (accept) i.accept = accept; i.multiple = !!multiple; i.onchange = () => res([...i.files]); i.click(); });
   const size = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 
   window.LS = { KEY, load, save, reset, seed, iso, parse, valid, today, addDays, diffDays, fmt, dmy, dayMon, longDate, isWeekend, nextWorking, t12, t12ap, nowHM, uid, inr, initials, short, pad,
-    limitation, readOrder, answer, download, csv, ics, docx, htmlToRuns, files, pickFile, size };
+    LOG_MAX: 300, limitation, readOrder, dateOf, answer, download, csv, ics, docx, htmlToRuns, files, pickFile, size };
 })();

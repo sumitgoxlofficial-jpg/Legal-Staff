@@ -25,9 +25,20 @@ async function sendWhatsApp(to: string, text: string) {
   return r.ok ? { ok: true } : { error: (await r.text()).slice(0, 300) };
 }
 
+// PostgREST returns at most 1,000 rows per request: read stably ordered pages until one comes back empty.
+async function pages(q: () => any) {
+  const out: any[] = [];
+  for (let from = 0; ;) {
+    const { data, error } = await q().range(from, from + 999);
+    if (error) throw error;
+    if (!data?.length) return out;
+    out.push(...data); from += data.length;
+  }
+}
+
 async function briefFirm(admin: any, firm: any, onlyUser: string | null) {
   const today = istDate();
-  const { data: recs } = await admin.from("records").select("kind,id,data").eq("firm_id", firm.id).in("kind", ["hearing", "case", "task", "deadline"]);
+  const recs = await pages(() => admin.from("records").select("kind,id,data").eq("firm_id", firm.id).in("kind", ["hearing", "case", "task", "deadline"]).order("kind").order("id"));
   const { data: members } = await admin.from("members").select("user_id,email,name,title,phone,status").eq("firm_id", firm.id).eq("status", "Active");
   const { data: states } = await admin.from("user_state").select("user_id,data").eq("firm_id", firm.id);
   const of = (k: string) => (recs ?? []).filter((r: any) => r.kind === k).map((r: any) => r.data);
@@ -69,7 +80,7 @@ Deno.serve(async (req: Request) => {
     let isCron = !!(cron && hdr === cron);
     if (!isCron && hdr) { const { data } = await admin.rpc("cron_secret_ok", { s: hdr }); isCron = data === true; }
     if (isCron) {
-      const { data: firms } = await admin.from("firms").select("id,name");
+      const firms = await pages(() => admin.from("firms").select("id,name").order("id"));
       let sent = 0; for (const f of firms ?? []) sent += (await briefFirm(admin, f, null)).filter((r) => r.ok).length;
       return json({ sent });
     }

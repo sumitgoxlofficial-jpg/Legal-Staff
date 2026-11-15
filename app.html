@@ -276,7 +276,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div style="background:#FFFFFF;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden;max-width:380px">
               <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #E5E5E5">
                 <span style="width:36px;height:36px;border-radius:50%;background:#0A0A0A;display:flex;align-items:center;justify-content:center;flex-shrink:0"><img src="assets/ls-mark-white.png" alt="" style="height:20px"></span>
-                <div style="min-width:0"><div style="font-size:14px;font-weight:600">Legal Staff</div><div style="font-size:12px;color:#5E5E5E">Verified business account</div></div>
+                <div style="min-width:0"><div style="font-size:14px;font-weight:600">Legal Staff</div><div style="font-size:12px;color:#5E5E5E">Preview of the morning message</div></div>
               </div>
               <div style="padding:14px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.5">
                 <div class="ls-wa-bubble" style="background:#FFFFFF;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px">
@@ -285,7 +285,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                   <span>{{ waLine2 }}</span>
                   <span style="font-size:12px;color:#5E5E5E;text-align:right">7:30 AM</span>
                 </div>
-                <div style="display:flex;gap:8px"><span style="flex:1;text-align:center;padding:8px;border:1px solid #E5E5E5;border-radius:8px;color:#0A0A0A;font-size:13px">Open briefing</span><span style="flex:1;text-align:center;padding:8px;border:1px solid #E5E5E5;border-radius:8px;color:#0A0A0A;font-size:13px">View calendar</span></div>
+                <div style="display:flex;gap:16px;font-size:13px;padding:0 4px"><a href="#/agents" style="color:#0A0A0A;text-decoration:underline">Open briefing settings</a><a href="#/calendar" style="color:#0A0A0A;text-decoration:underline">View calendar</a></div>
               </div>
             </div>
           </div>
@@ -649,7 +649,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <input type="date" value="{{ nextDate }}" onChange="{{ setDate }}" style="height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:15px;max-width:220px">
               </sc-if>
               <sc-if value="{{ notConfirmed }}" hint-placeholder-val="{{ true }}">
-                <div style="font-size:14px;color:#363636">Nothing is added to the calendar until you confirm. Reminders go out 2 days before and at 7:30 AM IST on the day.</div>
+                <div style="font-size:14px;color:#363636">Nothing is added to the calendar until you confirm. {{ reminderPlan }}</div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
                   <button class="ls-btn" onClick="{{ confirmDate }}" style="white-space:nowrap;height:36px;padding:0 18px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">Confirm and add to calendar</button>
                   <button class="ls-btn" onClick="{{ toggleEdit }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;color:#0A0A0A;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px">Edit date</button>
@@ -658,7 +658,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               <sc-if value="{{ confirmed }}" hint-placeholder-val="{{ false }}">
                 <div style="background:#F0F0EF;border-radius:8px;padding:16px 18px;color:#2B2B2B;font-size:14px;display:flex;flex-direction:column;gap:6px">
                   <div style="font-weight:600">Added to calendar. Hearing history updated.</div>
-                  <div>Reminders scheduled for {{ reminderLine }}, by WhatsApp, email and in-app.</div>
+                  <div>{{ reminderLine }}</div>
                   <div style="display:flex;gap:14px;margin-top:4px"><button onClick="{{ viewInCalendar }}" style="border:0;background:none;padding:0;color:#2B2B2B;font-weight:600;font-size:13.5px;text-decoration:underline">View in calendar</button><button onClick="{{ undoConfirm }}" style="border:0;background:none;padding:0;color:#2B2B2B;font-size:13.5px;text-decoration:underline">Undo</button></div>
                 </div>
               </sc-if>
@@ -836,7 +836,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">{{ draft.title }}</h1>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button onClick="{{ toggleDict }}" style="{{ dictBtn }}">{{ dictLabel }}</button>
+            <span style="display:inline-flex;gap:6px;align-items:center">{{ dictLangSel }}<button onClick="{{ toggleDict }}" style="{{ dictBtn }}">{{ dictLabel }}</button></span>
             {{ draft.saveBtn }}
             <button class="ls-btn" onClick="{{ draft.docx }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Export DOCX</button>
             <button class="ls-btn" onClick="{{ draft.pdf }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Export PDF</button>
@@ -912,13 +912,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <div style="display:flex;justify-content:space-between;border-top:1px solid #E5E5E5;padding-top:12px;font-weight:600;font-size:16px"><span>Total</span><span>{{ co.total }}</span></div>
               </div>
               <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:13px;color:#5E5E5E">GSTIN (optional)</label><input value="{{ gstin }}" onChange="{{ setGstin }}" placeholder="07AAAAA0000A1Z5" style="height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums">{{ co.gstErr }}</div>
-              <button class="ls-btn" onClick="{{ pay }}" style="white-space:nowrap;height:36px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">Pay {{ co.total }} with Razorpay</button>
+              <button class="ls-btn" onClick="{{ pay }}" style="white-space:nowrap;height:36px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">{{ payBtn }}</button>
+              <div style="font-size:12px;color:#5E5E5E;text-align:center">{{ payHint }}</div>
               <div style="font-size:12px;color:#5E5E5E;text-align:center">Auto-renews {{ co.renew }}. You can cancel any time from Settings → Subscriptions.</div>
             </sc-if>
             <sc-if value="{{ paid }}" hint-placeholder-val="{{ false }}">
-              <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">Payment verified</div>
+              <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">{{ payHead }}</div>
               <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">Your {{ co.name }} plan is active</h2>
-              <div style="font-size:14px;color:#363636">The invoice has been saved for {{ userEmail }}. Next renewal: {{ co.next }}.</div>
+              <div style="font-size:14px;color:#363636">{{ paidLine }}</div>
               <div style="background:#FFFFFF;border-radius:12px;padding:20px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:10px;font-size:13px">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:10px;border-bottom:2px solid #0A0A0A"><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><img src="assets/ls-mark-black.png" alt="" style="height:20px;display:block"><span style="font-weight:600;font-size:14px;letter-spacing:-.02em;line-height:1;color:#0A0A0A">Legal Staff</span></span><span style="font-size:12px;font-weight:600">Tax invoice</span></div>
                 <div style="display:flex;justify-content:space-between"><span>{{ co.name }} plan · {{ co.cycle }}</span><span>{{ co.base }}</span></div>
@@ -1057,7 +1058,12 @@ class Component extends DCLogic {
     };
     window.addEventListener('keydown', this.onK);
     this.applyRoute(); this.grow(); this.fx();
-    if (LSB.on) { this.onF = () => { if (this.state.auth === 'in' && this.db.firmId && !this.state.modalOn && !LSB.pending() && !this.syncT && Date.now() - (this.loadedAt || 0) > 60000) this.reload(); }; window.addEventListener('focus', this.onF);
+    if (LSB.on) { this.onF = () => { if (this.state.auth === 'in' && this.db.firmId && !this.busy() && Date.now() - (this.loadedAt || 0) > 60000) this.reload().catch(() => {}); }; window.addEventListener('focus', this.onF);
+      /* Send the last edits before the tab is hidden or closed, and warn on close only while a save is still on its way. */
+      this.onVis = () => { if (document.visibilityState === 'hidden') { LSB.hiding(true); if (this.syncT) this.flush().catch(() => {}); } else LSB.hiding(false); };
+      this.onHide = () => { LSB.hiding(true); if (this.syncT) this.flush().catch(() => {}); };
+      this.onBU = e => { if (this.syncT || LSB.pending()) { if (this.syncT) this.flush().catch(() => {}); e.preventDefault(); e.returnValue = ''; return ''; } };
+      document.addEventListener('visibilitychange', this.onVis); window.addEventListener('pagehide', this.onHide); window.addEventListener('beforeunload', this.onBU);
       LSB.session().then(s => s ? this.enter(s) : this.setState({ auth: 'login' })).catch(e => { this.setState({ auth: 'login' }); this.toast('Could not reach the server: ' + e.message); }); }
     else if (this.state.auth === 'in' && !this.db.firm.name) LSV.onboard(this);
   }
@@ -1076,7 +1082,12 @@ class Component extends DCLogic {
   async emailSignIn(email, code) { const s = await LSB.verifyOtp(email, code); await this.enter(s); }
   async createFirm(v) { this.setState({ auth: 'boot' }); try { const id = await LSB.createFirm(v); await this.reload(id); this.toast('Your practice is set up'); this.afterEnter(); } catch (e) { Object.assign(this.db.user, { name: v.name, role: v.role }); Object.assign(this.db.firm, { name: '', city: v.city, address: v.address || '' }); this.pendingFirm = v.firm; this.setState({ auth: 'in' }); this.toast('Could not create the firm: ' + e.message); LSV.onboard(this); } }
   loadQueue() { if (!LSB.on) return; LSB.isAdmin().then(a => { this.isAdmin = a; return a ? LSB.queue() : []; }).then(q => { this.dirList = q; this.setState(s => ({ rev: s.rev + 1 })); }).catch(() => {}); }
-  queueSync() { if (!LSB.on || !this.db.firmId) return; clearTimeout(this.syncT); this.syncT = setTimeout(() => { this.syncT = null; LSB.sync(this.db).then(changed => { if (changed) this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); }).catch(e => this.toast('Not saved to the server: ' + e.message)); }, 500); }
+  queueSync() { if (!LSB.on || !this.db.firmId) return; clearTimeout(this.syncT); this.syncT = setTimeout(() => this.flush().catch(e => this.toast('Not saved to the server: ' + e.message)), 500); }
+  /* Sends pending changes now. Rejects if the server refused them; the view is then redrawn from what the server holds. */
+  flush() { if (!LSB.on || !this.db.firmId) return Promise.resolve(false); clearTimeout(this.syncT); this.syncT = null;
+    return LSB.sync(this.db).then(changed => { if (changed) this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); return changed; }, e => { this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); throw e; }); }
+  /* True while a reload from the server could throw away something: unsaved draft text, an unsent save, an open dialog, or a field being typed in. */
+  busy() { const a = document.activeElement, S = this.state; return !!((this.buf != null && S.screen === 'drafting') || this.syncT || LSB.pending() || S.modalOn || S.plan !== null || (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))); }
   componentDidUpdate() { this.fx(); }
   /* Motion: the sliding nav indicator, a fade-up of the main content on route change, and stat counters on the dashboard. */
   fx() {
@@ -1095,7 +1106,7 @@ class Component extends DCLogic {
     ind.style.transform = 'translateY(' + a.offsetTop + 'px)'; ind.style.height = a.offsetHeight + 'px'; ind.style.opacity = '1';
     if (first) { void ind.offsetWidth; ind.style.transition = ''; ind.dataset.on = '1'; }
   }
-  componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('hashchange', this.onH); window.removeEventListener('keydown', this.onK); this.onF && window.removeEventListener('focus', this.onF); this.rec && this.rec.stop(); }
+  componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('hashchange', this.onH); window.removeEventListener('keydown', this.onK); this.onF && window.removeEventListener('focus', this.onF); this.onVis && document.removeEventListener('visibilitychange', this.onVis); this.onHide && window.removeEventListener('pagehide', this.onHide); this.onBU && window.removeEventListener('beforeunload', this.onBU); this.rec && this.rec.stop(); }
   grow() { clearTimeout(this.gt); this.setState({ grown: false }); this.gt = setTimeout(() => this.setState({ grown: true }), 60); }
   applyRoute() {
     const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean), screen = this.SCREENS.includes(p[0]) ? p[0] : 'dashboard';
@@ -1170,7 +1181,7 @@ class Component extends DCLogic {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (this.state.dict) { this.rec && this.rec.stop(); return this.setState({ dict: false }); }
     if (!SR) return this.toast('Dictation needs a browser with speech recognition, such as Chrome.');
-    const r = this.rec = new SR(); r.lang = 'en-IN'; r.continuous = true; r.interimResults = false;
+    const r = this.rec = new SR(); r.lang = this.db.settings.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN'; r.continuous = true; r.interimResults = false;
     r.onresult = e => { const t = [...e.results].slice(e.resultIndex).filter(x => x.isFinal).map(x => x[0].transcript).join(' ').trim(); if (t && this.ed) { const p = document.createElement('p'); p.textContent = t; this.ed.appendChild(p); this.buf = this.ed.innerHTML; this.setState({ dr: Date.now() }); } };
     r.onerror = e => { this.setState({ dict: false }); this.toast(e.error === 'not-allowed' ? 'Microphone permission was refused.' : 'Dictation stopped: ' + e.error); };
     r.onend = () => this.setState({ dict: false });
@@ -1280,7 +1291,8 @@ class Component extends DCLogic {
     const O = D.orders.find(o => o.id === S.param) || { id: '', caseId: '', paras: [], points: [], date: T };
     const oc = caseOf(O.caseId), oConf = !!O.confirmed, oDate = O.nextDate || '';
     const nextDateLabel = oDate ? LS.longDate(oDate) : 'No date found';
-    const rem = oDate ? `${LS.dayMon(LS.addDays(oDate, -st.remindDays))} and ${LS.dayMon(oDate)}, ${LS.t12ap(st.briefingTime)} IST` : '';
+    const rem = !oDate ? '' : LSB.on ? `It appears in the daily briefing email for the assigned advocate on ${LS.dayMon(LS.addDays(oDate, -st.remindDays))} and on ${LS.dayMon(oDate)}, if briefings are enabled in Settings.` : 'It shows on the calendar and dashboard on this device. Briefing emails need the server.';
+    const remPlan = LSB.on ? `Once confirmed, it is included in the daily briefing email ${st.remindDays} day${st.remindDays === 1 ? '' : 's'} before and on the day, if briefings are enabled.` : 'Briefing emails need the server; on this device the hearing shows on the calendar and dashboard.';
     const nextPara = O.nextFrom ? +(/¶(\d+)/.exec(O.nextFrom) || [])[1] : 0;
     const ord = { caseLine: oc.title + ' · ' + oc.no, file: O.file || 'Order dated ' + LS.dmy(O.date), sourceNote: O.official ? 'Fetched from eCourts. ' + O.source : 'Manually added. Not an official retrieval.', nextFrom: O.nextFrom || (oDate ? 'from the order' : 'Enter the next date below'),
       sumChip: oConf ? 'Reviewed' : 'Draft · needs your review',
@@ -1289,37 +1301,37 @@ class Component extends DCLogic {
         O.coram && h('div', { style: { marginTop: 14 } }, 'CORAM: ' + O.coram), h('div', { style: { marginTop: 4 } }, 'O R D E R · ' + LS.dmy(O.date)),
         (O.paras || []).map((p, i) => h('p', { key: i, id: 'ls-para-' + (i + 1), style: Object.assign({ margin: (i ? 8 : 14) + 'px 0 0' }, i + 1 === nextPara ? { background: '#F0F0EF', outline: '2px solid #E3E3E2', borderRadius: 2 } : null) }, h('b', null, (i + 1) + '.'), ' ' + p))),
       pointsEl: h('ul', { style: { margin: '14px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14, lineHeight: 1.6, color: '#363636' } }, (O.points || O.paras || []).map((p, i) => h('li', { key: i }, p + ' ', h('a', { href: '#', onClick: e => { e.preventDefault(); const el = document.getElementById('ls-para-' + (i + 1)); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.style.transition = 'background .3s'; el.style.background = '#E3E3E2'; setTimeout(() => { el.style.background = i + 1 === nextPara ? '#F0F0EF' : ''; }, 900); } } }, '¶' + (i + 1))))) };
-    const orderSteps = [['1', 'Uploaded'], ['2', 'OCR text'], ['3', 'AI summary'], ['4', oConf ? 'Date confirmed' : 'Confirm next date']].map(([n, label], i) => {
-      const done = i < 3 || oConf;
+    /* Only the steps that really happened: text was pasted (or fetched), a date was found in it, and the confirmation. */
+    const orderSteps = [[O.official ? 'Fetched from eCourts' : 'Text pasted', true], ...(O.nextFrom ? [['Dates found', true]] : []), [oConf ? 'Date confirmed' : (oDate ? 'Confirm next date' : 'Enter the next date'), oConf]].map(([label, done], i) => { const n = String(i + 1);
       return { n: done ? '✓' : n, label, style: { display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', fontSize: 13, padding: '6px 14px 6px 6px', borderRadius: 8, background: done ? '#FFFFFF' : '#0A0A0A', color: done ? '#0A0A0A' : '#fff', border: '1px solid #E5E5E5' },
         numStyle: { width: 22, height: 22, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, background: done ? '#F0F0EF' : '#E3E3E2', color: '#0A0A0A', fontWeight: 600 } };
     });
     const confirmDate = () => { if (!LS.valid(oDate)) return this.toast('Enter the next date first.');
       this.mut(db => { const o = db.orders.find(x => x.id === O.id), cs = db.cases.find(x => x.id === o.caseId) || {}; o.confirmed = true;
         if (!db.hearings.some(x => x.caseId === o.caseId && x.date === o.nextDate)) db.hearings.push({ id: LS.uid('h'), caseId: o.caseId, date: o.nextDate, time: '10:30', court: cs.court || '', item: '', purpose: cs.purpose || 'Hearing', assignee: (cs.team || [])[0] || db.user.name, outcome: '', brief: false, fromOrder: o.id });
-        V.logIt(db, `Next date ${LS.dmy(o.nextDate)} confirmed by ${db.user.name}`, o.caseId); }, 'Hearing added to calendar · reminders scheduled'); this.setState({ editDate: false }); };
+        V.logIt(db, `Next date ${LS.dmy(o.nextDate)} confirmed by ${db.user.name}`, o.caseId); }, LSB.on ? 'Hearing added to the calendar · it will be in the daily briefing email, if enabled' : 'Hearing added to the calendar on this device'); this.setState({ editDate: false }); };
 
     /* ---- calendar ---- */
     const ws = S.weekStart || this.monday(T), daySel = S.daySel || T, wkView = S.calView === 'week';
-    const week = [0, 1, 2, 3, 4, 5].map(i => { const ds = LS.addDays(ws, i), dt = LS.parse(ds), sat2 = dt.getDay() === 6 && dt.getDate() > 7 && dt.getDate() <= 14, isT = ds === T;
+    const week = [0, 1, 2, 3, 4, 5, 6].map(i => { const ds = LS.addDays(ws, i), dt = LS.parse(ds), sat2 = dt.getDay() === 6 && dt.getDate() > 7 && dt.getDate() <= 14, isT = ds === T;
       return { dow: 'Sun Mon Tue Wed Thu Fri Sat'.split(' ')[dt.getDay()], n: dt.getDate(), note: isT ? 'Today' : (sat2 ? 'Court holiday' : ''),
         colStyle: { background: sat2 ? '#E5E5E5' : '#FFFFFF', border: isT ? '1.5px solid #0A0A0A' : '1px solid #E5E5E5', borderRadius: 12, padding: 16, minHeight: 220 },
         events: D.hearings.filter(x => x.date === ds).sort((a, b) => a.time.localeCompare(b.time)).map(x => { const cf = clashIds.has(x.id), cs = caseOf(x.caseId); return { time: LS.t12(x.time), court: shortCourt(x.court), title: cs.title, no: cs.no + ' · ' + LS.short(x.assignee), go: () => this.go('case', x.caseId), style: { textAlign: 'left', width: '100%', borderRadius: 8, padding: '10px 12px', background: cf ? '#FDECEA' : '#F5F5F4', color: cf ? '#8F1D13' : '#0A0A0A', border: cf ? '1px solid #F4B8B1' : '1px solid #E5E5E5' } }; }) }; });
-    const we = LS.addDays(ws, 5), sameM = ws.slice(0, 7) === we.slice(0, 7);
+    const we = LS.addDays(ws, 6), sameM = ws.slice(0, 7) === we.slice(0, 7);
     const weekTitle = wkView ? (sameM ? `${LS.parse(ws).getDate()} – ${LS.fmt(we, { day: 'numeric', month: 'long', year: 'numeric' })}` : `${LS.dayMon(ws)} – ${LS.fmt(we)}`) : LS.fmt(daySel, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const step = n => wkView ? this.setState({ weekStart: LS.addDays(ws, 7 * n) }) : this.setState({ daySel: LS.addDays(daySel, n), weekStart: this.monday(LS.addDays(daySel, n)) });
     const calNav = h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } }, h(V.Btn, { onClick: () => step(-1), title: 'Previous' }, '‹'), h(V.Btn, { onClick: () => this.setState({ weekStart: this.monday(T), daySel: T }) }, 'Today'), h(V.Btn, { onClick: () => step(1), title: 'Next' }, '›'), h(V.Btn, { primary: true, onClick: () => V.addHearing(this, '', wkView ? '' : daySel) }, '+ Add hearing'));
     const shown = wkView ? D.hearings.filter(x => x.date >= ws && x.date <= we) : D.hearings.filter(x => x.date === daySel);
     const cg = clashGroups.find(g => wkView ? (g[0].date >= ws && g[0].date <= we) : g[0].date === daySel);
-    const other = cg && D.team.find(u => u.status === 'Active' && u.name !== cg[0].assignee && /Advocate|Partner|Associate/.test(u.role) && !D.hearings.some(x => x.date === cg[0].date && x.time === cg[0].time && x.assignee === u.name));
-    const conflict = cg ? { head: `Conflict, ${LS.fmt(cg[0].date, { weekday: 'short', day: 'numeric', month: 'short' })} at ${LS.t12ap(cg[0].time)}.`, text: cg.map(x => `${caseOf(x.caseId).title} (${x.court})`).join(' and ') + ` are at the same time for ${cg[0].assignee}. Assign one of them to a colleague.`, btn: other ? 'Assign to ' + other.name : 'No free colleague', assign: () => other ? this.mut(db => { const x = db.hearings.find(y => y.id === cg[1].id); x.assignee = other.name; V.logIt(db, `Hearing on ${LS.dmy(x.date)} assigned to ${other.name}`, x.caseId); }, `${caseOf(cg[1].caseId).title} assigned to ${other.name}`) : this.toast('Everyone already has a hearing at that time.') } : { head: '', text: '', btn: '', assign: () => {} };
+    const peers = cg ? D.team.filter(u => u.status === 'Active' && u.name !== cg[0].assignee && /Advocate|Partner|Associate/.test(u.role)) : [], other = cg && peers.find(u => !D.hearings.some(x => x.date === cg[0].date && x.time === cg[0].time && x.assignee === u.name));
+    const conflict = cg ? { head: `Conflict, ${LS.fmt(cg[0].date, { weekday: 'short', day: 'numeric', month: 'short' })} at ${LS.t12ap(cg[0].time)}.`, text: cg.map(x => `${caseOf(x.caseId).title} (${x.court})`).join(' and ') + ` are at the same time for ${cg[0].assignee}. Assign one of them to a colleague.`, btn: other ? 'Assign to ' + other.name : (peers.length ? 'No free colleague' : 'Invite a colleague'), assign: () => other ? this.mut(db => { const x = db.hearings.find(y => y.id === cg[1].id); x.assignee = other.name; V.logIt(db, `Hearing on ${LS.dmy(x.date)} assigned to ${other.name}`, x.caseId); }, `${caseOf(cg[1].caseId).title} assigned to ${other.name}`) : peers.length ? this.toast('Every active colleague already has a hearing at that time.') : (this.toast('No other active advocate in Team yet. Invite a colleague first.'), this.go('team')) } : { head: '', text: '', btn: '', assign: () => {} };
     const dayHearings = D.hearings.filter(x => x.date === daySel).sort((a, b) => a.time.localeCompare(b.time)).map(hv);
 
     /* ---- limitation ---- */
     const limO = { title: LM.title, readyInput: this.readyDraft || LS.addDays(LM.applied, 14), setReady: e => { this.readyDraft = e.target.value; this.setState({ dr: Date.now() }); },
       dueLabel: LS.longDate(lim.due), daysLabel: lim.daysLeft >= 0 ? `${lim.daysLeft} day${lim.daysLeft === 1 ? '' : 's'}` : `${-lim.daysLeft} day${lim.daysLeft === -1 ? '' : 's'} late`, daysWord: lim.daysLeft >= 0 ? 'remaining' : 'past the last date',
       sendLabel: LM.sent ? 'Sent for review ✓' : 'Send to a colleague for review', send: () => { if (LM.sent) return this.toast('Already sent. A review task is open.'); const rvu = D.team.find(u => u.name !== me && u.status !== 'Suspended'); if (!rvu) { this.toast('Invite a colleague in Team first.'); return this.go('team'); } const rv = rvu.name; this.mut(db => { db.lim.sent = true; db.tasks.push({ id: LS.uid('t'), caseId: db.lim.caseId, t: 'Review limitation calculation: ' + db.lim.title, who: rv, due: LS.addDays(T, 1), done: false }); V.logIt(db, 'Limitation calculation sent to ' + rv + ' for review', db.lim.caseId); }, 'Review task created for ' + rv); },
-      approvedBy: 'Approved by ' + D.user.title, approvedText: LM.approved ? `on ${LM.approvedAt}. Alerts set for ${[3, 1, 0].map(n => LS.dayMon(LS.addDays(lim.due, -n))).join(', ')}. Logged in the calculation history.` : '',
+      approvedBy: 'Approved by ' + D.user.title, approvedText: LM.approved ? `on ${LM.approvedAt}. The last date is shown on this page and in the dashboard's deadlines. To have it in the daily briefing${LSB.on ? '' : ' (needs the server)'}, also add it under "+ Add a deadline". Logged in the calculation history.` : '',
       newBtns: h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(V.Btn, { onClick: () => V.newLim(this) }, 'New calculation'), h(V.Btn, { onClick: () => V.addDeadline(this) }, '+ Add a deadline')),
       changeEl: limFilled ? h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 } }, !LM.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lim.ready = ''; }) }, 'Change the certified-copy date'), LM.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lim.approved = false; db.lim.approvedAt = ''; }, 'Approval withdrawn') }, 'Withdraw approval')) : null };
     const fillMissing = () => { const v = limO.readyInput; if (!LS.valid(v)) return this.toast('Enter a valid date.'); if (v < LM.applied) return this.toast('The copy cannot be ready before it was applied for (' + LS.dmy(LM.applied) + ').'); if (v > T) return this.toast('That date is in the future.'); this.mut(db => { db.lim.ready = v; }); };
@@ -1345,7 +1357,7 @@ class Component extends DCLogic {
     if (S.tpl === 2 || S.tpl === 0) chk.push(/fifteen days|15 days/i.test(plain) ? ['✓', 'The 15-day payment period is stated'] : ['•', 'The 15-day period for compliance is not stated']);
     if (S.tpl === 2) { const r = /returned unpaid on (\d{2}\.\d{2}\.\d{4})/.exec(plain), dt = /Date:\s*(\d{2}\.\d{2}\.\d{4})/.exec(plain); if (r && dt) { const n = dm(dt[1], r[1]); chk.push(n <= 30 && n >= 0 ? ['✓', `Notice is within 30 days of the return memo dated ${r[1]}, as s.138(b) requires`] : ['•', `Notice is dated ${n} days after the return memo. Section 138(b) allows 30 days.`]); } else chk.push(['•', 'Could not find the return memo date to check the 30-day period']);  }
     const draft = { title: S.tpl === 2 ? 'Legal notice, s.138 NI Act' : this.tplNames[S.tpl], footer: `Draft ${vlist[vi].v.split(' ')[0]} · Prepared on Legal Staff · ${plain.trim().split(/\s+/).length} words`,
-      body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length + ':' + S.rev0, ref: el => { this.ed = el; }, contentEditable: true, suppressContentEditableWarning: true, spellCheck: true, style: { position: 'relative', outline: 'none' }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
+      body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length, ref: el => { this.ed = el; }, contentEditable: true, suppressContentEditableWarning: true, spellCheck: true, style: { position: 'relative', outline: 'none' }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
       checks: h(React.Fragment, null, chk.map(([m, t], i) => h('div', { key: i, style: { color: m === '✓' ? '#0A0A0A' : '#B42318' } }, m + ' ' + t))),
       saveBtn: h(V.Btn, { onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
       docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }], ...LS.htmlToRuns(this.ed)]); this.toast('DOCX downloaded'); },
@@ -1360,7 +1372,10 @@ class Component extends DCLogic {
       ['Enterprise', 'For corporate legal departments and large firms', null, null, ['Custom users and storage', 'SSO and audit exports', 'Dedicated onboarding', 'Custom court-data providers']]
     ];
     const inr = LS.inr;
-    const sales = () => this.modal(() => h(V.Modal, { title: 'Talk to sales', sub: 'Tell us about your team and we will prepare an Enterprise quote.', onClose: () => this.modal(null) }, h(V.Form, { init: { name: D.user.name, email: D.user.email, org: D.firm.name }, submit: 'Save request', onCancel: () => this.modal(null), note: 'This browser-only version stores the request on this device. Nothing is sent.', fields: [{ k: 'name', label: 'Your name', req: true, half: true }, { k: 'email', label: 'Work email', type: 'email', req: true, half: true }, { k: 'org', label: 'Organisation', req: true, half: true }, { k: 'users', label: 'Number of users', type: 'number', req: true, half: true }, { k: 'msg', label: 'What do you need?', type: 'textarea', rows: 3 }], onSubmit: v => { this.mut(db => { (db.salesRequests = db.salesRequests || []).push(Object.assign({ at: T }, v)); }, 'Enterprise request saved'); this.modal(null); } })));
+    const sales = () => this.modal(() => h(V.Modal, { title: 'Talk to sales', sub: 'Tell us about your team and we will prepare an Enterprise quote.', onClose: () => this.modal(null) }, h(V.Form, { init: { name: D.user.name, email: D.user.email, org: D.firm.name }, submit: LSB.on ? 'Send request' : 'Save request', onCancel: () => this.modal(null), note: LSB.on ? 'The request is sent to the Legal Staff team, who will reply by email.' : 'No server is connected, so the request is stored on this device only and is not sent. Please also email us.', fields: [{ k: 'name', label: 'Your name', req: true, half: true }, { k: 'email', label: 'Work email', type: 'email', req: true, half: true }, { k: 'org', label: 'Organisation', req: true, half: true }, { k: 'users', label: 'Number of users', type: 'number', req: true, half: true }, { k: 'msg', label: 'What do you need?', type: 'textarea', rows: 3 }],
+      onSubmit: v => { if (!LSB.on) { this.mut(db => { (db.salesRequests = db.salesRequests || []).push(Object.assign({ at: T }, v)); }, 'Request saved on this device. It has not been sent.'); return this.modal(null); }
+        if (this.sending) return; this.sending = true;
+        LSB.contact({ name: v.name.trim(), email: v.email.trim(), phone: D.user.phone || '', firm: v.org.trim(), topic: 'Enterprise quote', message: `Users: ${v.users}` + (v.msg ? '\n' + v.msg.trim() : ''), source: 'app · pricing' }).then(() => { this.modal(null); this.toast('Request sent. We will reply by email.'); }).catch(e => this.toast('Could not send the request: ' + e.message)).finally(() => { this.sending = false; }); } })));
     const plans = P.map(([name, who, m, a, feats], i) => {
       const feat = i === 1, ann = S.cycle === 'annual', curPlan = D.sub.plan === name && D.sub.cycle === S.cycle;
       return { name, who, feats, price: m ? inr(ann ? a : m) : 'Custom', per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '',
@@ -1421,7 +1436,7 @@ class Component extends DCLogic {
 
     return {
       expanded: exp, collapsed: !exp, notMobile: !mobile, toggleCollapse: () => this.mut(db => { db.settings.collapsed = !db.settings.collapsed; }), collapseLabel: st.collapsed ? '»' : '« Collapse sidebar',
-      showLogin: S.auth === 'login', booting: S.auth === 'boot', loginStage: h(V.LoginStage), bootView: h(V.Boot, { text: LSB.on ? 'Syncing court sources and preparing your morning briefing…' : 'Preparing your workspace and morning briefing…' }), loginForm: h(V.LoginForm, { app: this }),
+      showLogin: S.auth === 'login', booting: S.auth === 'boot', loginStage: h(V.LoginStage), bootView: h(V.Boot, { text: 'Loading your workspace…' }), loginForm: h(V.LoginForm, { app: this }),
       firmName: D.firm.name || 'Your practice', firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')) || 'LS', firmLine: [D.sub.plan ? D.sub.plan + ' plan' : 'No plan yet', D.firm.city].filter(Boolean).join(' · '), firmAddress: D.firm.address, firmMenu: openMenu('firm'),
       userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userEmail: D.user.email, userMenu: openMenu('user'),
       searchQ: S.search, setSearch: e => this.setState({ search: e.target.value, searchOpen: true }), searchFocus: () => this.setState({ searchOpen: true, menu: null }), searchBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 150), searchKey: e => { if (e.key === 'Enter' && results[0]) pick(results[0]); }, searchDrop,
@@ -1442,7 +1457,8 @@ class Component extends DCLogic {
         ...({ Dots: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' }, Grid: { backgroundImage: 'linear-gradient(#ECECEC 1px,transparent 1px),linear-gradient(90deg,#ECECEC 1px,transparent 1px)', backgroundSize: '40px 40px' }, Plain: { backgroundImage: 'none' }, Wallpaper: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' } })[st.backdrop] },
       showWall: st.backdrop === 'Wallpaper',
       goDashboard: () => this.go('dashboard'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'), goOrder: () => this.go('orders'),
-      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign in with Google or an email code · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'The plan is activated only after Razorpay confirms the payment on the server.' : 'No server is connected, so this payment is simulated and no money is taken.', payLabel: LSB.on ? 'Paid via Razorpay' : 'Simulated payment',
+      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign in with Google or an email code · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'The plan is activated only after Razorpay confirms the payment on the server.' : 'Payments need the server. No money was taken and no tax invoice was issued; the plan is recorded on this device only.', paidLine: LSB.on ? `The invoice has been saved for ${D.user.email}. Next renewal: ${co.next || ''}.` : `Recorded on this device. Next renewal date: ${co.next || ''}.`, payLabel: LSB.on ? 'Paid via Razorpay' : 'Not charged',
+      payBtn: LSB.on ? `Pay ${co.total || ''} with Razorpay` : 'Record the plan on this device', payHint: LSB.on ? 'Opens Razorpay Checkout. The plan starts once Razorpay confirms the payment.' : 'Payments need the server. This browser-only version only records the plan choice; no money is taken.', payHead: LSB.on ? 'Payment verified' : 'Plan recorded on this device',
       briefText, briefArt: todayH.length ? null : h('div', { className: 'ls-brief-art' }, h(V.Art, { name: 'sunrise', style: { width: '100%', height: 'auto' } })),
       dashEmpty: { hearings: todayH.length ? null : h(V.Empty, { small: true, art: 'calendar', title: 'No hearings today', text: 'Hearings you add to a case appear here on the day.' }), orders: D.orders.length ? null : h(V.Empty, { small: true, art: 'order', title: 'No court orders yet', text: 'Upload an order to pull out the next date and key points.' }), deadlines: dl.length ? null : h(V.Empty, { small: true, art: 'deadline', title: 'No deadlines tracked', text: 'Run a limitation calculation and it is tracked here.' }), stages: live.length ? null : h(V.Empty, { small: true, art: 'cases', title: 'No active cases', text: 'Cases you add are grouped here by stage.' }) },
       waHello: `Good morning, Adv. ${D.user.name.split(' ').pop()}.`, waLine1: `${todayH.length} hearing${todayH.length === 1 ? '' : 's'} today.` + (tClash.length ? ` ${LS.t12ap(tClash[0][0].time)} clash: ${tClash[0].map(x => shortCourt(x.court).replace('HC ', 'Delhi HC Court ').replace('Saket ', 'Saket Court ')).join(' and ')}.` : ''), waLine2: dl[0] ? `Deadline: ${dl[0].title.split(',')[0]} due ${LS.dayMon(LS.addDays(T, dl[0].days))}.` : 'No limitation deadlines this week.', waTime: LS.t12ap(st.briefingTime),
@@ -1472,7 +1488,7 @@ class Component extends DCLogic {
       deadlines: dl.map(x => ({ ...x, go: () => this.go('limitation'), dayStyle: { width: 54, height: 54, borderRadius: 8, background: x.days <= 21 ? '#FDECEA' : '#F0F0EF', color: x.days <= 21 ? '#B42318' : '#0A0A0A', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } })),
       activity: D.log.slice().sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 4).map(e => ({ t: e.ts.slice(0, 10) === T ? e.ts.slice(11) : LS.dayMon(e.ts.slice(0, 10)), x: e.x })),
       c, tabEmpty, caseOrders, hearingHistory, docs, timeline, tabs, tab,
-      ord, nextDate: oDate, nextDateLabel, reminderLine: rem, editDate: (S.editDate || !oDate) && !oConf, confirmed: oConf, notConfirmed: !oConf,
+      ord, nextDate: oDate, nextDateLabel, reminderLine: rem, reminderPlan: remPlan, editDate: (S.editDate || !oDate) && !oConf, confirmed: oConf, notConfirmed: !oConf,
       setDate: e => { const v = e.target.value; this.mut(db => { const o = db.orders.find(x => x.id === O.id); if (o) { o.nextDate = v; o.nextFrom = 'entered by you'; } }); }, toggleEdit: () => this.setState({ editDate: !S.editDate }),
       confirmDate, undoConfirm: () => this.mut(db => { const o = db.orders.find(x => x.id === O.id); o.confirmed = false; db.hearings = db.hearings.filter(x => x.fromOrder !== o.id); }, 'Removed from calendar'),
       viewInCalendar: () => this.openWeek(oDate), orderSteps,
@@ -1488,10 +1504,11 @@ class Component extends DCLogic {
         ...(limFilled ? [{ label: 'Certified copy ready for delivery', value: LS.dmy(LM.ready) + ' (added by you)' }] : [])
       ],
       missingOpen: !limFilled, missingFilled: limFilled, fillMissing,
-      derivation: lim.rows, approved: LM.approved, notApproved: !LM.approved, approve: () => this.mut(db => { db.lim.approved = true; db.lim.approvedAt = LS.fmt(T) + ' at ' + LS.nowHM() + ' IST'; V.logIt(db, 'Limitation date ' + LS.dmy(lim.due) + ' approved by ' + db.user.name, db.lim.caseId); }, 'Limitation date approved · alerts set'),
+      derivation: lim.rows, approved: LM.approved, notApproved: !LM.approved, approve: () => this.mut(db => { db.lim.approved = true; db.lim.approvedAt = LS.fmt(T) + ' at ' + LS.nowHM() + ' IST'; V.logIt(db, 'Limitation date ' + LS.dmy(lim.due) + ' approved by ' + db.user.name, db.lim.caseId); }, 'Limitation date approved'),
       msgs, suggestions, brainScope, chatEmpty: chat.length ? null : h('div', { className: 'ls-empty', style: { color: '#5E5E5E', fontSize: 14, padding: '24px 0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } }, h(V.Art, { name: 'chat', style: { width: 120, height: 'auto' } }), h('span', { style: { flex: '1 1 200px' } }, 'Ask a question about this case, or pick a suggestion below.')), draftQ: S.q, setQ: e => this.setState({ q: e.target.value }), sendQ: () => S.q.trim() && this.ask(S.q.trim()), qKey: e => { if (e.key === 'Enter' && S.q.trim()) this.ask(S.q.trim()); },
       templates, versions, draft,
-      toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate (Hindi · English · Hinglish)',
+      toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate',
+      dictLangSel: h('select', { 'aria-label': 'Dictation language', title: 'Dictation language', value: st.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: S.dict, onChange: e => { const v = e.target.value; this.mut(db => { db.settings.dictLang = v; }); }, style: { height: 34, border: '1px solid #E5E5E5', borderRadius: 8, background: '#FFFFFF', fontSize: 13.5, padding: '0 8px', color: '#0A0A0A' } }, h('option', { value: 'en-IN' }, 'English (India)'), h('option', { value: 'hi-IN' }, 'Hindi')),
       dictBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, border: S.dict ? '1px solid #B42318' : '1px solid #E5E5E5', background: S.dict ? '#FDECEA' : '#FFFFFF', color: S.dict ? '#B42318' : '#0A0A0A' },
       cycles, plans, co, checkoutOpen: S.plan !== null, paid: S.paid, notPaid: !S.paid, gstin: S.gstin, setGstin: e => this.setState({ gstin: e.target.value, gstErr: '' }),
       closeCheckout: () => this.setState({ plan: null }), pay, finishPay: () => { this.setState({ plan: null, paid: false }); this.go('dashboard'); },

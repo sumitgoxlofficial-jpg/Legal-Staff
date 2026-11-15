@@ -4,12 +4,22 @@
   'use strict';
   const cfg = window.LS_CONFIG || {};
   const on = !!(cfg.supabaseUrl && cfg.supabaseKey && window.supabase && window.supabase.createClient);
-  const sb = on ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey) : null;
+  /* While the page is being hidden or closed, small requests go out with keepalive so the last save still reaches the server. */
+  let hiding = false;
+  const kfetch = (u, o) => fetch(u, hiding && o && (!o.body || (typeof o.body === 'string' && o.body.length < 60000)) ? Object.assign({}, o, { keepalive: true }) : o);
+  const sb = on ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { global: { fetch: kfetch } }) : null;
   const KIND = { cases: 'case', clients: 'client', hearings: 'hearing', orders: 'order', tasks: 'task', docs: 'doc', invoices: 'invoice', deadlines: 'deadline', watch: 'watch', log: 'log' };
   const USER_KEYS = ['settings', 'notes', 'chats', 'copilot', 'research', 'drafts'];
+  const PAGE = 1000, LOG_MAX = 300, NEWEST_FIRST = { cases: 1, clients: 1, docs: 1, orders: 1, invoices: 1 };
   let snap = {}, firmSnap = '', userSnap = '', teamSnap = '', meSnap = '', firmId = '', uid = '', busy = null, again = false;
   const fail = (e, what) => { const m = (e && (e.message || e.error_description || e.error)) || String(e); throw new Error(what ? what + ': ' + m : m); };
   const ok = r => { if (r.error) fail(r.error); return r.data; };
+  /* PostgREST returns at most 1,000 rows per request, so read in pages until a page comes back empty. q() must be stably ordered. */
+  async function pages(q) { const out = []; for (let from = 0; ; ) { const rows = ok(await q().range(from, from + PAGE - 1)) || []; if (!rows.length) return out; out.push(...rows); from += rows.length; } }
+  const changed = (rows, what) => { if (!rows || !rows.length) throw new Error(what + ' was not saved on the server. You may not have permission to change it.'); return rows; };
+  async function delIds(kind, ids) { for (let i = 0; i < ids.length; i += 200) ok(await sb.from('records').delete().eq('firm_id', firmId).eq('kind', kind).in('id', ids.slice(i, i + 200))); }
+  /* Same order on every device: by the time the record was first saved, then id. Lists that the app prepends to come newest first. */
+  function order(d) { Object.keys(KIND).forEach(c => { if (c === 'log') return d.log.sort((a, b) => String(b.ts).localeCompare(String(a.ts)) || String(b.id).localeCompare(String(a.id))); const s = NEWEST_FIRST[c] ? -1 : 1; d[c].sort((a, b) => s * (String(a.created || '').localeCompare(String(b.created || '')) || String(a.id).localeCompare(String(b.id)))); }); }
   const teamKey = t => JSON.stringify(t.map(u => [u.id, u.email, u.name, u.title, u.role, u.status]));
   const meKey = u => JSON.stringify([u.name, u.title, u.phone]);
   const firmRow = d => ({ name: d.firm.name, city: d.firm.city, address: d.firm.address, gstin: d.firm.gstin, state: { lim: d.lim, agents: d.agents } });
@@ -43,14 +53,18 @@
     /* Builds the app's working data for one firm. */
     async load(id, session) {
       firmId = id; const d = window.LS.seed(); d.firmId = id; d.session = { email: session.user.email, provider: (session.user.app_metadata || {}).provider || 'google' };
-      const [firm, recs, us] = await Promise.all([sb.from('firms').select('*').eq('id', id).single(), sb.from('records').select('kind,id,data,updated_at').eq('firm_id', id).order('updated_at', { ascending: false }).limit(20000), sb.from('user_state').select('data').eq('firm_id', id).eq('user_id', uid).maybeSingle()]);
+      const [firm, recs, us] = await Promise.all([sb.from('firms').select('*').eq('id', id).single(), pages(() => sb.from('records').select('kind,id,data').eq('firm_id', id).order('kind').order('id')), sb.from('user_state').select('data').eq('firm_id', id).eq('user_id', uid).maybeSingle()]);
       const f = ok(firm); d.firm = { name: f.name, city: f.city, address: f.address, gstin: f.gstin };
       if (f.state && f.state.lim) d.lim = f.state.lim; if (f.state && Array.isArray(f.state.agents) && f.state.agents.length) d.agents = f.state.agents;
       const by = {}; Object.keys(KIND).forEach(c => { by[KIND[c]] = d[c] = []; });
-      ok(recs).forEach(r => { if (by[r.kind]) by[r.kind].push(Object.assign({}, r.data, { id: r.id })); });
-      d.log.sort((a, b) => String(b.ts).localeCompare(String(a.ts)));
+      recs.forEach(r => { if (by[r.kind]) by[r.kind].push(Object.assign({}, r.data, { id: r.id })); });
+      order(d);
       const u = ok(us); if (u && u.data) USER_KEYS.forEach(k => { if (u.data[k] != null) d[k] = k === 'settings' ? Object.assign(d.settings, u.data[k]) : u.data[k]; });
-      await members(d); await subscription(d); take(d); return d;
+      await members(d); await subscription(d); take(d);
+      /* Keep only the newest activity entries so the log cannot crowd out practice records. */
+      const old = d.log.slice(LOG_MAX); d.log = d.log.slice(0, LOG_MAX);
+      if (old.length) { try { await delIds('log', old.map(x => x.id)); old.forEach(x => { delete snap['log|' + x.id]; }); } catch (e) {} }
+      return d;
     },
     /* Sends whatever changed since the last sync. Returns true if the team list was refreshed from the server. */
     sync(d) {
@@ -59,23 +73,31 @@
       busy = (async () => {
         let refreshed = false;
         try {
-          const now = {}, up = [], del = {};
-          Object.keys(KIND).forEach(c => (d[c] || []).forEach(r => { if (!r.id) r.id = window.LS.uid(KIND[c][0]); const k = KIND[c] + '|' + r.id, s = JSON.stringify(r); now[k] = s; if (snap[k] !== s) up.push({ firm_id: firmId, kind: KIND[c], id: r.id, data: r }); }));
+          const now = {}, up = [], del = {}, stamp = new Date().toISOString();
+          if (d.log && d.log.length > LOG_MAX) d.log.length = LOG_MAX;
+          /* Profile edits are read now: the team refresh below reloads d.user from the server. */
+          const meWant = meKey(d.user) !== meSnap ? { name: d.user.name, title: d.user.title, phone: d.user.phone || '' } : null;
+          Object.keys(KIND).forEach(c => (d[c] || []).forEach(r => { if (!r.id) r.id = window.LS.uid(KIND[c][0]); const k = KIND[c] + '|' + r.id; if (c !== 'log' && !r.created && !(k in snap)) r.created = stamp; const s = JSON.stringify(r); now[k] = s; if (snap[k] !== s) up.push({ firm_id: firmId, kind: KIND[c], id: r.id, data: r }); }));
           Object.keys(snap).forEach(k => { if (!(k in now)) { const i = k.indexOf('|'); (del[k.slice(0, i)] = del[k.slice(0, i)] || []).push(k.slice(i + 1)); } });
           for (let i = 0; i < up.length; i += 200) ok(await sb.from('records').upsert(up.slice(i, i + 200)));
-          for (const kind of Object.keys(del)) ok(await sb.from('records').delete().eq('firm_id', firmId).eq('kind', kind).in('id', del[kind]));
+          for (const kind of Object.keys(del)) await delIds(kind, del[kind]);
           snap = now;
-          const fr = firmRow(d), fs = JSON.stringify(fr); if (fs !== firmSnap) { ok(await sb.from('firms').update(fr).eq('id', firmId)); firmSnap = fs; }
+          const fr = firmRow(d), fs = JSON.stringify(fr); if (fs !== firmSnap) { changed(ok(await sb.from('firms').update(fr).eq('id', firmId).select('id')), 'The firm profile'); firmSnap = fs; }
           const ur = userRow(d), us = JSON.stringify(ur); if (us !== userSnap) { ok(await sb.from('user_state').upsert({ user_id: uid, firm_id: firmId, data: ur, updated_at: new Date().toISOString() })); userSnap = us; }
-          if (meKey(d.user) !== meSnap) { ok(await sb.rpc('update_my_profile', { f: firmId, p_name: d.user.name, p_title: d.user.title, p_phone: d.user.phone || '' })); meSnap = meKey(d.user); refreshed = true; }
           if (teamKey(d.team) !== teamSnap) {
             const before = JSON.parse(teamSnap || '[]'), ids = new Set(d.team.map(u => u.id));
             try {
               for (const u of d.team) { const was = before.find(x => x[0] === u.id);
                 if (!was) ok(await sb.from('members').insert({ firm_id: firmId, email: String(u.email).trim().toLowerCase(), name: u.name, title: u.title, role: u.role }));
-                else if (was[4] !== u.role || was[5] !== u.status) ok(await sb.from('members').update({ role: u.role, status: u.status, title: u.title }).eq('id', u.id)); }
+                else if (was[4] !== u.role || was[5] !== u.status) changed(ok(await sb.from('members').update({ role: u.role, status: u.status, title: u.title }).eq('id', u.id).select('id')), 'The change to ' + (u.name || u.email)); }
               for (const x of before) if (!ids.has(x[0])) ok(await sb.from('members').delete().eq('id', x[0]));
             } finally { await members(d); teamSnap = teamKey(d.team); meSnap = meKey(d.user); refreshed = true; }
+          }
+          /* The profile function changes only the caller's own row; read the row back to be sure it changed. */
+          if (meWant) {
+            try { ok(await sb.rpc('update_my_profile', { f: firmId, p_name: meWant.name, p_title: meWant.title, p_phone: meWant.phone })); }
+            finally { await members(d); teamSnap = teamKey(d.team); meSnap = meKey(d.user); refreshed = true; }
+            if (d.user.name !== meWant.name || d.user.title !== meWant.title || (d.user.phone || '') !== meWant.phone) throw new Error('Your profile was not saved on the server.');
           }
         } finally { busy = null; }
         if (again) { again = false; return (await B.sync(d)) || refreshed; }
@@ -84,6 +106,25 @@
       return busy;
     },
     pending: () => !!busy,
+    hiding(v) { hiding = !!v; },
+    /* Owner only: deletes the firm's stored files and every practice record. Members, the subscription and payment records stay. */
+    async eraseFirm(d) {
+      if (!d.isOwner) throw new Error('Only the firm owner can delete the firm\'s data.');
+      const st = sb.storage.from('documents'), paths = new Set();
+      (d.docs || []).forEach(x => { if (x.file) paths.add(B.path(x.id, x.file)); });
+      const list = async pre => { const out = []; for (let off = 0; ; off += 1000) { const r = ok(await st.list(pre, { limit: 1000, offset: off })) || []; out.push(...r); if (r.length < 1000) return out; } };
+      for (const f of await list(firmId)) { if (f.id) paths.add(firmId + '/' + f.name); else for (const g of await list(firmId + '/' + f.name)) if (g.id) paths.add(firmId + '/' + f.name + '/' + g.name); }
+      const all = [...paths]; for (let i = 0; i < all.length; i += 100) ok(await st.remove(all.slice(i, i + 100)));
+      const r = await sb.rpc('erase_firm_data', { f: firmId });
+      if (r.error) {
+        if (!(r.error.code === 'PGRST202' || /could not find the function/i.test(r.error.message || ''))) fail(r.error);
+        /* Database without migration 0004: delete directly (records are open to members under 0001's policies). */
+        ok(await sb.from('records').delete().eq('firm_id', firmId)); ok(await sb.from('user_state').delete().eq('firm_id', firmId).eq('user_id', uid)); ok(await sb.from('firms').update({ state: {} }).eq('id', firmId));
+      }
+      snap = {}; return all.length;
+    },
+    /* Enterprise enquiries go to the same table as the website's contact form. */
+    async contact(row) { ok(await sb.from('contact_requests').insert(row)); },
     async refreshSub(d) { await subscription(d); },
     /* ---- documents ---- */
     path: (docId, name) => firmId + '/' + docId + '/' + String(name).replace(/[^\w.\- ]+/g, '_'),
