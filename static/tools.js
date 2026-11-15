@@ -11,6 +11,7 @@
   var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   var DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var DAY = 864e5;
+  var lc = function (s) { return s.charAt(0).toLowerCase() + s.slice(1); };
   var plural = function (n, w) { return n + ' ' + w + (Math.abs(n) === 1 ? '' : 's'); };
 
   // Dates are ISO 'YYYY-MM-DD' strings computed in UTC, so time zones never shift a deadline.
@@ -132,7 +133,7 @@
     var alt = rule.altPeriod && input.certRefused;
     var startLabel = alt ? rule.altPeriod.startLabel : rule.startLabel;
     res.startLabel = startLabel;
-    if (!D.valid(input.start)) { res.errors.push('Enter the ' + startLabel.toLowerCase().replace(/ \(.*$/, '') + '.'); return res; }
+    if (!D.valid(input.start)) { res.errors.push('Enter the ' + lc(startLabel.replace(/ \(.*$/, '')) + '.'); return res; }
     var start = input.start, period = alt ? rule.altPeriod : rule.period;
     var periodText = period.days ? plural(period.days, 'day') : plural(period.years, 'year');
     var base = period.days ? D.addDays(start, period.days) : D.addMonths(start, 12 * period.years);
@@ -151,7 +152,7 @@
         res.warnings.push('Enter both the date the certified copy was applied for and the date it was ready; until then no copy time is excluded.');
         res.steps.push({ t: 'Certified copy time (s.12(2))', v: 'Incomplete', d: 'Both dates are needed.' });
       } else if (D.diff(a, start) > 0) {
-        res.errors.push('The certified copy application date is before the ' + startLabel.toLowerCase() + '. Check the dates.');
+        res.errors.push('The certified copy application date is before the ' + lc(startLabel) + '. Check the dates.');
       } else if (D.diff(a, r) < 0) {
         res.errors.push('The date the copy was ready is before the date it was applied for. Check the dates.');
       } else if (D.diff(base, a) > 0) {
