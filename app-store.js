@@ -90,46 +90,78 @@
     return { paras, nextDate, nextFrom, points: paras.map(p => p.split(/(?<=\.)\s/)[0]) };
   }
 
-  /* ---------- case question answering (search over the case file) ---------- */
+  /* ---------- case question answering (search over the case file) ----------
+     Answers come only from what is stored: Case details fields, orders, hearings, tasks and documents. Every answer names its source;
+     when a field is empty the answer says so and returns need: <field> so the screen can offer the Case details editor. */
   function answer(d, caseId, q) {
-    const c = d.cases.find(x => x.id === caseId), lc = q.toLowerCase();
+    const c = d.cases.find(x => x.id === caseId) || { title: 'This case', parties: [], issues: [] }, lc = q.toLowerCase();
     const orders = d.orders.filter(o => o.caseId === caseId).sort((a, b) => b.date.localeCompare(a.date));
     const tasks = d.tasks.filter(t => t.caseId === caseId && !t.done), docs = d.docs.filter(x => x.caseId === caseId);
-    const upcoming = d.hearings.filter(h => h.caseId === caseId && h.date >= today()).sort((a, b) => a.date.localeCompare(b.date))[0];
+    const hs = d.hearings.filter(h => h.caseId === caseId), held = hs.filter(h => h.outcome).sort((a, b) => b.date.localeCompare(a.date));
+    const upcoming = hs.filter(h => h.date >= today()).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))[0];
     const pending = orders.find(o => !o.confirmed && o.nextDate);
     const next = upcoming ? dmy(upcoming.date) : (pending ? dmy(pending.nextDate) + ' (from the last order, not yet confirmed)' : '');
-    const has = (...w) => w.some(x => lc.includes(x));
+    const has = (...w) => w.some(x => x instanceof RegExp ? x.test(lc) : lc.includes(x));
+    const side = p => p.side || (/respond|defend|opposite|accused|non-applicant/i.test(p.role || '') ? 'respondent' : 'petitioner');
+    const parties = c.parties || [], pet = parties.filter(p => side(p) === 'petitioner'), res = parties.filter(p => side(p) === 'respondent');
+    const issues = c.issues || [], missing = c.missing || [], opp = c.oppArgs || [], ours = c.ourArgs || (c.args ? String(c.args).split(/\n+/).map(s => s.trim()).filter(Boolean) : []);
+    const F = 'Case details › ', OC = o => 'Order ' + dmy(o.date), HC = h => 'Hearing ' + dmy(h.date), strip = s => String(s).replace(/\s*\[[^\]]*\]/g, '');
+    const list = a => a.map((s, i) => `${i + 1}. ${s}`).join('\n'), pn = p => p.name + (p.note ? ' — ' + p.note : '');
+    const none = (what, need, extra) => ({ text: `No ${what} recorded yet — add them in Case details.` + (extra ? ' ' + extra : ''), cites: [], need });
+    const sumCites = () => [F + 'Summary', ...new Set((c.summary.match(/\[([^\]]+)\]/g) || []).map(x => x.slice(1, -1)))];
+    const outcomeLine = h => `${dmy(h.date)}: ${h.outcome}${h.outcomeNote ? ' — ' + h.outcomeNote : ''}`;
+    const paraHits = re => { const out = []; orders.forEach(o => (o.paras || []).forEach((p, i) => { if (re.test(p)) out.push([p, OC(o) + ' ¶' + (i + 1)]); })); return out; };
+
     if (has('brief')) {
-      const o = orders[0], b = c.brief;
-      const lines = ['Hearing brief' + (next ? ' for ' + next : ''), ''];
-      if (b) lines.push('Background: ' + b.background);
-      else if (c.summary) lines.push('Background: ' + c.summary.replace(/\s*\[[^\]]*\]/g, ''));
-      lines.push('Last order: ' + (o ? o.summary : 'no order on file.'));
-      if (b) lines.push('What to press: ' + b.press.map((p, i) => `(${i + 1}) ${p}`).join('; ') + '.', 'To carry: ' + b.carry);
-      if (tasks.length) lines.push('Open tasks: ' + tasks.map(t => t.t).join('; ') + '.');
+      const o = orders[0], b = c.brief, cites = [], lines = ['Hearing brief' + (next ? ' for ' + next : ''), ''];
+      if (c.summary) { lines.push('Background: ' + strip(c.summary)); cites.push(F + 'Summary'); } else if (b) lines.push('Background: ' + b.background); else lines.push('Background: no summary written yet (add one in Case details).');
+      if (pet.length || res.length) { lines.push('Parties: ' + (pet.map(p => p.name).join(', ') || '—') + ' v. ' + (res.map(p => p.name).join(', ') || '—') + '.'); cites.push(F + 'Parties'); }
+      if (c.stage) lines.push('Stage: ' + c.stage + '.');
+      if (issues.length) { lines.push('Issues: ' + issues.map((s, i) => `(${i + 1}) ${s}`).join('; ') + '.'); cites.push(F + 'Issues'); }
+      lines.push('Last order: ' + (o ? `${dmy(o.date)} — ${o.summary}` : 'no order on file.')); if (o) cites.push(OC(o));
+      if (held[0]) { lines.push('Last hearing: ' + outcomeLine(held[0]) + '.'); cites.push(HC(held[0])); }
+      if (ours.length) { lines.push('What to press: ' + ours.map((p, i) => `(${i + 1}) ${p}`).join('; ') + '.'); cites.push(F + 'Our arguments'); } else if (b) lines.push('What to press: ' + b.press.map((p, i) => `(${i + 1}) ${p}`).join('; ') + '.');
+      if (opp.length) { lines.push('Expect from the other side: ' + opp.map((p, i) => `(${i + 1}) ${p}`).join('; ') + '.'); cites.push(F + 'Opponent\'s arguments'); }
+      if (missing.length) { lines.push('Still missing: ' + missing.join('; ') + '.'); cites.push(F + 'Missing documents'); }
+      if (b && b.carry) lines.push('To carry: ' + b.carry);
+      if (tasks.length) { lines.push('Open tasks: ' + tasks.map(t => t.t).join('; ') + '.'); cites.push('Tasks'); }
+      const thin = !c.summary && !issues.length && !ours.length && !parties.length;
+      if (thin) lines.push('', 'Case details are empty, so this brief only uses orders, hearings and tasks. Add parties, issues and arguments in Case details for a fuller brief.');
       lines.push('', 'This is a draft. Please review it before relying on it.');
-      return { text: lines.join('\n'), cites: [...(o ? ['Order ' + dmy(o.date)] : []), ...docs.slice(0, 2).map(x => x.name)], brief: true };
+      return { text: lines.join('\n'), cites, brief: true, need: thin ? 'details' : undefined };
     }
-    if (has('last order', 'latest order', 'recent order')) { const o = orders[0]; return o ? { text: `The last order is dated ${dmy(o.date)}${c.bench ? ', by ' + c.bench : ''}. ${o.summary}${next ? ' The matter is listed on ' + next + '.' : ''}`, cites: ['Order ' + dmy(o.date)] } : { text: 'There is no order in this case file yet. Upload one from Court Orders.', cites: [] }; }
-    if (has('next date', 'next hearing', 'listed', 'when is')) return { text: next ? `The matter is next listed on ${next}${upcoming ? `, ${t12ap(upcoming.time)} at ${upcoming.court}` : ''}.` : 'No future hearing is recorded for this case.', cites: orders[0] ? ['Order ' + dmy(orders[0].date)] : ['Hearings'] };
-    if (has('missing')) return c.missing && c.missing.length ? { text: `${c.missing.length === 2 ? 'Two' : c.missing.length} document${c.missing.length > 1 ? 's are' : ' is'} referred to but ${c.missing.length > 1 ? 'are' : 'is'} not in the case file:\n` + c.missing.map((m, i) => `${i + 1}. ${m}`).join('\n'), cites: (c.missing.join(' ').match(/(WS|Plaint) ¶\d+/g) || []) } : { text: `No missing documents are flagged. The case file has ${docs.length} document${docs.length === 1 ? '' : 's'}.`, cites: ['Documents'] };
-    if (has('task', 'pending', 'to do', 'todo')) return { text: tasks.length ? `${tasks.length} task${tasks.length > 1 ? 's are' : ' is'} open:\n` + tasks.map(t => `• ${t.t}. ${t.who}, due ${dayMon(t.due)}.`).join('\n') : 'There are no open tasks in this case.', cites: ['Tasks'] };
-    if (has('argument', 'contention', 'submission')) return c.args ? { text: c.args, cites: ['Plaint ¶9', 'WS ¶4–7'] } : { text: 'No arguments have been recorded for this case yet. They are picked up from pleadings and orders once those are in the case file.', cites: [] };
-    if (has('document', 'file', 'evidence')) return { text: docs.length ? `The case file has ${docs.length} item${docs.length > 1 ? 's' : ''}:\n` + docs.map(x => `• ${x.name} (${x.ext}, ${x.v})`).join('\n') : 'No documents have been added to this case.', cites: ['Documents'] };
-    if (has('part', 'client', 'defendant', 'plaintiff', 'respondent', 'petitioner', 'who')) { if (c.parties.length) return { text: c.parties.map(p => `${p.role}: ${p.name}${p.note ? ' — ' + p.note : ''}`).join('\n'), cites: ['Case record'] }; }
-    if (has('issue', 'question of law')) { if (c.issues.length) return { text: 'Issues recorded:\n' + c.issues.map((s, i) => `${i + 1}. ${s}`).join('\n'), cites: ['Case record'] }; }
+    if (has('summar', 'case about', 'is this about', 'overview', 'background', 'facts')) return c.summary ? { text: strip(c.summary) + (/^Automatic draft/.test(c.summaryMeta || '') ? '\n\n(This summary is an automatic draft from the orders.)' : ''), cites: sumCites() } : { text: 'No summary written yet — write one in Case details' + (orders.length ? `, or use "Draft from orders" there to assemble one from the ${orders.length} order${orders.length > 1 ? 's' : ''} on file.` : '.'), cites: [], need: 'summary' };
+    if (has('last order', 'latest order', 'recent order')) { const o = orders[0]; return o ? { text: `The last order is dated ${dmy(o.date)}${c.bench ? ', by ' + c.bench : ''}. ${o.summary}${next ? ' The matter is listed on ' + next + '.' : ''}`, cites: [OC(o)] } : { text: 'There is no order in this case file yet. Upload one from Court Orders.', cites: [] }; }
+    if (has('next date', 'next hearing', 'listed', 'when is')) return { text: next ? `The matter is next listed on ${next}${upcoming ? `, ${t12ap(upcoming.time)} at ${upcoming.court}` : ''}.` : 'No future hearing is recorded for this case.', cites: upcoming ? [HC(upcoming)] : (pending ? [OC(pending)] : []) };
+    if (has('outcome', 'last hearing', 'what happened', 'adjourn', 'previous hearing')) { const past = hs.filter(h => h.date < today() && !h.outcome).length;
+      return held.length ? { text: 'Recorded outcomes:\n' + held.slice(0, 6).map(h => '• ' + outcomeLine(h)).join('\n') + (past ? `\n${past} past hearing${past > 1 ? 's have' : ' has'} no outcome recorded yet.` : ''), cites: held.slice(0, 6).map(HC) } : { text: past ? `No outcome has been recorded for the ${past} past hearing${past > 1 ? 's' : ''} in this case. Record it from the Hearings tab.` : 'No hearing in this case has taken place yet, so there is no outcome to report.', cites: [] }; }
+    if (has('missing')) return missing.length ? { text: `${missing.length === 2 ? 'Two' : missing.length} document${missing.length > 1 ? 's are' : ' is'} recorded as missing from the case file:\n` + list(missing), cites: [F + 'Missing documents'] } : none('missing documents', 'missing', `The case file has ${docs.length} document${docs.length === 1 ? '' : 's'}.`);
+    if (has('task', /\bpending\b/, 'to do', 'todo')) return { text: tasks.length ? `${tasks.length} task${tasks.length > 1 ? 's are' : ' is'} open:\n` + tasks.map(t => `• ${t.t}. ${t.who}, due ${dayMon(t.due)}.`).join('\n') : 'There are no open tasks in this case.', cites: tasks.length ? ['Tasks'] : [] };
+    if (has('opponent', 'other side', 'opposite', 'their argument', 'their case', 'respondent\'s argument', 'defence', 'defense')) return opp.length ? { text: 'The other side\'s arguments:\n' + list(opp), cites: [F + 'Opponent\'s arguments'] } : none('arguments for the other side', 'oppArgs');
+    if (has('argument', 'contention', 'submission', 'submit', 'press', 'our case', 'grounds')) { const said = paraHits(/\b(submit|contend|argue|urge|press)/i).slice(0, 3);
+      if (!ours.length && !opp.length && !said.length) return none('arguments', 'ourArgs');
+      const parts = [], cites = [];
+      parts.push(ours.length ? 'Our arguments:\n' + list(ours) : 'Our arguments: none recorded yet.'); if (ours.length) cites.push(F + 'Our arguments');
+      parts.push(opp.length ? 'Opponent\'s arguments:\n' + list(opp) : 'Opponent\'s arguments: none recorded yet.'); if (opp.length) cites.push(F + 'Opponent\'s arguments');
+      if (said.length) { parts.push('Recorded in the orders:\n' + said.map(x => '• ' + x[0]).join('\n')); said.forEach(x => cites.push(x[1])); }
+      return { text: parts.join('\n\n'), cites, need: !ours.length ? 'ourArgs' : (!opp.length ? 'oppArgs' : undefined) }; }
+    if (has('document', 'file', 'evidence', 'exhibit')) return { text: docs.length ? `The case file has ${docs.length} item${docs.length > 1 ? 's' : ''}:\n` + docs.map(x => `• ${x.name} (${x.kind === 'evidence' ? (x.exhibit || 'evidence') : x.ext}, ${x.v})${(x.tags || []).length ? ' · ' + x.tags.join(', ') : ''}`).join('\n') : 'No documents have been added to this case.', cites: docs.length ? ['Documents'] : [] };
+    if (has('issue', 'question of law', 'points for determination', 'framed')) return issues.length ? { text: 'Issues recorded:\n' + list(issues), cites: [F + 'Issues'] } : none('issues', 'issues');
+    if (has('part', 'petitioner', 'respondent', 'appellant', 'plaintiff', 'defendant', 'applicant', /\bwho\b/, 'versus', ' v. ')) return parties.length ? { text: (pet.length ? 'Petitioner / appellant side:\n' + pet.map(p => '• ' + pn(p)).join('\n') : 'Petitioner / appellant side: none recorded.') + '\n\n' + (res.length ? 'Respondent side:\n' + res.map(p => '• ' + pn(p)).join('\n') : 'Respondent side: none recorded.'), cites: [F + 'Parties'] } : none('parties', 'parties', c.clientId && d.clients.find(x => x.id === c.clientId) ? `The client on file is ${d.clients.find(x => x.id === c.clientId).name}.` : '');
+    if (has('stage')) return c.stage ? { text: `The case is at the ${c.stage} stage.`, cites: [F + 'Stage'] } : none('stage', 'details');
     const corpus = [];
-    if (c.summary) c.summary.split(/(?<=\.)\s+/).forEach(s => corpus.push([s.replace(/\s*\[[^\]]*\]/g, ''), (s.match(/\[([^\]]*)\]/) || [])[1] || 'Case summary']));
-    orders.forEach(o => (o.paras || [o.summary]).forEach((p, i) => corpus.push([p, `Order ${dmy(o.date)} ¶${i + 1}`])));
-    d.hearings.filter(h => h.caseId === caseId && h.outcome).forEach(h => corpus.push([`${dmy(h.date)}, ${h.purpose}: ${h.outcome}`, 'Hearing ' + dmy(h.date)]));
+    if (c.summary) c.summary.split(/(?<=\.)\s+/).forEach(s => corpus.push([strip(s), (s.match(/\[([^\]]*)\]/) || [])[1] || F + 'Summary']));
+    issues.forEach(s => corpus.push([s, F + 'Issues'])); ours.forEach(s => corpus.push([s, F + 'Our arguments'])); opp.forEach(s => corpus.push([s, F + 'Opponent\'s arguments'])); missing.forEach(s => corpus.push([s, F + 'Missing documents'])); parties.forEach(p => corpus.push([pn(p) + ' (' + (side(p) === 'respondent' ? 'respondent side' : 'petitioner side') + ')', F + 'Parties']));
+    orders.forEach(o => (o.paras || [o.summary]).forEach((p, i) => corpus.push([p, `${OC(o)} ¶${i + 1}`])));
+    held.forEach(h => corpus.push([`${dmy(h.date)}, ${h.purpose}: ${h.outcome}${h.outcomeNote ? ' — ' + h.outcomeNote : ''}`, HC(h)]));
     d.tasks.filter(t => t.caseId === caseId).forEach(t => corpus.push([`${t.t} — ${t.who}, due ${dayMon(t.due)}${t.done ? ' (done)' : ''}`, 'Tasks']));
-    docs.forEach(x => corpus.push([`${x.name} — ${x.meta}`, x.name]));
-    c.issues.forEach(s => corpus.push([s, 'Issues']));
+    docs.filter(x => !x.orderId).forEach(x => corpus.push([[x.name, x.meta, x.exhibit, x.custody, (x.tags || []).join(', ')].filter(Boolean).join(' — '), x.name]));
     const stop = new Set('the a an of to in on is are was were what when where which who how do does did for and or any about with this that case tell me please there has have had be been it its by at as from'.split(' '));
     const words = lc.split(/[^a-z0-9.]+/).filter(w => w.length > 1 && !stop.has(w));
     const hits = corpus.map(([s, cite]) => [words.reduce((n, w) => n + (s.toLowerCase().includes(w) ? 1 : 0), 0), s, cite]).filter(x => x[0] > 0).sort((a, b) => b[0] - a[0]).slice(0, 3);
     if (hits.length) return { text: 'From the case file:\n' + hits.map(x => '• ' + x[1]).join('\n'), cites: [...new Set(hits.map(x => x[2]))] };
-    return { text: `The documents in this case don't answer that clearly. I searched ${docs.length} document${docs.length === 1 ? '' : 's'} and ${orders.length} order${orders.length === 1 ? '' : 's'}. Try asking about the last order, next date, tasks, documents or parties.`, cites: [] };
+    const empty = [!parties.length && 'parties', !issues.length && 'issues', !ours.length && !opp.length && 'arguments', !c.summary && 'summary'].filter(Boolean);
+    return { text: `The case file doesn't answer that clearly. I searched the case details, ${orders.length} order${orders.length === 1 ? '' : 's'}, ${hs.length} hearing${hs.length === 1 ? '' : 's'} and ${docs.length} document${docs.length === 1 ? '' : 's'}.` + (empty.length ? ` Nothing is recorded yet for: ${empty.join(', ')} — add them in Case details.` : '') + ' Try asking about the last order, next date, issues, arguments, parties or missing documents.', cites: [], need: empty.length ? 'details' : undefined };
   }
 
   /* ---------- downloads ---------- */

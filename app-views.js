@@ -238,7 +238,8 @@
   /* ---------- shared data helpers ---------- */
   const caseOf = (d, id) => d.cases.find(c => c.id === id) || { title: '—', no: '' };
   const clientOf = (d, id) => d.clients.find(c => c.id === id) || { name: '—' };
-  const caseOpts = d => d.cases.filter(c => c.status !== 'archived').map(c => [c.id, c.title]);
+  /* keep: also list this case id (e.g. an archived case a record already belongs to). */
+  const caseOpts = (d, keep) => d.cases.filter(c => c.status !== 'archived' || (keep && c.id === keep)).map(c => [c.id, c.title]);
   const teamOpts = d => d.team.map(u => u.name);
   const openTasks = d => d.tasks.filter(t => !t.done);
   const overdue = t => !t.done && t.due < L.today();
@@ -253,27 +254,81 @@
     d.deadlines.filter(x => L.diffDays(x.due, L.today()) <= 7 && L.diffDays(x.due, L.today()) >= 0).forEach(x => out.push({ text: `${x.title} is due on ${L.dayMon(x.due)}.`, go: () => app.go('limitation') }));
     const od = d.tasks.filter(overdue); if (od.length) out.push({ text: `${od.length} task${od.length > 1 ? 's are' : ' is'} overdue.`, go: () => app.go('workspace') });
     const oi = d.invoices.filter(i => !i.paid && L.diffDays(L.today(), i.date) > 30); if (oi.length) out.push({ text: `${oi.length} invoice${oi.length > 1 ? 's are' : ' is'} unpaid for more than 30 days.`, go: () => app.go('billing') });
+    const no = needsOutcome(d); if (no.length) out.push({ text: `${no.length} past hearing${no.length > 1 ? 's need' : ' needs'} an outcome recorded.`, go: () => app.go('dashboard') });
     return out;
   }
-  const logIt = (d, x, caseId) => { d.log.unshift({ ts: L.today() + ' ' + L.nowHM(), caseId: caseId || '', x }); if (d.log.length > L.LOG_MAX) d.log.length = L.LOG_MAX; };
+  const logIt = (d, x, caseId, extra) => { d.log.unshift(Object.assign({ ts: L.today() + ' ' + L.nowHM(), caseId: caseId || '', x }, extra)); if (d.log.length > L.LOG_MAX) d.log.length = L.LOG_MAX; };
+
+  /* ---------- permissions, outcomes and shared edit helpers ---------- */
+  /* Single permission check for edit/delete. Everything is allowed for now; roles fill this in later. */
+  const can = (app, action) => true;
+  const allowed = (app, action) => { if (can(app, action)) return true; app.toast('You do not have permission to do that.'); return false; };
+  const OUTCOMES = ['Heard', 'Adjourned', 'Part-heard', 'Reserved for orders', 'Disposed', 'Not reached', 'Other'];
+  const STAGES = ['Pleadings', 'Evidence', 'Arguments', 'Pending filing', 'Execution', 'Reserved for orders', 'Mediation'];
+  const DOC_TYPES = ['Pleading', 'Court order', 'Draft', 'Correspondence', 'Other'];
+  const isAdj = o => o === 'Adjourned' || (!!o && !OUTCOMES.includes(o) && /adjourn|time sought|time to|given \d|weeks/i.test(o));
+  const needsOutcome = d => d.hearings.filter(x => x.date < L.today() && !x.outcome);
+  const outcomeChip = x => x.outcome ? h(Chip, { tone: x.outcome === 'Not reached' || isAdj(x.outcome) ? 'grey' : '' }, x.outcome) : (x.date < L.today() ? h(Chip, { tone: 'red' }, 'Needs outcome') : null);
+  const IconBtn = ({ label, onClick, children, danger }) => h('button', { type: 'button', onClick, title: label, 'aria-label': label, className: 'ls-btn', style: { width: 30, height: 30, flexShrink: 0, borderRadius: 8, border: '1px solid ' + (danger ? '#F4B8B1' : K.line), background: '#FFFFFF', color: danger ? K.red : K.ink, fontSize: 15, lineHeight: 1, padding: 0 } }, children);
+  const acts = (...k) => h('span', { style: { display: 'inline-flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' } }, ...k.filter(Boolean));
+  const plural = (n, w, ws) => n + ' ' + (n === 1 ? w : (ws || w + 's'));
+  function infoBox(app, title, text) { app.modal(() => h(Modal, { title, onClose: () => app.modal(null), width: 460 }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, text), h('div', { style: { display: 'flex', justifyContent: 'flex-end' } }, h(Btn, { primary: true, onClick: () => app.modal(null) }, 'OK')))); }
+  /* Another hearing for the same advocate at the same date and time. Asks before saving; nothing is saved on Cancel. */
+  function clashGate(app, v, except, fn) {
+    const d = app.db, cl = d.hearings.filter(x => !(except || []).includes(x.id) && x.date === v.date && x.time === v.time && x.assignee === v.assignee);
+    if (!cl.length) return fn();
+    confirmBox(app, 'This hearing clashes', `${v.assignee} already has ${cl.map(x => caseOf(d, x.caseId).title).join(' and ')} on ${L.dmy(v.date)} at ${L.t12ap(v.time)}. Nothing has been saved yet.`, 'Save anyway', fn);
+  }
 
   /* ---------- forms opened from several places ---------- */
-  function newCase(app, init) {
-    const d = app.db;
-    app.modal(() => h(Modal, { title: 'New case', sub: 'Add the matter manually. You can upload orders and documents afterwards.', onClose: () => app.modal(null), width: 600 },
-      h(Form, { init: Object.assign({ team: d.user.name, stage: 'Pleadings' }, init), submit: 'Create case', onCancel: () => app.modal(null),
+  /* editId: edit that case instead (same form, prefilled, without the first-hearing fields). */
+  function newCase(app, init, editId) {
+    const d = app.db, c0 = editId && d.cases.find(c => c.id === editId);
+    if (editId && (!c0 || !allowed(app, 'case.edit'))) return;
+    const lead = c0 ? (c0.team || [])[0] : '', stages = c0 && c0.stage && !STAGES.includes(c0.stage) ? [...STAGES, c0.stage] : STAGES;
+    app.modal(() => h(Modal, { title: c0 ? 'Edit case' : 'New case', sub: c0 ? c0.no : 'Add the matter manually. You can upload orders and documents afterwards.', onClose: () => app.modal(null), width: 600 },
+      h(Form, { init: c0 ? { title: c0.title, full: c0.full || c0.title, no: c0.no, cnr: c0.cnr || '', court: c0.court, stage: c0.stage || STAGES[0], clientId: c0.clientId || '', team: lead || d.user.name } : Object.assign({ team: d.user.name, stage: 'Pleadings' }, init), submit: c0 ? 'Save changes' : 'Create case', onCancel: () => app.modal(null),
         fields: [
           { k: 'title', label: 'Case title', req: true, ph: 'Party A v. Party B' },
-          { k: 'no', label: 'Case number', req: true, ph: 'Case type and number', half: true }, { k: 'cnr', label: 'CNR (optional)', ph: '16 characters', half: true, check: v => v && !/^[A-Za-z]{4}\d{12}$/.test(v.replace(/[\s-]/g, '')) ? 'A CNR has 4 letters followed by 12 digits' : '' },
-          { k: 'court', label: 'Court', req: true, ph: 'Court and courtroom', half: true }, { k: 'stage', label: 'Stage', type: 'select', options: ['Pleadings', 'Evidence', 'Arguments', 'Pending filing', 'Execution', 'Reserved for orders', 'Mediation'], half: true },
-          { k: 'clientId', label: 'Client', type: 'select', blank: 'Select a client', options: d.clients.map(c => [c.id, c.name]), half: true }, { k: 'team', label: 'Lead advocate', type: 'select', options: teamOpts(d), half: true },
-          { k: 'next', label: 'Next hearing date (optional)', type: 'date', half: true }, { k: 'time', label: 'Time', type: 'time', half: true }
+          ...(c0 ? [{ k: 'full', label: 'Full cause title', ph: 'As written in the cause list' }] : []),
+          { k: 'no', label: 'Case number', req: true, ph: 'Case type and number', half: true }, { k: 'cnr', label: 'CNR (optional)', ph: '16 characters', half: true, check: v => { const c = v.replace(/[\s-]/g, ''); return v && !/^[A-Za-z]{4}\d{12}$/.test(c) ? 'A CNR has 4 letters followed by 12 digits' : (v && app.db.cases.some(x => x.cnr === c.toUpperCase() && x.id !== editId) ? 'Another case already has this CNR' : ''); } },
+          { k: 'court', label: 'Court', req: true, ph: 'Court and courtroom', half: true }, { k: 'stage', label: 'Stage', type: 'select', options: stages, half: true },
+          { k: 'clientId', label: 'Client', type: 'select', blank: 'Select a client', options: d.clients.map(c => [c.id, c.name]), half: true }, { k: 'team', label: 'Lead advocate', type: 'select', options: lead && !teamOpts(d).includes(lead) ? [lead, ...teamOpts(d)] : teamOpts(d), half: true },
+          ...(c0 ? [] : [{ k: 'next', label: 'Next hearing date (optional)', type: 'date', half: true }, { k: 'time', label: 'Time', type: 'time', half: true }])
         ],
-        onSubmit: v => { const id = L.uid('c'); app.mut(db => {
+        onSubmit: v => { if (c0) { app.mut(db => { const c = db.cases.find(x => x.id === editId); if (!c) return;
+            const keepFull = (v.full || '').trim() === (c.full || '') && (c.full || c.title) === c.title, nv = { title: v.title.trim(), full: keepFull ? v.title.trim() : ((v.full || '').trim() || v.title.trim()), no: v.no.trim(), cnr: (v.cnr || '').replace(/[\s-]/g, '').toUpperCase(), court: v.court.trim(), stage: v.stage, clientId: v.clientId || '' };
+            const names = { title: 'title', full: 'cause title', no: 'number', cnr: 'CNR', court: 'court', stage: 'stage', clientId: 'client' }, ch = Object.keys(nv).filter(k => (c[k] || '') !== nv[k]).map(k => names[k]);
+            if (nv.court !== c.court) db.hearings.forEach(x => { if (x.caseId === c.id && x.date >= L.today() && !x.outcome && x.court === c.court) x.court = nv.court; });
+            if (c.purpose === c.stage) c.purpose = nv.stage; if (c.forum === c.court) c.forum = nv.court;
+            Object.assign(c, nv); if ((c.team || [])[0] !== v.team) { c.team = [v.team, ...(c.team || []).slice(1).filter(n => n !== v.team)]; ch.push('lead advocate'); }
+            logIt(db, `Case edited by ${db.user.name}` + (ch.length ? ': ' + ch.join(', ') + ' changed' : ' (no changes)'), c.id); }, 'Case updated'); return app.modal(null); }
+          const id = L.uid('c'); app.mut(db => {
           db.cases.unshift({ id, title: v.title.trim(), full: v.title.trim(), no: v.no.trim(), cnr: (v.cnr || '').replace(/[\s-]/g, '').toUpperCase(), court: v.court.trim(), forum: v.court.trim(), bench: '', purpose: v.stage, stage: v.stage, status: v.stage === 'Pending filing' ? 'pending' : 'active', team: [v.team], clientId: v.clientId, summary: '', summaryMeta: '', parties: [], issues: [], missing: [], args: '' });
           if (v.next) db.hearings.push({ id: L.uid('h'), caseId: id, date: v.next, time: v.time || '10:30', court: v.court.trim(), item: '', purpose: v.stage, assignee: v.team, outcome: '', brief: false });
           logIt(db, 'Case created by ' + db.user.name, id); }, 'Case created');
           app.modal(null); app.go('case', id); } })));
+  }
+  /* Removes a stored file (server storage or this browser's IndexedDB). */
+  const dropFile = x => { if (window.LSB && LSB.on) { if (x.file) LSB.removeFile(x.id, x.file); } else L.files.del(x.id); };
+  /* Blocked while the case has invoices. Hearings and orders go with the case; tasks and documents can be kept, unlinked. */
+  function delCase(app, id) {
+    const d = app.db, c = d.cases.find(x => x.id === id); if (!c || !allowed(app, 'case.delete')) return;
+    const inv = d.invoices.filter(i => i.caseId === id);
+    if (inv.length) return infoBox(app, 'This case cannot be deleted', `${c.title} has ${plural(inv.length, 'invoice')} (${inv.map(i => i.no).join(', ')}). Invoices are financial records, so the case they belong to is kept with them. Mark the case Disposed or Archived instead, or delete the invoice${inv.length > 1 ? 's' : ''} in Billing & Finance first.`);
+    const n = { h: d.hearings.filter(x => x.caseId === id).length, o: d.orders.filter(x => x.caseId === id).length, t: d.tasks.filter(x => x.caseId === id).length, dc: d.docs.filter(x => x.caseId === id).length };
+    const run = keep => { const gone = d.docs.filter(x => x.caseId === id && !keep); gone.forEach(dropFile);
+      app.mut(db => { db.cases = db.cases.filter(x => x.id !== id); db.hearings = db.hearings.filter(x => x.caseId !== id); db.orders = db.orders.filter(x => x.caseId !== id);
+        if (keep) { db.tasks.forEach(t => { if (t.caseId === id) t.caseId = ''; }); db.docs.forEach(x => { if (x.caseId === id) x.caseId = ''; }); } else { db.tasks = db.tasks.filter(t => t.caseId !== id); db.docs = db.docs.filter(x => x.caseId !== id); }
+        db.deadlines.forEach(x => { if (x.caseId === id) x.caseId = ''; }); if (db.lim && db.lim.caseId === id) db.lim.caseId = ''; if (db.chats) delete db.chats[id];
+        logIt(db, `Case ${c.title} (${c.no}) deleted by ${db.user.name}` + (n.h + n.o ? ` with ${plural(n.h, 'hearing')} and ${plural(n.o, 'order')}` : '') + (keep && n.t + n.dc ? '; its tasks and documents were kept, not linked to a case' : (n.t + n.dc ? `, ${plural(n.t, 'task')} and ${plural(n.dc, 'document')}` : ''))); }, 'Case deleted');
+      app.modal(null); app.go('cases'); };
+    const linked = [n.h && plural(n.h, 'hearing'), n.o && plural(n.o, 'court order'), n.t && plural(n.t, 'task'), n.dc && plural(n.dc, 'document')].filter(Boolean);
+    app.modal(() => h(Modal, { title: 'Delete this case?', onClose: () => app.modal(null), width: 480 },
+      h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `${c.title} (${c.no}) will be deleted.`, linked.length ? ` It has ${linked.join(', ')}.` : ' Nothing else is linked to it.', n.h + n.o ? ' Its hearings and orders are deleted with it.' : '', n.t + n.dc ? ' Do you also want to delete its tasks and documents (uploaded files included), or keep them without a case?' : '', ' This cannot be undone.'),
+      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'),
+        n.t + n.dc ? h(Btn, { danger: true, onClick: () => run(true) }, 'Delete case, keep tasks and documents') : null,
+        h(Btn, { primary: true, onClick: () => run(false) }, linked.length ? 'Delete case and everything linked' : 'Delete case'))));
   }
   function importCnr(app) {
     app.modal(() => h(Modal, { title: 'Import by CNR', sub: 'Enter the 16-character CNR printed on the case status page.', onClose: () => app.modal(null) },
@@ -282,19 +337,60 @@
         onSubmit: v => { const cnr = v.cnr.replace(/[\s-]/g, '').toUpperCase(); if (!(window.LSB && LSB.on)) return newCase(app, { cnr }); app.toast('Looking up the CNR…'); LSB.court(cnr).then(r => newCase(app, { cnr, title: r.title || '', no: r.caseNo || '', court: r.court || '', next: r.nextDate || '' })).catch(e => { app.toast(e.message); newCase(app, { cnr }); }); } })));
   }
   const needCase = app => { if (caseOpts(app.db).length) return false; app.toast('Add a case first.'); newCase(app); return true; };
-  function addTask(app, caseId) {
-    const d = app.db;
-    app.modal(() => h(Modal, { title: 'New task', onClose: () => app.modal(null) }, h(Form, { init: { caseId: caseId || '', who: d.user.name, due: L.addDays(L.today(), 3) }, submit: 'Add task', onCancel: () => app.modal(null),
-      fields: [{ k: 't', label: 'Task', req: true, ph: 'What needs to be done?' }, { k: 'caseId', label: 'Case', type: 'select', blank: 'No case', options: caseOpts(d) }, { k: 'who', label: 'Assigned to', type: 'select', options: teamOpts(d), half: true }, { k: 'due', label: 'Due date', type: 'date', req: true, half: true }],
-      onSubmit: v => { app.mut(db => { db.tasks.push({ id: L.uid('t'), caseId: v.caseId, t: v.t.trim(), who: v.who, due: v.due, done: false }); }, 'Task added'); app.modal(null); } })));
+  const withName = (opts, n) => n && !opts.includes(n) ? [n, ...opts] : opts;
+  function addTask(app, caseId, editId) {
+    const d = app.db, t0 = editId && d.tasks.find(t => t.id === editId);
+    if (editId && (!t0 || !allowed(app, 'task.edit'))) return;
+    app.modal(() => h(Modal, { title: t0 ? 'Edit task' : 'New task', onClose: () => app.modal(null) }, h(Form, { init: t0 ? { t: t0.t, caseId: t0.caseId || '', who: t0.who, due: t0.due } : { caseId: caseId || '', who: d.user.name, due: L.addDays(L.today(), 3) }, submit: t0 ? 'Save changes' : 'Add task', onCancel: () => app.modal(null),
+      fields: [{ k: 't', label: 'Task', req: true, ph: 'What needs to be done?' }, { k: 'caseId', label: 'Case', type: 'select', blank: 'No case', options: caseOpts(d, t0 && t0.caseId) }, { k: 'who', label: 'Assigned to', type: 'select', options: withName(teamOpts(d), t0 && t0.who), half: true }, { k: 'due', label: 'Due date', type: 'date', req: true, half: true }],
+      onSubmit: v => { if (t0) app.mut(db => { const t = db.tasks.find(x => x.id === editId); if (!t) return; Object.assign(t, { t: v.t.trim(), caseId: v.caseId || '', who: v.who, due: v.due }); logIt(db, `Task "${t.t}" edited by ${db.user.name}`, t.caseId); }, 'Task updated');
+        else app.mut(db => { db.tasks.push({ id: L.uid('t'), caseId: v.caseId, t: v.t.trim(), who: v.who, due: v.due, done: false }); }, 'Task added'); app.modal(null); } })));
   }
-  function addHearing(app, caseId, date) {
+  function delTask(app, id) {
+    const t = app.db.tasks.find(x => x.id === id); if (!t || !allowed(app, 'task.delete')) return;
+    confirmBox(app, 'Delete this task?', `"${t.t}" (${t.who}, due ${L.dayMon(t.due)}) will be deleted.`, 'Delete task', () => app.mut(db => { db.tasks = db.tasks.filter(x => x.id !== id); logIt(db, `Task "${t.t}" deleted by ${db.user.name}`, t.caseId); }, 'Task deleted'));
+  }
+  /* editId: edit that hearing (same form, plus the court). */
+  function addHearing(app, caseId, date, editId) {
     if (needCase(app)) return;
-    const d = app.db;
-    app.modal(() => h(Modal, { title: 'Add hearing', onClose: () => app.modal(null) }, h(Form, { init: { caseId: caseId || (caseOpts(d)[0] || [''])[0], date: date || L.today(), time: '10:30', assignee: d.user.name }, submit: 'Add to calendar', onCancel: () => app.modal(null),
-      fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d) }, { k: 'date', label: 'Date', type: 'date', req: true, half: true }, { k: 'time', label: 'Time', type: 'time', req: true, half: true }, { k: 'purpose', label: 'Purpose', ph: 'Arguments', half: true }, { k: 'item', label: 'Item no. (optional)', ph: 'Item 12', half: true }, { k: 'assignee', label: 'Appearing', type: 'select', options: teamOpts(d) }],
-      onSubmit: v => { app.mut(db => { const c = caseOf(db, v.caseId); db.hearings.push({ id: L.uid('h'), caseId: v.caseId, date: v.date, time: v.time, court: c.court, item: v.item || '', purpose: v.purpose || c.purpose || 'Hearing', assignee: v.assignee, outcome: '', brief: false }); logIt(db, `Hearing added for ${L.dmy(v.date)}`, v.caseId); }, 'Hearing added to calendar'); app.modal(null); } })));
+    const d = app.db, x0 = editId && d.hearings.find(x => x.id === editId);
+    if (editId && (!x0 || !allowed(app, 'hearing.edit'))) return;
+    app.modal(() => h(Modal, { title: x0 ? 'Edit hearing' : 'Add hearing', sub: x0 ? caseOf(d, x0.caseId).title : null, onClose: () => app.modal(null) }, h(Form, { init: x0 ? { caseId: x0.caseId, date: x0.date, time: x0.time, purpose: x0.purpose || '', item: x0.item || '', assignee: x0.assignee, court: x0.court || '' } : { caseId: caseId || (caseOpts(d)[0] || [''])[0], date: date || L.today(), time: '10:30', assignee: d.user.name }, submit: x0 ? 'Save changes' : 'Add to calendar', onCancel: () => app.modal(null),
+      fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d, x0 && x0.caseId) }, { k: 'date', label: 'Date', type: 'date', req: true, half: true }, { k: 'time', label: 'Time', type: 'time', req: true, half: true }, { k: 'purpose', label: 'Purpose', ph: 'Arguments', half: true }, { k: 'item', label: 'Item no. (optional)', ph: 'Item 12', half: true }, { k: 'assignee', label: 'Appearing', type: 'select', options: withName(teamOpts(d), x0 && x0.assignee), half: !!x0 }, ...(x0 ? [{ k: 'court', label: 'Court', req: true, half: true }] : [])],
+      onSubmit: v => clashGate(app, v, x0 ? [x0.id] : [], () => { if (x0) app.mut(db => { const x = db.hearings.find(y => y.id === editId); if (!x) return; const was = x.date;
+          Object.assign(x, { caseId: v.caseId, date: v.date, time: v.time, court: v.court.trim(), item: v.item || '', purpose: v.purpose || x.purpose || 'Hearing', assignee: v.assignee });
+          logIt(db, `Hearing of ${L.dmy(was)} edited by ${db.user.name}` + (was !== v.date ? ', moved to ' + L.dmy(v.date) : ''), v.caseId); }, 'Hearing updated');
+        else app.mut(db => { const c = caseOf(db, v.caseId); db.hearings.push({ id: L.uid('h'), caseId: v.caseId, date: v.date, time: v.time, court: c.court, item: v.item || '', purpose: v.purpose || c.purpose || 'Hearing', assignee: v.assignee, outcome: '', brief: false }); logIt(db, `Hearing added for ${L.dmy(v.date)}`, v.caseId); }, 'Hearing added to calendar'); app.modal(null); }) })));
   }
+  function delHearing(app, id) {
+    const d = app.db, x = d.hearings.find(y => y.id === id); if (!x || !allowed(app, 'hearing.delete')) return;
+    const o = x.fromOrder && d.orders.find(y => y.id === x.fromOrder && y.confirmed);
+    confirmBox(app, 'Delete this hearing?', `The hearing of ${L.dmy(x.date)}, ${L.t12ap(x.time)} in ${caseOf(d, x.caseId).title} is removed from the calendar.` + (x.outcome ? ' Its recorded outcome goes with it.' : '') + (o ? ` The next date in the order of ${L.dmy(o.date)} will show as not confirmed again.` : ''), 'Delete hearing',
+      () => app.mut(db => { db.hearings = db.hearings.filter(y => y.id !== id); db.hearings.forEach(y => { if (y.nextHearingId === id) y.nextHearingId = ''; }); const oo = o && db.orders.find(y => y.id === o.id); if (oo) oo.confirmed = false; logIt(db, `Hearing of ${L.dmy(x.date)} deleted by ${db.user.name}`, x.caseId); }, 'Hearing deleted'));
+  }
+  /* On or after the hearing date: outcome, a short note, and an optional next date that adds (or moves) the linked next hearing. */
+  function recordOutcome(app, id) {
+    const d = app.db, x = d.hearings.find(y => y.id === id); if (!x || !allowed(app, 'hearing.outcome')) return;
+    if (x.date > L.today()) return app.toast('An outcome can be recorded on or after the day of the hearing.');
+    const nx = x.nextHearingId && d.hearings.find(y => y.id === x.nextHearingId), legacy = x.outcome && !OUTCOMES.includes(x.outcome);
+    app.modal(() => h(Modal, { title: x.outcome ? 'Edit outcome' : 'Record outcome', sub: `${caseOf(d, x.caseId).title} · ${L.dmy(x.date)}, ${L.t12ap(x.time)} · ${x.court}`, onClose: () => app.modal(null) },
+      h(Form, { init: { outcome: legacy ? 'Other' : (x.outcome || 'Heard'), note: legacy ? x.outcome : (x.outcomeNote || ''), next: nx ? nx.date : '', time: nx ? nx.time : (x.time || '10:30') }, submit: 'Save outcome', onCancel: () => app.modal(null),
+        note: nx ? `The next hearing on ${L.dmy(nx.date)} is linked to this one. Changing the date here moves it.` : 'A next date adds the next hearing for this case to the calendar.',
+        fields: [{ k: 'outcome', label: 'Outcome', type: 'select', options: OUTCOMES }, { k: 'note', label: 'Short note (optional)', type: 'textarea', rows: 2, ph: 'Respondent sought time; last opportunity granted', check: (v, a) => a.outcome === 'Other' && !v ? 'Say briefly what happened' : (v.length > 400 ? 'Keep the note under 400 characters' : '') },
+          { k: 'next', label: 'Next date (optional)', type: 'date', half: true, check: v => v && v <= x.date ? 'The next date must be after this hearing' : '' }, { k: 'time', label: 'Time', type: 'time', half: true, check: (v, a) => a.next && !v ? 'Required' : '' }],
+        onSubmit: v => { const same = v.next && !nx && d.hearings.find(z => z.caseId === x.caseId && z.date === v.next && z.id !== x.id);
+          const save = () => { let msg = 'Outcome recorded';
+            app.mut(db => { const y = db.hearings.find(z => z.id === id); if (!y) return; Object.assign(y, { outcome: v.outcome, outcomeNote: (v.note || '').trim(), outcomeAt: L.today(), outcomeBy: db.user.name });
+              const linked = y.nextHearingId && db.hearings.find(z => z.id === y.nextHearingId);
+              if (v.next && linked) { if (linked.date !== v.next || linked.time !== v.time) { linked.date = v.next; linked.time = v.time; msg = 'Outcome saved · next hearing moved to ' + L.dmy(v.next); } }
+              else if (v.next && same) { y.nextHearingId = same.id; msg = 'Outcome recorded · linked to the hearing already on ' + L.dmy(v.next); }
+              else if (v.next) { const nid = L.uid('h'); db.hearings.push({ id: nid, caseId: y.caseId, date: v.next, time: v.time, court: y.court, item: '', purpose: y.purpose || 'Hearing', assignee: y.assignee, outcome: '', brief: false, prevHearingId: y.id }); y.nextHearingId = nid; msg = 'Outcome recorded · next hearing added for ' + L.dmy(v.next); }
+              logIt(db, `Hearing of ${L.dmy(y.date)}: ${v.outcome}` + (y.outcomeNote ? ' — ' + y.outcomeNote : '') + (v.next ? '. Next date ' + L.dmy(v.next) : '') + '. Recorded by ' + db.user.name, y.caseId, { outcome: v.outcome }); });
+            app.toast(msg); app.modal(null); };
+          if (v.next && !same && (!nx || nx.date !== v.next || nx.time !== v.time)) clashGate(app, { date: v.next, time: v.time, assignee: x.assignee }, [x.id, nx && nx.id], save); else save(); } })));
+  }
+  /* Small action buttons for a hearing row. */
+  const hearingActs = (app, x) => acts(x.date <= L.today() && h(Btn, { small: true, primary: x.date < L.today() && !x.outcome, onClick: () => recordOutcome(app, x.id) }, x.outcome ? 'Edit outcome' : 'Record outcome'), h(IconBtn, { label: 'Edit hearing', onClick: () => addHearing(app, '', '', x.id) }, '✎'), h(IconBtn, { label: 'Delete hearing', danger: true, onClick: () => delHearing(app, x.id) }, '×'));
   function uploadDoc(app, kind, caseId) {
     if (needCase(app)) return;
     const d = app.db, ev = kind === 'evidence';
@@ -303,6 +399,23 @@
       onSubmit: v => L.pickFile().then(fs => { if (!fs.length) return; const f = fs[0], id = L.uid('d'), ext = (f.name.split('.').pop() || 'FILE').toUpperCase().slice(0, 4);
         (window.LSB && LSB.on ? LSB.upload(id, f) : L.files.put(id, f).catch(() => {})).then(() => { app.mut(db => { db.docs.unshift({ id, caseId: v.caseId, kind, ext, name: (v.label || '').trim() || f.name.replace(/\.[^.]+$/, ''), meta: `${ev ? 'Evidence' : v.type} · ${L.size(f.size)} · uploaded by ${db.user.name}`, v: 'v1', added: L.today(), file: f.name, exhibit: v.exhibit || '', custody: v.custody || '' }); logIt(db, `${ev ? 'Evidence' : 'Document'} "${f.name}" added by ${db.user.name}`, v.caseId); }, ev ? 'Evidence added' : 'Document uploaded'); app.modal(null); }).catch(e => app.toast('Upload failed: ' + e.message)); }) })));
   }
+  const docType = x => x.kind === 'evidence' ? 'Evidence' : (x.type || (DOC_TYPES.includes((x.meta || '').split(' · ')[0]) ? x.meta.split(' · ')[0] : 'Other'));
+  const tagLine = x => (x.tags || []).length ? ' · Tags: ' + x.tags.join(', ') : '';
+  /* Rename, re-type or re-tag a document or evidence record, or move it to another case. */
+  function editDoc(app, id) {
+    const d = app.db, x = d.docs.find(y => y.id === id); if (!x || !allowed(app, 'doc.edit')) return; const ev = x.kind === 'evidence';
+    app.modal(() => h(Modal, { title: ev ? 'Edit evidence record' : 'Edit document', sub: x.file ? 'File: ' + x.file : null, onClose: () => app.modal(null) }, h(Form, { init: { name: x.name, type: docType(x), caseId: x.caseId || '', exhibit: x.exhibit || '', custody: x.custody || '', tags: (x.tags || []).join(', ') }, submit: 'Save changes', onCancel: () => app.modal(null),
+      fields: [{ k: 'name', label: 'Title', req: true }, ev ? { k: 'exhibit', label: 'Exhibit mark', ph: 'Ex. P-1', half: true } : { k: 'type', label: 'Type', type: 'select', options: DOC_TYPES, half: true }, ev ? { k: 'custody', label: 'Source / chain of custody', half: true } : { k: 'caseId', label: 'Case', type: 'select', blank: 'Not linked to a case', options: caseOpts(d, x.caseId), half: true }, ...(ev ? [{ k: 'caseId', label: 'Case', type: 'select', blank: 'Not linked to a case', options: caseOpts(d, x.caseId) }] : []), { k: 'tags', label: 'Tags (optional)', ph: 'Comma separated, e.g. annexure, original' }],
+      onSubmit: v => { app.mut(db => { const y = db.docs.find(z => z.id === id); if (!y) return; const was = y.name, seg = (y.meta || '').split(' · ');
+        if (!ev) { y.type = v.type; seg[0] = v.type; y.meta = seg.join(' · '); } else { y.exhibit = (v.exhibit || '').trim(); y.custody = (v.custody || '').trim(); }
+        y.name = v.name.trim(); y.caseId = v.caseId || ''; y.tags = [...new Set((v.tags || '').split(',').map(s => s.trim()).filter(Boolean))];
+        logIt(db, `${ev ? 'Evidence' : 'Document'} "${was}" edited by ${db.user.name}` + (was !== y.name ? ', renamed to "' + y.name + '"' : ''), y.caseId); }, 'Saved'); app.modal(null); } })));
+  }
+  function delDoc(app, id) {
+    const x = app.db.docs.find(y => y.id === id); if (!x || !allowed(app, 'doc.delete')) return; const ev = x.kind === 'evidence';
+    confirmBox(app, 'Delete this ' + (ev ? 'evidence record' : 'document') + '?', `"${x.name}" will be removed from the case file` + (x.file ? ', with its uploaded file.' : '.'), 'Delete', () => { dropFile(x); app.mut(db => { db.docs = db.docs.filter(y => y.id !== id); logIt(db, `${ev ? 'Evidence' : 'Document'} "${x.name}" deleted by ${db.user.name}`, x.caseId); }, 'Deleted'); });
+  }
+  const docActs = (app, x) => acts(h(Btn, { small: true, onClick: () => openDoc(app, x) }, 'Download'), h(IconBtn, { label: 'Edit ' + x.name, onClick: () => editDoc(app, x.id) }, '✎'), h(IconBtn, { label: 'Delete ' + x.name, danger: true, onClick: () => delDoc(app, x.id) }, '×'));
   function openDoc(app, doc) { if (!doc.file) return app.toast('No file is attached to this record.'); (window.LSB && LSB.on ? LSB.download(doc.id, doc.file) : L.files.get(doc.id)).then(f => f ? L.download(doc.file, f) : app.toast('The file is no longer in this browser.')).catch(() => app.toast('Could not read the file.')); }
   function addOrder(app, caseId) {
     if (needCase(app)) return;
@@ -311,8 +424,30 @@
       fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d), half: true }, { k: 'date', label: 'Date of order', type: 'date', req: true, half: true }, { k: 'text', label: 'Order text', type: 'textarea', rows: 8, req: true, ph: 'Paste the numbered paragraphs of the order here', check: v => v.length < 20 ? 'Paste the operative part of the order' : '' }],
       onSubmit: v => { const r = L.readOrder(v.text), id = L.uid('o'), c = caseOf(d, v.caseId);
         app.mut(db => { db.orders.unshift({ id, caseId: v.caseId, date: v.date, source: 'Manual entry · ' + L.dayMon(L.today()) + ', ' + L.nowHM(), official: false, file: 'Pasted text · ' + r.paras.length + ' paragraph' + (r.paras.length === 1 ? '' : 's'), cause: c.no, paras: r.paras, points: r.points, summary: r.points.slice(0, 2).join(' ') + (r.nextDate ? ' Next date: ' + L.dmy(r.nextDate) + '.' : ''), nextDate: r.nextDate, nextFrom: r.nextFrom, confirmed: false });
-          db.docs.unshift({ id: L.uid('d'), caseId: v.caseId, kind: 'document', ext: 'TXT', name: 'Order dated ' + L.dmy(v.date), meta: 'Court order · manual entry', v: 'v1', added: L.today() }); logIt(db, `Order of ${L.dmy(v.date)} added by ${db.user.name}.` + (r.nextDate ? ' Next date extracted.' : ''), v.caseId); }, r.nextDate ? 'Order read · next date found' : 'Order saved · no next date found');
+          db.docs.unshift({ id: L.uid('d'), caseId: v.caseId, kind: 'document', ext: 'TXT', name: 'Order dated ' + L.dmy(v.date), meta: 'Court order · manual entry', v: 'v1', added: L.today(), orderId: id }); logIt(db, `Order of ${L.dmy(v.date)} added by ${db.user.name}.` + (r.nextDate ? ' Next date extracted.' : ''), v.caseId); }, r.nextDate ? 'Order read · next date found' : 'Order saved · no next date found');
         app.modal(null); app.go('order', id); } })));
+  }
+  /* The text record kept for an order (older ones are matched by name). */
+  const orderDocs = (d, o) => d.docs.filter(x => x.orderId === o.id || (!x.orderId && !x.file && x.caseId === o.caseId && x.name === 'Order dated ' + L.dmy(o.date) && /Court order · manual entry/.test(x.meta || '')));
+  /* Edit the date, case or text. The text is read again; a changed next date has to be confirmed again. */
+  function editOrder(app, id) {
+    const d = app.db, o = d.orders.find(x => x.id === id); if (!o || !allowed(app, 'order.edit')) return;
+    app.modal(() => h(Modal, { title: 'Edit court order', sub: 'The text is read again for the next date and key points.' + (o.confirmed ? ' If the next date changes, confirm it again.' : ''), onClose: () => app.modal(null), width: 620 }, h(Form, { init: { caseId: o.caseId, date: o.date, text: (o.paras || []).map((p, i) => (i + 1) + '. ' + p).join('\n\n') }, submit: 'Save changes', onCancel: () => app.modal(null),
+      fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d, o.caseId), half: true }, { k: 'date', label: 'Date of order', type: 'date', req: true, half: true }, { k: 'text', label: 'Order text', type: 'textarea', rows: 8, req: true, check: v => v.length < 20 ? 'Paste the operative part of the order' : '' }],
+      onSubmit: v => { const r = L.readOrder(v.text); let moved = false;
+        app.mut(db => { const x = db.orders.find(y => y.id === id); if (!x) return; const docs = orderDocs(db, x), keepManual = x.nextFrom === 'entered by you' && !r.nextDate, next = keepManual ? x.nextDate : r.nextDate;
+          if (next !== x.nextDate && x.confirmed) { x.confirmed = false; db.hearings = db.hearings.filter(hh => hh.fromOrder !== x.id || hh.outcome); moved = true; }
+          if (v.caseId !== x.caseId) db.hearings.forEach(hh => { if (hh.fromOrder === x.id) hh.caseId = v.caseId; });
+          Object.assign(x, { caseId: v.caseId, date: v.date, paras: r.paras, points: r.points, summary: r.points.slice(0, 2).join(' ') + (next ? ' Next date: ' + L.dmy(next) + '.' : ''), nextDate: next, nextFrom: keepManual ? x.nextFrom : r.nextFrom, cause: caseOf(db, v.caseId).no, file: 'Pasted text · ' + plural(r.paras.length, 'paragraph'), edited: L.today() });
+          docs.forEach(y => { y.caseId = v.caseId; y.name = 'Order dated ' + L.dmy(v.date); y.orderId = x.id; });
+          logIt(db, `Order of ${L.dmy(v.date)} edited by ${db.user.name}` + (moved ? '; its next date changed and needs confirming again' : ''), v.caseId); }, moved ? 'Order updated · confirm the new next date' : 'Order updated');
+        app.modal(null); } })));
+  }
+  function delOrder(app, id) {
+    const d = app.db, o = d.orders.find(x => x.id === id); if (!o || !allowed(app, 'order.delete')) return;
+    const hs = d.hearings.filter(x => x.fromOrder === id), drop = hs.filter(x => !x.outcome);
+    confirmBox(app, 'Delete this order?', `The order of ${L.dmy(o.date)} in ${caseOf(d, o.caseId).title} and its text record will be deleted.` + (drop.length ? ` The hearing it added on ${drop.map(x => L.dmy(x.date)).join(', ')} is removed from the calendar too.` : '') + (hs.length > drop.length ? ' Hearings that already have an outcome are kept.' : ''), 'Delete order',
+      () => { app.mut(db => { const docs = orderDocs(db, o).map(x => x.id); db.orders = db.orders.filter(x => x.id !== id); db.docs = db.docs.filter(x => !docs.includes(x.id)); db.hearings = db.hearings.filter(x => x.fromOrder !== id || x.outcome); db.hearings.forEach(x => { if (x.fromOrder === id) x.fromOrder = ''; }); logIt(db, `Order of ${L.dmy(o.date)} deleted by ${db.user.name}`, o.caseId); }, 'Order deleted'); app.go('orders'); });
   }
   function onboard(app) {
     const d = app.db;
@@ -333,11 +468,95 @@
         fields: [{ k: 'title', label: 'Matter', req: true, ph: 'Appeal against decree in …' }, { k: 'caseId', label: 'Linked case (optional)', type: 'select', blank: 'Not linked', options: caseOpts(d) }, { k: 'judgment', label: 'Date of judgment and decree', type: 'date', req: true, half: true, check: v => v > T ? 'This date is in the future' : '' }, { k: 'applied', label: 'Certified copy applied for on', type: 'date', req: true, half: true, check: (v, a) => v && a.judgment && v < a.judgment ? 'Cannot be before the judgment' : (v > T ? 'This date is in the future' : '') }],
         onSubmit: v => { app.mut(db => { db.lim = { title: v.title.trim(), caseId: v.caseId || '', judgment: v.judgment, applied: v.applied, ready: '', approved: false, approvedAt: '', sent: false }; }, 'Calculation started'); app.readyDraft = ''; app.modal(null); } })));
   }
-  function addDeadline(app) {
-    const d = app.db;
-    app.modal(() => h(Modal, { title: 'Add a deadline', onClose: () => app.modal(null) }, h(Form, { submit: 'Add deadline', onCancel: () => app.modal(null),
-      fields: [{ k: 'title', label: 'What is due', req: true, ph: 'Written statement, reply, filing…' }, { k: 'rule', label: 'Provision or basis', ph: 'Order VIII r.1 CPC', half: true }, { k: 'due', label: 'Last date', type: 'date', req: true, half: true }, { k: 'caseId', label: 'Linked case (optional)', type: 'select', blank: 'Not linked', options: caseOpts(d) }],
-      onSubmit: v => { app.mut(db => { db.deadlines.push({ id: L.uid('dl'), caseId: v.caseId || '', title: v.title.trim(), rule: (v.rule || '').trim() || 'Entered manually', due: v.due, approved: true }); }, 'Deadline added'); app.modal(null); } })));
+  function addDeadline(app, editId) {
+    const d = app.db, x0 = editId && d.deadlines.find(x => x.id === editId);
+    if (editId && (!x0 || !allowed(app, 'deadline.edit'))) return;
+    app.modal(() => h(Modal, { title: x0 ? 'Edit deadline' : 'Add a deadline', onClose: () => app.modal(null) }, h(Form, { init: x0 ? { title: x0.title, rule: x0.rule === 'Entered manually' ? '' : x0.rule, due: x0.due, caseId: x0.caseId || '' } : null, submit: x0 ? 'Save changes' : 'Add deadline', onCancel: () => app.modal(null),
+      fields: [{ k: 'title', label: 'What is due', req: true, ph: 'Written statement, reply, filing…' }, { k: 'rule', label: 'Provision or basis', ph: 'Order VIII r.1 CPC', half: true }, { k: 'due', label: 'Last date', type: 'date', req: true, half: true }, { k: 'caseId', label: 'Linked case (optional)', type: 'select', blank: 'Not linked', options: caseOpts(d, x0 && x0.caseId) }],
+      onSubmit: v => { const row = { caseId: v.caseId || '', title: v.title.trim(), rule: (v.rule || '').trim() || 'Entered manually', due: v.due };
+        if (x0) app.mut(db => { const x = db.deadlines.find(y => y.id === editId); if (!x) return; Object.assign(x, row); logIt(db, `Deadline "${row.title}" edited by ${db.user.name}` + (x0.due !== row.due ? `, last date now ${L.dmy(row.due)}` : ''), row.caseId); }, 'Deadline updated');
+        else app.mut(db => { db.deadlines.push(Object.assign({ id: L.uid('dl'), approved: true }, row)); }, 'Deadline added'); app.modal(null); } })));
+  }
+  function delDeadline(app, id) {
+    const x = app.db.deadlines.find(y => y.id === id); if (!x || !allowed(app, 'deadline.delete')) return;
+    confirmBox(app, 'Delete this deadline?', `"${x.title}", due ${L.fmt(x.due)}, will no longer be tracked or shown in alerts.`, 'Delete deadline', () => app.mut(db => { db.deadlines = db.deadlines.filter(y => y.id !== id); logIt(db, `Deadline "${x.title}" deleted by ${db.user.name}`, x.caseId); }, 'Deadline deleted'));
+  }
+  function delLim(app) {
+    const l = app.db.lim; if (!l || !allowed(app, 'deadline.delete')) return;
+    confirmBox(app, 'Delete this limitation calculation?', `The calculation for "${l.title}" and its approval will be deleted. Deadlines you added separately are kept.`, 'Delete calculation', () => app.mut(db => { db.lim = null; logIt(db, `Limitation calculation "${l.title}" deleted by ${db.user.name}`, l.caseId); }, 'Calculation deleted'));
+  }
+  function deadlinesCard(app) {
+    const d = app.db, T = L.today();
+    return h(Card, { title: 'Deadlines', right: h(Btn, { small: true, onClick: () => addDeadline(app) }, '+ Add a deadline') }, d.deadlines.slice().sort((a, b) => a.due.localeCompare(b.due)).map(x => h(Line, { key: x.id }, h('div', { style: { flex: 1, minWidth: 0 } }, x.title, h('div', { style: { fontSize: 12, color: K.mut } }, [x.rule, 'due ' + L.fmt(x.due), (n => n >= 0 ? plural(n, 'day') + ' left' : plural(-n, 'day') + ' ago')(L.diffDays(x.due, T)), x.caseId && caseOf(d, x.caseId).title].filter(Boolean).join(' · '))), h(IconBtn, { label: 'Edit deadline', onClick: () => addDeadline(app, x.id) }, '✎'), h(IconBtn, { label: 'Delete deadline', danger: true, onClick: () => delDeadline(app, x.id) }, '×'))),
+      !d.deadlines.length && h(Empty, { small: true, title: 'No deadlines yet', text: 'Start a limitation calculation for a commercial appeal, or add a deadline with a known last date.' }));
+  }
+
+  /* ---------- case details: parties, stage, issues, arguments, missing documents, summary ---------- */
+  const PET = 'Petitioner / appellant side', RES = 'Respondent side';
+  const sideOf = p => p.side || (/respond|defend|opposite|accused|non-applicant/i.test(p.role || '') ? 'respondent' : 'petitioner');
+  const partyText = p => p.name + (p.note ? ' — ' + p.note : '');
+  const ourArgs = c => c.ourArgs || (c.args ? String(c.args).split(/\n+/).map(s => s.trim()).filter(Boolean) : []);
+  /* Rule-based: the key points of every stored order, oldest first, each with its order as the citation. */
+  function draftSummary(d, id) {
+    const c = d.cases.find(x => x.id === id), os = d.orders.filter(o => o.caseId === id).sort((a, b) => a.date.localeCompare(b.date)); if (!c || !os.length) return '';
+    const pet = (c.parties || []).filter(p => sideOf(p) === 'petitioner').map(p => p.name), res = (c.parties || []).filter(p => sideOf(p) === 'respondent').map(p => p.name);
+    const out = [`${pet.length && res.length ? pet.join(', ') + ' v. ' + res.join(', ') : c.title}${c.no ? ' (' + c.no + ')' : ''} is before ${c.court || 'the court'}${c.stage ? ', at the ' + c.stage.toLowerCase() + ' stage' : ''}.`];
+    os.forEach(o => { const pts = (o.points || o.paras || []).map(p => String(p).trim().replace(/\.$/, '')).filter(Boolean).slice(0, 3); if (pts.length) out.push(`On ${L.dmy(o.date)} the court recorded: ${pts.join('; ')} [Order ${L.dmy(o.date)}].`); });
+    const last = os[os.length - 1]; if (last.nextDate) out.push(`The last order gives ${L.dmy(last.nextDate)} as the next date${last.confirmed ? '' : ', not yet confirmed'} [Order ${L.dmy(last.date)}].`);
+    return out.join(' ');
+  }
+  function ListEdit({ label, items, onChange, ph, id }) {
+    const focusRow = i => setTimeout(() => { const els = document.querySelectorAll('[data-list="' + id + '"]'); els[i] && els[i].focus(); }, 0);
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 } }, h('div', { style: { fontSize: 13, color: K.txt, fontWeight: 600 } }, label),
+      items.map((x, i) => h('div', { key: i, style: { display: 'flex', gap: 6, minWidth: 0 } }, h('input', { value: x, placeholder: ph, 'aria-label': label + ' ' + (i + 1), 'data-list': id, style: Object.assign({}, X.input, { minWidth: 0 }),
+        onChange: e => onChange(items.map((y, j) => j === i ? e.target.value : y)),
+        onPaste: e => { const t = (e.clipboardData && e.clipboardData.getData('text')) || ''; if (!/\n/.test(t)) return; e.preventDefault(); const rows = t.split(/\r?\n/).map(s => s.replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '').trim()).filter(Boolean); onChange([...items.slice(0, i), ...(x.trim() ? [x] : []), ...rows, ...items.slice(i + 1)]); },
+        onKeyDown: e => { if (e.key === 'Enter') { e.preventDefault(); onChange([...items.slice(0, i + 1), '', ...items.slice(i + 1)]); focusRow(i + 1); } } }),
+        h(IconBtn, { label: 'Remove ' + label.toLowerCase() + ' ' + (i + 1), onClick: () => onChange(items.filter((_, j) => j !== i)) }, '×'))),
+      h('div', null, h(Btn, { small: true, onClick: () => { onChange([...items, '']); focusRow(items.length); } }, '+ Add')), !items.length && h('div', { style: { fontSize: 12.5, color: K.mut } }, 'None yet. Paste several lines to add them at once.'));
+  }
+  function CaseDetailsForm({ app, id, focus, auto }) {
+    const c = app.db.cases.find(x => x.id === id) || {}, ps = c.parties || [];
+    const [v, setV] = useState(() => { const o = { pet: ps.filter(p => sideOf(p) === 'petitioner').map(partyText), res: ps.filter(p => sideOf(p) === 'respondent').map(partyText), stage: c.stage || STAGES[0], issues: (c.issues || []).slice(), ours: ourArgs(c).slice(), opp: (c.oppArgs || []).slice(), missing: (c.missing || []).slice(), summary: auto ? draftSummary(app.db, id) : (c.summary || '') };
+      if (focus && Array.isArray(o[focus]) && !o[focus].length) o[focus].push(''); return o; });
+    const [drafted, setDrafted] = useState(auto ? v.summary : '');
+    React.useEffect(() => { const el = focus && document.querySelector(focus === 'summary' ? '#ls-cd-summary' : '[data-list="' + focus + '"], #ls-cd-' + focus); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } }, []);
+    const set = k => val => setV(Object.assign({}, v, { [k]: val })), n = app.db.orders.filter(o => o.caseId === id).length;
+    const grid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,250px),1fr))', gap: 18 };
+    const save = () => { const clean = a => a.map(s => s.trim()).filter(Boolean), party = (s, side) => { const i = s.indexOf(' — '); return { side, role: side === 'petitioner' ? 'Petitioner / appellant' : 'Respondent', name: (i < 0 ? s : s.slice(0, i)).trim(), note: i < 0 ? '' : s.slice(i + 3).trim() }; };
+      app.mut(db => { const x = db.cases.find(y => y.id === id); if (!x) return; const before = JSON.stringify([x.parties, x.stage, x.issues, ourArgs(x), x.oppArgs || [], x.missing, x.summary]);
+        const nv = { parties: [...clean(v.pet).map(s => party(s, 'petitioner')), ...clean(v.res).map(s => party(s, 'respondent'))], issues: clean(v.issues), ourArgs: clean(v.ours), oppArgs: clean(v.opp), missing: clean(v.missing), summary: v.summary.trim() };
+        const names = [['parties', JSON.stringify(x.parties || []) !== JSON.stringify(nv.parties)], ['stage', x.stage !== v.stage], ['issues', JSON.stringify(x.issues || []) !== JSON.stringify(nv.issues)], ['our arguments', JSON.stringify(ourArgs(x)) !== JSON.stringify(nv.ourArgs)], ['opponent\'s arguments', JSON.stringify(x.oppArgs || []) !== JSON.stringify(nv.oppArgs)], ['missing documents', JSON.stringify(x.missing || []) !== JSON.stringify(nv.missing)], ['summary', (x.summary || '') !== nv.summary]].filter(y => y[1]).map(y => y[0]);
+        if (nv.summary !== (x.summary || '')) x.summaryMeta = !nv.summary ? '' : (drafted && nv.summary === drafted.trim() ? `Automatic draft from ${plural(n, 'order')} · review before relying on it` : `Written by ${db.user.name} · ${L.dayMon(L.today())}`);
+        if (x.purpose === x.stage) x.purpose = v.stage; Object.assign(x, nv, { stage: v.stage, args: nv.ourArgs.join('\n') });
+        if (JSON.stringify([x.parties, x.stage, x.issues, x.ourArgs, x.oppArgs, x.missing, x.summary]) !== before) logIt(db, `Case details updated by ${db.user.name}: ${names.join(', ')}`, id); }, 'Case details saved'); app.modal(null); };
+    const stages = c.stage && !STAGES.includes(c.stage) ? [...STAGES, c.stage] : STAGES;
+    return h(Modal, { title: 'Case details', sub: c.title + (c.no ? ' · ' + c.no : ''), onClose: () => app.modal(null), width: 760 },
+      h('div', { style: grid }, h(ListEdit, { label: PET, id: 'pet', items: v.pet, onChange: set('pet'), ph: 'Name — note (optional)' }), h(ListEdit, { label: RES, id: 'res', items: v.res, onChange: set('res'), ph: 'Name — note (optional)' })),
+      h(Field, { label: 'Stage' }, h('select', { id: 'ls-cd-stage', 'aria-label': 'Stage', value: v.stage, onChange: e => set('stage')(e.target.value), style: Object.assign({}, X.input, { maxWidth: 320 }) }, stages.map(s => h('option', { key: s, value: s }, s)))),
+      h('div', { style: grid }, h(ListEdit, { label: 'Issues', id: 'issues', items: v.issues, onChange: set('issues'), ph: 'Whether …' }), h(ListEdit, { label: 'Missing documents', id: 'missing', items: v.missing, onChange: set('missing'), ph: 'Document referred to but not on file' }),
+        h(ListEdit, { label: 'Our arguments', id: 'ours', items: v.ours, onChange: set('ours'), ph: 'Point we will press' }), h(ListEdit, { label: 'Opponent\'s arguments', id: 'opp', items: v.opp, onChange: set('opp'), ph: 'Point the other side makes' })),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' } }, h('label', { htmlFor: 'ls-cd-summary', style: { fontSize: 13, color: K.txt, fontWeight: 600 } }, 'Summary'),
+          h(Btn, { small: true, disabled: !n, title: n ? '' : 'No orders in this case yet', onClick: () => { const s = draftSummary(app.db, id); setV(Object.assign({}, v, { summary: s })); setDrafted(s); } }, 'Draft from orders')),
+        drafted && v.summary === drafted && h('div', { role: 'note', style: { fontSize: 12.5, color: K.txt, background: K.soft2, borderRadius: 8, padding: '8px 12px', lineHeight: 1.5 } }, `Automatic draft, assembled by rules from the key points of ${plural(n, 'order')}. Review and edit it before relying on it.`),
+        h('textarea', { id: 'ls-cd-summary', value: v.summary, rows: 6, placeholder: 'What the case is about, where it stands, and what is next.', onChange: e => set('summary')(e.target.value), style: Object.assign({}, X.input, { height: 'auto', padding: '10px 12px', resize: 'vertical', lineHeight: 1.55 }) })),
+      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'), h(Btn, { primary: true, onClick: save }, 'Save case details')));
+  }
+  /* focus: 'pet' | 'res' | 'stage' | 'issues' | 'ours' | 'opp' | 'missing' | 'summary'. auto: start with the summary drafted from orders. */
+  function caseDetails(app, id, focus, auto) { if (!app.db.cases.some(x => x.id === id) || !allowed(app, 'case.edit')) return; app.modal(() => h(CaseDetailsForm, { app, id, focus, auto })); }
+  const NEED = { parties: ['pet', 'Add parties in Case details'], issues: ['issues', 'Add issues in Case details'], ourArgs: ['ours', 'Add arguments in Case details'], oppArgs: ['opp', 'Add opponent\'s arguments'], missing: ['missing', 'Add missing documents'], summary: ['summary', 'Write summary in Case details'], details: ['pet', 'Open Case details'] };
+  /* The read-only "Case details" section on the case page. */
+  function detailsView(app, c) {
+    const d = app.db, ps = c.parties || [], none = (k, what) => h('div', { style: { fontSize: 13.5, color: K.mut } }, `No ${what} recorded yet. `, h('button', { type: 'button', onClick: () => caseDetails(app, c.id, k), style: { border: 0, background: 'none', padding: 0, color: K.ink, textDecoration: 'underline', textUnderlineOffset: 2, fontSize: 13.5 } }, 'Add'));
+    const block = (title, kids) => h('div', { style: { minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 } }, h('h3', { style: { fontSize: 13, color: K.mut, margin: 0, fontWeight: 600 } }, title), kids);
+    const ol = (a, k, what) => a.length ? h('ol', { style: { margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, color: K.txt, lineHeight: 1.5, overflowWrap: 'anywhere' } }, a.map((s, i) => h('li', { key: i }, s))) : none(k, what);
+    const side = (s, k) => { const a = ps.filter(p => sideOf(p) === s); return a.length ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } }, a.map((p, i) => h('div', { key: i, style: { overflowWrap: 'anywhere' } }, h('div', { style: { fontWeight: 500, fontSize: 14 } }, p.name), p.note && h('div', { style: { fontSize: 13, color: K.mut } }, p.note)))) : none(k, 'parties'); };
+    return h('div', { id: 'ls-case-details', style: { display: 'flex', flexDirection: 'column', gap: 18 } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' } }, h('div', null, h('h2', { style: X.h2 }, 'Case details'), h('div', { style: { fontSize: 13, color: K.mut, marginTop: 4 } }, 'Client: ' + clientOf(d, c.clientId).name + ' · Stage: ' + (c.stage || '—'))), h(Btn, { small: true, onClick: () => caseDetails(app, c.id) }, 'Edit case details')),
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,240px),1fr))', gap: 22 } },
+        block(PET, side('petitioner', 'pet')), block(RES, side('respondent', 'res')), block('Issues', ol(c.issues || [], 'issues', 'issues')), block('Missing documents', ol(c.missing || [], 'missing', 'missing documents')),
+        block('Our arguments', ol(ourArgs(c), 'ours', 'arguments')), block('Opponent\'s arguments', ol(c.oppArgs || [], 'opp', 'arguments for the other side'))));
   }
   function help(app) {
     const rows = [['Ctrl / ⌘ + K', 'Search cases, clients and documents'], ['N', 'New case'], ['G then D', 'Dashboard'], ['G then C', 'Cases'], ['G then H', 'Hearings calendar'], ['Esc', 'Close a dialog or panel']];
@@ -410,7 +629,7 @@
     const d = app.db, od = overdue(t);
     return h(Line, null, h('button', { onClick: () => app.mut(db => { const x = db.tasks.find(y => y.id === t.id); x.done = !x.done; }, t.done ? 'Task reopened' : 'Task completed'), 'aria-label': t.done ? 'Reopen task' : 'Complete task', style: { width: 18, height: 18, border: '1.5px solid ' + (t.done ? K.ink : '#9E9E9E'), borderRadius: 9, flexShrink: 0, background: t.done ? K.ink : 'transparent', color: '#fff', fontSize: 11, lineHeight: 1, padding: 0 } }, t.done ? '✓' : ''),
       h('div', { style: { flex: 1, minWidth: 0, textDecoration: t.done ? 'line-through' : 'none', color: t.done ? K.mut : K.ink } }, t.t, h('div', { style: { fontSize: 12, color: od ? K.red : K.mut } }, [showCase && t.caseId && caseOf(d, t.caseId).title, t.who, (od ? 'Overdue · ' : 'Due ') + L.dayMon(t.due)].filter(Boolean).join(' · '))),
-      t.caseId && showCase && h(Btn, { small: true, onClick: () => app.go('case', t.caseId) }, 'Open case'));
+      t.caseId && showCase && h(Btn, { small: true, onClick: () => app.go('case', t.caseId) }, 'Open case'), h(IconBtn, { label: 'Edit task', onClick: () => addTask(app, '', t.id) }, '✎'), h(IconBtn, { label: 'Delete task', danger: true, onClick: () => delTask(app, t.id) }, '×'));
   }
   function Workspace({ app }) {
     const d = app.db, me = d.user.name, [all, setAll] = useState(false);
@@ -421,18 +640,24 @@
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 20 } },
         h(Card, { title: 'My tasks', right: h(Btn, { small: true, onClick: () => setAll(!all) }, all ? 'Hide completed' : 'Show completed') }, mine.map(t => h(TaskRow, { key: t.id, app, t, showCase: true })), !mine.length && h(Empty, { title: 'No open tasks', text: 'Tasks assigned to you appear here.' })),
         h('div', { style: { display: 'flex', flexDirection: 'column', gap: 20 } },
-          h(Card, { title: 'My hearings · next 7 days', right: h(Btn, { small: true, onClick: () => app.go('calendar') }, 'Calendar') }, hs.map(x => h(Line, { key: x.id }, h('div', { style: { width: 86, fontSize: 13, color: K.mut, fontVariantNumeric: 'tabular-nums' } }, L.dayMon(x.date), h('div', null, L.t12ap(x.time))), h('div', { style: { flex: 1, minWidth: 0 } }, caseOf(d, x.caseId).title, h('div', { style: { fontSize: 12, color: K.mut } }, [x.court, x.item, x.purpose].filter(Boolean).join(' · '))), h(Btn, { small: true, onClick: () => app.go('case', x.caseId) }, 'Open'))), !hs.length && h(Empty, { title: 'No hearings this week' })),
+          h(Card, { title: 'My hearings · next 7 days', right: h(Btn, { small: true, onClick: () => app.go('calendar') }, 'Calendar') }, hs.map(x => h(Line, { key: x.id }, h('div', { style: { width: 86, fontSize: 13, color: K.mut, fontVariantNumeric: 'tabular-nums' } }, L.dayMon(x.date), h('div', null, L.t12ap(x.time))), h('div', { style: { flex: 1, minWidth: 0 } }, caseOf(d, x.caseId).title, h('div', { style: { fontSize: 12, color: K.mut } }, [x.court, x.item, x.purpose].filter(Boolean).join(' · ')), x.outcome && h('div', { style: { marginTop: 4 } }, outcomeChip(x))), h(Btn, { small: true, onClick: () => app.go('case', x.caseId) }, 'Open'))), !hs.length && h(Empty, { title: 'No hearings this week' })),
           h(Card, { title: 'Private notes' }, h('textarea', { defaultValue: d.notes, onBlur: e => { const v = e.target.value; if (v !== app.db.notes) app.mut(db => { db.notes = v; }, 'Notes saved'); }, placeholder: 'Jot down anything. Saved on this device when you click away.', rows: 6, style: Object.assign({}, X.input, { height: 'auto', padding: '10px 12px', lineHeight: 1.55, resize: 'vertical' }) })),
-          h(Card, { title: 'My drafts', right: h(Btn, { small: true, onClick: () => app.go('drafting') }, 'Drafting Studio') }, drafts.map(k => h(Line, { key: k }, h('div', { style: { flex: 1 } }, app.tplNames[+k] || 'Draft', h('div', { style: { fontSize: 12, color: K.mut } }, d.drafts[k].length + ' saved version' + (d.drafts[k].length === 1 ? '' : 's'))), h(Btn, { small: true, onClick: () => app.openDraft(+k) }, 'Open'))), !drafts.length && h('div', { style: { fontSize: 14, color: K.mut } }, 'Versions you save in the Drafting Studio are listed here.')))));
+          h(Card, { title: 'My drafts', right: h(Btn, { small: true, onClick: () => app.go('drafting') }, 'Drafting Studio') }, drafts.map(k => h(Line, { key: k }, h('div', { style: { flex: 1 } }, app.tplNames[+k] || 'Draft', h('div', { style: { fontSize: 12, color: K.mut } }, d.drafts[k].length + ' saved version' + (d.drafts[k].length === 1 ? '' : 's'))), h(Btn, { small: true, onClick: () => app.openDraft(+k) }, 'Open'), h(IconBtn, { label: 'Delete draft', danger: true, onClick: () => delDraft(app, +k) }, '×'))), !drafts.length && h('div', { style: { fontSize: 14, color: K.mut } }, 'Versions you save in the Drafting Studio are listed here.')))));
   }
   function Courts({ app }) {
-    const d = app.db, by = {};
-    d.cases.filter(c => c.status === 'active' || c.status === 'pending').forEach(c => { (by[c.court] = by[c.court] || { court: c.court, id: c.court, n: 0, up: 0, next: '', adj: 0 }).n++; });
-    d.hearings.forEach(x => { const b = by[x.court]; if (!b) return; if (x.date >= L.today()) { if (L.diffDays(x.date, L.today()) <= 14) b.up++; if (!b.next || x.date < b.next) b.next = x.date; } else if (/adjourn|time sought|time to|given \d|weeks/i.test(x.outcome || '')) b.adj++; });
-    const rows = Object.values(by).sort((a, b) => b.n - a.n), nw = L.nextWorking(L.addDays(L.today(), 1));
-    const list = d.hearings.filter(x => x.date === nw).sort((a, b) => a.time.localeCompare(b.time));
-    return h(Page, { art: 'court', kicker: 'Practice', title: 'Court Intelligence', sub: `${rows.length} court${rows.length === 1 ? '' : 's'} · figures are computed from your own cases and hearings` },
-      h(Table, { min: 720, cols: [{ label: 'Court', w: 'minmax(220px,2fr)', get: r => r.court }, { label: 'Open matters', get: r => r.n }, { label: 'Hearings · 14 days', get: r => r.up }, { label: 'Next listing', get: r => r.next ? L.fmt(r.next) : '—' }, { label: 'Adjournments recorded', get: r => r.adj }], rows, empty: { title: 'No courts yet', text: 'Courts appear once you add cases.' } }),
+    const d = app.db, by = {}, T = L.today(), row = k => by[k] = by[k] || { court: k, id: k, n: 0, up: 0, next: '', held: 0, adj: 0, nr: 0, wait: 0 }, tally = {};
+    d.cases.filter(c => c.status === 'active' || c.status === 'pending').forEach(c => { row(c.court).n++; });
+    /* Adjournments and the rest come from outcomes recorded on hearings (Record outcome). */
+    d.hearings.forEach(x => { const k = x.court || caseOf(d, x.caseId).court, b = by[k] || (x.outcome && k ? row(k) : null); if (x.outcome) tally[OUTCOMES.includes(x.outcome) ? x.outcome : 'Other'] = (tally[OUTCOMES.includes(x.outcome) ? x.outcome : 'Other'] || 0) + 1; if (!b) return;
+      if (x.outcome) { b.held++; if (isAdj(x.outcome)) b.adj++; else if (x.outcome === 'Not reached') b.nr++; }
+      else if (x.date < T) b.wait++;
+      else { if (L.diffDays(x.date, T) <= 14) b.up++; if (!b.next || x.date < b.next) b.next = x.date; } });
+    const rows = Object.values(by).sort((a, b) => b.n - a.n || b.held - a.held), nw = L.nextWorking(L.addDays(T, 1)), rec = Object.values(tally).reduce((a, n) => a + n, 0), adjAll = rows.reduce((a, r) => a + r.adj, 0), waitAll = needsOutcome(d).length;
+    const list = d.hearings.filter(x => x.date === nw).sort((a, b) => a.time.localeCompare(b.time)), pct = (n, of) => of ? ` (${Math.round(n / of * 100)}%)` : '';
+    return h(Page, { art: 'court', kicker: 'Practice', title: 'Court Intelligence', sub: `${rows.length} court${rows.length === 1 ? '' : 's'} · figures are computed from your own cases, hearings and recorded outcomes` },
+      h('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap' } }, h(Stat, { label: 'Outcomes recorded', value: rec, note: waitAll ? plural(waitAll, 'past hearing') + ' without an outcome' : 'Every past hearing has an outcome', red: waitAll > 0 }), h(Stat, { label: 'Adjournments', value: adjAll, note: rec ? Math.round(adjAll / rec * 100) + '% of recorded outcomes' : 'Record outcomes to see the rate' }), h(Stat, { label: 'Not reached', value: tally['Not reached'] || 0, note: rec ? Math.round((tally['Not reached'] || 0) / rec * 100) + '% of recorded outcomes' : '—' })),
+      h(Table, { min: 900, cols: [{ label: 'Court', w: 'minmax(200px,2fr)', get: r => r.court }, { label: 'Open matters', get: r => r.n }, { label: 'Hearings · 14 days', get: r => r.up }, { label: 'Next listing', get: r => r.next ? L.fmt(r.next) : '—' }, { label: 'Outcomes recorded', get: r => r.held }, { label: 'Adjourned', get: r => r.adj + pct(r.adj, r.held) }, { label: 'Not reached', get: r => r.nr }, { label: 'Awaiting outcome', get: r => r.wait ? h(Chip, { tone: 'red' }, r.wait) : 0 }], rows, empty: { title: 'No courts yet', text: 'Courts appear once you add cases.' } }),
+      h(Card, { title: 'Recorded outcomes' }, h(Bars, { rows: OUTCOMES.filter(o => tally[o]).map(o => [o, tally[o]]) }), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 12 } }, 'Record the outcome of each hearing from the case, the calendar or the dashboard. Hearings without one are not counted.')),
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 20 } },
         h(Card, { title: 'Your list for ' + L.fmt(nw, { weekday: 'long', day: 'numeric', month: 'short' }) }, list.map(x => h(Line, { key: x.id }, h('div', { style: { width: 70, fontVariantNumeric: 'tabular-nums', color: K.mut, fontSize: 13 } }, L.t12ap(x.time)), h('div', { style: { flex: 1, minWidth: 0 } }, caseOf(d, x.caseId).title, h('div', { style: { fontSize: 12, color: K.mut } }, [x.court, x.item, x.assignee].filter(Boolean).join(' · '))), h(Btn, { small: true, onClick: () => app.go('case', x.caseId) }, 'Open'))), !list.length && h(Empty, { title: 'Nothing listed', text: 'No hearings are recorded for the next working day.' })),
         h(Card, { title: 'CNR watchlist', right: h(Btn, { small: true, onClick: () => app.modal(() => h(Modal, { title: 'Watch a CNR', onClose: () => app.modal(null) }, h(Form, { submit: 'Add to watchlist', onCancel: () => app.modal(null), fields: [{ k: 'cnr', label: 'CNR number', req: true, ph: '4 letters and 12 digits', check: v => !/^[A-Za-z]{4}\d{12}$/.test(v.replace(/[\s-]/g, '')) ? 'A CNR has 4 letters followed by 12 digits' : (app.db.watch.some(w => w.cnr === v.replace(/[\s-]/g, '').toUpperCase()) ? 'Already on the watchlist' : '') }, { k: 'label', label: 'Label', ph: 'Connected matter, opposite party’s suit…' }], onSubmit: v => { app.mut(db => { db.watch.push({ id: L.uid('w'), cnr: v.cnr.replace(/[\s-]/g, '').toUpperCase(), label: v.label.trim(), added: L.today() }); }, 'CNR added to watchlist'); app.modal(null); } }))) }, '+ Watch a CNR') },
@@ -443,21 +668,25 @@
   function Clients({ app }) {
     const d = app.db, [q, setQ] = useState('');
     const fields = [{ k: 'name', label: 'Client name', req: true }, { k: 'type', label: 'Type', type: 'select', options: ['Individual', 'Company', 'Firm', 'Government body'], half: true }, { k: 'city', label: 'City', half: true }, { k: 'contact', label: 'Contact person', ph: 'Name, designation' }, { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true }];
-    const edit = c => app.modal(() => h(Modal, { title: c ? 'Edit client' : 'New client', onClose: () => app.modal(null) }, h(Form, { fields, init: c || { type: 'Individual' }, submit: c ? 'Save changes' : 'Add client', onCancel: () => app.modal(null), onSubmit: v => { app.mut(db => { if (c) Object.assign(db.clients.find(x => x.id === c.id), v); else db.clients.unshift(Object.assign({ id: L.uid('cl'), notes: '', portal: false, share: { dates: true, orders: true, invoices: false } }, v)); }, c ? 'Client updated' : 'Client added'); app.modal(null); } })));
+    const edit = c => app.modal(() => h(Modal, { title: c ? 'Edit client' : 'New client', onClose: () => app.modal(null) }, h(Form, { fields, init: c || { type: 'Individual' }, submit: c ? 'Save changes' : 'Add client', onCancel: () => app.modal(null), onSubmit: v => { if (c && !allowed(app, 'client.edit')) return; app.mut(db => { if (c) { const x = db.clients.find(y => y.id === c.id); if (!x) return; Object.assign(x, v); logIt(db, `Client ${x.name} edited by ${db.user.name}`); } else db.clients.unshift(Object.assign({ id: L.uid('cl'), notes: '', portal: false, share: { dates: true, orders: true, invoices: false } }, v)); }, c ? 'Client updated' : 'Client added'); app.modal(null); } })));
+    const del = cl => { if (!allowed(app, 'client.delete')) return; const cs = app.db.cases.filter(x => x.clientId === cl.id), inv = app.db.invoices.filter(i => i.clientId === cl.id);
+      if (cs.length) return infoBox(app, 'This client cannot be deleted', `${cl.name} has ${plural(cs.length, 'case')} (${cs.slice(0, 3).map(x => x.title).join(', ')}${cs.length > 3 ? '…' : ''}). Link those cases to another client in Edit case, or delete them, first.`);
+      if (inv.length) return infoBox(app, 'This client cannot be deleted', `${cl.name} has ${plural(inv.length, 'invoice')}. Invoices are financial records, so the client they are billed to is kept.`);
+      confirmBox(app, 'Delete this client?', `${cl.name} and their contact details and notes will be deleted.`, 'Delete client', () => app.mut(db => { db.clients = db.clients.filter(x => x.id !== cl.id); logIt(db, `Client ${cl.name} deleted by ${db.user.name}`); }, 'Client deleted')); };
     const view = c => app.modal(() => { const cl = app.db.clients.find(x => x.id === c.id); if (!cl) return null; const cs = app.db.cases.filter(x => x.clientId === cl.id), due = app.db.invoices.filter(i => i.clientId === cl.id && !i.paid).reduce((a, i) => a + i.amount + gstOf(i.amount), 0);
       return h(Modal, { title: cl.name, sub: [cl.type, cl.city].filter(Boolean).join(' · '), onClose: () => app.modal(null), width: 560 },
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: 14 } }, [['Contact', cl.contact], ['Phone', cl.phone], ['Email', cl.email], ['Outstanding', L.inr(due)]].map(([k, v]) => h('div', { key: k }, h('div', { style: { fontSize: 12, color: K.mut } }, k), h('div', { style: { overflowWrap: 'anywhere' } }, v || '—')))),
         h('div', null, h('div', { style: X.kicker }, 'Cases'), cs.map(x => h(Line, { key: x.id }, h('div', { style: { flex: 1, minWidth: 0 } }, x.title, h('div', { style: { fontSize: 12, color: K.mut } }, x.no + ' · ' + x.court)), h(Btn, { small: true, onClick: () => { app.modal(null); app.go('case', x.id); } }, 'Open'))), !cs.length && h('div', { style: { fontSize: 14, color: K.mut, paddingTop: 8 } }, 'No cases linked.')),
         h('div', null, h('div', { style: Object.assign({ marginBottom: 6 }, X.kicker) }, 'Notes'), h('textarea', { defaultValue: cl.notes, rows: 3, placeholder: 'Saved when you click away', onBlur: e => { const v = e.target.value; if (v !== cl.notes) app.mut(db => { db.clients.find(x => x.id === cl.id).notes = v; }, 'Notes saved'); }, style: Object.assign({}, X.input, { height: 'auto', padding: '10px 12px', resize: 'vertical' }) })),
-        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { danger: true, disabled: !!cs.length, title: cs.length ? 'Clients with cases cannot be deleted' : '', onClick: () => { app.mut(db => { db.clients = db.clients.filter(x => x.id !== cl.id); }, 'Client deleted'); app.modal(null); } }, 'Delete'), h(Btn, { onClick: () => edit(cl) }, 'Edit'), h(Btn, { primary: true, onClick: () => newCase(app, { clientId: cl.id }) }, '+ New case'))); });
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { danger: true, title: cs.length ? 'Clients with cases cannot be deleted' : '', onClick: () => del(cl) }, 'Delete'), h(Btn, { onClick: () => allowed(app, 'client.edit') && edit(cl) }, 'Edit'), h(Btn, { primary: true, onClick: () => newCase(app, { clientId: cl.id }) }, '+ New case'))); });
     const rows = d.clients.filter(c => !q || (c.name + c.contact + c.city + c.email).toLowerCase().includes(q.toLowerCase()));
     return h(Page, { art: 'clients', kicker: 'Practice', title: 'Clients CRM', sub: `${d.clients.length} clients · click a row for cases, contact details and notes`, actions: [h(Search, { key: 0, value: q, onChange: setQ, placeholder: 'Search clients' }), h(Btn, { key: 1, primary: true, onClick: () => edit(null) }, '+ New client')] },
       h(Table, { onRow: view, cols: [{ label: 'Client', w: 'minmax(220px,2fr)', get: c => h('span', null, c.name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, c.contact)) }, { label: 'Phone', get: c => c.phone || '—' }, { label: 'City', get: c => c.city || '—' }, { label: 'Cases', w: '80px', get: c => d.cases.filter(x => x.clientId === c.id).length }, { label: 'Outstanding', get: c => L.inr(d.invoices.filter(i => i.clientId === c.id && !i.paid).reduce((a, i) => a + i.amount + gstOf(i.amount), 0)) }, { label: 'Portal', w: '90px', get: c => h(Chip, { tone: c.portal ? '' : 'grey' }, c.portal ? 'Enabled' : 'Off') }], rows, empty: { title: 'No clients match', text: 'Try another search or add a client.' } }));
   }
   function Docs({ app, kind }) {
     const d = app.db, ev = kind === 'evidence', [q, setQ] = useState(''), [cf, setCf] = useState('');
-    const rows = d.docs.filter(x => x.kind === kind && (!cf || x.caseId === cf) && (!q || (x.name + x.meta + (x.exhibit || '')).toLowerCase().includes(q.toLowerCase())));
-    const cols = [{ label: ev ? 'Exhibit' : 'Type', w: '90px', get: x => h('span', { style: { fontSize: 11, fontWeight: 600, border: '1px solid ' + K.line, borderRadius: 6, padding: '3px 6px', background: K.soft } }, ev ? (x.exhibit || '—') : x.ext) }, { label: ev ? 'Item' : 'Document', w: 'minmax(220px,2.2fr)', get: x => h('span', null, x.name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, ev ? (x.custody || x.meta) : x.meta)) }, { label: 'Case', w: '1.4fr', get: x => caseOf(d, x.caseId).title }, { label: 'Added', get: x => L.dayMon(x.added || d.anchor) }, { label: '', w: '190px', get: x => h('span', { style: { display: 'flex', gap: 6, justifyContent: 'flex-end' } }, h(Btn, { small: true, onClick: () => openDoc(app, x) }, 'Download'), h(Btn, { small: true, danger: true, onClick: () => confirmBox(app, 'Delete this ' + (ev ? 'evidence record' : 'document') + '?', `"${x.name}" will be removed from the case file.`, 'Delete', () => { if (window.LSB && LSB.on) { if (x.file) LSB.removeFile(x.id, x.file); } else L.files.del(x.id); app.mut(db => { db.docs = db.docs.filter(y => y.id !== x.id); }, 'Deleted'); }) }, 'Delete')) }];
+    const rows = d.docs.filter(x => x.kind === kind && (!cf || x.caseId === cf) && (!q || (x.name + x.meta + (x.exhibit || '') + (x.custody || '') + (x.tags || []).join(' ')).toLowerCase().includes(q.toLowerCase())));
+    const cols = [{ label: ev ? 'Exhibit' : 'Type', w: '90px', get: x => h('span', { style: { fontSize: 11, fontWeight: 600, border: '1px solid ' + K.line, borderRadius: 6, padding: '3px 6px', background: K.soft } }, ev ? (x.exhibit || '—') : x.ext) }, { label: ev ? 'Item' : 'Document', w: 'minmax(220px,2.2fr)', get: x => h('span', null, x.name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, (ev ? (x.custody || x.meta) : x.meta) + tagLine(x))) }, { label: 'Case', w: '1.4fr', get: x => x.caseId ? caseOf(d, x.caseId).title : 'Not linked' }, { label: 'Added', get: x => L.dayMon(x.added || d.anchor) }, { label: '', w: '190px', get: x => h('span', { style: { display: 'flex', justifyContent: 'flex-end' } }, docActs(app, x)) }];
     return h(Page, { art: 'documents', kicker: 'Practice', title: ev ? 'Evidence' : 'Documents', sub: `${rows.length} of ${d.docs.filter(x => x.kind === kind).length} ${ev ? 'exhibits and evidence records' : 'documents'} across your cases`, actions: [h(Select, { key: 0, value: cf, onChange: setCf, options: [['', 'All cases'], ...caseOpts(d)], style: { minWidth: 0, width: 'min(260px, 100%)', textOverflow: 'ellipsis' } }), h(Search, { key: 1, value: q, onChange: setQ, placeholder: ev ? 'Search evidence' : 'Search documents', width: 'min(240px, 100%)' }), h(Btn, { key: 2, primary: true, onClick: () => uploadDoc(app, kind, cf) }, ev ? '+ Add evidence' : '+ Upload')] },
       h(Table, { cols, rows, min: 860, empty: { title: ev ? 'No evidence recorded' : 'No documents', text: 'Change the filter or add a file.' } }));
   }
@@ -522,7 +751,22 @@
           h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 14 } }, h('div', null, h('div', { style: { fontWeight: 600, fontSize: 16 } }, d.firm.name), h('div', { style: { color: K.mut, fontSize: 13 } }, d.firm.address), d.firm.gstin && h('div', { style: { color: K.mut, fontSize: 13 } }, 'GSTIN ' + d.firm.gstin)), h('div', { style: { textAlign: 'right' } }, h('div', { style: { fontWeight: 600 } }, 'Tax invoice'), h('div', { style: { color: K.mut, fontSize: 13 } }, i.no), h('div', { style: { color: K.mut, fontSize: 13 } }, L.fmt(i.date)))),
           h('div', { style: { marginBottom: 12 } }, h('div', { style: { fontSize: 12, color: K.mut } }, 'Billed to'), h('div', { style: { fontWeight: 500 } }, cl.name), h('div', { style: { fontSize: 13, color: K.mut } }, caseOf(d, i.caseId).title)),
           row(i.desc || 'Professional fees', L.inr(i.amount)), row('GST @ 18%', L.inr(g)), row('Total', L.inr(i.amount + g), true), row('Status', i.paid ? 'Paid on ' + L.fmt(i.paidOn) : 'Unpaid')),
-        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { onClick: () => window.print() }, 'Print / save as PDF'), i.paid ? h(Btn, { onClick: () => app.mut(db => { const x = db.invoices.find(y => y.id === id); x.paid = false; x.paidOn = ''; }, 'Marked unpaid') }, 'Mark unpaid') : h(Btn, { primary: true, onClick: () => app.mut(db => { const x = db.invoices.find(y => y.id === id); x.paid = true; x.paidOn = L.today(); logIt(db, `Invoice ${x.no} marked paid`, x.caseId); }, 'Invoice marked paid') }, 'Mark as paid'))); });
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { danger: true, onClick: () => delInvoice(app, id) }, 'Delete'), h(Btn, { onClick: () => editInvoice(app, id) }, 'Edit'), h(Btn, { onClick: () => window.print() }, 'Print / save as PDF'), i.paid ? h(Btn, { onClick: () => app.mut(db => { const x = db.invoices.find(y => y.id === id); x.paid = false; x.paidOn = ''; }, 'Marked unpaid') }, 'Mark unpaid') : h(Btn, { primary: true, onClick: () => app.mut(db => { const x = db.invoices.find(y => y.id === id); x.paid = true; x.paidOn = L.today(); logIt(db, `Invoice ${x.no} marked paid`, x.caseId); }, 'Invoice marked paid') }, 'Mark as paid'))); });
+  }
+  function editInvoice(app, id) {
+    const d = app.db, i = d.invoices.find(x => x.id === id); if (!i || !allowed(app, 'invoice.edit')) return;
+    app.modal(() => h(Modal, { title: 'Edit invoice ' + i.no, sub: i.paid ? 'This invoice is marked paid.' : null, onClose: () => invoiceView(app, id) }, h(Form, { init: { caseId: i.caseId, desc: i.desc || '', amount: String(i.amount), date: i.date }, submit: 'Save changes', onCancel: () => invoiceView(app, id), note: 'GST at 18% is added to the amount. The invoice number stays the same.',
+      fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d, i.caseId) }, { k: 'desc', label: 'Description', req: true }, { k: 'amount', label: 'Amount before GST (₹)', type: 'number', req: true, half: true, check: v => v && isNaN(+v.replace(/,/g, '')) ? 'Enter a number' : '' }, { k: 'date', label: 'Invoice date', type: 'date', req: true, half: true }],
+      onSubmit: v => { app.mut(db => { const x = db.invoices.find(y => y.id === id); if (!x) return; const amt = Math.round(+String(v.amount).replace(/,/g, '') * 100) / 100, was = x.amount; Object.assign(x, { caseId: v.caseId, clientId: caseOf(db, v.caseId).clientId || x.clientId || '', desc: v.desc.trim(), amount: amt, date: v.date }); logIt(db, `Invoice ${x.no} edited by ${db.user.name}` + (was !== amt ? `, amount ${L.inr(was)} → ${L.inr(amt)}` : ''), x.caseId); }, 'Invoice updated'); invoiceView(app, id); } })));
+  }
+  function delInvoice(app, id) {
+    const i = app.db.invoices.find(x => x.id === id); if (!i || !allowed(app, 'invoice.delete')) return;
+    confirmBox(app, 'Delete invoice ' + i.no + '?', `${L.inr(i.amount + gstOf(i.amount))} billed to ${clientOf(app.db, i.clientId).name}.` + (i.paid ? ` It is marked paid on ${L.fmt(i.paidOn)}, so collections will drop by ${L.inr(i.amount)}.` : '') + ' This cannot be undone.', 'Delete invoice', () => app.mut(db => { db.invoices = db.invoices.filter(x => x.id !== id); logIt(db, `Invoice ${i.no} deleted by ${db.user.name}`, i.caseId); }, 'Invoice deleted'));
+  }
+  /* Deletes every saved version of a template's draft. */
+  function delDraft(app, k) {
+    const n = (app.db.drafts[k] || []).length; if (!n || !allowed(app, 'draft.delete')) return;
+    confirmBox(app, 'Delete this draft?', `All ${plural(n, 'saved version')} of your ${app.tplNames[k] || 'draft'} will be deleted. The blank template stays.`, 'Delete draft', () => { app.buf = null; app.mut(db => { delete db.drafts[k]; logIt(db, `${app.tplNames[k] || 'Draft'} draft deleted by ${db.user.name}`); }, 'Draft deleted'); app.setState({ ver: 0 }); });
   }
   function Billing({ app }) {
     const d = app.db, [f, setF] = useState('all'), T = L.today(), ym = T.slice(0, 7);
@@ -618,10 +862,11 @@
     const out = [];
     d.cases.forEach(c => { if ((c.title + c.full + c.no + c.cnr + c.court).toLowerCase().includes(s)) out.push({ kind: 'Case', label: c.title, sub: c.no + ' · ' + c.court, to: ['case', c.id] }); });
     d.clients.forEach(c => { if ((c.name + c.contact + c.email).toLowerCase().includes(s)) out.push({ kind: 'Client', label: c.name, sub: c.contact || c.city, to: ['clients'] }); });
-    d.docs.forEach(x => { if ((x.name + x.meta).toLowerCase().includes(s)) out.push({ kind: x.kind === 'evidence' ? 'Evidence' : 'Document', label: x.name, sub: caseOf(d, x.caseId).title, to: ['case', x.caseId, 'documents'] }); });
+    d.docs.forEach(x => { if ((x.name + x.meta + (x.tags || []).join(' ')).toLowerCase().includes(s)) out.push({ kind: x.kind === 'evidence' ? 'Evidence' : 'Document', label: x.name, sub: caseOf(d, x.caseId).title, to: ['case', x.caseId, 'documents'] }); });
     d.orders.forEach(o => { if ((o.summary + (o.paras || []).join(' ')).toLowerCase().includes(s)) out.push({ kind: 'Order', label: 'Order dated ' + L.dmy(o.date), sub: caseOf(d, o.caseId).title, to: ['order', o.id] }); });
     return out.slice(0, 9);
   }
 
-  window.LSV = { h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks };
+  window.LSV = { h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+    can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();

@@ -307,6 +307,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             </div>
           </sc-for>
         </div>
+        {{ needOutcome }}
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:20px">
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;display:flex;flex-direction:column;gap:18px">
@@ -521,26 +522,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         </div>
 
         <sc-if value="{{ tab.overview }}" hint-placeholder-val="{{ true }}">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px">
-            <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;grid-column:1/-1">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px">
+            <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;grid-column:1/-1;min-width:0">
               <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center">
                 <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">Case summary</h2>
-                <span style="font-size:12px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 10px;font-weight:500">{{ c.summaryMeta }}</span>
+                <span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 10px;font-weight:500">{{ c.summaryMeta }}</span>{{ c.summaryBtns }}</span>
               </div>
-              <p style="font-size:15px;line-height:1.7;color:#363636;margin:14px 0 0;max-width:880px;text-wrap:pretty">{{ c.summaryEl }}</p>
+              <p style="font-size:15px;line-height:1.7;color:#363636;margin:14px 0 0;max-width:880px;text-wrap:pretty;overflow-wrap:anywhere;white-space:pre-line">{{ c.summaryEl }}</p>
             </section>
-            <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
-              <h3 style="font-size:13px;color:#5E5E5E;margin:0 0 14px;font-weight:600">Parties</h3>
-              <div style="display:flex;flex-direction:column;gap:14px">
-                <sc-for list="{{ c.parties }}" as="p" hint-placeholder-count="2"><div><div style="font-size:12px;color:#5E5E5E">{{ p.role }}</div><div style="font-weight:500">{{ p.name }}</div><div style="font-size:13px;color:#5E5E5E">{{ p.note }}</div></div></sc-for>{{ c.partiesEmpty }}
-              </div>
-            </section>
-            <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
-              <h3 style="font-size:13px;color:#5E5E5E;margin:0 0 14px;font-weight:600">Legal issues</h3>
-              <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:#363636">
-                <sc-for list="{{ c.issues }}" as="i" hint-placeholder-count="3"><li>{{ i }}</li></sc-for>
-              </ol>{{ c.issuesEmpty }}
-            </section>
+            <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;grid-column:1/-1;min-width:0">{{ c.detailsEl }}</section>
             <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
               <h3 style="font-size:13px;color:#5E5E5E;margin:0 0 14px;font-weight:600">Pending tasks</h3>
               {{ c.tasksEl }}
@@ -573,7 +563,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               <div style="display:flex;flex-wrap:wrap;gap:16px;padding:18px 0;border-bottom:1px solid #E5E5E5;font-size:14px">
                 <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;width:100px">{{ h.date }}</div>
                 <div style="width:150px;color:#5E5E5E">{{ h.purpose }}</div>
-                <div style="flex:1;min-width:220px;color:#363636">{{ h.outcome }}</div>
+                <div style="flex:1;min-width:200px;color:#363636;display:flex;flex-direction:column;gap:6px;align-items:flex-start"><span>{{ h.chip }}</span><span>{{ h.outcome }}</span></div>
+                <div style="display:flex;align-items:center">{{ h.act }}</div>
               </div>
             </sc-for>{{ tabEmpty.hearings }}
           </section>
@@ -601,7 +592,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 </div>
                 <div style="padding-bottom:22px">
                   <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:12px;color:#5E5E5E">{{ e.date }}</div>
-                  <div style="font-size:14px;margin-top:2px">{{ e.x }}</div>
+                  <div style="font-size:14px;margin-top:2px;overflow-wrap:anywhere">{{ e.x }}</div>
+                  <div style="margin-top:4px">{{ e.chip }}</div>
                 </div>
               </div>
             </sc-for>{{ tabEmpty.timeline }}
@@ -614,7 +606,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       <div style="display:flex;flex-direction:column;gap:24px;max-width:1240px">
         <div>
           <div style="font-size:13px;color:#5E5E5E">{{ ord.caseLine }}</div>
-          <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">Review court order</h1>
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end"><h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">Review court order</h1>{{ ord.actions }}</div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
           <sc-for list="{{ orderSteps }}" as="p" hint-placeholder-count="4">
@@ -701,6 +693,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                       <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:12px;opacity:.85">{{ e.time }} · {{ e.court }}</div>
                       <div style="font-size:13px;font-weight:500;margin-top:3px">{{ e.title }}</div>
                       <div style="font-size:12px;opacity:.8">{{ e.no }}</div>
+                      {{ e.chip }}
                     </button>
                   </sc-for>
                 </div>
@@ -713,8 +706,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <sc-for list="{{ dayHearings }}" as="h" hint-placeholder-count="4">
               <div style="display:flex;flex-wrap:wrap;gap:20px;padding:20px 0;border-bottom:1px solid #E5E5E5">
                 <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:16px;width:80px">{{ h.time }}</div>
-                <div style="flex:1;min-width:220px"><div style="font-weight:500;font-size:16px">{{ h.title }}</div><div style="font-size:13px;color:#5E5E5E">{{ h.no }} · {{ h.court }} · {{ h.item }}</div><div style="font-size:14px;color:#363636;margin-top:6px">Last order: {{ h.last }}</div></div>
-                <button class="ls-btn" onClick="{{ h.brief }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13px;color:#0A0A0A;align-self:center">Hearing brief</button>
+                <div style="flex:1;min-width:220px"><div style="font-weight:500;font-size:16px">{{ h.title }}</div><div style="font-size:13px;color:#5E5E5E">{{ h.no }} · {{ h.court }} · {{ h.item }}</div><div style="font-size:14px;color:#363636;margin-top:6px">Last order: {{ h.last }}</div><div style="margin-top:6px">{{ h.chip }}</div></div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;align-self:center"><button class="ls-btn" onClick="{{ h.brief }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13px;color:#0A0A0A">Hearing brief</button>{{ h.act }}</div>
               </div>
             </sc-for>{{ dayEmpty }}
           </section>
@@ -788,6 +781,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             </sc-if>
           </section>
         </div>
+        {{ lim.deadlinesEl }}
       </div>
     </sc-if>
 
@@ -804,17 +798,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="2">
             <div class="ls-msg" style="{{ m.wrap }}">
               <div style="{{ m.bubble }}">{{ m.text }}</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <sc-for list="{{ m.cites }}" as="c" hint-placeholder-count="0">
-                  <span style="font-size:12px;background:#F0F0EF;color:#2B2B2B;border-radius:8px;padding:2px 8px">{{ c }}</span>
-                </sc-for>
-              </div>
+              {{ m.citesEl }}
             </div>
           </sc-for>
           <div id="ls-chat-end">{{ chatEmpty }}</div>
         </div>
         <div style="position:sticky;bottom:0;background:#F5F5F4;padding:12px 0 4px;display:flex;flex-direction:column;gap:10px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="{{ sugRow }}">
             <sc-for list="{{ suggestions }}" as="q" hint-placeholder-count="4">
               <button class="ls-btn" onClick="{{ q.ask }}" style="white-space:nowrap;height:34px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13px;color:#0A0A0A">{{ q.label }}</button>
             </sc-for>
@@ -864,7 +854,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:20px">
               <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600;margin-bottom:10px">Versions</div>
               <sc-for list="{{ versions }}" as="v" hint-placeholder-count="3">
-                <button onClick="{{ v.go }}" style="{{ v.style }}"><span style="font-weight:500">{{ v.v }}</span><span style="color:#5E5E5E;font-size:12px">{{ v.meta }}</span></button>
+                <div style="display:flex;align-items:center;gap:6px;border-top:1px solid #E5E5E5"><button onClick="{{ v.go }}" style="{{ v.style }}"><span style="font-weight:500">{{ v.v }}</span><span style="color:#5E5E5E;font-size:12px">{{ v.meta }}</span></button>{{ v.act }}</div>
               </sc-for>
             </div>
           </section>
@@ -1143,7 +1133,7 @@ class Component extends DCLogic {
   ask(label) {
     const id = (this.db.cases.find(x => x.id === this.state.brainCase) || this.db.cases[0] || {}).id;
     if (!id) return this.toast('Add a case first, then ask about it.');
-    this.mut(db => { const a = LS.answer(db, id, label); this.chat(id).push({ role: 'user', text: label }, { role: 'ai', text: a.text, cites: a.cites });
+    this.mut(db => { const a = LS.answer(db, id, label); this.chat(id).push({ role: 'user', text: label }, Object.assign({ role: 'ai', text: a.text, cites: a.cites }, a.need ? { need: a.need } : null));
       if (a.brief) { const nh = LSV.nextHearing(db, id); if (nh) nh.brief = true; } });
     this.setState({ q: '' });
     if (!LSV.reduced()) { clearTimeout(this.thT); this.setState({ thinking: id }); this.thT = setTimeout(() => this.setState({ thinking: '' }), 650); }
@@ -1222,7 +1212,7 @@ class Component extends DCLogic {
     const todayH = D.hearings.filter(x => x.date === T).sort((a, b) => a.time.localeCompare(b.time));
     const alerts = st.inapp ? V.alerts(D, this) : [];
     const shortCourt = c => c.replace('Delhi HC · Court ', 'HC ').replace('Saket · Court ', 'Saket ').replace('Tis Hazari · Court ', 'THC ');
-    const hv = x => { const c = caseOf(x.caseId), clash = clashIds.has(x.id); return { time: LS.t12(x.time), item: x.item || '—', title: c.title, no: c.no, court: x.court, last: x.last || (D.orders.filter(o => o.caseId === x.caseId).sort((a, b) => b.date.localeCompare(a.date))[0] || {}).summary || 'No order on file', tag: clash ? 'Conflict' : (x.brief ? 'Brief ready' : (x.purpose || 'Hearing')), tagStyle: clash ? chip('#FDECEA', '#B42318') : (x.brief ? chip('#F0F0EF', '#0A0A0A') : chip('#EDEDED', '#363636')), go: () => this.go('case', x.caseId), brief: () => { this.setState({ brainCase: x.caseId }); this.go('brain'); setTimeout(() => this.ask('Prepare a hearing brief'), 80); } }; };
+    const hv = x => { const c = caseOf(x.caseId), clash = clashIds.has(x.id); return { time: LS.t12(x.time), item: x.item || '—', title: c.title, no: c.no, court: x.court, last: x.last || (D.orders.filter(o => o.caseId === x.caseId).sort((a, b) => b.date.localeCompare(a.date))[0] || {}).summary || 'No order on file', tag: x.outcome || (clash ? 'Conflict' : (x.brief ? 'Brief ready' : (x.purpose || 'Hearing'))), tagStyle: !x.outcome && clash ? chip('#FDECEA', '#B42318') : (x.outcome || x.brief ? chip('#F0F0EF', '#0A0A0A') : chip('#EDEDED', '#363636')), go: () => this.go('case', x.caseId), chip: V.outcomeChip(x), act: V.hearingActs(this, x), brief: () => { this.setState({ brainCase: x.caseId }); this.go('brain'); setTimeout(() => this.ask('Prepare a hearing brief'), 80); } }; };
     const todayHearings = todayH.map(hv);
 
     /* ---- navigation ---- */
@@ -1249,7 +1239,7 @@ class Component extends DCLogic {
     const emptyPage = (kicker, title, text, btns) => h(V.Page, { kicker, title, max: 760 }, h(V.Card, null, h(V.Empty, { title: text[0], text: text[1], art: text[2] }), h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', paddingBottom: 12 } }, btns)));
     let modView = V.MODULES[scr] ? h(V.MODULES[scr], { app: this, key: scr }) : null;
     if (s.limitation && !D.lim) { s.limitation = false; modView = h(V.Page, { kicker: 'Legal deadlines', title: 'Limitation tracker', max: 900, actions: [h(V.Btn, { key: 1, onClick: () => V.addDeadline(this) }, '+ Add a deadline'), h(V.Btn, { key: 2, primary: true, onClick: () => V.newLim(this) }, 'New calculation')] },
-      h(V.Card, { title: 'Deadlines' }, D.deadlines.slice().sort((a, b) => a.due.localeCompare(b.due)).map(x => h(V.Line, { key: x.id }, h('div', { style: { flex: 1, minWidth: 0 } }, x.title, h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, x.rule + ' · due ' + LS.fmt(x.due) + ' · ' + LS.diffDays(x.due, T) + ' days')), h(V.Btn, { small: true, danger: true, onClick: () => this.mut(db => { db.deadlines = db.deadlines.filter(y => y.id !== x.id); }, 'Deadline removed') }, 'Remove'))), !D.deadlines.length && h(V.Empty, { title: 'No deadlines yet', text: 'Start a limitation calculation for a commercial appeal, or add a deadline with a known last date.' }))); }
+      V.deadlinesCard(this)); }
     if (s.admin && !this.dirApps().length) { s.admin = false; modView = emptyPage('Directory moderation', 'Verification queue', LSB.on && !this.isAdmin ? ['Not available on this account', 'Only Legal Staff platform administrators can verify directory applications.'] : ['No applications yet', 'Applications submitted from the public advocate directory appear here for verification.'], [h('a', { key: 1, href: 'directory.html', style: { fontSize: 14 } }, 'Open the public directory')]); }
     if (s.brain && !D.cases.length) { s.brain = false; modView = emptyPage('AI Case Brain', 'Ask about a case', ['No cases yet', 'Add a case with its orders and documents, then ask questions about it here.', 'chat'], [h(V.Btn, { key: 1, primary: true, onClick: () => V.newCase(this) }, '+ New case')]); }
     s.mod = !!modView;
@@ -1268,21 +1258,23 @@ class Component extends DCLogic {
     const cOrders = D.orders.filter(o => o.caseId === C0.id).sort((a, b) => b.date.localeCompare(a.date));
     const cNext = V.nextHearing(D, C0.id), cPend = pendOrders.find(o => o.caseId === C0.id);
     const emptyBox = t => h(V.Empty, { title: t, small: true });
-    const sumEl = C0.summary ? C0.summary.split(/(\[[^\]]+\])/).map((p, i) => /^\[/.test(p) ? h('a', { key: i, href: '#', onClick: e => { e.preventDefault(); /Order/.test(p) && cOrders[0] ? this.go('order', cOrders[0].id) : this.go('case', C0.id, 'documents'); } }, p) : p) : 'No summary yet. Add an order or documents to this case, then ask the Case Brain for a hearing brief.';
+    const orderByCite = p => { const m = /Order (\d\d\.\d\d\.\d{4})/.exec(p); return m && cOrders.find(o => LS.dmy(o.date) === m[1]); };
+    const sumEl = C0.summary ? C0.summary.split(/(\[[^\]]+\])/).map((p, i) => /^\[/.test(p) ? h('a', { key: i, href: '#', onClick: e => { e.preventDefault(); const o = orderByCite(p) || (/Order/.test(p) && cOrders[0]); o ? this.go('order', o.id) : this.go('case', C0.id, 'documents'); } }, p) : p) : 'No summary written yet. Write one in Case details' + (cOrders.length ? ', or draft one from the key points of the orders on file.' : ', or add court orders and draft it from them.');
+    const summaryBtns = C0.id ? h('span', { style: { display: 'inline-flex', gap: 6, flexWrap: 'wrap' } }, h(V.Btn, { small: true, onClick: () => V.caseDetails(this, C0.id, 'summary') }, C0.summary ? 'Edit summary' : 'Write summary'), h(V.Btn, { small: true, disabled: !cOrders.length, title: cOrders.length ? 'Assemble a draft from the key points of the orders' : 'No orders in this case yet', onClick: () => V.caseDetails(this, C0.id, 'summary', true) }, 'Draft from orders')) : null;
     const c = { no: C0.no, full: C0.full, cnrLabel: C0.cnr ? 'CNR ' + C0.cnr : 'CNR not added', forum: C0.forum || C0.court, statusLine: (SC[C0.status] || SC.active)[0] + ' · ' + (C0.stage || ''),
       nextLabel: cNext ? LS.longDate(cNext.date) : (cPend ? LS.longDate(cPend.nextDate) : 'Not fixed'), benchLine: cNext ? [cNext.court, LS.t12ap(cNext.time), C0.bench].filter(Boolean).join(' · ') : (cPend ? 'From the last order · not yet confirmed' : (C0.bench || C0.court)),
       openOrder: () => cOrders[0] ? this.go('order', cOrders[0].id) : V.addOrder(this, C0.id), orderLabel: cOrders[0] ? 'Open latest order' : 'Add court order',
       brief: () => { this.setState({ brainCase: C0.id }); this.go('brain'); setTimeout(() => this.ask('Prepare a hearing brief'), 80); },
-      actions: h(React.Fragment, null, h(V.Btn, { onClick: () => V.addHearing(this, C0.id) }, '+ Hearing'), h(V.Btn, { onClick: () => V.addOrder(this, C0.id) }, '+ Order'), h(V.Btn, { onClick: () => V.uploadDoc(this, 'document', C0.id) }, '+ Document'),
-        h(V.Select, { value: C0.status, onChange: v => this.mut(db => { db.cases.find(x => x.id === C0.id).status = v; V.logIt(db, 'Status changed to ' + SC[v][0], C0.id); }, 'Case marked ' + SC[v][0].toLowerCase()), options: Object.keys(SC).map(k => [k, SC[k][0]]), style: { height: 36, minWidth: 120, fontSize: 13.5 } })),
-      summaryMeta: C0.summaryMeta || 'Not generated yet', summaryEl: sumEl, parties: C0.parties, partiesEmpty: C0.parties.length ? null : h('div', { style: { fontSize: 14, color: '#5E5E5E' } }, 'Client: ' + V.clientOf(D, C0.clientId).name + '. Party details have not been added.'),
-      issues: C0.issues, issuesEmpty: C0.issues.length ? null : h('div', { style: { fontSize: 14, color: '#5E5E5E' } }, 'No issues recorded yet.'),
+      actions: h(React.Fragment, null, h(V.Btn, { onClick: () => V.newCase(this, null, C0.id) }, 'Edit case'), h(V.Btn, { onClick: () => V.caseDetails(this, C0.id) }, 'Case details'), h(V.Btn, { onClick: () => V.addHearing(this, C0.id) }, '+ Hearing'), h(V.Btn, { onClick: () => V.addOrder(this, C0.id) }, '+ Order'), h(V.Btn, { onClick: () => V.uploadDoc(this, 'document', C0.id) }, '+ Document'),
+        h(V.Select, { value: C0.status, onChange: v => this.mut(db => { db.cases.find(x => x.id === C0.id).status = v; V.logIt(db, 'Status changed to ' + SC[v][0], C0.id); }, 'Case marked ' + SC[v][0].toLowerCase()), options: Object.keys(SC).map(k => [k, SC[k][0]]), style: { height: 36, minWidth: 120, fontSize: 13.5 } }), h(V.Btn, { danger: true, onClick: () => V.delCase(this, C0.id) }, 'Delete case')),
+      summaryMeta: C0.summary ? (C0.summaryMeta || 'Written in Case details') : 'Not written yet', summaryEl: sumEl, summaryBtns, detailsEl: C0.id ? V.detailsView(this, C0) : null,
       tasksEl: h('div', null, cTasks.map(t => h(V.TaskRow, { key: t.id, app: this, t })), !cTasks.length && h('div', { style: { fontSize: 14, color: '#5E5E5E', paddingBottom: 8 } }, 'No tasks in this case.'), h('div', { style: { marginTop: 10 } }, h(V.Btn, { small: true, onClick: () => V.addTask(this, C0.id) }, '+ Add task'))),
       advocates: C0.team.map((n, i) => { const u = D.team.find(x => x.name === n) || { title: n, role: '' }; return { name: u.title, role: (i === 0 ? 'Lead · ' : '') + u.role }; }) };
     const caseOrders = cOrders.map(o => ({ date: LS.dmy(o.date), summary: o.summary, source: o.source, go: () => this.go('order', o.id) }));
-    const hearingHistory = D.hearings.filter(x => x.caseId === C0.id).sort((a, b) => b.date.localeCompare(a.date)).map(x => ({ date: LS.dmy(x.date), purpose: x.purpose, outcome: x.outcome || (x.date >= T ? `Listed · ${LS.t12ap(x.time)} · ${x.court} · ${x.assignee}` : 'Outcome not recorded') }));
-    const docs = D.docs.filter(x => x.caseId === C0.id).map(x => ({ ext: x.ext, name: x.name, meta: x.meta, v: x.v, act: h('button', { onClick: () => V.openDoc(this, x), style: { border: '1px solid #E5E5E5', background: '#fff', borderRadius: 8, height: 30, padding: '0 10px', fontSize: 12.5, marginLeft: 12 } }, 'Download') }));
-    const timeline = D.log.filter(e => e.caseId === C0.id).map(e => ({ date: LS.dmy(e.ts.slice(0, 10)) + (e.ts.slice(0, 10) === T ? ' ' + e.ts.slice(11) : ''), x: e.x }));
+    const hearingHistory = D.hearings.filter(x => x.caseId === C0.id).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).map(x => { const nx = x.nextHearingId && D.hearings.find(y => y.id === x.nextHearingId);
+      return { date: LS.dmy(x.date), purpose: x.purpose, chip: V.outcomeChip(x), act: V.hearingActs(this, x), outcome: x.outcome ? [x.outcomeNote, nx && 'Next date ' + LS.dmy(nx.date)].filter(Boolean).join(' · ') : (x.date >= T ? `Listed · ${LS.t12ap(x.time)} · ${x.court} · ${x.assignee}` : `${LS.t12ap(x.time)} · ${x.court} · ${x.assignee}`) }; });
+    const docs = D.docs.filter(x => x.caseId === C0.id).map(x => ({ ext: x.kind === 'evidence' ? (x.exhibit || 'EV') : x.ext, name: x.name, meta: (x.kind === 'evidence' ? (x.custody || x.meta) : x.meta) + V.tagLine(x), v: x.v, act: V.docActs(this, x) }));
+    const timeline = D.log.filter(e => e.caseId === C0.id).map(e => ({ date: LS.dmy(e.ts.slice(0, 10)) + (e.ts.slice(0, 10) === T ? ' ' + e.ts.slice(11) : ''), x: e.x, chip: e.outcome ? h(V.Chip, { tone: e.outcome === 'Not reached' || V.isAdj(e.outcome) ? 'grey' : '' }, e.outcome) : null }));
     const tabsDef = [['overview', 'Overview'], ['orders', 'Orders'], ['hearings', 'Hearings'], ['documents', 'Documents'], ['timeline', 'Timeline']];
     const tabKey = tabsDef.some(t => t[0] === S.tab) ? S.tab : 'overview';
     const tab = {}; tabsDef.forEach(([k]) => tab[k] = tabKey === k);
@@ -1296,7 +1288,7 @@ class Component extends DCLogic {
     const rem = !oDate ? '' : LSB.on ? `It appears in the daily briefing email for the assigned advocate on ${LS.dayMon(LS.addDays(oDate, -st.remindDays))} and on ${LS.dayMon(oDate)}, if briefings are enabled in Settings.` : 'It shows on the calendar and dashboard on this device. Briefing emails need the server.';
     const remPlan = LSB.on ? `Once confirmed, it is included in the daily briefing email ${st.remindDays} day${st.remindDays === 1 ? '' : 's'} before and on the day, if briefings are enabled.` : 'Briefing emails need the server; on this device the hearing shows on the calendar and dashboard.';
     const nextPara = O.nextFrom ? +(/¶(\d+)/.exec(O.nextFrom) || [])[1] : 0;
-    const ord = { caseLine: oc.title + ' · ' + oc.no, file: O.file || 'Order dated ' + LS.dmy(O.date), sourceNote: O.official ? 'Fetched from eCourts. ' + O.source : 'Manually added. Not an official retrieval.', nextFrom: O.nextFrom || (oDate ? 'from the order' : 'Enter the next date below'),
+    const ord = { caseLine: oc.title + ' · ' + oc.no, actions: O.id ? h('span', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(V.Btn, { onClick: () => V.editOrder(this, O.id) }, 'Edit order'), h(V.Btn, { danger: true, onClick: () => V.delOrder(this, O.id) }, 'Delete order')) : null, file: O.file || 'Order dated ' + LS.dmy(O.date), sourceNote: O.official ? 'Fetched from eCourts. ' + O.source : 'Manually added. Not an official retrieval.', nextFrom: O.nextFrom || (oDate ? 'from the order' : 'Enter the next date below'),
       sumChip: oConf ? 'Reviewed' : 'Draft · needs your review',
       docEl: h(React.Fragment, null, O.court && h('div', { style: { textAlign: 'center', fontWeight: 600, letterSpacing: '.04em' } }, O.court), h('div', { style: { textAlign: 'center', marginTop: 4 } }, O.cause || oc.no),
         O.p1 ? h(React.Fragment, null, h('div', { style: { marginTop: 18 } }, O.p1), h('div', null, 'versus'), h('div', null, O.p2)) : h('div', { style: { marginTop: 18 } }, oc.full || oc.title),
@@ -1318,7 +1310,7 @@ class Component extends DCLogic {
     const week = [0, 1, 2, 3, 4, 5, 6].map(i => { const ds = LS.addDays(ws, i), dt = LS.parse(ds), sat2 = dt.getDay() === 6 && dt.getDate() > 7 && dt.getDate() <= 14, isT = ds === T;
       return { dow: 'Sun Mon Tue Wed Thu Fri Sat'.split(' ')[dt.getDay()], n: dt.getDate(), note: isT ? 'Today' : (sat2 ? 'Court holiday' : ''),
         colStyle: { background: sat2 ? '#E5E5E5' : '#FFFFFF', border: isT ? '1.5px solid #0A0A0A' : '1px solid #E5E5E5', borderRadius: 12, padding: 16, minHeight: 220 },
-        events: D.hearings.filter(x => x.date === ds).sort((a, b) => a.time.localeCompare(b.time)).map(x => { const cf = clashIds.has(x.id), cs = caseOf(x.caseId); return { time: LS.t12(x.time), court: shortCourt(x.court), title: cs.title, no: cs.no + ' · ' + LS.short(x.assignee), go: () => this.go('case', x.caseId), style: { textAlign: 'left', width: '100%', borderRadius: 8, padding: '10px 12px', background: cf ? '#FDECEA' : '#F5F5F4', color: cf ? '#8F1D13' : '#0A0A0A', border: cf ? '1px solid #F4B8B1' : '1px solid #E5E5E5' } }; }) }; });
+        events: D.hearings.filter(x => x.date === ds).sort((a, b) => a.time.localeCompare(b.time)).map(x => { const cf = clashIds.has(x.id), cs = caseOf(x.caseId); return { time: LS.t12(x.time), court: shortCourt(x.court), title: cs.title, no: cs.no + ' · ' + LS.short(x.assignee), chip: (c => c && h('div', { style: { marginTop: 6 } }, c))(V.outcomeChip(x)), go: () => this.go('case', x.caseId), style: { textAlign: 'left', width: '100%', borderRadius: 8, padding: '10px 12px', background: cf ? '#FDECEA' : '#F5F5F4', color: cf ? '#8F1D13' : '#0A0A0A', border: cf ? '1px solid #F4B8B1' : '1px solid #E5E5E5' } }; }) }; });
     const we = LS.addDays(ws, 6), sameM = ws.slice(0, 7) === we.slice(0, 7);
     const weekTitle = wkView ? (sameM ? `${LS.parse(ws).getDate()} – ${LS.fmt(we, { day: 'numeric', month: 'long', year: 'numeric' })}` : `${LS.dayMon(ws)} – ${LS.fmt(we)}`) : LS.fmt(daySel, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const step = n => wkView ? this.setState({ weekStart: LS.addDays(ws, 7 * n) }) : this.setState({ daySel: LS.addDays(daySel, n), weekStart: this.monday(LS.addDays(daySel, n)) });
@@ -1334,26 +1326,35 @@ class Component extends DCLogic {
       dueLabel: LS.longDate(lim.due), daysLabel: lim.daysLeft >= 0 ? `${lim.daysLeft} day${lim.daysLeft === 1 ? '' : 's'}` : `${-lim.daysLeft} day${lim.daysLeft === -1 ? '' : 's'} late`, daysWord: lim.daysLeft >= 0 ? 'remaining' : 'past the last date',
       sendLabel: LM.sent ? 'Sent for review ✓' : 'Send to a colleague for review', send: () => { if (LM.sent) return this.toast('Already sent. A review task is open.'); const rvu = D.team.find(u => u.name !== me && u.status !== 'Suspended'); if (!rvu) { this.toast('Invite a colleague in Team first.'); return this.go('team'); } const rv = rvu.name; this.mut(db => { db.lim.sent = true; db.tasks.push({ id: LS.uid('t'), caseId: db.lim.caseId, t: 'Review limitation calculation: ' + db.lim.title, who: rv, due: LS.addDays(T, 1), done: false }); V.logIt(db, 'Limitation calculation sent to ' + rv + ' for review', db.lim.caseId); }, 'Review task created for ' + rv); },
       approvedBy: 'Approved by ' + D.user.title, approvedText: LM.approved ? `on ${LM.approvedAt}. The last date is shown on this page and in the dashboard's deadlines. To have it in the daily briefing${LSB.on ? '' : ' (needs the server)'}, also add it under "+ Add a deadline". Logged in the calculation history.` : '',
-      newBtns: h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(V.Btn, { onClick: () => V.newLim(this) }, 'New calculation'), h(V.Btn, { onClick: () => V.addDeadline(this) }, '+ Add a deadline')),
+      newBtns: h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(V.Btn, { onClick: () => V.newLim(this) }, 'New calculation'), h(V.Btn, { onClick: () => V.addDeadline(this) }, '+ Add a deadline'), h(V.Btn, { danger: true, onClick: () => V.delLim(this) }, 'Delete calculation')),
+      deadlinesEl: D.lim ? V.deadlinesCard(this) : null,
       changeEl: limFilled ? h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 } }, !LM.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lim.ready = ''; }) }, 'Change the certified-copy date'), LM.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lim.approved = false; db.lim.approvedAt = ''; }, 'Approval withdrawn') }, 'Withdraw approval')) : null };
     const fillMissing = () => { const v = limO.readyInput; if (!LS.valid(v)) return this.toast('Enter a valid date.'); if (v < LM.applied) return this.toast('The copy cannot be ready before it was applied for (' + LS.dmy(LM.applied) + ').'); if (v > T) return this.toast('That date is in the future.'); this.mut(db => { db.lim.ready = v; }); };
 
     /* ---- brain ---- */
     const bc = D.cases.find(x => x.id === S.brainCase) || D.cases[0] || { id: '' }, chat = bc.id ? this.chat(bc.id) : [];
     const brainScope = h('span', { style: { display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }, h(V.Select, { value: bc.id, onChange: v => this.setState({ brainCase: v }), options: D.cases.map(x => [x.id, x.no + ' · ' + x.title]), style: { height: 34, fontSize: 13, maxWidth: 320 } }), h('span', null, `${D.docs.filter(x => x.caseId === bc.id).length} documents · ${D.orders.filter(x => x.caseId === bc.id).length} orders`), chat.length > 0 && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.chats[bc.id] = []; }) }, 'Clear'));
-    const suggestions = ['Prepare a hearing brief', 'What documents are missing?', 'What tasks are pending?', 'What arguments were raised?'].map(label => ({ label, ask: () => this.ask(label) }));
+    const suggestions = ['Prepare a hearing brief', 'Summarise the case', 'What are the issues?', 'Who are the parties?', 'What arguments were raised?', 'What documents are missing?', 'What happened at the last hearing?'].map(label => ({ label, ask: () => this.ask(label) }));
+    const bOrders = D.orders.filter(o => o.caseId === bc.id), citeGo = t => { const m = /^Order (\d\d\.\d\d\.\d{4})/.exec(t), o = m && bOrders.find(x => LS.dmy(x.date) === m[1]);
+      if (o) return () => this.go('order', o.id); if (/^Case details/.test(t)) return () => V.caseDetails(this, bc.id, { 'Case details › Parties': 'pet', 'Case details › Issues': 'issues', 'Case details › Our arguments': 'ours', "Case details › Opponent's arguments": 'opp', 'Case details › Missing documents': 'missing', 'Case details › Summary': 'summary' }[t]);
+      if (/^Hearing/.test(t)) return () => this.go('case', bc.id, 'hearings'); if (t === 'Tasks') return () => this.go('case', bc.id); return () => this.go('case', bc.id, 'documents'); };
+    const citesEl = m => h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', maxWidth: '100%' } }, (m.cites || []).map((t, i) => h('button', { key: i, type: 'button', className: 'ls-cite', title: 'Open the source', onClick: citeGo(t), style: { fontSize: 12, background: '#F0F0EF', color: '#2B2B2B', border: 0, borderRadius: 8, padding: '2px 8px', textAlign: 'left', overflowWrap: 'anywhere' } }, t)),
+      m.need && V.NEED[m.need] && h(V.Btn, { small: true, primary: true, onClick: () => V.caseDetails(this, bc.id, V.NEED[m.need][0]) }, V.NEED[m.need][1]));
     const thinking = !!S.thinking && S.thinking === bc.id;
-    const msgs = chat.map((m, i) => { const typing = thinking && m.role === 'ai' && i === chat.length - 1; return { text: typing ? h('span', { key: 't', className: 'ls-typing', role: 'status', 'aria-label': 'Preparing the answer', style: { color: '#8A8A8A', display: 'inline-flex', padding: '4px 0' } }, h('span'), h('span'), h('span')) : (m.role === 'ai' ? h('span', { key: 'a', className: 'ls-fade' }, m.text) : m.text), cites: typing ? [] : (m.cites || []),
+    const msgs = chat.map((m, i) => { const typing = thinking && m.role === 'ai' && i === chat.length - 1; return { text: typing ? h('span', { key: 't', className: 'ls-typing', role: 'status', 'aria-label': 'Preparing the answer', style: { color: '#8A8A8A', display: 'inline-flex', padding: '4px 0' } }, h('span'), h('span'), h('span')) : (m.role === 'ai' ? h('span', { key: 'a', className: 'ls-fade' }, m.text) : m.text), cites: typing ? [] : (m.cites || []), citesEl: typing ? null : citesEl(m),
       wrap: { display: 'flex', flexDirection: 'column', gap: 8, alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' },
       bubble: m.role === 'user' ? { background: '#0A0A0A', color: '#fff', borderRadius: 12, padding: '12px 16px', fontSize: 15, maxWidth: '80%' } : { background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: 12, padding: '18px 20px', fontSize: 15, lineHeight: 1.65, whiteSpace: 'pre-line', maxWidth: '92%', color: '#1A1A1A' } }; });
 
     /* ---- drafting ---- */
-    const saved = D.drafts[S.tpl] || [], vlist = [...saved.map((x, i) => ({ v: 'v' + (saved.length - i + 1) + (i === 0 ? ' · current' : ''), meta: `Saved by ${x.by} · ${LS.dayMon(x.at.slice(0, 10))}, ${x.at.slice(11)}`, html: x.html })), { v: 'v1' + (saved.length ? '' : ' · current'), meta: 'From template', html: this.tplHtml(S.tpl) }];
+    const verName = (i, x) => { this.modal(() => h(V.Modal, { title: 'Name this version', onClose: () => this.modal(null) }, h(V.Form, { init: { label: x.label || '' }, submit: 'Save', onCancel: () => this.modal(null), fields: [{ k: 'label', label: 'Version name', ph: 'Sent to client, final, …' }], onSubmit: v => { this.mut(db => { const y = (db.drafts[S.tpl] || [])[i]; if (y) { y.label = v.label.trim(); V.logIt(db, `${this.tplNames[S.tpl]} draft version renamed by ${db.user.name}`); } }, 'Version renamed'); this.modal(null); } }))); };
+    const verDel = (i, x, name) => V.confirmBox(this, 'Delete ' + name + '?', `This saved version of the ${this.tplNames[S.tpl]} (${x.at}) will be deleted. Other versions stay.`, 'Delete version', () => { this.buf = null; this.mut(db => { const a = db.drafts[S.tpl] || []; a.splice(i, 1); if (!a.length) delete db.drafts[S.tpl]; V.logIt(db, `${this.tplNames[S.tpl]} draft ${name} deleted by ${db.user.name}`); }, 'Version deleted'); this.setState({ ver: 0 }); });
+    const saved = D.drafts[S.tpl] || [], vlist = [...saved.map((x, i) => { const name = 'v' + (saved.length - i + 1); return { v: name + (x.label ? ' · ' + x.label : '') + (i === 0 ? ' · current' : ''), meta: `Saved by ${x.by} · ${LS.dayMon(x.at.slice(0, 10))}, ${x.at.slice(11)}`, html: x.html,
+      act: V.can(this, 'draft.edit') ? h('span', { style: { display: 'inline-flex', gap: 4, flexShrink: 0 } }, h(V.IconBtn, { label: 'Rename ' + name, onClick: () => verName(i, x) }, '✎'), h(V.IconBtn, { label: 'Delete ' + name, danger: true, onClick: () => verDel(i, x, name) }, '×')) : null }; }), { v: 'v1' + (saved.length ? '' : ' · current'), meta: 'From template', html: this.tplHtml(S.tpl), act: null }];
     const vi = Math.min(S.ver, vlist.length - 1), dHtml = this.clean(vlist[vi].html), liveHtml = this.buf != null ? this.buf : dHtml, plain = liveHtml.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
     const templates = this.tplNames.map((label, i) => ({ label, go: () => { this.buf = null; this.setState({ tpl: i, ver: 0 }); },
       style: { display: 'block', width: '100%', textAlign: 'left', border: 0, borderRadius: 8, padding: '9px 10px', fontSize: 14, background: S.tpl === i ? '#F0F0EF' : 'transparent', color: '#0A0A0A', fontWeight: S.tpl === i ? 600 : 400 } }));
-    const versions = vlist.map((x, i) => ({ v: x.v, meta: x.meta, go: () => { this.buf = null; this.setState({ ver: i }); },
-      style: { display: 'flex', flexDirection: 'column', width: '100%', textAlign: 'left', border: 0, borderTop: '1px solid #E5E5E5', padding: '10px 4px', fontSize: 14, background: vi === i ? '#FFFFFF' : 'transparent', color: '#0A0A0A', fontWeight: vi === i ? 600 : 400 } }));
+    const versions = vlist.map((x, i) => ({ v: x.v, meta: x.meta, act: x.act, go: () => { this.buf = null; this.setState({ ver: i }); },
+      style: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, textAlign: 'left', border: 0, padding: '10px 4px', fontSize: 14, background: vi === i ? '#FFFFFF' : 'transparent', color: '#0A0A0A', fontWeight: vi === i ? 600 : 400 } }));
     const ph = (plain.match(/\[[^\]]+\]/g) || []).length, dm = (d1, d2) => { const p = x => x.slice(6) + '-' + x.slice(3, 5) + '-' + x.slice(0, 2); return LS.diffDays(p(d1), p(d2)); };
     const chk = [ph ? ['•', `${ph} placeholder${ph > 1 ? 's' : ''} in [brackets] still to be filled in`] : ['✓', 'No unfilled placeholders'], /\b\d{2}\.\d{2}\.\d{4}\b/.test(plain) ? ['✓', 'The document is dated'] : ['•', 'No date found in the document'], plain.includes(D.user.name) ? ['✓', 'Signature block is present'] : ['•', `The signature block for ${D.user.title} is missing`]];
     if (S.tpl === 2 || S.tpl === 0) chk.push(/fifteen days|15 days/i.test(plain) ? ['✓', 'The 15-day payment period is stated'] : ['•', 'The 15-day period for compliance is not stated']);
@@ -1422,6 +1423,10 @@ class Component extends DCLogic {
     const months = Array.from({ length: 6 }, (_, i) => { const dt = new Date(); dt.setDate(1); dt.setMonth(dt.getMonth() - (5 - i)); return LS.iso(dt).slice(0, 7); });
     const fee = months.map(m => [LS.fmt(m + '-01', { month: 'short' }), D.invoices.filter(x => x.paid && x.date.slice(0, 7) === m).reduce((a, x) => a + x.amount, 0), D.invoices.filter(x => !x.paid && x.date.slice(0, 7) === m).reduce((a, x) => a + x.amount, 0)]), feeMax = Math.max(1, ...fee.map(x => x[1] + x[2])) * 1.1;
     const unpaid = D.invoices.filter(x => !x.paid), hour = new Date().getHours();
+    const needO = V.needsOutcome(D).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+    const needOutcome = needO.length ? h(V.Card, { title: 'Needs outcome', right: h('span', { style: { fontSize: 13, color: '#5E5E5E' } }, `${needO.length} past hearing${needO.length > 1 ? 's' : ''} without a recorded outcome`) },
+      needO.slice(0, 6).map(x => h(V.Line, { key: x.id }, h('div', { style: { width: 64, flexShrink: 0, fontSize: 13, color: '#5E5E5E', fontVariantNumeric: 'tabular-nums' } }, LS.dayMon(x.date), h('div', null, LS.t12ap(x.time))), h('div', { style: { flex: 1, minWidth: 0, overflowWrap: 'anywhere' } }, caseOf(x.caseId).title, h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, [x.court, x.purpose, x.assignee].filter(Boolean).join(' · '))), h(V.Btn, { small: true, primary: true, onClick: () => V.recordOutcome(this, x.id) }, 'Record outcome'))),
+      needO.length > 6 && h('div', { style: { fontSize: 13, color: '#5E5E5E', paddingTop: 10, borderTop: '1px solid #E5E5E5' } }, `And ${needO.length - 6} more. Open a case's Hearings tab to record them.`)) : null;
     const openMenu = k => () => this.setState({ menu: S.menu === k ? null : k });
 
     /* ---- overlay: dropdown menus + modal ---- */
@@ -1485,7 +1490,7 @@ class Component extends DCLogic {
         out: { height: grown ? `${o / feeMax * 100}%` : 0, background: '#C4C4C4', borderRadius: '2px 2px 0 0', transition: `height .7s cubic-bezier(.2,.7,.2,1) ${150 + i * 50}ms` },
         lbl: { fontSize: 11, textAlign: 'center', color: i === 5 ? '#0A0A0A' : '#5E5E5E', fontWeight: i === 5 ? 600 : 400 } })),
       feeMonth: LS.fmt(T, { month: 'long' }), feeCollected: inr(fee[5][1]), feeOutstanding: inr(fee[5][2]), feeNote: `${unpaid.length} invoice${unpaid.length === 1 ? '' : 's'} unpaid · ${unpaid.filter(x => LS.diffDays(T, x.date) > 30).length} overdue by more than 30 days`, goBilling: () => this.go('billing'),
-      todayHearings,
+      todayHearings, needOutcome,
       orders: D.orders.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3).map(o => { const need = !o.confirmed && o.nextDate; return { title: caseOf(o.caseId).title, date: LS.dmy(o.date), source: o.source, summary: o.summary, btn: need ? 'Confirm date' : 'Open', go: () => this.go('order', o.id), btnStyle: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13, whiteSpace: 'nowrap', border: need ? 0 : '1px solid #E5E5E5', background: need ? '#0A0A0A' : '#FFFFFF', color: need ? '#fff' : '#0A0A0A' } }; }),
       deadlines: dl.map(x => ({ ...x, go: () => this.go('limitation'), dayStyle: { width: 54, height: 54, borderRadius: 8, background: x.days <= 21 ? '#FDECEA' : '#F0F0EF', color: x.days <= 21 ? '#B42318' : '#0A0A0A', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } })),
       activity: D.log.slice().sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 4).map(e => ({ t: e.ts.slice(0, 10) === T ? e.ts.slice(11) : LS.dayMon(e.ts.slice(0, 10)), x: e.x })),
@@ -1507,7 +1512,7 @@ class Component extends DCLogic {
       ],
       missingOpen: !limFilled, missingFilled: limFilled, fillMissing,
       derivation: lim.rows, approved: LM.approved, notApproved: !LM.approved, approve: () => this.mut(db => { db.lim.approved = true; db.lim.approvedAt = LS.fmt(T) + ' at ' + LS.nowHM() + ' IST'; V.logIt(db, 'Limitation date ' + LS.dmy(lim.due) + ' approved by ' + db.user.name, db.lim.caseId); }, 'Limitation date approved'),
-      msgs, suggestions, brainScope, chatEmpty: chat.length ? null : h('div', { className: 'ls-empty', style: { color: '#5E5E5E', fontSize: 14, padding: '24px 0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } }, h(V.Art, { name: 'chat', style: { width: 120, height: 'auto' } }), h('span', { style: { flex: '1 1 200px' } }, 'Ask a question about this case, or pick a suggestion below.')), draftQ: S.q, setQ: e => this.setState({ q: e.target.value }), sendQ: () => S.q.trim() && this.ask(S.q.trim()), qKey: e => { if (e.key === 'Enter' && S.q.trim()) this.ask(S.q.trim()); },
+      msgs, suggestions, sugRow: { display: 'flex', gap: 8, flexWrap: mobile ? 'nowrap' : 'wrap', overflowX: mobile ? 'auto' : 'visible', scrollbarWidth: 'none', paddingBottom: mobile ? 2 : 0 }, brainScope, chatEmpty: chat.length ? null : h('div', { className: 'ls-empty', style: { color: '#5E5E5E', fontSize: 14, padding: '24px 0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } }, h(V.Art, { name: 'chat', style: { width: 120, height: 'auto' } }), h('span', { style: { flex: '1 1 200px' } }, 'Ask a question about this case, or pick a suggestion below.')), draftQ: S.q, setQ: e => this.setState({ q: e.target.value }), sendQ: () => S.q.trim() && this.ask(S.q.trim()), qKey: e => { if (e.key === 'Enter' && S.q.trim()) this.ask(S.q.trim()); },
       templates, versions, draft,
       toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate',
       dictLangSel: h('select', { 'aria-label': 'Dictation language', title: 'Dictation language', value: st.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: S.dict, onChange: e => { const v = e.target.value; this.mut(db => { db.settings.dictLang = v; }); }, style: { height: 34, border: '1px solid #E5E5E5', borderRadius: 8, background: '#FFFFFF', fontSize: 13.5, padding: '0 8px', color: '#0A0A0A' } }, h('option', { value: 'en-IN' }, 'English (India)'), h('option', { value: 'hi-IN' }, 'Hindi')),
