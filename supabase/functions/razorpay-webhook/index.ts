@@ -30,8 +30,19 @@ async function hmacHex(secret: string, msg: string) {
 }
 function sameText(a: string, b: string) { if (a.length !== b.length) return false; let x = 0; for (let i = 0; i < a.length; i++) x |= a.charCodeAt(i) ^ b.charCodeAt(i); return x === 0; }
 
+// Keys come from the function secrets, or else from Vault (migration 0009, public.razorpay_keys()).
+async function rzpKeys(admin: any) {
+  let id = Deno.env.get("RAZORPAY_KEY_ID") ?? "", secret = Deno.env.get("RAZORPAY_KEY_SECRET") ?? "", webhook = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") ?? "";
+  if (!id || !secret || !webhook) {
+    const { data } = await admin.rpc("razorpay_keys");
+    const k = Array.isArray(data) ? data[0] : data;
+    id = id || k?.key_id || ""; secret = secret || k?.key_secret || ""; webhook = webhook || k?.webhook_secret || "";
+  }
+  return { id, secret, webhook };
+}
+
 Deno.serve(async (req: Request) => {
-  const secret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET");
+  const { webhook: secret } = await rzpKeys(createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!));
   if (!secret) return new Response("webhook secret not set", { status: 501 });
   const raw = await req.text();
   const expected = await hmacHex(secret, raw);

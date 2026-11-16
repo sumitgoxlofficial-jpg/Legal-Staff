@@ -20,7 +20,7 @@
 
 ## Current project
 
-Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0008 are applied and `config.js` points at it.
+Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0009 are applied and `config.js` points at it.
 
 ## Set-up, in order
 
@@ -32,8 +32,8 @@ Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0008 
 
 | Secret | For |
 | --- | --- |
-| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Payments |
-| `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook (point it at `/functions/v1/razorpay-webhook`, events `payment.captured` and `payment.failed`) |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Payments. Or keep them in Vault as `razorpay_key_id` and `razorpay_key_secret` (migration 0009) |
+| `RAZORPAY_WEBHOOK_SECRET` (or Vault `razorpay_webhook_secret`) | Razorpay webhook (point it at `/functions/v1/razorpay-webhook`, events `payment.captured` and `payment.failed`) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Email, e.g. `Legal Staff <briefing@yourdomain.in>` on a verified domain |
 | `APP_URL` (optional) | Site address used in trial reminder links; defaults to `https://legalstaff.in` |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE` | WhatsApp. The template must be approved and have one body variable |
