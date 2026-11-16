@@ -30,7 +30,7 @@
       v: 2, anchor: today(), session: null, cases: [], hearings: [], orders: [], tasks: [], docs: [], clients: [], team: [], invoices: [], log: [],
       firm: { name: '', city: '', address: '', gstin: '' },
       user: { name: '', title: '', role: 'Advocate', email: '', phone: '' },
-      sub: { plan: '', cycle: 'annual', since: '', renews: '', history: [] },
+      sub: { plan: '', cycle: 'annual', status: '', since: '', renews: '', trialEnds: '', history: [] },
       lim: null, lims: [], deadlines: [], chats: {}, copilot: [], drafts: {}, notes: '', research: [], watch: [],
       agents: [
         { id: 'briefing', name: 'Daily briefing', what: "Compiles today's hearings, clashes and deadlines for every team member.", when: 'When you press Run now', on: true, runs: [] },
@@ -271,6 +271,35 @@
   const pickFile = (accept, multiple) => new Promise(res => { const i = document.createElement('input'); i.type = 'file'; if (accept) i.accept = accept; i.multiple = !!multiple; i.onchange = () => res([...i.files]); i.click(); });
   const size = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 
+  /* ---------- plans, free trial and access ----------
+     Every plan starts with a 7-day free trial. When the trial or the paid period ends, the workspace becomes read-only
+     until a plan is paid for. mods lists the screens a plan includes beyond the ones every plan has.
+     The same limits are enforced on the server (migration 0006): writes need access, members are capped by plan. */
+  const TRIAL_DAYS = 7;
+  const PLANS = {
+    Solo: { users: 1, cases: 150, storage: 10, ai: 200, mods: [] },
+    Professional: { users: 3, cases: 600, storage: 50, ai: 1000, mods: ['brain', 'drafting', 'portal'] },
+    Firm: { users: 15, cases: Infinity, storage: 250, ai: 5000, mods: ['brain', 'drafting', 'portal', 'agents', 'reports'] }
+  };
+  /* The lowest plan that includes each gated screen. */
+  const MOD_PLAN = { brain: 'Professional', drafting: 'Professional', portal: 'Professional', agents: 'Firm', reports: 'Firm' };
+  /* state: 'none' (no plan chosen yet), 'trial', 'active', or 'expired' (trial or paid period over). */
+  function access(sub, nowMs) {
+    const s = sub || {}, now = nowMs || Date.now(), plan = PLANS[s.plan] ? s.plan : '';
+    if (!plan) return { state: 'none', ok: false, plan: '', limits: PLANS.Solo, daysLeft: 0, trialUsed: false };
+    const limits = PLANS[plan];
+    if (s.status === 'trialing') {
+      const end = Date.parse(s.trialEnds || ''), ms = end - now;
+      if (ms > 0) return { state: 'trial', ok: true, plan, limits, ends: s.trialEnds, daysLeft: Math.max(1, Math.ceil(ms / 864e5)), trialUsed: true };
+      return { state: 'expired', ok: false, plan, limits, ends: s.trialEnds, daysLeft: 0, trialUsed: true, wasTrial: true };
+    }
+    const left = s.renews ? diffDays(s.renews, today()) : -1;
+    if (left >= 0) return { state: 'active', ok: true, plan, limits, ends: s.renews, daysLeft: left + 1, trialUsed: true };
+    return { state: 'expired', ok: false, plan, limits, ends: s.renews, daysLeft: 0, trialUsed: true, wasTrial: false };
+  }
+  const hasMod = (acc, mod) => !MOD_PLAN[mod] || (acc.ok && acc.limits.mods.includes(mod));
+
   window.LS = { KEY, load, save, reset, seed, iso, parse, valid, today, addDays, diffDays, fmt, dmy, dayMon, longDate, isWeekend, nextWorking, t12, t12ap, nowHM, uid, inr, initials, short, pad,
-    LOG_MAX: 300, limitation, RULES, rule, period, addMonths, migrate, CHECK, readOrder, dateOf, answer, download, csv, ics, docx, htmlToRuns, files, pickFile, size };
+    LOG_MAX: 300, limitation, RULES, rule, period, addMonths, migrate, CHECK, readOrder, dateOf, answer, download, csv, ics, docx, htmlToRuns, files, pickFile, size,
+    TRIAL_DAYS, PLANS, MOD_PLAN, access, hasMod };
 })();

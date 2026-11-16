@@ -37,7 +37,7 @@
   async function subscription(d) {
     const s = ok(await sb.from('subscriptions').select('*').eq('firm_id', firmId).maybeSingle());
     const pays = ok(await sb.from('payments').select('plan,cycle,amount_paise,paid_at').eq('firm_id', firmId).eq('status', 'paid').order('paid_at', { ascending: false }));
-    d.sub = { plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', since: s ? s.since : '', renews: s ? s.renews : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
+    d.sub = { plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', since: s ? s.since : '', renews: s ? s.renews : '', trialEnds: s && s.trial_ends ? s.trial_ends : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
   }
 
   const B = {
@@ -129,6 +129,8 @@
     /* Enterprise enquiries go to the same table as the website's contact form. */
     async contact(row) { ok(await sb.from('contact_requests').insert(row)); },
     async refreshSub(d) { await subscription(d); },
+    /* Owner only: starts (or, while it runs, switches) the firm's 7-day free trial. No payment is taken. */
+    async startTrial(d, plan, cycle) { ok(await sb.rpc('start_trial', { f: firmId, p_plan: plan, p_cycle: cycle })); await subscription(d); },
     /* ---- documents ---- */
     path: (docId, name) => firmId + '/' + docId + '/' + String(name).replace(/[^\w.\- ]+/g, '_'),
     async upload(docId, file) { ok(await sb.storage.from('documents').upload(B.path(docId, file.name), file, { upsert: false, contentType: file.type || 'application/octet-stream' })); },

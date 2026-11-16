@@ -7,6 +7,7 @@
 | `migrations/0001_core.sql` | Tables, row level security and sign-in functions |
 | `migrations/0002_storage.sql` | Private `documents` bucket and its access rules |
 | `migrations/0003_schedule.sql` | Daily 7:30 AM IST briefing job |
+| `migrations/0006_trial.sql` | 7-day free trial, read-only workspace once the trial or paid period ends, members capped by plan |
 | `functions/razorpay-order` | Creates a Razorpay order at the server-side price |
 | `functions/razorpay-verify` | Verifies the checkout signature and activates the plan |
 | `functions/razorpay-webhook` | Activates the plan from Razorpay's webhook (deploy with JWT verification off) |
@@ -15,7 +16,7 @@
 
 ## Current project
 
-Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 and 0002 are applied and `config.js` points at it. Migration 0003 (the daily schedule) is not applied yet; it needs the two Vault values first.
+Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0006 are applied and `config.js` points at it.
 
 ## Set-up, in order
 
@@ -40,6 +41,7 @@ A service whose secrets are missing is skipped and the app says it is not connec
 
 - Each firm's data is visible only to its active members. The person who creates a firm is its owner; only the owner invites members, changes roles and buys a plan.
 - An invited member joins by signing in with the Google account whose email was invited.
-- Subscriptions and payments are written only by the functions, never from the browser.
+- Subscriptions and payments are written only by the functions, never from the browser. The one exception is `start_trial()`, which the owner calls to start the firm's single 7-day free trial.
+- Plans: every firm starts with a 7-day free trial of the plan it chooses. When the trial or a paid period ends, practice records and files can still be read and deleted but not added or changed (`firm_access()`), until a plan is paid for. Members are capped at 1 (Solo), 3 (Professional) or 15 (Firm). A payment made during the trial starts after the trial's last day.
 - The first person to create a firm becomes the platform administrator, who verifies public directory applications. Add others in the `platform_admins` table.
 - The public directory can submit applications, enquiries, reports and contact requests without signing in, and can read only verified profiles.

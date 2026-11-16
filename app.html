@@ -242,6 +242,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           </div>
         </div>
 
+        {{ planBanner }}
         <div class="ls-kids" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
           <sc-for list="{{ quick }}" as="q" hint-placeholder-count="4">
             <button onClick="{{ q.go }}" class="ls-quick ls-lift ls-btn" style="display:flex;align-items:center;gap:14px;text-align:left;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:16px 18px;color:#0A0A0A" style-hover="border-color:#C4C4C4;box-shadow:0 2px 8px rgba(0,0,0,.05)">
@@ -868,7 +869,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px">
           <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">Subscription</div>
           <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:0;text-wrap:balance">Choose a plan for your practice</h1>
-          <div style="font-size:15px;color:#5E5E5E">Every plan is paid. Prices exclude 18% GST. You can change plans at any time.</div>
+          <div style="font-size:15px;color:#5E5E5E">{{ pricingNote }}</div>
           <div style="display:flex;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:4px;margin-top:6px">
             <sc-for list="{{ cycles }}" as="c" hint-placeholder-count="2">
               <button onClick="{{ c.go }}" style="{{ c.style }}">{{ c.label }}</button>
@@ -903,7 +904,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <div style="display:flex;justify-content:space-between;border-top:1px solid #E5E5E5;padding-top:12px;font-weight:600;font-size:16px"><span>Total</span><span>{{ co.total }}</span></div>
               </div>
               <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:13px;color:#5E5E5E">GSTIN (optional)</label><input value="{{ gstin }}" onChange="{{ setGstin }}" placeholder="07AAAAA0000A1Z5" style="height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums">{{ co.gstErr }}</div>
-              <button class="ls-btn" onClick="{{ pay }}" style="white-space:nowrap;height:36px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">{{ payBtn }}</button>
+              <sc-if value="{{ canTrial }}" hint-placeholder-val="{{ true }}">
+                <button class="ls-btn" onClick="{{ startTrial }}" style="white-space:nowrap;height:40px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:14px;font-weight:600">{{ trialBtn }}</button>
+                <div style="font-size:12px;color:#5E5E5E;text-align:center;margin-top:-8px">{{ trialHint }}</div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#8A8A8A"><span style="flex:1;height:1px;background:#E5E5E5"></span>or pay now<span style="flex:1;height:1px;background:#E5E5E5"></span></div>
+              </sc-if>
+              <button class="ls-btn" onClick="{{ pay }}" style="{{ payStyle }}">{{ payBtn }}</button>
               <div style="font-size:12px;color:#5E5E5E;text-align:center">{{ payHint }}</div>
               <div style="font-size:12px;color:#5E5E5E;text-align:center">Auto-renews {{ co.renew }}. You can cancel any time from Settings → Subscriptions.</div>
             </sc-if>
@@ -1070,7 +1076,8 @@ class Component extends DCLogic {
   /* Owner only (Settings): waits for any save in flight, deletes the firm's files and records on the server, then reloads. */
   async eraseFirm() { clearTimeout(this.syncT); this.syncT = null; if (LSB.pending()) await LSB.sync(this.db).catch(() => {}); const n = await LSB.eraseFirm(this.db); await this.reload(); return n; }
   afterEnter() { this.grow(); const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
-    if (i >= 0) { this.setState({ plan: i, paid: false, cycle: q.get('cycle') === 'monthly' ? 'monthly' : 'annual' }); history.replaceState(null, '', location.pathname + '#/pricing'); this.applyRoute(); } }
+    if (i >= 0) { this.setState({ plan: i, paid: false, cycle: q.get('cycle') === 'monthly' ? 'monthly' : 'annual' }); history.replaceState(null, '', location.pathname + '#/pricing'); this.applyRoute(); }
+    else if (LS.access(this.db.sub).state === 'none') this.go('pricing'); }
   async googleSignIn(token, nonce) { const s = await LSB.signInGoogle(token, nonce); await this.enter(s); }
   async emailSignIn(email, code) { const s = await LSB.verifyOtp(email, code); await this.enter(s); }
   async createFirm(v) { this.setState({ auth: 'boot' }); try { const id = await LSB.createFirm(v); await this.reload(id); this.toast('Your practice is set up'); this.afterEnter(); } catch (e) { Object.assign(this.db.user, { name: v.name, role: v.role }); Object.assign(this.db.firm, { name: '', city: v.city, address: v.address || '' }); this.pendingFirm = v.firm; this.setState({ auth: 'in' }); this.toast('Could not create the firm: ' + e.message); LSV.onboard(this); } }
@@ -1107,7 +1114,9 @@ class Component extends DCLogic {
     if (screen === 'dashboard') this.grow(); window.scrollTo(0, 0);
   }
   go(screen, param, tab) { const hs = '#/' + screen + (param ? '/' + encodeURIComponent(param) : '') + (tab ? '/' + tab : ''); if (location.hash !== hs) location.hash = hs; else this.applyRoute(); }
-  mut(fn, msg) { fn(this.db); if (!LS.save(this.db)) msg = 'Could not save. Browser storage is full or blocked.'; this.queueSync(); this.setState(s => ({ rev: s.rev + 1 })); if (msg) this.toast(msg); }
+  /* Read-only once the trial or paid period has ended: changes are refused except on Subscription and Settings. */
+  locked() { return !LS.access(this.db.sub).ok && !['pricing', 'settings'].includes(this.state.screen); }
+  mut(fn, msg, force) { if (!force && this.db.session && this.locked()) { this.toast(LS.access(this.db.sub).state === 'none' ? 'Start your free trial to make changes.' : 'Your plan has ended. Subscribe to make changes.'); return; } fn(this.db); if (!LS.save(this.db)) msg = 'Could not save. Browser storage is full or blocked.'; this.queueSync(); this.setState(s => ({ rev: s.rev + 1 })); if (msg) this.toast(msg); }
   replace(db, msg) { LS.migrate(db); if (LSB.on && this.db.firmId) { const o = this.db; Object.assign(db, { firmId: o.firmId, session: o.session, team: o.team, user: o.user, sub: o.sub, isOwner: o.isOwner, firm: db.firm && db.firm.name ? db.firm : o.firm }); } this.db = db; LS.save(db); this.queueSync(); this.buf = null; this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); if (msg) this.toast(msg); }
   modal(fn) { this._modal = fn; this.setState(s => ({ modalOn: !!fn, menu: null, rev: s.rev + 1 })); }
   toast(t) { this.setState({ toast: t }); clearTimeout(this.tt); this.tt = setTimeout(() => this.setState({ toast: '' }), 3200); }
@@ -1123,10 +1132,10 @@ class Component extends DCLogic {
     setTimeout(() => { this.setState({ auth: 'in' }); this.grow();
       const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
       if (i >= 0) { this.setState({ plan: i, paid: false, cycle: q.get('cycle') === 'monthly' ? 'monthly' : 'annual' }); history.replaceState(null, '', location.pathname + '#/pricing'); this.applyRoute(); }
-      if (!this.db.firm.name) LSV.onboard(this);
+      if (!this.db.firm.name) LSV.onboard(this); else if (i < 0 && LS.access(this.db.sub).state === 'none') this.go('pricing');
     }, 900);
   }
-  signOut() { if (LSB.on) { LSB.signOut(); this.db = LS.seed(); LS.save(this.db); this.dirList = []; } try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) {} this.mut(db => { db.session = null; }); this.setState({ auth: 'login', menu: null, panel: false }); }
+  signOut() { if (LSB.on) { LSB.signOut(); this.db = LS.seed(); LS.save(this.db); this.dirList = []; } try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) {} this.mut(db => { db.session = null; }, null, true); this.setState({ auth: 'login', menu: null, panel: false }); }
   openWeek(date) { this.setState({ weekStart: this.monday(date), daySel: date }); this.go('calendar'); }
   openDraft(i) { this.buf = null; this.setState({ tpl: i, ver: 0 }); this.go('drafting'); }
   monday(s) { const d = LS.parse(s), g = d.getDay(); return LS.addDays(s, g === 0 ? -6 : 1 - g); }
@@ -1193,6 +1202,8 @@ class Component extends DCLogic {
   renderVals() {
     const S = this.state, D = this.db, h = React.createElement, V = LSV, T = LS.today(), mobile = S.w < 900, grown = !!S.grown || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const st = D.settings, exp = mobile || !st.collapsed, me = D.user.name;
+    /* Plan and trial: what the firm can use right now. */
+    const acc = LS.access(D.sub), FREE_SCREENS = ['pricing', 'settings'];
     const IC = {
       dashboard: 'M3 3h7v9H3z M14 3h7v5h-7z M14 12h7v9h-7z M3 16h7v5H3z', user: 'M20 21a8 8 0 0 0-16 0 M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z',
       case: 'M3 7h18v13H3z M8 7V4h8v3 M3 12h18', order: 'M14 3H6v18h12V7z M14 3v4h4 M9 13h6 M9 17h6', court: 'M3 21h18 M5 21V10 M19 21V10 M9 21V10 M15 21V10 M2 10l10-6 10 6z',
@@ -1224,9 +1235,10 @@ class Component extends DCLogic {
       ['Firm', [['Team', 'team', 'team'], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Directory Admin', 'admin', 'shield'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
     ];
     const nav = navDef.map(([title, items]) => ({ title, items: items.map(([label, key, ic, badge]) => {
+      const locked = acc.ok && !LS.hasMod(acc, key); if (locked) badge = LS.MOD_PLAN[key] === 'Firm' ? 'Firm' : 'Pro';
       const active = S.screen === key || (key === 'cases' && S.screen === 'case') || (key === 'orders' && S.screen === 'order');
       return { label, active, go: () => this.go(key), icon: icon(ic, 16), hasBadge: !!badge && exp, badge,
-        badgeStyle: { fontSize: 11, fontWeight: 600, minWidth: 18, height: 18, borderRadius: 9, padding: '0 5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums', background: '#0A0A0A', color: '#fff' },
+        badgeStyle: locked ? { fontSize: 10.5, fontWeight: 600, height: 18, borderRadius: 9, padding: '0 7px', display: 'flex', alignItems: 'center', border: '1px solid #D4D4D4', color: '#5E5E5E', letterSpacing: '.02em' } : { fontSize: 11, fontWeight: 600, minWidth: 18, height: 18, borderRadius: 9, padding: '0 5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums', background: '#0A0A0A', color: '#fff' },
         iconBox: { display: 'flex', color: active ? '#0A0A0A' : '#8A8A8A', flexShrink: 0 },
         style: { display: 'flex', alignItems: 'center', justifyContent: exp ? 'flex-start' : 'center', gap: 10, width: '100%', height: 34, textAlign: 'left', border: '1px solid transparent', borderRadius: 7, padding: exp ? '0 10px' : 0, fontSize: 13.5, letterSpacing: '-.005em', background: 'transparent', transition: 'color .2s ease', color: active ? '#0A0A0A' : '#3D3D3D', fontWeight: active ? 600 : 450 } };
     }) }));
@@ -1243,6 +1255,9 @@ class Component extends DCLogic {
       V.deadlinesCard(this)); }
     if (s.admin && !this.dirApps().length) { s.admin = false; modView = emptyPage('Directory moderation', 'Verification queue', LSB.on && !this.isAdmin ? ['Not available on this account', 'Only Legal Staff platform administrators can verify directory applications.'] : ['No applications yet', 'Applications submitted from the public advocate directory appear here for verification.'], [h('a', { key: 1, href: 'directory.html', style: { fontSize: 14 } }, 'Open the public directory')]); }
     if (s.brain && !D.cases.length) { s.brain = false; modView = emptyPage('AI Case Brain', 'Ask about a case', ['No cases yet', 'Add a case with its orders and documents, then ask questions about it here.', 'chat'], [h(V.Btn, { key: 1, primary: true, onClick: () => V.newCase(this) }, '+ New case')]); }
+    /* No plan, or the trial / paid period is over: only Subscription and Settings (backup export) stay open. */
+    if (!acc.ok && !FREE_SCREENS.includes(scr)) { Object.keys(s).forEach(k => { s[k] = false; }); modView = h(V.PlanLock, { app: this, acc }); }
+    else if (acc.ok && !LS.hasMod(acc, scr)) { Object.keys(s).forEach(k => { s[k] = false; }); modView = h(V.PlanUpgrade, { app: this, acc, mod: scr }); }
     s.mod = !!modView;
 
     /* ---- cases ---- */
@@ -1382,9 +1397,9 @@ class Component extends DCLogic {
         if (this.sending) return; this.sending = true;
         LSB.contact({ name: v.name.trim(), email: v.email.trim(), phone: D.user.phone || '', firm: v.org.trim(), topic: 'Enterprise quote', message: `Users: ${v.users}` + (v.msg ? '\n' + v.msg.trim() : ''), source: 'app · pricing' }).then(() => { this.modal(null); this.toast('Request sent. We will reply by email.'); }).catch(e => this.toast('Could not send the request: ' + e.message)).finally(() => { this.sending = false; }); } })));
     const plans = P.map(([name, who, m, a, feats], i) => {
-      const feat = i === 1, ann = S.cycle === 'annual', curPlan = D.sub.plan === name && D.sub.cycle === S.cycle;
+      const feat = i === 1, ann = S.cycle === 'annual', curPlan = acc.state === 'active' && D.sub.plan === name && D.sub.cycle === S.cycle, onTrial = acc.state === 'trial' && D.sub.plan === name;
       return { name, who, feats, price: m ? inr(ann ? a : m) : 'Custom', per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '',
-        cta: m ? (curPlan ? 'Current plan' : `Choose ${name}`) : 'Contact sales', pick: () => m ? (curPlan ? this.toast(`You are already on the ${name} plan.`) : this.setState({ plan: i, paid: false, gstin: D.firm.gstin || '', gstErr: '' })) : sales(),
+        cta: m ? (curPlan ? 'Current plan' : onTrial ? `Subscribe to ${name}` : acc.state === 'none' ? 'Start 7-day free trial' : acc.state === 'trial' ? `Switch trial to ${name}` : `Choose ${name}`) : 'Contact sales', pick: () => m ? (curPlan ? this.toast(`You are already on the ${name} plan.`) : this.setState({ plan: i, paid: false, gstin: D.firm.gstin || '', gstErr: '' })) : sales(),
         card: { background: feat ? '#F5F5F4' : '#FFFFFF', color: '#0A0A0A', border: feat ? '2px solid #0A0A0A' : '1px solid #E5E5E5', borderRadius: 12, padding: 26, display: 'flex', flexDirection: 'column', gap: 10 },
         btn: { height: 38, border: feat ? 0 : '1px solid #0A0A0A', borderRadius: 8, fontSize: 14, fontWeight: 500, background: feat ? '#0A0A0A' : 'transparent', color: feat ? '#fff' : '#0A0A0A', margin: '8px 0', opacity: curPlan ? .55 : 1 } };
     });
@@ -1395,7 +1410,17 @@ class Component extends DCLogic {
     }
     const pay = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
       if (LSB.on) { if (this.paying) return; this.paying = true; this.setState({ gstErr: '' }); return LSB.checkout(D, co.name, S.cycle, g).then(() => { if (g) D.firm.gstin = g; this.setState(s => ({ paid: true, rev: s.rev + 1 })); }).catch(e => this.setState({ gstErr: e.message })).finally(() => { this.paying = false; }); }
-      this.mut(db => { db.sub.plan = co.name; db.sub.cycle = S.cycle; db.sub.since = T; db.sub.renews = co.renews; db.sub.history.unshift({ plan: co.name + ' · ' + co.cycle, total: co.total, date: T }); if (g) db.firm.gstin = g; V.logIt(db, `Subscription changed to ${co.name} (${co.cycle})`); }); this.setState({ paid: true, gstErr: '' }); };
+      this.mut(db => { db.sub.plan = co.name; db.sub.cycle = S.cycle; db.sub.status = 'active'; db.sub.trialEnds = ''; db.sub.since = T; db.sub.renews = co.renews; db.sub.history.unshift({ plan: co.name + ' · ' + co.cycle, total: co.total, date: T }); if (g) db.firm.gstin = g; V.logIt(db, `Subscription changed to ${co.name} (${co.cycle})`); }); this.setState({ paid: true, gstErr: '' }); };
+
+    /* ---- free trial: one per firm, 7 days, on the chosen plan; can switch plan while it runs ---- */
+    const canTrial = S.plan !== null && (acc.state === 'none' || (acc.state === 'trial' && D.sub.plan !== co.name));
+    const startTrial = () => {
+      if (LSB.on) { if (this.paying) return; this.paying = true; this.setState({ gstErr: '' });
+        return LSB.startTrial(D, co.name, S.cycle).then(() => { this.setState(s => ({ plan: null, rev: s.rev + 1 })); this.toast(`Your 7-day free trial of the ${co.name} plan has started`); this.go('dashboard'); }).catch(e => this.setState({ gstErr: e.message })).finally(() => { this.paying = false; }); }
+      const switching = acc.state === 'trial', ends = switching ? D.sub.trialEnds : new Date(Date.now() + LS.TRIAL_DAYS * 864e5).toISOString();
+      this.mut(db => { Object.assign(db.sub, { plan: co.name, cycle: S.cycle, status: 'trialing', since: switching ? db.sub.since : T, renews: '', trialEnds: ends }); V.logIt(db, (switching ? 'Free trial switched to ' : 'Free trial started on ') + co.name); }, null, true);
+      this.setState({ plan: null }); this.toast(switching ? `Your trial is now on the ${co.name} plan` : `Your 7-day free trial of the ${co.name} plan has started`); this.go('dashboard'); };
+    const trialEndsTxt = acc.state === 'trial' ? new Date(acc.ends).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : LS.fmt(LS.addDays(T, LS.TRIAL_DAYS));
 
     /* ---- directory admin ---- */
     const allApps = this.dirApps().map(a => Object.assign({ fromDir: true }, a, { def: a.status || 'pending', id: String(a.id) })).reverse();
@@ -1435,7 +1460,7 @@ class Component extends DCLogic {
     const dropFixed = (pos, kids) => h(V.Drop, { onClose: () => this.setState({ menu: null }), style: Object.assign({ position: 'fixed' }, pos) }, kids);
     const overlay = h(React.Fragment, null,
       S.menu === 'alerts' && dropFixed({ top: 52, right: mobile ? 8 : 150, width: 340, maxWidth: 'calc(100vw - 16px)' }, [h('div', { key: 'h', style: { padding: '8px 10px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: '#6B6B6B', fontWeight: 600 } }, alerts.length ? 'Alerts' : (st.inapp ? 'No alerts' : 'In-app alerts are switched off')), ...alerts.map((a, i) => h(V.Item, { key: i, onClick: () => { this.setState({ menu: null }); a.go(); } }, a.text)), !st.inapp && h(V.Item, { key: 's', onClick: () => this.go('settings') }, 'Open notification settings')]),
-      S.menu === 'firm' && dropFixed({ top: 106, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.firm.address }, D.firm.name), h(V.Item, { key: 2, onClick: () => this.go('pricing'), sub: D.sub.plan ? 'Renews ' + LS.fmt(D.sub.renews) : 'Choose a plan' }, D.sub.plan ? D.sub.plan + ' plan' : 'No plan yet'), h(V.Item, { key: 3, onClick: () => this.go('team') }, 'Team and roles'), h(V.Item, { key: 4, onClick: () => this.go('billing') }, 'Billing & Finance')]),
+      S.menu === 'firm' && dropFixed({ top: 106, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.firm.address }, D.firm.name), h(V.Item, { key: 2, onClick: () => this.go('pricing'), sub: V.planSub(acc) }, V.planName(acc)), h(V.Item, { key: 3, onClick: () => this.go('team') }, 'Team and roles'), h(V.Item, { key: 4, onClick: () => this.go('billing') }, 'Billing & Finance')]),
       S.menu === 'user' && dropFixed({ bottom: 64, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.session ? D.session.email : D.user.email }, 'Profile and settings'), h(V.Item, { key: 2, onClick: () => this.go('workspace') }, 'My Workspace'), h(V.Item, { key: 3, onClick: () => { this.setState({ menu: null }); V.help(this); } }, 'Help and shortcuts'), h(V.Item, { key: 4, onClick: () => this.signOut() }, 'Sign out')]),
       S.modalOn && this._modal ? this._modal() : null);
     const results = S.searchOpen ? V.searchAll(D, S.search) : [];
@@ -1444,9 +1469,9 @@ class Component extends DCLogic {
     const pTasks = D.tasks.filter(t => !t.done && t.who === me).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 4);
 
     return {
-      expanded: exp, collapsed: !exp, notMobile: !mobile, toggleCollapse: () => this.mut(db => { db.settings.collapsed = !db.settings.collapsed; }), collapseLabel: st.collapsed ? '»' : '« Collapse sidebar',
+      expanded: exp, collapsed: !exp, notMobile: !mobile, toggleCollapse: () => this.mut(db => { db.settings.collapsed = !db.settings.collapsed; }, null, true), collapseLabel: st.collapsed ? '»' : '« Collapse sidebar',
       showLogin: S.auth === 'login', booting: S.auth === 'boot', loginStage: h(V.LoginStage), bootView: h(V.Boot, { text: 'Loading your workspace…' }), loginForm: h(V.LoginForm, { app: this }),
-      firmName: D.firm.name || 'Your practice', firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')) || 'LS', firmLine: [D.sub.plan ? D.sub.plan + ' plan' : 'No plan yet', D.firm.city].filter(Boolean).join(' · '), firmAddress: D.firm.address, firmMenu: openMenu('firm'),
+      firmName: D.firm.name || 'Your practice', firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')) || 'LS', firmLine: [V.planName(acc), D.firm.city].filter(Boolean).join(' · '), firmAddress: D.firm.address, firmMenu: openMenu('firm'),
       userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userEmail: D.user.email, searchPh: mobile ? 'Search…' : 'Search cases, CNR, parties, documents…', userMenu: openMenu('user'),
       searchQ: S.search, setSearch: e => this.setState({ search: e.target.value, searchOpen: true }), searchFocus: () => this.setState({ searchOpen: true, menu: null }), searchBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 150), searchKey: e => { if (e.key === 'Enter' && results[0]) pick(results[0]); }, searchDrop,
       newCase: () => V.newCase(this), importCnr: () => V.importCnr(this), help: () => V.help(this), alertsMenu: openMenu('alerts'), alertCount: alerts.length, hasAlerts: alerts.length > 0, overlay,
@@ -1468,6 +1493,7 @@ class Component extends DCLogic {
       goDashboard: () => this.go('dashboard'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'), goOrder: () => this.go('orders'),
       todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign in with Google or an email code · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'The plan is activated only after Razorpay confirms the payment on the server.' : 'Payments need the server. No money was taken and no tax invoice was issued; the plan is recorded on this device only.', paidLine: LSB.on ? `The invoice has been saved for ${D.user.email}. Next renewal: ${co.next || ''}.` : `Recorded on this device. Next renewal date: ${co.next || ''}.`, payLabel: LSB.on ? 'Paid via Razorpay' : 'Not charged',
       payBtn: LSB.on ? `Pay ${co.total || ''} with Razorpay` : 'Record the plan on this device', payHint: LSB.on ? 'Opens Razorpay Checkout. The plan starts once Razorpay confirms the payment.' : 'Payments need the server. This browser-only version only records the plan choice; no money is taken.', payHead: LSB.on ? 'Payment verified' : 'Plan recorded on this device',
+      planBanner: h(V.PlanCard, { app: this, acc }),
       briefText, briefArt: todayH.length ? null : h('div', { className: 'ls-brief-art' }, h(V.Art, { name: 'sunrise', style: { width: '100%', height: 'auto' } })),
       dashEmpty: { hearings: todayH.length ? null : h(V.Empty, { small: true, art: 'calendar', title: 'No hearings today', text: 'Hearings you add to a case appear here on the day.' }), orders: D.orders.length ? null : h(V.Empty, { small: true, art: 'order', title: 'No court orders yet', text: 'Upload an order to pull out the next date and key points.' }), deadlines: dl.length ? null : h(V.Empty, { small: true, art: 'deadline', title: 'No deadlines tracked', text: 'Run a limitation calculation and it is tracked here.' }), stages: live.length ? null : h(V.Empty, { small: true, art: 'cases', title: 'No active cases', text: 'Cases you add are grouped here by stage.' }) },
       waHello: `Good morning, Adv. ${D.user.name.split(' ').pop()}.`, waLine1: `${todayH.length} hearing${todayH.length === 1 ? '' : 's'} today.` + (tClash.length ? ` ${LS.t12ap(tClash[0][0].time)} clash: ${tClash[0].map(x => shortCourt(x.court).replace('HC ', 'Delhi HC Court ').replace('Saket ', 'Saket Court ')).join(' and ')}.` : ''), waLine2: dl[0] ? `Deadline: ${dl[0].title.split(',')[0]} due ${LS.dayMon(LS.addDays(T, dl[0].days))}.` : 'No limitation deadlines this week.', waTime: LS.t12ap(st.briefingTime),
@@ -1518,7 +1544,10 @@ class Component extends DCLogic {
       toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate',
       dictLangSel: h('select', { 'aria-label': 'Dictation language', title: 'Dictation language', value: st.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: S.dict, onChange: e => { const v = e.target.value; this.mut(db => { db.settings.dictLang = v; }); }, style: { height: 34, border: '1px solid #E5E5E5', borderRadius: 8, background: '#FFFFFF', fontSize: 13.5, padding: '0 8px', color: '#0A0A0A' } }, h('option', { value: 'en-IN' }, 'English (India)'), h('option', { value: 'hi-IN' }, 'Hindi')),
       dictBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, border: S.dict ? '1px solid #B42318' : '1px solid #E5E5E5', background: S.dict ? '#FDECEA' : '#FFFFFF', color: S.dict ? '#B42318' : '#0A0A0A' },
-      cycles, plans, co, checkoutOpen: S.plan !== null, paid: S.paid, notPaid: !S.paid, gstin: S.gstin, setGstin: e => this.setState({ gstin: e.target.value, gstErr: '' }),
+      cycles, plans, co, checkoutOpen: S.plan !== null, canTrial, startTrial,
+      trialBtn: acc.state === 'trial' ? `Switch my trial to ${co.name || ''}` : 'Start 7-day free trial', trialHint: acc.state === 'trial' ? `No payment needed. Your trial still ends on ${trialEndsTxt}.` : `No payment needed. Full ${co.name || ''} plan until ${trialEndsTxt}; then subscribe to keep working.`,
+      payStyle: { whiteSpace: 'nowrap', height: 36, borderRadius: 8, fontSize: 13.5, fontWeight: 500, background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
+      pricingNote: acc.state === 'none' ? 'Every plan starts with a 7-day free trial. No payment needed to start. Prices exclude 18% GST.' : acc.state === 'trial' ? `You are on a free trial of the ${acc.plan} plan, ${acc.daysLeft} day${acc.daysLeft === 1 ? '' : 's'} left. Subscribe any time; unused trial days are kept.` : acc.state === 'expired' ? `Your ${acc.wasTrial ? 'free trial' : 'plan'} has ended. Subscribe to reopen your workspace. Prices exclude 18% GST.` : 'Prices exclude 18% GST. You can change plans at any time.', paid: S.paid, notPaid: !S.paid, gstin: S.gstin, setGstin: e => this.setState({ gstin: e.target.value, gstErr: '' }),
       closeCheckout: () => this.setState({ plan: null }), pay, finishPay: () => { this.setState({ plan: null, paid: false }); this.go('dashboard'); },
       apps, cur, adminNote: S.adminNote, setAdminNote: e => this.setState({ adminNote: e.target.value }), verify: () => this.setStatus('verified', ca), askInfo: () => this.setStatus('info', ca), reject: () => this.setStatus('rejected', ca),
       cq: S.cq, setCq: e => this.setState({ cq: e.target.value }), cqKey: e => { if (e.key === 'Enter' && S.cq.trim()) this.copilot(S.cq.trim()); }, copilotAsk: () => S.cq.trim() ? this.copilot(S.cq.trim()) : this.toast('Type a question first.'),
