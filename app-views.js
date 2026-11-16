@@ -644,7 +644,22 @@
     app.modal(() => h(Modal, { title: 'Help and shortcuts', onClose: () => app.modal(null) },
       h('div', null, rows.map(([k, v]) => h(Line, { key: k }, h('span', { style: { minWidth: 120, fontVariantNumeric: 'tabular-nums', fontSize: 12.5, border: '1px solid ' + K.line, borderRadius: 6, padding: '2px 8px', textAlign: 'center' } }, k), h('span', null, v)))),
       h('div', { style: { fontSize: 13, color: K.mut, lineHeight: 1.6 } }, window.LSB && LSB.on ? 'Your data is saved to your firm\'s account and is available to your team on any device. Case Brain answers come from search and rules over your own case file. Export a backup from Settings.' : 'No server is connected, so your data is saved on this device only. Export a backup from Settings.'),
+      window.LSB && LSB.on && h(SupportForm, { app }),
       h('div', { style: { display: 'flex', justifyContent: 'flex-end' } }, h(Btn, { primary: true, onClick: () => app.modal(null) }, 'Done'))));
+  }
+  /* Help → Contact support: goes to the Legal Staff team (admin console → Support); the reply comes by email. */
+  function SupportForm({ app }) {
+    const d = app.db, [v, setV] = useState({ topic: 'Question', message: '' }), [st, setSt] = useState('');
+    if (st === 'sent') return h('div', { style: { padding: '12px 14px', borderRadius: 10, background: '#E7F6EC', color: '#137333', fontSize: 13.5 } }, 'Message sent. We will reply to ' + (d.user.email || 'your email') + ', usually within a working day.');
+    const send = () => { if (!v.message.trim()) return setSt('Write your message first.'); setSt('sending');
+      LSB.contact({ name: d.user.name || '', email: d.user.email || '', phone: d.user.phone || '', firm: d.firm.name || '', topic: v.topic, message: v.message.trim().slice(0, 4000), source: 'app' })
+        .then(() => setSt('sent')).catch(e => setSt(e.message)); };
+    return h('div', { style: { borderTop: '1px solid ' + K.line, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 } },
+      h('div', { style: { fontSize: 14, fontWeight: 600 } }, 'Contact support'),
+      h(Select, { value: v.topic, onChange: x => setV(Object.assign({}, v, { topic: x })), options: ['Question', 'Problem or bug', 'Billing and payments', 'Feature request'].map(x => [x, x]), style: { width: '100%' } }),
+      h('textarea', { value: v.message, rows: 4, onChange: e => setV(Object.assign({}, v, { message: e.target.value })), placeholder: 'How can we help?', style: { width: '100%', boxSizing: 'border-box', border: '1px solid ' + K.line, borderRadius: 8, padding: 10, font: 'inherit', fontSize: 14, resize: 'vertical' } }),
+      st && st !== 'sending' && h('div', { style: { fontSize: 12.5, color: K.red } }, st),
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 } }, h('span', { style: { fontSize: 12.5, color: K.mut } }, 'We reply by email to ' + (d.user.email || 'you') + '.'), h(Btn, { onClick: send, disabled: st === 'sending' }, st === 'sending' ? 'Sending…' : 'Send message')));
   }
   function confirmBox(app, title, text, label, fn) { app.modal(() => h(Modal, { title, onClose: () => app.modal(null), width: 440 }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, text), h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'), h(Btn, { primary: true, onClick: () => { app.modal(null); fn(); } }, label)))); }
 

@@ -132,7 +132,7 @@
       snap = {}; return all.length;
     },
     /* Enterprise enquiries go to the same table as the website's contact form. */
-    async contact(row) { ok(await sb.from('contact_requests').insert(row)); },
+    async contact(row) { ok(await sb.from('contact_requests').insert(Object.assign(row.source === 'app' ? { firm_id: firmId || null, user_id: uid || null } : {}, row))); },
     async refreshSub(d) { await subscription(d); },
     /* Owner only: starts (or, while it runs, switches) the firm's 7-day free trial. No payment is taken. */
     async startTrial(d, plan, cycle) { ok(await sb.rpc('start_trial', { f: firmId, p_plan: plan, p_cycle: cycle })); await subscription(d); },
