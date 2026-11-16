@@ -31,12 +31,23 @@ async function hmacHex(secret: string, msg: string) {
 }
 function sameText(a: string, b: string) { if (a.length !== b.length) return false; let x = 0; for (let i = 0; i < a.length; i++) x |= a.charCodeAt(i) ^ b.charCodeAt(i); return x === 0; }
 
+// Keys come from the function secrets, or else from Vault (migration 0009, public.razorpay_keys()).
+async function rzpKeys(admin: any) {
+  let id = Deno.env.get("RAZORPAY_KEY_ID") ?? "", secret = Deno.env.get("RAZORPAY_KEY_SECRET") ?? "", webhook = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") ?? "";
+  if (!id || !secret || !webhook) {
+    const { data } = await admin.rpc("razorpay_keys");
+    const k = Array.isArray(data) ? data[0] : data;
+    id = id || k?.key_id || ""; secret = secret || k?.key_secret || ""; webhook = webhook || k?.webhook_secret || "";
+  }
+  return { id, secret, webhook };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const secret = Deno.env.get("RAZORPAY_KEY_SECRET");
-    if (!secret) return json({ error: "Payments are not configured yet." }, 501);
     const url = Deno.env.get("SUPABASE_URL")!;
+    const { secret } = await rzpKeys(createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!));
+    if (!secret) return json({ error: "Payments are not configured yet." }, 501);
     const asUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
     const { data: { user } } = await asUser.auth.getUser();
     if (!user) return json({ error: "Sign in again." }, 401);
