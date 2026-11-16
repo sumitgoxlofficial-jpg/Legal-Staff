@@ -978,10 +978,11 @@
   const PHOTO_PX = 320, PHOTO_MAX_ZOOM = 4;
   /* A member's photo: your own is db.photo; a teammate's comes with their row in db.team. */
   const photoOf = (db, u) => !u || (u.email && u.email === db.user.email) ? db.photo : (u.photo || '');
-  function Avatar({ app, size, style, user }) {
+  /* invert: the Ink sidebar flips every colour inside it with a CSS filter, so a photo shown there is flipped back. */
+  function Avatar({ app, size, style, user, invert }) {
     const p = photoOf(app.db, user), n = size || 34;
     return h('div', { style: Object.assign({ width: n, height: n, borderRadius: '50%', background: K.soft2, color: K.ink, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: Math.round(n * .38), flexShrink: 0, overflow: 'hidden' }, style) },
-      p ? h('img', { src: p, alt: '', draggable: false, style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' } }) : (L.initials((user || app.db.user).name) || '?'));
+      p ? h('img', { src: p, alt: '', draggable: false, style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: invert ? 'invert(1) hue-rotate(180deg)' : 'none' } }) : (L.initials((user || app.db.user).name) || '?'));
   }
   function PhotoCrop({ img, src, onSave, onCancel }) {
     const [box, setBox] = useState(() => Math.max(220, Math.min(340, window.innerWidth - 84)));
