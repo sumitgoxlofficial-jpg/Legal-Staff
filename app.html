@@ -910,7 +910,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <div style="font-size:12px;color:#5E5E5E;text-align:center;margin-top:-8px">{{ trialHint }}</div>
                 <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#8A8A8A"><span style="flex:1;height:1px;background:#E5E5E5"></span>or pay now<span style="flex:1;height:1px;background:#E5E5E5"></span></div>
               </sc-if>
-              <button class="ls-btn" onClick="{{ pay }}" style="{{ payStyle }}">{{ payBtn }}</button>
+              <sc-if value="{{ showUpi }}" hint-placeholder-val="{{ false }}">
+                <button class="ls-btn" onClick="{{ payUpi }}" style="{{ upiStyle }}"><span style="display:block;font-weight:600">{{ upiBtn }}</span><span style="display:block;font-size:11.5px;opacity:.8;margin-top:2px">GPay · PhonePe · Paytm · BHIM · straight to our account · confirmed automatically</span></button>
+              </sc-if>
+              <sc-if value="{{ showCardPay }}" hint-placeholder-val="{{ true }}">
+                <button class="ls-btn" onClick="{{ pay }}" style="{{ payStyle }}">{{ payBtn }}</button>
+              </sc-if>
               <div style="font-size:12px;color:#5E5E5E;text-align:center">{{ payHint }}</div>
               <div style="font-size:12px;color:#5E5E5E;text-align:center">Auto-renews {{ co.renew }}. You can cancel any time from Settings → Subscriptions.</div>
             </sc-if>
@@ -1075,7 +1080,8 @@ class Component extends DCLogic {
   }
   async reload(id) { const d = await LSB.load(id || this.db.firmId, this.sess), mig = d.migrated; delete d.migrated; this.loadedAt = Date.now(); this.buf = null; this.db = d; LS.save(d); this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1, auth: 'in' })); this.loadQueue(); this.loadDrive(); if (mig) this.queueSync(); }
   /* Is the user's Google Drive connected? Decides where new uploads go (see LSV DriveCard). */
-  loadDrive() { if (!LSB.on || !LSB.drive) return; LSB.drive.status().then(s => { this.driveSt = s; this.setState(x => ({ rev: x.rev + 1 })); setTimeout(() => LSV.maybeAskDrive(this), 1500); }).catch(() => { this.driveSt = { configured: false }; }); }
+  loadDrive() { if (LSB.on && LSB.upi) LSB.upi.config().then(c => { this.upiCfg = c; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => {});
+    if (!LSB.on || !LSB.drive) return; LSB.drive.status().then(s => { this.driveSt = s; this.setState(x => ({ rev: x.rev + 1 })); setTimeout(() => LSV.maybeAskDrive(this), 1500); }).catch(() => { this.driveSt = { configured: false }; }); }
   /* Owner only (Settings): waits for any save in flight, deletes the firm's files and records on the server, then reloads. */
   async eraseFirm() { clearTimeout(this.syncT); this.syncT = null; if (LSB.pending()) await LSB.sync(this.db).catch(() => {}); const n = await LSB.eraseFirm(this.db); await this.reload(); return n; }
   afterEnter() { this.grow(); const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
@@ -1430,6 +1436,10 @@ class Component extends DCLogic {
       const [name, , m, a] = P[S.plan], ann = S.cycle === 'annual', base = ann ? a : m, gst = Math.round(base * 18) / 100, renews = LS.addDays(T, ann ? 365 : 30);
       co = { name, cycle: ann ? 'Annual' : 'Monthly', base: inr(base), gst: inr(gst), total: inr(base + gst), renew: ann ? 'every year' : 'every month', next: LS.fmt(renews), renews, gstErr: S.gstErr ? h('div', { style: { fontSize: 12.5, color: '#B42318', marginTop: 6 } }, S.gstErr) : null };
     }
+    /* Pay by UPI straight to our account (when switched on in pay_settings); replaces the Razorpay checkout. */
+    const upiOn = !!(LSB.on && this.upiCfg && this.upiCfg.enabled);
+    const payUpi = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
+      const o = { plan: co.name, cycle: S.cycle, gstin: g, name: co.name, cycleLabel: co.cycle }; this.setState({ plan: null, gstErr: '' }); V.upiPay(this, o); };
     const pay = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
       if (LSB.on) { if (this.paying) return; this.paying = true; this.setState({ gstErr: '' }); return LSB.checkout(D, co.name, S.cycle, g).then(() => { if (g) D.firm.gstin = g; this.setState(s => ({ paid: true, rev: s.rev + 1 })); }).catch(e => this.setState({ gstErr: e.message })).finally(() => { this.paying = false; }); }
       this.mut(db => { db.sub.plan = co.name; db.sub.cycle = S.cycle; db.sub.status = 'active'; db.sub.trialEnds = ''; db.sub.since = T; db.sub.renews = co.renews; db.sub.history.unshift({ plan: co.name + ' · ' + co.cycle, total: co.total, date: T }); if (g) db.firm.gstin = g; V.logIt(db, `Subscription changed to ${co.name} (${co.cycle})`); }); this.setState({ paid: true, gstErr: '' }); };
@@ -1566,7 +1576,8 @@ class Component extends DCLogic {
       toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate',
       dictLangSel: h('select', { 'aria-label': 'Dictation language', title: 'Dictation language', value: st.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: S.dict, onChange: e => { const v = e.target.value; this.mut(db => { db.settings.dictLang = v; }); }, style: { height: 34, border: '1px solid #E5E5E5', borderRadius: 8, background: '#FFFFFF', fontSize: 13.5, padding: '0 8px', color: '#0A0A0A' } }, h('option', { value: 'en-IN' }, 'English (India)'), h('option', { value: 'hi-IN' }, 'Hindi')),
       dictBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, border: S.dict ? '1px solid #B42318' : '1px solid #E5E5E5', background: S.dict ? '#FDECEA' : '#FFFFFF', color: S.dict ? '#B42318' : '#0A0A0A' },
-      cycles, plans, co, checkoutOpen: S.plan !== null, canTrial, startTrial,
+      cycles, plans, co, checkoutOpen: S.plan !== null, canTrial, startTrial, payUpi, showUpi: upiOn, showCardPay: !upiOn, upiBtn: `Pay ${co.total || ''} by UPI`,
+      upiStyle: { whiteSpace: 'nowrap', padding: '9px 12px', borderRadius: 8, fontSize: 14, textAlign: 'center', background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
       trialBtn: acc.state === 'trial' ? `Switch my trial to ${co.name || ''}` : 'Start 7-day free trial', trialHint: acc.state === 'trial' ? `No payment needed. Your trial still ends on ${trialEndsTxt}.` : `No payment needed. Full ${co.name || ''} plan until ${trialEndsTxt}; then subscribe to keep working.`,
       payStyle: { whiteSpace: 'nowrap', height: 36, borderRadius: 8, fontSize: 13.5, fontWeight: 500, background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
       pricingNote: acc.state === 'none' ? 'Every plan starts with a 7-day free trial. No payment needed to start. Prices exclude 18% GST.' : acc.state === 'trial' ? `You are on a free trial of the ${acc.plan} plan, ${acc.daysLeft} day${acc.daysLeft === 1 ? '' : 's'} left. Subscribe any time; unused trial days are kept.` : acc.state === 'expired' ? `Your ${acc.wasTrial ? 'free trial' : 'plan'} has ended. Subscribe to reopen your workspace. Prices exclude 18% GST.` : 'Prices exclude 18% GST. You can change plans at any time.', paid: S.paid, notPaid: !S.paid, gstin: S.gstin, setGstin: e => this.setState({ gstin: e.target.value, gstErr: '' }),

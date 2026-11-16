@@ -166,6 +166,12 @@
       download: drive => B.fn('drive', { action: 'download', firm_id: firmId, drive }),
       remove: drive => B.fn('drive', { action: 'delete', firm_id: firmId, drive }).catch(() => {})
     },
+    /* Direct UPI to the operator's account (server function 'upi-pay'), confirmed automatically by Paytm status or bank SMS. */
+    upi: {
+      config: () => B.fn('upi-pay', { action: 'config' }),
+      create: (plan, cycle, gstin) => B.fn('upi-pay', { action: 'create', firm_id: firmId, plan, cycle, gstin }),
+      status: orderNo => B.fn('upi-pay', { action: 'status', firm_id: firmId, order_no: orderNo })
+    },
     /* Real AI (server function 'ai', Groq): mode 'brain' | 'research' | 'draft'. Resolves to { text, used, limit }. */
     ai: body => B.fn('ai', Object.assign({ firm_id: firmId }, body)),
     notify: () => B.fn('notify', { firm_id: firmId }),
