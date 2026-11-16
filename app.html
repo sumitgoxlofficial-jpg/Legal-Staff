@@ -35,6 +35,19 @@
 @keyframes ls-grow-x{from{transform:scaleX(0)}to{transform:none}}
 @keyframes ls-ring-spin{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
 @keyframes ls-boot-bar{from{transform:translateX(-110%)}to{transform:translateX(260%)}}
+@keyframes ls-greet-word{from{opacity:0;transform:translateY(.55em);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+@keyframes ls-greet-date{from{opacity:0;transform:translateX(-10px);letter-spacing:.12em}to{opacity:1;transform:none;letter-spacing:.02em}}
+@keyframes ls-greet-shine{from{background-position:100% 0}to{background-position:0 0}}
+@keyframes ls-sync-in{from{opacity:0;transform:translateY(6px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes ls-sync-ping{0%{transform:scale(1);opacity:.55}70%,100%{transform:scale(2.6);opacity:0}}
+.ls-greet-date{animation:ls-greet-date .6s var(--ls-ease) .05s backwards}
+.ls-greet-w{display:inline-block;white-space:pre;animation:ls-greet-word .6s var(--ls-ease) backwards}
+.ls-greet-name{background:linear-gradient(100deg,#0A0A0A 42%,#9A9A9A 50%,#0A0A0A 58%) 0 0/300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:ls-greet-word .6s var(--ls-ease) backwards,ls-greet-shine 1.4s ease-in-out .7s backwards}
+.ls-sync{display:inline-flex;align-items:center;gap:8px;animation:ls-sync-in .5s var(--ls-ease) .45s backwards;transition:background .2s,transform .2s}
+.ls-sync:hover{background:#E9E9E7!important;transform:translateY(-1px)}
+.ls-sync-dot{position:relative;width:7px;height:7px;border-radius:50%;background:#16A34A;flex:none}
+.ls-sync-dot::after{content:"";position:absolute;inset:0;border-radius:50%;background:#16A34A;animation:ls-sync-ping 2.2s ease-out 1s infinite}
+@media (prefers-reduced-motion:reduce){.ls-greet-date,.ls-greet-w,.ls-greet-name,.ls-sync,.ls-sync-dot::after{animation:none}}
 @keyframes ls-arc{from{stroke-dasharray:0 400}to{stroke-dasharray:64 400}}
 .ls-stagger>*{animation:ls-app-in .45s var(--ls-ease) backwards}
 .ls-stagger>*:nth-child(2){animation-delay:40ms}.ls-stagger>*:nth-child(3){animation-delay:80ms}.ls-stagger>*:nth-child(4){animation-delay:120ms}.ls-stagger>*:nth-child(5){animation-delay:160ms}.ls-stagger>*:nth-child(n+6){animation-delay:200ms}
@@ -234,11 +247,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       <div class="ls-stagger" style="display:flex;flex-direction:column;gap:28px;max-width:1240px">
         <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:4px">
           <div>
-            <div style="font-size:13px;color:#5E5E5E;letter-spacing:.02em">{{ todayLong }}</div>
-            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.02em;font-size:24px;line-height:1.15;margin:6px 0 0;">{{ greeting }}</h1>
+            <div class="ls-greet-date" style="font-size:13px;color:#5E5E5E;letter-spacing:.02em">{{ todayLong }}</div>
+            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.02em;font-size:24px;line-height:1.15;margin:6px 0 0;">{{ greetingEl }}</h1>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <span style="font-size:13px;color:#0A0A0A;background:#F0F0EF;border-radius:8px;padding:5px 12px;white-space:nowrap">{{ syncLine }}</span>
+            <span class="ls-sync" style="font-size:13px;color:#0A0A0A;background:#F0F0EF;border-radius:8px;padding:5px 12px;white-space:nowrap"><i class="ls-sync-dot"></i>{{ syncLine }}</span>
           </div>
         </div>
 
@@ -1542,7 +1555,7 @@ class Component extends DCLogic {
         ...({ Dots: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' }, Grid: { backgroundImage: 'linear-gradient(#ECECEC 1px,transparent 1px),linear-gradient(90deg,#ECECEC 1px,transparent 1px)', backgroundSize: '40px 40px' }, Plain: { backgroundImage: 'none' }, Wallpaper: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' } })[st.backdrop] },
       showWall: st.backdrop === 'Wallpaper',
       goDashboard: () => this.go('dashboard'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'), goOrder: () => this.go('orders'),
-      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign in with Google or an email code · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'Pay by UPI straight to Legal Staff. The plan switches on by itself once the payment reaches us.' : 'Payments need the server. No money was taken and no tax invoice was issued; the plan is recorded on this device only.', paidLine: LSB.on ? `The invoice has been saved for ${D.user.email}. Next renewal: ${co.next || ''}.` : `Recorded on this device. Next renewal date: ${co.next || ''}.`, payLabel: LSB.on ? 'Paid by UPI' : 'Not charged',
+      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, greetingEl: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`.split(' ').map((w, i, a) => h('span', { key: i, className: i === a.length - 1 ? 'ls-greet-w ls-greet-name' : 'ls-greet-w', style: { animationDelay: i === a.length - 1 ? `${120 + i * 80}ms, ${700 + i * 80}ms` : `${120 + i * 80}ms` } }, i < a.length - 1 ? w + ' ' : w)), syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign in with Google or an email code · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'Pay by UPI straight to Legal Staff. The plan switches on by itself once the payment reaches us.' : 'Payments need the server. No money was taken and no tax invoice was issued; the plan is recorded on this device only.', paidLine: LSB.on ? `The invoice has been saved for ${D.user.email}. Next renewal: ${co.next || ''}.` : `Recorded on this device. Next renewal date: ${co.next || ''}.`, payLabel: LSB.on ? 'Paid by UPI' : 'Not charged',
       payBtn: 'Record the plan on this device', payHint: upiOn ? 'Pay the exact amount shown. Your plan switches on by itself once the payment reaches us, usually within a minute.' : 'Payments need the server. This browser-only version only records the plan choice; no money is taken.', payHead: LSB.on ? 'Payment verified' : 'Plan recorded on this device',
       planBanner: h(V.PlanCard, { app: this, acc }),
       briefText, briefArt: todayH.length ? null : h('div', { className: 'ls-brief-art' }, h(V.Art, { name: 'sunrise', style: { width: '100%', height: 'auto' } })),
