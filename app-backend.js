@@ -183,19 +183,33 @@
       me: () => uid,
       dm: other => 'dm:' + [uid, other].sort().join(':'),
       async list(channel, before) {
-        let q = sb.from('chat_messages').select('id,channel,sender,body,created_at').eq('firm_id', firmId).eq('channel', channel).order('created_at', { ascending: false }).limit(150);
+        let q = sb.from('chat_messages').select('id,channel,sender,body,kind,data,created_at').eq('firm_id', firmId).eq('channel', channel).order('created_at', { ascending: false }).limit(150);
         if (before) q = q.lt('created_at', before);
         return ok(await q).reverse();
       },
-      async send(channel, body) { return ok(await sb.from('chat_messages').insert({ firm_id: firmId, channel, body }).select('id,channel,sender,body,created_at').single()); },
+      async send(channel, body, kind, data) { return ok(await sb.from('chat_messages').insert({ firm_id: firmId, channel, body: body || '', kind: kind || 'text', data: data || {} }).select('id,channel,sender,body,kind,data,created_at').single()); },
+      /* Files go to the private 'chat' bucket: <firm>/<conversation>/<random>/<name>; only that conversation's people can open them. */
+      async upload(channel, file) {
+        const safe = String(file.name || 'file').replace(/[^\w.\- ()]+/g, '_').slice(-120), path = firmId + '/' + channel.replace(/:/g, '_') + '/' + Math.random().toString(36).slice(2, 12) + '/' + safe;
+        ok(await sb.storage.from('chat').upload(path, file, { upsert: false, contentType: file.type || 'application/octet-stream' }));
+        return { path, name: file.name || safe, size: file.size, type: file.type || '' };
+      },
+      async url(path, download) { return ok(await sb.storage.from('chat').createSignedUrl(path, 600, download ? { download: true } : undefined)).signedUrl; },
+      async reactions(channel) { return ok(await sb.from('chat_reactions').select('message_id,user_id,emoji').eq('firm_id', firmId).eq('channel', channel)) || []; },
+      async react(m, emoji, on) {
+        if (on) { const r = await sb.from('chat_reactions').insert({ message_id: m.id, firm_id: firmId, channel: m.channel, user_id: uid, emoji }); if (r.error && r.error.code !== '23505') ok(r); }
+        else ok(await sb.from('chat_reactions').delete().eq('message_id', m.id).eq('user_id', uid).eq('emoji', emoji));
+      },
       async remove(id) { ok(await sb.from('chat_messages').delete().eq('id', id)); },
       async unread() { const rows = ok(await sb.rpc('chat_unread', { f: firmId })) || []; const out = {}; rows.forEach(r => out[r.channel] = Number(r.unread)); return out; },
       async read(channel) { ok(await sb.from('chat_reads').upsert({ firm_id: firmId, user_id: uid, channel, read_at: new Date().toISOString() })); },
       /* Calls back with every new or deleted message in this firm the user may see; returns a function that stops listening. */
-      watch(onNew, onDelete) {
+      watch(onNew, onDelete, onReact) {
         const f = firmId, ch = sb.channel('chat-' + f + '-' + Math.random().toString(36).slice(2))
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: 'firm_id=eq.' + f }, p => onNew(p.new))
           .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, p => onDelete && onDelete(p.old))
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_reactions', filter: 'firm_id=eq.' + f }, p => onReact && onReact(p.new, true))
+          .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_reactions' }, p => onReact && onReact(p.old, false))
           .subscribe();
         return { firm: f, stop: () => { try { sb.removeChannel(ch); } catch (e) {} } };
       }
