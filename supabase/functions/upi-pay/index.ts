@@ -6,6 +6,8 @@
 //  3. a bank 'credited' alert email, auto-forwarded from the operator's mailbox to the payments inbox (Resend inbound,
 //     webhook to ?action=email&key=<sms_secret>); only mail that was sent to pay_settings.email_inbox counts.
 // Two pending orders never share an amount: each gets a unique paise offset (0–99 paise) while it is open.
+// Promo codes (public.promo_codes, migration 0013) take a percentage and/or a flat amount off the price before GST;
+// a code that makes the plan free activates it straight away.
 // Settings live in public.pay_settings (migration 0010). Deploy with JWT verification off; it checks every caller itself.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -40,6 +42,30 @@ function emailText(subject: string, text: string, html: string) {
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#8377;|&#x20b9;/gi, "₹").replace(/&[a-z#0-9]+;/gi, " ");
   const keep = t.replace(/\s+/g, " ").split(/(?<=[.!?])\s+/).filter((x) => !/\b(OTP|never share|do not share|don't share|disclaimer|unsubscribe|if you have not|if you did not|not done by you)\b/i.test(x));
   return (String(subject ?? "") + ". " + keep.join(" ")).slice(0, 1500);
+}
+/** Price in paise for a plan, after a promo code (percent and/or flat rupees off, before 18% GST). Never below ₹1 unless free. */
+function priceFor(base: number, promo: { percent_off?: number; amount_off?: number; fixed_total?: number | null } | null) {
+  const basePaise = Math.round(base * 100);
+  if (promo && promo.fixed_total != null) {          // a fixed price, GST included (e.g. ₹1 for any plan)
+    const total = Math.min(Math.max(0, promo.fixed_total), Math.round(basePaise * 1.18)), taxable = Math.round(total / 1.18);
+    return { base: basePaise, discount: basePaise - taxable, taxable, gst: total - taxable, total };
+  }
+  let discount = promo ? Math.round(basePaise * (promo.percent_off ?? 0) / 100) + Math.round((promo.amount_off ?? 0) * 100) : 0;
+  discount = Math.min(basePaise, Math.max(0, discount));
+  const taxable = basePaise - discount, gst = Math.round(taxable * 0.18);
+  let total = taxable + gst;
+  if (total > 0 && total < 100) total = 100;
+  return { base: basePaise, discount, taxable, gst: total - taxable, total };
+}
+/** Why a promo code can't be used for this plan right now, or '' if it can. */
+function promoProblem(c: any, plan: string, cycle: string, now = Date.now()) {
+  if (!c || !c.active) return "That promo code is not valid.";
+  if (c.starts_at && Date.parse(c.starts_at) > now) return "That promo code is not active yet.";
+  if (c.expires_at && Date.parse(c.expires_at) < now) return "That promo code has expired.";
+  if (c.max_uses != null && c.uses >= c.max_uses) return "That promo code has been fully used.";
+  if (c.plans?.length && !c.plans.includes(plan)) return `That promo code is not valid for the ${plan} plan.`;
+  if (c.cycles?.length && !c.cycles.includes(cycle)) return `That promo code is only for ${c.cycles.join(" / ")} billing.`;
+  return "";
 }
 /** The smallest paise offset (0–99) not used by another open order for the same base amount. */
 function pickOffset(base: number, taken: number[]) {
@@ -76,6 +102,7 @@ async function activate(admin: any, p: any, utr: string | null, by: string) {
   d.setUTCDate(d.getUTCDate() - 1);
   await admin.from("subscriptions").upsert({ firm_id: p.firm_id, plan: p.plan, cycle: p.cycle, status: "active", since, renews: d.toISOString().slice(0, 10), trial_ends: null, updated_at: new Date().toISOString() });
   if (p.gstin) await admin.from("firms").update({ gstin: p.gstin }).eq("id", p.firm_id);
+  if (p.promo_code) await admin.rpc("promo_use", { c: p.promo_code });
   return true;
 }
 
@@ -179,6 +206,31 @@ Deno.serve(async (req: Request) => {
     if (!user) throw new Fail("Sign in again.", 401);
     const firmId = body.firm_id;
 
+    /** The promo code row for this request, checked for this firm and plan; null when none was given. */
+    const loadPromo = async (plan: string, cycle: string) => {
+      const code = String(body.promo ?? "").trim().toUpperCase();
+      if (!code) return null;
+      const { data: c } = await admin.from("promo_codes").select("*").eq("code", code).maybeSingle();
+      const why = promoProblem(c, plan, cycle);
+      if (why) throw new Fail(why);
+      if (c.once_per_firm) {
+        const { data: used } = await admin.from("payments").select("id").eq("firm_id", firmId).eq("promo_code", code).eq("status", "paid").limit(1);
+        if (used?.length) throw new Fail("Your firm has already used that promo code.");
+      }
+      return c;
+    };
+    const promoLabel = (c: any) => c.fixed_total != null ? "pay ₹" + (c.fixed_total / 100).toFixed(2).replace(/\.00$/, "") + " in total" : [c.percent_off ? c.percent_off + "% off" : "", c.amount_off ? "₹" + c.amount_off + " off" : ""].filter(Boolean).join(" + ");
+
+    if (action === "promo") {
+      const { data: member } = await asUser.rpc("is_member", { f: firmId });
+      if (!member) throw new Fail("You are not a member of this firm.", 403);
+      const base = PRICES[body.plan]?.[body.cycle];
+      if (!base) throw new Fail("Unknown plan.");
+      const c = await loadPromo(body.plan, body.cycle);
+      if (!c) throw new Fail("Enter a promo code.");
+      return json({ code: c.code, label: promoLabel(c), ...priceFor(base, c) });
+    }
+
     if (action === "create") {
       if (!s.upi_enabled || !s.upi_id) throw new Fail("UPI payments are not switched on yet.", 501);
       const { data: owner } = await asUser.rpc("is_owner", { f: firmId });
@@ -187,14 +239,23 @@ Deno.serve(async (req: Request) => {
       if (!base) throw new Fail("Unknown plan.");
       const g = String(body.gstin ?? "").trim().toUpperCase();
       if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) throw new Fail("That GSTIN is not valid.");
-      const basePaise = Math.round(base * 118);   // incl. 18% GST
+      const promo = await loadPromo(body.plan, body.cycle);
+      const price = priceFor(base, promo);
+      if (price.total === 0) {   // a 100%-off code: nothing to pay, switch the plan on now
+        const orderNo = "LS" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+        const { data: p, error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: body.plan, cycle: body.cycle, amount_paise: 0, gstin: g, method: "promo", order_no: orderNo, status: "created", promo_code: promo.code, discount_paise: price.discount }).select("*").single();
+        if (error) throw new Fail("Could not apply the promo code.", 500);
+        await activate(admin, p, null, "promo");
+        return json({ free: true, order_no: orderNo, amount: 0 });
+      }
+      const basePaise = price.total;   // incl. 18% GST, after the promo code
       const { data: open } = await admin.from("payments").select("amount_paise").eq("method", "upi").eq("status", "created")
         .gte("amount_paise", basePaise).lt("amount_paise", basePaise + 100).gte("created_at", new Date(Date.now() - LATE_HOURS * 3600e3).toISOString());
       const k = pickOffset(basePaise, (open ?? []).map((r: any) => r.amount_paise));
       if (k < 0) throw new Fail("Too many UPI payments are waiting right now. Please try again in a few minutes.", 503);
       const orderNo = "LS" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
       const amount = basePaise + k;
-      const { error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: body.plan, cycle: body.cycle, amount_paise: amount, gstin: g, method: "upi", order_no: orderNo, status: "created" });
+      const { error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: body.plan, cycle: body.cycle, amount_paise: amount, gstin: g, method: "upi", order_no: orderNo, status: "created", promo_code: promo?.code ?? null, discount_paise: price.discount });
       if (error) throw new Fail("Could not create the payment.", 500);
       return json({ order_no: orderNo, amount, upi_id: s.upi_id, payee: s.payee_name, link: upiLink(s, orderNo, amount), expires_at: new Date(Date.now() + OPEN_MINUTES * 60e3).toISOString() });
     }
