@@ -1269,7 +1269,7 @@ class Component extends DCLogic {
       ['Overview', [['Dashboard', 'dashboard', 'dashboard'], ['My Workspace', 'workspace', 'user']]],
       ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', limWait]]],
       ['AI', [['AI Case Brain', 'brain', 'spark'], ['AI Drafting Studio', 'drafting', 'pen'], ['AI Legal Research', 'research', 'search'], ['AI Agents', 'agents', 'cpu']]],
-      ['Firm', [['Team', 'team', 'team'], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Directory Admin', 'admin', 'shield'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
+      ['Firm', [['Team', 'team', 'team'], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
     ];
     const nav = navDef.map(([title, items]) => ({ title, items: items.map(([label, key, ic, badge]) => {
       const locked = acc.ok && !LS.hasMod(acc, key); if (locked) badge = LS.MOD_PLAN[key] === 'Firm' ? 'Firm' : 'Pro';
