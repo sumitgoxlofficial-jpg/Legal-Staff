@@ -1021,6 +1021,78 @@
   }
   /* ---------- Pay by UPI: straight to the operator's UPI ID, confirmed automatically (functions/upi-pay) ---------- */
   const loadQr = () => window.qrcode ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load the QR code.')); document.head.appendChild(s); });
+  /* ---------- Team chat: the firm's group chat and one-to-one chats with team members (live) ---------- */
+  function Chat({ app }) {
+    const d = app.db, server = window.LSB && LSB.on && LSB.chat;
+    const me = server ? LSB.chat.me() : '';
+    const people = d.team.filter(u => u.userId && u.userId !== me && u.status === 'Active');
+    const [sel, setSel] = useState('team'), [msgs, setMsgs] = useState({}), [text, setText] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [mob, setMob] = useState('list');
+    const scroller = React.useRef(null), box = React.useRef(null), selRef = React.useRef(sel); selRef.current = sel;
+    const narrow = app.state.w < 760;
+    const who = id => d.team.find(u => u.userId === id);
+    const chOf = u => LSB.chat.dm(u.userId);
+    React.useEffect(() => {
+      if (!server) return;
+      app.chatEvt = m => { setMsgs(all => { const list = all[m.channel]; if (!list || list.some(x => x.id === m.id)) return all; return Object.assign({}, all, { [m.channel]: list.concat(m) }); });
+        if (m.channel === selRef.current && m.sender !== me && document.visibilityState === 'visible') LSB.chat.read(m.channel).then(() => app.refreshChat()).catch(() => {}); };
+      app.chatDel = m => setMsgs(all => { const out = {}; Object.keys(all).forEach(k => out[k] = all[k].filter(x => x.id !== m.id)); return out; });
+      return () => { app.chatEvt = null; app.chatDel = null; };
+    }, []);
+    React.useEffect(() => {
+      if (!server) return; let dead = false; setErr('');
+      LSB.chat.list(sel).then(list => { if (!dead) setMsgs(all => Object.assign({}, all, { [sel]: list })); }).catch(e => !dead && setErr(e.message));
+      LSB.chat.read(sel).then(() => app.refreshChat()).catch(() => {});
+      return () => { dead = true; };
+    }, [sel]);
+    React.useEffect(() => { const el = scroller.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs[sel] && msgs[sel].length, sel]);
+    if (!server) return h(Page, { art: 'team', kicker: 'Firm', title: 'Team chat' }, h(Empty, { title: 'Team chat needs the server', text: 'Chat works when Legal Staff is connected to its server, so messages reach your team on every device.' }));
+    const unread = app.chatUnread || {};
+    const send = () => { const body = text.trim(); if (!body || busy) return; setBusy(true); setErr('');
+      LSB.chat.send(sel, body).then(m => { setText(''); setMsgs(all => { const list = all[sel] || []; return list.some(x => x.id === m.id) ? all : Object.assign({}, all, { [sel]: list.concat(m) }); }); if (box.current) { box.current.style.height = 'auto'; box.current.focus(); } })
+        .catch(e => setErr(e.message)).finally(() => setBusy(false)); };
+    const open = ch => { setSel(ch); setMob('chat'); };
+    const avatar = (label, dark, size) => h('span', { style: { width: size || 36, height: size || 36, borderRadius: '50%', background: dark ? K.ink : K.soft2, color: dark ? '#fff' : K.ink, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: (size || 36) * .36, fontWeight: 600, flexShrink: 0 } }, label);
+    const badge = n => n ? h('span', { style: { marginLeft: 'auto', minWidth: 20, height: 20, borderRadius: 10, background: '#137333', color: '#fff', fontSize: 11.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' } }, n > 99 ? '99+' : n) : null;
+    const last = ch => { const l = msgs[ch]; return l && l.length ? l[l.length - 1] : null; };
+    const row = (ch, title, sub, av) => h('button', { key: ch, onClick: () => open(ch), style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 14px', border: 0, borderBottom: '1px solid #F0F0EF', background: sel === ch && !narrow ? K.soft : 'transparent', textAlign: 'left', cursor: 'pointer', font: 'inherit' } },
+      av, h('span', { style: { display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 } }, h('span', { style: { fontSize: 14, fontWeight: unread[ch] ? 700 : 600, color: K.ink } }, title),
+        h('span', { style: { fontSize: 12.5, color: K.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (last(ch) ? (last(ch).sender === me ? 'You: ' : '') + last(ch).body : sub))), badge(unread[ch]));
+    const list = h('div', { style: { borderRight: narrow ? 0 : '1px solid ' + K.line, overflowY: 'auto', display: narrow && mob === 'chat' ? 'none' : 'block', minHeight: 0 } },
+      h('div', { style: { padding: '12px 14px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, 'Group'),
+      row('team', d.firm.name || 'Team', `Everyone at the firm · ${people.length + 1} member${people.length ? 's' : ''}`, avatar(L.initials(d.firm.name) || 'T', true)),
+      h('div', { style: { padding: '14px 14px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, 'Direct messages'),
+      people.length ? people.map(u => row(chOf(u), u.title || u.name, u.role, avatar(L.initials(u.name)))) :
+        h('div', { style: { padding: '8px 14px 16px', fontSize: 13, color: K.mut, lineHeight: 1.5 } }, 'Team members appear here once they join. ', h('button', { onClick: () => app.go('team'), style: { border: 0, background: 'none', padding: 0, color: K.ink, textDecoration: 'underline', cursor: 'pointer', font: 'inherit' } }, 'Invite your team')));
+    const other = sel === 'team' ? null : people.find(u => chOf(u) === sel);
+    const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid ' + K.line } },
+      narrow && h('button', { onClick: () => setMob('list'), 'aria-label': 'Back to chats', style: { border: 0, background: 'none', fontSize: 20, cursor: 'pointer', padding: '0 6px 0 0' } }, '‹'),
+      sel === 'team' ? avatar(L.initials(d.firm.name) || 'T', true, 34) : avatar(L.initials(other ? other.name : '?'), false, 34),
+      h('div', { style: { display: 'flex', flexDirection: 'column' } }, h('span', { style: { fontWeight: 600, fontSize: 15 } }, sel === 'team' ? (d.firm.name || 'Team') : other ? (other.title || other.name) : 'Chat'),
+        h('span', { style: { fontSize: 12.5, color: K.mut } }, sel === 'team' ? 'Group chat · everyone at the firm can read it' : other ? other.role + ' · only the two of you can read this' : '')));
+    const items = msgs[sel], dayLabel = iso => { const t = L.today(), dd = L.iso(new Date(iso)); return dd === t ? 'Today' : dd === L.addDays(t, -1) ? 'Yesterday' : L.fmt(dd); };
+    const time = iso => new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+    const body = h('div', { ref: scroller, style: { flex: 1, overflowY: 'auto', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 4, background: '#FAFAF9', minHeight: 0 } },
+      !items ? h('div', { style: { margin: 'auto', color: K.mut, fontSize: 13 } }, 'Loading messages…')
+      : !items.length ? h('div', { style: { margin: 'auto', textAlign: 'center', color: K.mut, fontSize: 13.5, maxWidth: 300, lineHeight: 1.6 } }, sel === 'team' ? 'No messages yet. Say hello to your team.' : `No messages yet. Send ${other ? other.name : 'them'} a message.`)
+      : items.map((m, i) => { const mine = m.sender === me, prev = items[i - 1], newDay = !prev || dayLabel(prev.created_at) !== dayLabel(m.created_at), sameRun = prev && !newDay && prev.sender === m.sender && Date.parse(m.created_at) - Date.parse(prev.created_at) < 5 * 60e3, u = who(m.sender);
+          return h(React.Fragment, { key: m.id },
+            newDay && h('div', { style: { alignSelf: 'center', fontSize: 11.5, color: K.mut, background: '#fff', border: '1px solid ' + K.line, borderRadius: 999, padding: '2px 10px', margin: '10px 0 6px' } }, dayLabel(m.created_at)),
+            h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', marginTop: sameRun ? 0 : 6 } },
+              !mine && sel === 'team' && !sameRun && h('span', { style: { fontSize: 12, fontWeight: 600, color: K.txt, margin: '0 0 2px 4px' } }, u ? (u.title || u.name) : 'Former member'),
+              h('div', { title: new Date(m.created_at).toLocaleString('en-IN'), style: { maxWidth: 'min(560px, 80%)', padding: '8px 12px', borderRadius: 14, borderTopRightRadius: mine && !sameRun ? 4 : 14, borderTopLeftRadius: !mine && !sameRun ? 4 : 14, background: mine ? K.ink : '#fff', color: mine ? '#fff' : K.ink, border: mine ? 0 : '1px solid ' + K.line, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap', wordBreak: 'break-word' } },
+                m.body, h('span', { style: { display: 'block', fontSize: 10.5, opacity: .6, textAlign: 'right', marginTop: 2 } }, time(m.created_at)))));
+        }));
+    const composer = h('div', { style: { borderTop: '1px solid ' + K.line, padding: 12, display: 'flex', gap: 8, alignItems: 'flex-end', background: '#fff' } },
+      h('textarea', { ref: box, value: text, rows: 1, placeholder: sel === 'team' ? 'Message the team' : 'Message ' + (other ? other.name : ''), 'aria-label': 'Message',
+        onChange: e => { setText(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = Math.min(140, el.scrollHeight) + 'px'; },
+        onKeyDown: e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } },
+        style: { flex: 1, resize: 'none', border: '1px solid ' + K.line, borderRadius: 10, padding: '9px 12px', font: 'inherit', fontSize: 14, lineHeight: 1.45, maxHeight: 140, outline: 'none' } }),
+      h(Btn, { primary: true, onClick: send, disabled: busy || !text.trim() }, busy ? 'Sending…' : 'Send'));
+    const convo = h('div', { style: { display: narrow && mob === 'list' ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 } }, head, body, err && h('div', { style: { padding: '6px 16px', fontSize: 12.5, color: K.red } }, err), composer);
+    return h(Page, { art: 'team', kicker: 'Firm', title: 'Team chat', sub: 'Talk to your whole team or to one colleague. Messages are private to your firm.' },
+      h('div', { style: { background: '#fff', border: '1px solid ' + K.line, borderRadius: 12, overflow: 'hidden', display: 'grid', gridTemplateColumns: narrow ? '1fr' : '300px 1fr', height: 'calc(100vh - 230px)', minHeight: 420 } }, list, convo));
+  }
+
   /* ---- billing: GST invoices for plan payments (server function 'billing') ---- */
   const rupees = paise => L.inr(paise / 100), istDay = ts => new Date(Date.parse(ts) + 5.5 * 3600e3).toISOString().slice(0, 10);
   async function downloadInvoice(id) {
@@ -1257,7 +1329,7 @@
         notOwner(app) ? h('span', { style: { fontSize: 13, color: K.mut } }, 'Ask the firm owner to upgrade the plan.') : h(Btn, { primary: true, onClick: () => choosePlan(app, need) }, acc.state === 'trial' ? `Switch the trial to ${need}` : `Upgrade to ${need}`),
         h(Btn, { onClick: () => app.go('dashboard') }, 'Back to dashboard'))));
   }
-  const MODULES = { workspace: Workspace, courts: Courts, clients: Clients, documents: p => h(Docs, { app: p.app, kind: 'document' }), evidence: p => h(Docs, { app: p.app, kind: 'evidence' }), research: Research, agents: Agents, team: Team, billing: Billing, portal: Portal, reports: Reports, settings: Settings, orders: Orders };
+  const MODULES = { workspace: Workspace, courts: Courts, clients: Clients, documents: p => h(Docs, { app: p.app, kind: 'document' }), evidence: p => h(Docs, { app: p.app, kind: 'evidence' }), research: Research, agents: Agents, team: Team, chat: Chat, billing: Billing, portal: Portal, reports: Reports, settings: Settings, orders: Orders };
 
   /* ---------- top-bar dropdowns ---------- */
   function Drop({ style, children, onClose }) { return h(React.Fragment, null, h('div', { onClick: onClose, style: { position: 'fixed', inset: 0, zIndex: 58 } }), h('div', { className: 'ls-drop', style: Object.assign({}, X.card, { position: 'absolute', zIndex: 60, boxShadow: '0 16px 48px rgba(0,0,0,.14)', padding: 6, minWidth: 260 }, style) }, children)); }

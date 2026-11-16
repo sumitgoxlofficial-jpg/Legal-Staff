@@ -1055,7 +1055,7 @@ class Component extends DCLogic {
   tplNames = ['Legal notice', 'Petition', 'Section 138 notice', 'Bail application', 'Affidavit', 'Written statement', 'Reply', 'Appeal', 'Revision', 'Agreement'];
   dirList = [];
   state = { auth: LSB.on ? 'boot' : (this.db.session ? 'in' : 'login'), screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: '', promo: null, promoInput: '', promoErr: '' };
-  SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'courts', 'clients', 'documents', 'evidence', 'research', 'agents', 'team', 'billing', 'portal', 'reports', 'settings'];
+  SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'courts', 'clients', 'documents', 'evidence', 'research', 'agents', 'team', 'chat', 'billing', 'portal', 'reports', 'settings'];
 
   componentDidMount() {
     this.onR = () => this.setState({ w: window.innerWidth }); window.addEventListener('resize', this.onR);
@@ -1090,7 +1090,16 @@ class Component extends DCLogic {
   }
   async reload(id) { const d = await LSB.load(id || this.db.firmId, this.sess), mig = d.migrated; delete d.migrated; this.loadedAt = Date.now(); this.buf = null; this.db = d; LS.save(d); this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1, auth: 'in' })); this.loadQueue(); this.loadDrive(); if (mig) this.queueSync(); }
   /* Is the user's Google Drive connected? Decides where new uploads go (see LSV DriveCard). */
-  loadDrive() { if (LSB.on && LSB.upi) LSB.upi.config().then(c => { this.upiCfg = c; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => {});
+  /* Team chat: listen for new messages in the current firm and keep the unread counts for the sidebar. */
+  startChat() {
+    if (!LSB.on || !LSB.chat) return;
+    if (this.chatSub && this.chatSub.firm === this.db.firmId) return;
+    if (this.chatSub) this.chatSub.stop();
+    this.chatSub = LSB.chat.watch(m => { if (this.chatEvt) this.chatEvt(m); if (m.sender !== LSB.chat.me()) this.refreshChat(); }, m => { if (this.chatDel) this.chatDel(m); });
+    this.refreshChat();
+  }
+  refreshChat() { clearTimeout(this.chatT); this.chatT = setTimeout(() => LSB.chat.unread().then(u => { this.chatUnread = u; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => {}), 250); }
+  loadDrive() { this.startChat(); if (LSB.on && LSB.upi) LSB.upi.config().then(c => { this.upiCfg = c; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => {});
     if (!LSB.on || !LSB.drive) return; LSB.drive.status().then(s => { this.driveSt = s; this.setState(x => ({ rev: x.rev + 1 })); setTimeout(() => LSV.maybeAskDrive(this), 1500); }).catch(() => { this.driveSt = { configured: false }; }); }
   /* Owner only (Settings): waits for any save in flight, deletes the firm's files and records on the server, then reloads. */
   async eraseFirm() { clearTimeout(this.syncT); this.syncT = null; if (LSB.pending()) await LSB.sync(this.db).catch(() => {}); const n = await LSB.eraseFirm(this.db); await this.reload(); return n; }
@@ -1242,6 +1251,7 @@ class Component extends DCLogic {
     /* Plan and trial: what the firm can use right now. */
     const acc = LS.access(D.sub), FREE_SCREENS = ['pricing', 'settings'];
     const IC = {
+      chat: 'M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H9l-5 4z M8 9h8 M8 12h5',
       dashboard: 'M3 3h7v9H3z M14 3h7v5h-7z M14 12h7v9h-7z M3 16h7v5H3z', user: 'M20 21a8 8 0 0 0-16 0 M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z',
       case: 'M3 7h18v13H3z M8 7V4h8v3 M3 12h18', order: 'M14 3H6v18h12V7z M14 3v4h4 M9 13h6 M9 17h6', court: 'M3 21h18 M5 21V10 M19 21V10 M9 21V10 M15 21V10 M2 10l10-6 10 6z',
       cal: 'M3 5h18v16H3z M3 10h18 M8 3v4 M16 3v4', users: 'M16 21a6 6 0 0 0-12 0 M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21a5 5 0 0 0-4-4.9 M16 3.5a4 4 0 0 1 0 7',
@@ -1269,7 +1279,7 @@ class Component extends DCLogic {
       ['Overview', [['Dashboard', 'dashboard', 'dashboard'], ['My Workspace', 'workspace', 'user']]],
       ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', limWait]]],
       ['AI', [['AI Case Brain', 'brain', 'spark'], ['AI Drafting Studio', 'drafting', 'pen'], ['AI Legal Research', 'research', 'search'], ['AI Agents', 'agents', 'cpu']]],
-      ['Firm', [['Team', 'team', 'team'], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
+      ['Firm', [['Team', 'team', 'team'], ['Team chat', 'chat', 'chat', LSB.on ? Object.values(this.chatUnread || {}).reduce((a, b) => a + b, 0) || 0 : 0], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
     ];
     const nav = navDef.map(([title, items]) => ({ title, items: items.map(([label, key, ic, badge]) => {
       const locked = acc.ok && !LS.hasMod(acc, key); if (locked) badge = LS.MOD_PLAN[key] === 'Firm' ? 'Firm' : 'Pro';
