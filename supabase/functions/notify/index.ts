@@ -50,7 +50,7 @@ const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "
 type Row = { lead?: string; main: string; sub?: string; tag?: string; urgent?: boolean };
 type Block = { title: string; rows?: Row[]; empty?: string };
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-function emailHtml(o: { preheader: string; kicker?: string; heading: string; intro?: string[]; blocks?: Block[]; cta?: { label: string; url: string }; note?: string; reason: string }) {
+function emailHtml(o: { preheader: string; kicker?: string; heading: string; intro?: string[]; code?: string; blocks?: Block[]; cta?: { label: string; url: string }; note?: string; reason: string }) {
   const p = (t: string) => `<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#363636">${esc(t)}</p>`;
   const row = (r: Row) => `<tr>
       <td valign="top" style="padding:12px 14px 12px 0;border-top:1px solid #EDEDED;width:92px;font:600 13px/1.4 ${FONT};color:${r.urgent ? "#B42318" : "#0A0A0A"};white-space:nowrap">${esc(r.lead ?? "")}</td>
@@ -78,6 +78,7 @@ function emailHtml(o: { preheader: string; kicker?: string; heading: string; int
         ${o.kicker ? `<tr><td style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#6B6B6B;padding-bottom:8px">${esc(o.kicker)}</td></tr>` : ""}
         <tr><td style="font:700 22px/1.3 ${FONT};letter-spacing:-.02em;color:#0A0A0A;padding-bottom:16px">${esc(o.heading)}</td></tr>
         <tr><td>${(o.intro ?? []).map(p).join("")}</td></tr>
+        ${o.code ? `<tr><td style="padding:6px 0 4px"><div style="display:inline-block;padding:14px 22px;border:1px solid #E5E5E5;border-radius:10px;background:#FAFAF9;font:700 30px/1 'SFMono-Regular',Menlo,Consolas,monospace;letter-spacing:.32em;color:#0A0A0A">${esc(o.code)}</div></td></tr>` : ""}
         ${(o.blocks ?? []).map(block).join("")}
         ${cta}
         ${o.note ? `<tr><td style="padding-top:16px;font:13px/1.55 ${FONT};color:#6B6B6B">${esc(o.note)}</td></tr>` : ""}
