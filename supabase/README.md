@@ -82,7 +82,8 @@ to exactly one order. Confirmation is automatic, by whichever comes first:
 
 `functions/billing` (deploy with JWT verification off). Every confirmed plan payment gets an invoice numbered
 `LS/<financial year>/<0001>` in order (`public.invoices`, migration 0015), emailed to the buyer with the PDF attached and
-listed in the app under Pricing → Your subscription (download or email again). No GST is charged. The seller block printed on
+listed in the app under Pricing → Your subscription (download or email again). No GST is charged. The business owner gets a
+"New payment" email at `pay_settings.alert_email` (or the seller email) for every payment. The seller block printed on
 invoices comes from `pay_settings`: `seller_name`, `seller_address`, `seller_state_code`, `seller_gstin`, `seller_pan`,
 `seller_email`, `seller_phone`, `sac_code`.
 
