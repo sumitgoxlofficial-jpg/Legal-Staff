@@ -553,7 +553,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px">
               <h3 style="font-size:13px;color:#5E5E5E;margin:0 0 14px;font-weight:600">Assigned advocates</h3>
               <div style="display:flex;flex-direction:column;gap:12px;font-size:14px">
-                <sc-for list="{{ c.advocates }}" as="a" hint-placeholder-count="3"><div style="display:flex;justify-content:space-between;gap:12px"><span>{{ a.name }}</span><span style="color:#5E5E5E">{{ a.role }}</span></div></sc-for>
+                <sc-for list="{{ c.advocates }}" as="a" hint-placeholder-count="3"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><span style="display:flex;align-items:center;gap:8px;min-width:0">{{ a.avatar }}{{ a.name }}</span><span style="color:#5E5E5E">{{ a.role }}</span></div></sc-for>
               </div>
             </section>
           </div>
@@ -1346,7 +1346,7 @@ class Component extends DCLogic {
         h(V.Select, { value: C0.status, onChange: v => this.mut(db => { db.cases.find(x => x.id === C0.id).status = v; V.logIt(db, 'Status changed to ' + SC[v][0], C0.id); }, 'Case marked ' + SC[v][0].toLowerCase()), options: Object.keys(SC).map(k => [k, SC[k][0]]), style: { height: 36, minWidth: 120, fontSize: 13.5 } }), h(V.Btn, { danger: true, onClick: () => V.delCase(this, C0.id) }, 'Delete case')),
       summaryMeta: C0.summary ? (C0.summaryMeta || 'Written in Case details') : 'Not written yet', summaryEl: sumEl, summaryBtns, detailsEl: C0.id ? V.detailsView(this, C0) : null,
       tasksEl: h('div', null, cTasks.map(t => h(V.TaskRow, { key: t.id, app: this, t })), !cTasks.length && h('div', { style: { fontSize: 14, color: '#5E5E5E', paddingBottom: 8 } }, 'No tasks in this case.'), h('div', { style: { marginTop: 10 } }, h(V.Btn, { small: true, onClick: () => V.addTask(this, C0.id) }, '+ Add task'))),
-      advocates: C0.team.map((n, i) => { const u = D.team.find(x => x.name === n) || { title: n, role: '' }; return { name: u.title, role: (i === 0 ? 'Lead · ' : '') + u.role }; }) };
+      advocates: C0.team.map((n, i) => { const u = D.team.find(x => x.name === n) || { title: n, role: '' }; return { name: u.title, role: (i === 0 ? 'Lead · ' : '') + u.role, avatar: h(V.Avatar, { app: this, user: u.email ? u : { name: n }, size: 24 }) }; }) };
     const caseOrders = cOrders.map(o => ({ date: LS.dmy(o.date), summary: o.summary, source: o.source, go: () => this.go('order', o.id) }));
     const hearingHistory = D.hearings.filter(x => x.caseId === C0.id).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).map(x => { const nx = x.nextHearingId && D.hearings.find(y => y.id === x.nextHearingId);
       return { date: LS.dmy(x.date), purpose: x.purpose, chip: V.outcomeChip(x), act: V.hearingActs(this, x), outcome: x.outcome ? [x.outcomeNote, nx && 'Next date ' + LS.dmy(nx.date)].filter(Boolean).join(' · ') : (x.date >= T ? `Listed · ${LS.t12ap(x.time)} · ${x.court} · ${x.assignee}` : `${LS.t12ap(x.time)} · ${x.court} · ${x.assignee}`) }; });
