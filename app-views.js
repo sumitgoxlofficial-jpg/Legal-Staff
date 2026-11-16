@@ -1002,6 +1002,52 @@
     return h(Page, { art: 'order', kicker: 'Practice', title: 'Court Orders', sub: `${rows.length} orders · ${need} awaiting your confirmation`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addOrder(app) }, '+ Add court order')] },
       h(Table, { onRow: o => app.go('order', o.id), min: 860, cols: [{ label: 'Case', w: 'minmax(220px,1.6fr)', get: o => h('span', null, caseOf(d, o.caseId).title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, caseOf(d, o.caseId).no)) }, { label: 'Order dated', w: '110px', get: o => L.dmy(o.date) }, { label: 'Summary', w: 'minmax(240px,2.4fr)', get: o => h('span', null, o.summary, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, o.source)) }, { label: 'Next date', w: '110px', get: o => o.nextDate ? L.dmy(o.nextDate) : '—' }, { label: 'Status', w: '150px', get: o => h(Chip, { tone: o.confirmed || !o.nextDate ? '' : 'red' }, o.confirmed ? 'Confirmed' : (o.nextDate ? 'Needs confirmation' : 'No date found')) }], rows, empty: { title: 'No orders yet', text: 'Add an order to extract the next date.' } }));
   }
+  /* ---------- Pay by UPI: straight to the operator's UPI ID, confirmed automatically (functions/upi-pay) ---------- */
+  const loadQr = () => window.qrcode ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load the QR code.')); document.head.appendChild(s); });
+  function upiPay(app, o) {
+    const Body = () => {
+      const [st, setSt] = useState({ phase: 'creating' }), [qr, setQr] = useState(''), [left, setLeft] = useState(0);
+      React.useEffect(() => {
+        let dead = false, poll = null, tick = null;
+        LSB.upi.create(o.plan, o.cycle, o.gstin).then(r => {
+          if (dead) return; setSt({ phase: 'waiting', r });
+          loadQr().then(() => { const q = window.qrcode(0, 'M'); q.addData(r.link); q.make(); if (!dead) setQr(q.createSvgTag({ cellSize: 5, margin: 2, scalable: true })); }).catch(() => {});
+          const end = Date.parse(r.expires_at);
+          tick = setInterval(() => setLeft(Math.max(0, Math.round((end - Date.now()) / 1000))), 1000);
+          const check = () => LSB.upi.status(r.order_no).then(x => {
+            if (dead) return;
+            if (x.status === 'paid') { clearInterval(poll); clearInterval(tick); setSt({ phase: 'paid', r, x }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); }
+            else if (Date.now() > end) { clearInterval(poll); clearInterval(tick); setSt({ phase: 'expired', r }); }
+          }).catch(() => {});
+          poll = setInterval(check, 4000);
+        }).catch(e => !dead && setSt({ phase: 'error', msg: e.message }));
+        return () => { dead = true; clearInterval(poll); clearInterval(tick); };
+      }, []);
+      const r = st.r, amt = r ? L.inr(r.amount / 100) : '', mm = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+      if (st.phase === 'creating') return h('div', { style: { padding: '30px 0', textAlign: 'center', color: K.mut } }, 'Preparing your UPI payment…');
+      if (st.phase === 'error') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } }, h('div', { style: { color: K.red, fontSize: 14 } }, st.msg), h(Btn, { onClick: () => app.modal(null) }, 'Close'));
+      if (st.phase === 'paid') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center', padding: '10px 0' } },
+        h('div', { style: { width: 54, height: 54, borderRadius: 27, background: '#E7F6EC', color: '#137333', fontSize: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '✓'),
+        h('div', { style: { fontSize: 18, fontWeight: 600 } }, 'Payment received'),
+        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `${amt} for the ${o.name} plan (${o.cycleLabel}). Your plan is active.`),
+        st.x.utr && h('div', { style: { fontSize: 12.5, color: K.mut } }, 'UPI reference ' + st.x.utr + ' · order ' + r.order_no),
+        h(Btn, { primary: true, onClick: () => { app.modal(null); app.go('dashboard'); } }, 'Go to dashboard'));
+      if (st.phase === 'expired') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `This payment window has closed. If you already paid ${amt}, it is still confirmed automatically within 24 hours and your plan turns on by itself. If you have not paid, start again.`),
+        h('div', { style: { fontSize: 12.5, color: K.mut } }, 'Order ' + r.order_no),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close')));
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', textAlign: 'center' } },
+        h('div', { style: { fontSize: 13, color: K.mut } }, `${o.name} plan · ${o.cycleLabel}`),
+        h('div', null, h('div', { style: { fontSize: 12, color: K.mut, textTransform: 'uppercase', letterSpacing: '.06em' } }, 'Pay exactly'), h('div', { style: { fontSize: 30, fontWeight: 700, letterSpacing: '-.02em' } }, amt)),
+        h('div', { style: { width: 220, height: 220, border: '1px solid ' + K.line, borderRadius: 12, padding: 8, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }, dangerouslySetInnerHTML: qr ? { __html: qr.replace('<svg ', '<svg width="100%" height="100%" ') } : undefined }, qr ? undefined : h('span', { style: { fontSize: 13, color: K.mut } }, 'Loading QR…')),
+        h('div', { style: { fontSize: 13.5, color: K.txt } }, 'Scan with any UPI app: GPay, PhonePe, Paytm, BHIM'),
+        h('a', { href: r.link, style: { display: 'inline-block', background: K.ink, color: '#fff', borderRadius: 8, padding: '10px 18px', fontSize: 14, fontWeight: 600, textDecoration: 'none' } }, 'Open UPI app (on your phone)'),
+        h('div', { style: { fontSize: 12.5, color: K.mut } }, `Paying ${r.payee} · ${r.upi_id}`),
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: K.txt, background: K.soft2, borderRadius: 8, padding: '8px 12px' } }, h('span', { className: 'ls-typing', style: { display: 'inline-flex' } }, h('span'), h('span'), h('span')), `Waiting for your payment · ${mm}`),
+        h('div', { style: { fontSize: 12, color: K.mut, lineHeight: 1.5 } }, 'Keep this window open. Your plan turns on by itself as soon as the payment arrives. Pay the exact amount shown, including paise, so it is matched to your order ' + r.order_no + '.'));
+    };
+    app.modal(() => h(Modal, { title: 'Pay by UPI', onClose: () => app.modal(null), width: 420 }, h(Body)));
+  }
   /* ---------- AI drafting: writes a first draft as a new version of the open template ---------- */
   const textToHtml = t => String(t).replace(/\*\*/g, '').split(/\n{2,}/).map(p => '<p>' + p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') + '</p>').join('');
   function aiDraft(app, tplIndex, tplName) {
@@ -1105,6 +1151,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { upiPay, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();

@@ -16,11 +16,12 @@
 | `functions/court-status` | CNR lookup through a court-data provider |
 | `functions/auth-email` | Supabase Auth "Send Email" hook: sign-in codes, sign-up confirmations, invites, email changes and security notices in the Legal Staff design, sent through Resend (deploy with JWT verification off; it checks the hook signature) |
 | `functions/ai` | Real AI for AI Case Brain, AI Legal Research and AI Drafting Studio through Groq; picks the best model from Groq's live list; counts AI credits per firm per month by plan (deploy with JWT verification off; it checks the caller itself) |
+| `functions/upi-pay` | Pay by UPI straight to the operator's UPI ID, no gateway: creates orders with a unique amount, confirms them automatically by Paytm for Business order status and/or bank 'credited' SMS from an SMS-forwarder phone, then activates the plan (deploy with JWT verification off; it checks every caller itself) |
 | `functions/drive` | Encrypted storage in each user's own Google Drive: uploads and nightly backups, encrypted with AES-256-GCM (a key per firm) and kept in the Drive's hidden app folder (deploy with JWT verification off; it checks the caller itself) |
 
 ## Current project
 
-Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0009 are applied and `config.js` points at it.
+Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0010 are applied and `config.js` points at it.
 
 ## Set-up, in order
 
@@ -62,3 +63,17 @@ Every file is encrypted on the server before it is sent to Google (AES-256-GCM, 
 that migration 0007 generates in Vault), so Google holds only ciphertext. Google refresh tokens are stored encrypted the same
 way. Teammates open each other's files through the app. Users who have not connected Drive keep using the `documents` bucket.
 Losing the Vault key `drive_master_key` makes every Drive file unreadable: never delete or rotate it without re-encrypting.
+
+## Pay by UPI (direct to your account)
+
+Settings are one row in `public.pay_settings`: `upi_enabled`, `upi_id` (where customers pay), `payee_name`, `paytm_mid`
+(Paytm for Business merchant ID, optional) and `sms_secret` (generated). When `upi_enabled` is true the plan checkout shows
+**Pay by UPI** instead of Razorpay. Each order gets a unique amount (0–99 paise above the price) so a payment can be matched
+to exactly one order. Confirmation is automatic, by whichever comes first:
+
+- **Paytm for Business:** with `paytm_mid` set and `upi_id` being the Paytm merchant UPI ID, the order number travels in the
+  UPI link (`tr`) and is checked with Paytm's order status page while the customer waits, and every 2 minutes for 24 hours.
+  This uses Paytm's unofficial status page, which Paytm may change.
+- **Bank SMS:** an Android phone with the bank SIM runs an SMS-forwarder app that POSTs each SMS to
+  `/functions/v1/upi-pay?action=sms&key=<sms_secret>`. A 'credited' SMS whose amount matches one open order confirms it;
+  each bank reference (UTR) can confirm only one payment. Every SMS is kept in `public.upi_sms` with what happened to it.
