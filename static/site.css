@@ -440,6 +440,31 @@ body.modal-open { overflow: hidden; }
 .fp-chip-t { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #E5E5E5; }
 .fp-chip-t b { color: var(--white); }
 .fp-chip.is-done { border-color: #5E5E5E; background: #222; }
+/* team chat */
+.fp-chat { display: flex; flex-direction: column; gap: 10px; min-height: 250px; }
+.fp-chat-day { background: #1C1C1C; color: #8A8A8A; }
+.fp-msg { display: flex; align-items: flex-end; gap: 8px; max-width: 92%; }
+.fp-msg.is-me { align-self: flex-end; }
+.fp-msg.is-in { animation: ls-fade-up .4s var(--ls-ease) both; }
+.fp-msg-av { width: 28px; height: 28px; border-radius: 50%; background: #2A2A2A; color: #E5E5E5; font-size: 12px; font-weight: 600; display: grid; place-items: center; flex-shrink: 0; }
+.fp-msg-b { background: #181818; border: 1px solid #262626; border-radius: 12px 12px 12px 4px; padding: 8px 12px 6px; min-width: 0; }
+.fp-msg.is-me .fp-msg-b { background: var(--white); border-color: var(--white); border-radius: 12px 12px 4px 12px; }
+.fp-msg-who { margin: 0 0 2px; font-size: 11.5px; font-weight: 600; color: #8A8A8A; }
+.fp-msg-b p { margin: 0; font-size: 13.5px; line-height: 1.5; color: #E5E5E5; }
+.fp-msg.is-me .fp-msg-b p { color: var(--ink); }
+.fp-msg-f { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
+.fp-msg-f time { margin-left: auto; font-size: 10.5px; color: #8A8A8A; }
+.fp-react { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 999px; border: 1px solid #333; background: transparent; color: #CFCFCF; font: inherit; font-size: 12px; cursor: pointer; transition: transform .15s, background-color .15s; }
+.fp-react:hover { transform: scale(1.06); }
+.fp-react.is-on { background: #2A2A2A; border-color: #5E5E5E; color: var(--white); }
+.fp-react b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.fp-file, .fp-meet { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: #222; border: 1px solid #333; color: #E5E5E5; }
+.fp-file b, .fp-meet b { display: block; font-size: 13px; color: var(--white); }
+.fp-file small, .fp-meet small { display: block; font-size: 11.5px; color: #8A8A8A; }
+.fp-meet { justify-content: space-between; background: var(--soft); border-color: var(--line); }
+.fp-meet b { color: var(--ink); }
+.fp-meet small { color: var(--muted); }
+.fp-meet em { font-style: normal; font-size: 12px; font-weight: 600; background: var(--ink); color: var(--white); border-radius: 6px; padding: 3px 10px; }
 /* whatsapp (green only inside this mock-up) */
 .fp-tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
 .fp-tabs button { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid #333; background: transparent; color: #CFCFCF; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }

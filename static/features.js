@@ -39,14 +39,22 @@
     });
   });
 
-  /* ---- whatsapp: tabs ---- */
-  $$('[data-fp="whatsapp"]').forEach(function (card) {
+  /* ---- chat: emoji reactions toggle (the tabs are handled with the WhatsApp card below) ---- */
+  $$('[data-fp="chat"] .fp-react').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var on = b.getAttribute('aria-pressed') !== 'true', n = +b.getAttribute('data-n') + (on ? 1 : -1);
+      b.setAttribute('aria-pressed', on); b.setAttribute('data-n', n); b.classList.toggle('is-on', on); b.querySelector('b').textContent = n;
+    });
+  });
+
+  /* ---- whatsapp and chat: tabs ---- */
+  $$('[data-fp="whatsapp"],[data-fp="chat"]').forEach(function (card) {
     var tabs = $$('[role="tab"]', card);
     function select(t) {
       tabs.forEach(function (x) { var on = x === t; x.setAttribute('aria-selected', on); x.tabIndex = on ? 0 : -1; });
       $$('[data-panel]', card).forEach(function (p) {
         var on = p.getAttribute('data-panel') === t.getAttribute('data-tab'); p.hidden = !on;
-        if (on) $$('.fp-bub', p).forEach(function (b, i) { b.classList.remove('is-in'); void b.offsetWidth; b.style.animationDelay = (i * 160) + 'ms'; b.classList.add('is-in'); });
+        if (on) $$('.fp-bub,.fp-msg', p).forEach(function (b, i) { b.classList.remove('is-in'); void b.offsetWidth; b.style.animationDelay = (i * 160) + 'ms'; b.classList.add('is-in'); });
       });
     }
     tabs.forEach(function (t, i) {
