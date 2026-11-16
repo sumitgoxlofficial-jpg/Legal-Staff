@@ -11,7 +11,7 @@
 | `functions/razorpay-order` | Creates a Razorpay order at the server-side price |
 | `functions/razorpay-verify` | Verifies the checkout signature and activates the plan |
 | `functions/razorpay-webhook` | Activates the plan from Razorpay's webhook (deploy with JWT verification off) |
-| `functions/notify` | Email (Resend) and WhatsApp (Meta Cloud API) briefings and reminders (deploy with JWT verification off; it checks the caller itself) |
+| `functions/notify` | Email (Resend) and WhatsApp (Meta Cloud API) briefings and reminders, and free-trial reminder emails to firm owners 3 days and 1 day before the trial ends and when it has ended (deploy with JWT verification off; it checks the caller itself) |
 | `functions/court-status` | CNR lookup through a court-data provider |
 
 ## Current project
@@ -31,6 +31,7 @@ Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0006 
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Payments |
 | `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook (point it at `/functions/v1/razorpay-webhook`, events `payment.captured` and `payment.failed`) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Email, e.g. `Legal Staff <briefing@yourdomain.in>` on a verified domain |
+| `APP_URL` (optional) | Site address used in trial reminder links; defaults to `https://legalstaff.in` |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE` | WhatsApp. The template must be approved and have one body variable |
 | `COURT_API_URL`, `COURT_API_KEY`, `COURT_API_HEADER` | Court data. The URL contains `{cnr}` |
 | `CRON_SECRET` | Lets the daily job call `notify` |
