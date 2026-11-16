@@ -790,12 +790,30 @@
     ['Bharatiya Sakshya Adhiniyam, 2023 — s.63', 'Admissibility of electronic records', 'An electronic record is admissible as a document if the conditions of the section are met and it is accompanied by the prescribed certificate. It corresponds to s.65B of the Indian Evidence Act, 1872.', 'electronic record certificate 65B email printout evidence'],
     ['Hindu Marriage Act, 1955 — s.13B', 'Divorce by mutual consent', 'Both spouses may petition together for divorce after living separately for a year or more. The second motion is made between six and eighteen months after the first; the six-month period can be waived in suitable cases (Amardeep Singh v. Harveen Kaur, 2017).', 'mutual consent divorce cooling off six months']
   ].map((r, i) => ({ id: 'L' + i, ref: r[0], title: r[1], text: r[2], tags: r[3] }));
+  /* Real AI answer to a general legal question (server function 'ai', mode 'research'). */
+  function AiAsk({ app }) {
+    const [q, setQ] = useState(''), [busy, setBusy] = useState(false), [ans, setAns] = useState(null);
+    const ask = () => { const t = q.trim(); if (!t || busy) return; setBusy(true); setAns(null);
+      LSB.ai({ mode: 'research', question: t }).then(r => { setAns({ q: t, text: r.text }); app.db.sub.aiUsed = r.used; }).catch(e => setAns({ q: t, error: e.message })).finally(() => setBusy(false)); };
+    return h(Card, { title: 'Ask the AI', right: h('span', { style: { fontSize: 12.5, color: K.mut } }, '1 AI credit per question') },
+      h('div', { style: { display: 'flex', gap: 8 } },
+        h('textarea', { value: q, rows: 2, onChange: e => setQ(e.target.value), onKeyDown: e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } }, placeholder: 'e.g. What is the limitation for a first appeal from a decree, and can delay be condoned?', style: { flex: 1, border: '1px solid ' + K.line, borderRadius: 8, padding: '10px 12px', fontSize: 14.5, fontFamily: 'inherit', resize: 'vertical', minWidth: 0 } }),
+        h(Btn, { primary: true, onClick: ask, disabled: busy }, busy ? 'Thinking…' : 'Ask AI')),
+      ans && h('div', { style: { marginTop: 14, borderTop: '1px solid ' + K.line, paddingTop: 14 } },
+        h('div', { style: { fontSize: 12.5, color: K.mut, marginBottom: 6 } }, ans.q),
+        ans.error ? h('div', { style: { fontSize: 14, color: K.red } }, 'The AI could not answer: ' + ans.error)
+          : h('div', null, h('div', { style: { fontSize: 15, lineHeight: 1.65, whiteSpace: 'pre-line', color: '#1A1A1A' } }, ans.text),
+            h('div', { style: { display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' } },
+              h(Btn, { small: true, onClick: () => { try { navigator.clipboard.writeText(ans.text); app.toast('Copied to clipboard'); } catch (x) { app.toast('Copy is not available in this browser'); } } }, 'Copy'),
+              h('span', { style: { fontSize: 12.5, color: K.mut } }, 'AI answer. Check every section and judgment in the bare act or a law database before relying on it.')))));
+  }
   function Research({ app }) {
     const d = app.db, [q, setQ] = useState(''), [only, setOnly] = useState(false);
     const words = q.toLowerCase().split(/\s+/).filter(w => w.length > 1);
     const scored = LIB.map(e => { const hay = (e.ref + ' ' + e.title + ' ' + e.text + ' ' + e.tags).toLowerCase(); return [words.reduce((n, w) => n + (hay.includes(w) ? 1 : 0), 0), e]; }).filter(x => (!words.length || x[0] > 0) && (!only || d.research.includes(x[1].id))).sort((a, b) => b[0] - a[0]).map(x => x[1]);
     return h(Page, { art: 'research', kicker: 'AI', title: 'AI Legal Research', sub: 'Search the built-in reference notes on provisions used in your matters', max: 980, actions: [h(Btn, { key: 1, onClick: () => setOnly(!only), style: only ? { background: K.soft2, borderColor: K.ink } : null }, only ? 'Showing saved' : `Saved (${d.research.length})`)] },
-      h('div', { style: { display: 'flex', gap: 8, background: '#FFFFFF', border: '1px solid ' + K.line, borderRadius: 10, padding: '6px 6px 6px 14px' } }, h('input', { value: q, onChange: e => setQ(e.target.value), placeholder: 'e.g. condonation of delay, cheque notice, certified copy…', autoFocus: true, style: { flex: 1, border: 0, outline: 'none', fontSize: 15, background: 'transparent', minWidth: 0 } }), q && h(Btn, { onClick: () => setQ('') }, 'Clear')),
+      window.LSB && LSB.on && LSB.ai && h(AiAsk, { app }),
+      h('div', { style: { display: 'flex', gap: 8, background: '#FFFFFF', border: '1px solid ' + K.line, borderRadius: 10, padding: '6px 6px 6px 14px' } }, h('input', { value: q, onChange: e => setQ(e.target.value), placeholder: 'Search the reference notes: condonation of delay, cheque notice, certified copy…', style: { flex: 1, border: 0, outline: 'none', fontSize: 15, background: 'transparent', minWidth: 0 } }), q && h(Btn, { onClick: () => setQ('') }, 'Clear')),
       h('div', { style: { fontSize: 13, color: K.mut } }, `${scored.length} of ${LIB.length} notes${words.length ? ' match' : ''}. These are short reference notes, not a case-law database. Check the bare act and current authorities before relying on them.`),
       scored.map(e => { const saved = d.research.includes(e.id); return h(Card, { key: e.id }, h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' } }, h('div', null, h('div', { style: { fontSize: 12.5, color: K.mut } }, e.ref), h('div', { style: { fontSize: 16, fontWeight: 600, marginTop: 2 } }, e.title)), h('div', { style: X.row }, h(Btn, { small: true, onClick: () => { try { navigator.clipboard.writeText(`${e.ref} — ${e.title}. ${e.text}`); app.toast('Copied to clipboard'); } catch (x) { app.toast('Copy is not available in this browser'); } } }, 'Copy'), h(Btn, { small: true, onClick: () => app.mut(db => { db.research = saved ? db.research.filter(x => x !== e.id) : [...db.research, e.id]; }, saved ? 'Removed from saved' : 'Saved') }, saved ? 'Saved ✓' : 'Save'))), h('p', { style: { fontSize: 14.5, lineHeight: 1.65, color: K.txt, margin: '10px 0 0', maxWidth: 820 } }, e.text)); }),
       !scored.length && h(Card, null, h(Empty, { title: 'No notes match', text: 'Try fewer or different words, for example "limitation" or "bail".' })));
@@ -984,6 +1002,24 @@
     return h(Page, { art: 'order', kicker: 'Practice', title: 'Court Orders', sub: `${rows.length} orders · ${need} awaiting your confirmation`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addOrder(app) }, '+ Add court order')] },
       h(Table, { onRow: o => app.go('order', o.id), min: 860, cols: [{ label: 'Case', w: 'minmax(220px,1.6fr)', get: o => h('span', null, caseOf(d, o.caseId).title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, caseOf(d, o.caseId).no)) }, { label: 'Order dated', w: '110px', get: o => L.dmy(o.date) }, { label: 'Summary', w: 'minmax(240px,2.4fr)', get: o => h('span', null, o.summary, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, o.source)) }, { label: 'Next date', w: '110px', get: o => o.nextDate ? L.dmy(o.nextDate) : '—' }, { label: 'Status', w: '150px', get: o => h(Chip, { tone: o.confirmed || !o.nextDate ? '' : 'red' }, o.confirmed ? 'Confirmed' : (o.nextDate ? 'Needs confirmation' : 'No date found')) }], rows, empty: { title: 'No orders yet', text: 'Add an order to extract the next date.' } }));
   }
+  /* ---------- AI drafting: writes a first draft as a new version of the open template ---------- */
+  const textToHtml = t => String(t).replace(/\*\*/g, '').split(/\n{2,}/).map(p => '<p>' + p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') + '</p>').join('');
+  function aiDraft(app, tplIndex, tplName) {
+    const d = app.db; if (needCase(app)) return;
+    const Body = () => { const [v, setV] = useState({ caseId: (d.cases[0] || {}).id || '', what: '' }), [busy, setBusy] = useState(false), [err, setErr] = useState('');
+      const go = () => { if (busy) return; if (!v.what.trim()) return setErr('Say what the draft should cover.'); setBusy(true); setErr('');
+        LSB.ai({ mode: 'draft', case_id: v.caseId, template: tplName, question: v.what.trim() }).then(r => {
+          app.buf = null; app.mut(db => { (db.drafts[tplIndex] = db.drafts[tplIndex] || []).unshift({ at: L.today() + ' ' + L.nowHM(), by: 'AI', label: 'AI draft', html: textToHtml(r.text) }); logIt(db, `AI drafted a ${tplName} for ${db.user.name}`, v.caseId); db.sub.aiUsed = r.used; }, 'AI draft saved as a new version. Check every fact and fill the [placeholders].');
+          app.setState({ tpl: tplIndex, ver: 0 }); app.modal(null);
+        }).catch(e => { setErr(e.message); setBusy(false); }); };
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+        h('label', { style: { fontSize: 13, color: K.mut } }, 'Case', h(Select, { value: v.caseId, onChange: x => setV(Object.assign({}, v, { caseId: x })), options: caseOpts(d), style: { width: '100%', marginTop: 6 } })),
+        h('label', { style: { fontSize: 13, color: K.mut } }, 'What should it cover?', h('textarea', { value: v.what, rows: 5, onChange: e => setV(Object.assign({}, v, { what: e.target.value })), placeholder: 'e.g. Legal notice to the respondent demanding ₹4,50,000 due under the invoice dated 12.08.2026, payable within 15 days.', style: { display: 'block', width: '100%', marginTop: 6, border: '1px solid ' + K.line, borderRadius: 8, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' } })),
+        err && h('div', { style: { fontSize: 13, color: K.red } }, err),
+        h('div', { style: { fontSize: 12.5, color: K.mut } }, 'The AI uses this case\'s records and your instructions, and marks anything unknown as a [placeholder]. It is saved as a new version; nothing is sent. Uses 1 AI credit.'),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null), disabled: busy }, 'Cancel'), h(Btn, { primary: true, onClick: go, disabled: busy }, busy ? 'Drafting… (up to a minute)' : 'Draft with AI'))); };
+    app.modal(() => h(Modal, { title: 'Draft a ' + tplName + ' with AI', onClose: () => app.modal(null), width: 560 }, h(Body)));
+  }
   /* ---------- plan, free trial and access ---------- */
   const PLAN_ORDER = ['Solo', 'Professional', 'Firm'];
   const MOD_LABEL = { brain: 'AI Case Brain', drafting: 'AI Drafting Studio', portal: 'Client Portal', agents: 'AI Agents', reports: 'Reports and analytics' };
@@ -1026,7 +1062,7 @@
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18 } }, head,
         h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 18 } },
           h(Meter, { label: 'Users', have: d.team.length, cap: lim.users }), h(Meter, { label: 'Active cases', have: liveCases(d), cap: lim.cases }),
-          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 } }, h('span', { style: { color: K.mut } }, 'Storage and AI'), h('span', { style: { fontWeight: 600 } }, `${lim.storage} GB · ${n0(lim.ai)} AI credits / month`))),
+          window.LSB && LSB.on ? h(Meter, { label: 'AI credits this month', have: d.sub.aiUsed || 0, cap: lim.ai }) : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 } }, h('span', { style: { color: K.mut } }, 'Storage and AI'), h('span', { style: { fontWeight: 600 } }, `${lim.storage} GB · ${n0(lim.ai)} AI credits / month`))),
         h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } }, mods)));
   }
   /* Shown instead of every screen (except Subscription and Settings) when there is no plan, or the trial or plan has ended. */
@@ -1069,6 +1105,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();
