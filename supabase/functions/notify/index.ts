@@ -1,3 +1,4 @@
+// Also emails firm owners before their free trial ends (trialReminders, scheduled runs only).
 // Sends the morning briefing (hearings today and in N days, deadlines and approved limitation dates, overdue tasks)
 // by email (Resend) and WhatsApp (Meta Cloud API). Two callers: the hourly schedule (header x-cron-secret, pg_cron at
 // minute 0 UTC = HH:30 IST), which briefs each member once a day in the IST hour of their Settings › Morning briefing time;
@@ -28,6 +29,17 @@ const pickDeadlines = (list: any[], today: string) => (list ?? [])
   .filter((d: any) => d.days >= 0 && d.days <= (d.limitation ? 30 : 7))
   .map((d: any) => ({ ...d, flag: flagOf(d.days) }))
   .sort((a: any, b: any) => a.days - b.days || a.title.localeCompare(b.title));
+/** Free-trial reminder due now, if any: 3 days before the trial ends, 1 day before, and once it has ended (for 2 days). */
+const trialStage = (trialEnds: string, now: number) => {
+  const h = (Date.parse(trialEnds) - now) / 3600e3;
+  if (isNaN(h)) return null;
+  if (h <= 0) return h > -48 ? "trial_end" : null;
+  if (h <= 24) return "trial_1d";
+  if (h <= 72) return "trial_3d";
+  return null;
+};
+/** Trial reminders go out in Indian working hours only (9 AM to 8:59 PM IST); every window is at least 24 hours long. */
+const trialHourOk = (istHour: number) => istHour >= 9 && istHour <= 20;
 // logic:end
 const nice = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const t12 = (t: string) => { const [h, m] = (t || "10:30").split(":").map(Number); return ((h % 12) || 12) + ":" + String(m).padStart(2, "0") + (h >= 12 ? " PM" : " AM"); };
@@ -101,6 +113,46 @@ async function briefFirm(admin: any, firm: any, opts: { onlyUser: string | null;
   return results;
 }
 
+// Emails the firm owner before the free trial ends, and once when it has ended. Each reminder goes out once per firm
+// (a failed send is retried on later runs, at most 3 times). A firm that has paid is 'active', not 'trialing', so it gets none.
+async function trialReminders(admin: any, now: number) {
+  const clock = istClock(now); if (!trialHourOk(clock.hour)) return [];
+  const { data: subs, error } = await admin.from("subscriptions").select("firm_id,plan,trial_ends").eq("status", "trialing");
+  if (error) throw error;
+  const app = (Deno.env.get("APP_URL") ?? "https://legalstaff.in").replace(/\/$/, "") + "/app#/pricing";
+  const results: any[] = [];
+  for (const s of subs ?? []) {
+    const kind = trialStage(s.trial_ends, now); if (!kind) continue;
+    const { data: past } = await admin.from("notifications").select("status").eq("firm_id", s.firm_id).eq("kind", kind);
+    if ((past ?? []).some((n: any) => n.status === "sent") || (past ?? []).length >= 3) continue;
+    const { data: firm } = await admin.from("firms").select("name").eq("id", s.firm_id).single();
+    const { data: owners } = await admin.from("members").select("user_id,email,name,title").eq("firm_id", s.firm_id).eq("is_owner", true).eq("status", "Active");
+    const end = new Date(s.trial_ends), endIst = istClock(end.getTime()), endDay = nice(endIst.date);
+    const endTime = end.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+    const daysLeft = dayDiff(endIst.date, clock.date);
+    const when = daysLeft <= 0 ? "today" : daysLeft === 1 ? "tomorrow" : `in ${daysLeft} days`;
+    for (const o of owners ?? []) {
+      if (!o.email) continue;
+      const hello = `Hello ${o.title || o.name || ""},`.replace(" ,", ",");
+      const subject = kind === "trial_end" ? "Your Legal Staff free trial has ended" : `Your Legal Staff free trial ends ${when}`;
+      const body = (kind === "trial_end" ? [hello, "",
+        `The 7-day free trial of the ${s.plan} plan for ${firm?.name ?? "your firm"} ended on ${endDay} at ${endTime} IST.`,
+        "The workspace is now closed until you subscribe. Your cases, documents and settings are kept safely, and everything is back the moment you choose a plan.", "",
+        `Subscribe here: ${app}`]
+      : [hello, "",
+        `The 7-day free trial of the ${s.plan} plan for ${firm?.name ?? "your firm"} ends ${when}, on ${endDay} at ${endTime} IST.`,
+        "To keep working without interruption, choose a plan before then. Subscribing now does not cut the trial short: the paid period starts when the trial ends.", "",
+        `Choose a plan: ${app}`, "",
+        "If the trial ends without a plan, the workspace closes until you subscribe. Your data is kept."]).concat(["", "Legal Staff"]).join("\n");
+      const r: any = await sendEmail(o.email, subject, body);
+      if (r.skipped) { results.push({ kind, to: o.email, skipped: r.skipped }); continue; }
+      await admin.from("notifications").insert({ firm_id: s.firm_id, user_id: o.user_id, kind, channel: "email", recipient: o.email, subject, body, status: r.ok ? "sent" : "failed", error: r.error ?? null, sent_at: r.ok ? new Date().toISOString() : null });
+      results.push({ kind, to: o.email, ok: !!r.ok, error: r.error });
+    }
+  }
+  return results;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -113,7 +165,8 @@ Deno.serve(async (req: Request) => {
       const firms = await pages(() => admin.from("firms").select("id,name").order("id"));
       const now = Date.now(); let sent = 0, skipped = 0;
       for (const f of firms ?? []) { const rs = await briefFirm(admin, f, { onlyUser: null, now }); sent += rs.filter((r: any) => r.ok).length; skipped += rs.filter((r: any) => r.skipped).length; }
-      return json({ sent, skipped, ist: istClock(now) });
+      let trial: any[] = []; try { trial = await trialReminders(admin, now); } catch (e) { console.error("trial reminders", e); }
+      return json({ sent, skipped, trial, ist: istClock(now) });
     }
     const asUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
     const { data: { user } } = await asUser.auth.getUser();

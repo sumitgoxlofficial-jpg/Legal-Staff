@@ -1072,7 +1072,9 @@ class Component extends DCLogic {
       else { const d = LS.seed(), name = ((session.user.user_metadata || {}).full_name || (session.user.user_metadata || {}).name || '').trim() || session.user.email.split('@')[0]; d.session = { email: session.user.email, provider: (session.user.app_metadata || {}).provider || 'google' }; d.user.name = name; d.user.email = session.user.email; this.replace(d); this.setState({ auth: 'in' }); LSV.onboard(this); }
     } catch (e) { this.setState({ auth: 'login' }); this.toast('Could not load your firm: ' + e.message); }
   }
-  async reload(id) { const d = await LSB.load(id || this.db.firmId, this.sess), mig = d.migrated; delete d.migrated; this.loadedAt = Date.now(); this.buf = null; this.db = d; LS.save(d); this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1, auth: 'in' })); this.loadQueue(); if (mig) this.queueSync(); }
+  async reload(id) { const d = await LSB.load(id || this.db.firmId, this.sess), mig = d.migrated; delete d.migrated; this.loadedAt = Date.now(); this.buf = null; this.db = d; LS.save(d); this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1, auth: 'in' })); this.loadQueue(); this.loadDrive(); if (mig) this.queueSync(); }
+  /* Is the user's Google Drive connected? Decides where new uploads go (see LSV DriveCard). */
+  loadDrive() { if (!LSB.on || !LSB.drive) return; LSB.drive.status().then(s => { this.driveSt = s; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => { this.driveSt = { configured: false }; }); }
   /* Owner only (Settings): waits for any save in flight, deletes the firm's files and records on the server, then reloads. */
   async eraseFirm() { clearTimeout(this.syncT); this.syncT = null; if (LSB.pending()) await LSB.sync(this.db).catch(() => {}); const n = await LSB.eraseFirm(this.db); await this.reload(); return n; }
   afterEnter() { this.grow(); const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
