@@ -1074,7 +1074,7 @@ class Component extends DCLogic {
   }
   async reload(id) { const d = await LSB.load(id || this.db.firmId, this.sess), mig = d.migrated; delete d.migrated; this.loadedAt = Date.now(); this.buf = null; this.db = d; LS.save(d); this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1, auth: 'in' })); this.loadQueue(); this.loadDrive(); if (mig) this.queueSync(); }
   /* Is the user's Google Drive connected? Decides where new uploads go (see LSV DriveCard). */
-  loadDrive() { if (!LSB.on || !LSB.drive) return; LSB.drive.status().then(s => { this.driveSt = s; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => { this.driveSt = { configured: false }; }); }
+  loadDrive() { if (!LSB.on || !LSB.drive) return; LSB.drive.status().then(s => { this.driveSt = s; this.setState(x => ({ rev: x.rev + 1 })); setTimeout(() => LSV.maybeAskDrive(this), 1500); }).catch(() => { this.driveSt = { configured: false }; }); }
   /* Owner only (Settings): waits for any save in flight, deletes the firm's files and records on the server, then reloads. */
   async eraseFirm() { clearTimeout(this.syncT); this.syncT = null; if (LSB.pending()) await LSB.sync(this.db).catch(() => {}); const n = await LSB.eraseFirm(this.db); await this.reload(); return n; }
   afterEnter() { this.grow(); const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
@@ -1418,7 +1418,7 @@ class Component extends DCLogic {
     const canTrial = S.plan !== null && (acc.state === 'none' || (acc.state === 'trial' && D.sub.plan !== co.name));
     const startTrial = () => {
       if (LSB.on) { if (this.paying) return; this.paying = true; this.setState({ gstErr: '' });
-        return LSB.startTrial(D, co.name, S.cycle).then(() => { this.setState(s => ({ plan: null, rev: s.rev + 1 })); this.toast(`Your 7-day free trial of the ${co.name} plan has started`); this.go('dashboard'); }).catch(e => this.setState({ gstErr: e.message })).finally(() => { this.paying = false; }); }
+        return LSB.startTrial(D, co.name, S.cycle).then(() => { this.setState(s => ({ plan: null, rev: s.rev + 1 })); this.toast(`Your 7-day free trial of the ${co.name} plan has started`); this.go('dashboard'); setTimeout(() => V.maybeAskDrive(this), 2500); }).catch(e => this.setState({ gstErr: e.message })).finally(() => { this.paying = false; }); }
       const switching = acc.state === 'trial', ends = switching ? D.sub.trialEnds : new Date(Date.now() + LS.TRIAL_DAYS * 864e5).toISOString();
       this.mut(db => { Object.assign(db.sub, { plan: co.name, cycle: S.cycle, status: 'trialing', since: switching ? db.sub.since : T, renews: '', trialEnds: ends }); V.logIt(db, (switching ? 'Free trial switched to ' : 'Free trial started on ') + co.name); }, null, true);
       this.setState({ plan: null }); this.toast(switching ? `Your trial is now on the ${co.name} plan` : `Your 7-day free trial of the ${co.name} plan has started`); this.go('dashboard'); };

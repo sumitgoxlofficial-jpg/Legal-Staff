@@ -891,14 +891,37 @@
   /* ---------- Google Drive: encrypted storage in the user's own Drive (hidden app folder) ---------- */
   const DRIVE_SCOPE = 'openid email https://www.googleapis.com/auth/drive.appdata';
   const loadGsi = () => window.google && google.accounts && google.accounts.oauth2 ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.onload = res; sc.onerror = () => rej(new Error('Could not reach Google.')); document.head.appendChild(sc); });
+  /* Opens Google's consent pop-up for the hidden Drive folder and saves the connection. Must run from a click (pop-up blockers). */
+  const driveConnect = app => loadGsi().then(() => new Promise((res, rej) => google.accounts.oauth2.initCodeClient({ client_id: app.driveSt.clientId, scope: DRIVE_SCOPE, ux_mode: 'popup', login_hint: app.db.user.email,
+      callback: r => r.code ? LSB.drive.connect(r.code).then(res, rej) : rej(new Error('Google Drive was not turned on.')), error_callback: () => rej(new Error('Google Drive was not turned on.')) }).requestCode()))
+    .then(() => LSB.drive.status()).then(x => { app.driveSt = x; app.setState(s => ({ rev: s.rev + 1 })); return x; });
+  /* WhatsApp-style: asked once after sign-in; after that uploads and the nightly backup go to Drive with nothing to do. "Not now" asks again in 7 days. */
+  function drivePrompt(app) {
+    const later = () => { app.mut(db => { db.settings.driveAskedAt = L.today(); }, null, true); app.modal(null); };
+    const Body = () => { const [busy, setBusy] = useState(false), [err, setErr] = useState('');
+      const on = () => { if (busy) return; setBusy(true); setErr(''); driveConnect(app).then(x => { app.mut(db => { db.settings.driveAskedAt = L.today(); }, null, true); app.modal(null); app.toast('Google Drive backup is on' + (x.email ? ' for ' + x.email : '') + '. Uploads and a nightly backup are saved there automatically.'); LSB.drive.backupNow().then(() => LSB.drive.status()).then(y => { app.driveSt = y; app.setState(s => ({ rev: s.rev + 1 })); }).catch(() => {}); }).catch(e => { setBusy(false); setErr(e.message); }); };
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, 'Keep a safe copy of your work in your own Google Drive, like a WhatsApp chat backup. Turn it on once and it runs by itself:'),
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13.5, color: K.txt } }, ['Every document you upload is saved to your Drive', 'Your firm\'s data is backed up every night', 'Everything is encrypted and kept in a hidden folder. It does not show in your Drive and only Legal Staff can open it'].map((t, i) => h('div', { key: i, style: { display: 'flex', gap: 8 } }, h('span', null, '✓'), h('span', null, t)))),
+        err && h('div', { style: { fontSize: 13, color: K.red } }, err),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { onClick: later, disabled: busy }, 'Not now'), h(Btn, { primary: true, onClick: on, disabled: busy }, busy ? 'Waiting for Google…' : 'Turn on Google Drive backup')),
+        h('div', { style: { fontSize: 12, color: K.mut } }, 'Google asks you to confirm once. You can turn it off any time in Settings.')); };
+    app.modal(() => h(Modal, { title: 'Back up to Google Drive', onClose: later, width: 480 }, h(Body)));
+  }
+  /* Shows the prompt when Drive is available, this user has not connected it, and they have not said "Not now" in the last 7 days. */
+  function maybeAskDrive(app) {
+    const st = app.driveSt, d = app.db, asked = d.settings.driveAskedAt;
+    if (!st || !st.configured || st.connected || app.state.modalOn || !L.access(d.sub).ok) return;
+    if (asked && L.diffDays(L.today(), asked) < 7) return;
+    drivePrompt(app);
+  }
   function DriveCard({ app }) {
     const d = app.db, st = app.driveSt, owner = !!d.isOwner;
     const [busy, setBusy] = useState(''), [list, setList] = useState(null);
     const row = (label, sub, ctl) => h(Line, null, h('div', { style: { flex: 1, minWidth: 0 } }, label, sub && h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.5 } }, sub)), ctl);
     const refresh = () => LSB.drive.status().then(x => { app.driveSt = x; app.setState(s => ({ rev: s.rev + 1 })); });
     const run = (what, p, done) => { if (busy) return; setBusy(what); return p().then(done).catch(e => app.toast(e.message)).finally(() => setBusy('')); };
-    const connect = () => run('connect', () => loadGsi().then(() => new Promise((res, rej) => google.accounts.oauth2.initCodeClient({ client_id: st.clientId, scope: DRIVE_SCOPE, ux_mode: 'popup', login_hint: d.user.email,
-      callback: r => r.code ? LSB.drive.connect(r.code).then(res, rej) : rej(new Error('Google Drive was not connected.')), error_callback: () => rej(new Error('Google Drive was not connected.')) }).requestCode())), () => refresh().then(() => app.toast('Google Drive connected. New uploads are saved there, encrypted.')));
+    const connect = () => run('connect', () => driveConnect(app), () => app.toast('Google Drive connected. New uploads are saved there, encrypted.'));
     const disconnect = () => confirmBox(app, 'Disconnect Google Drive?', 'New uploads will go to the firm\'s private storage again. Files already saved in your Drive stay there, hidden and encrypted, but you and your team cannot open them until you connect the same Google account again.', 'Disconnect', () => run('disconnect', () => LSB.drive.disconnect(), () => { setList(null); refresh().then(() => app.toast('Google Drive disconnected')); }));
     const backupNow = () => run('backup', () => LSB.drive.backupNow(), r => { app.toast(`Backed up ${plural(r.firms, 'firm')} to your Google Drive`); setList(null); refresh(); });
     const showList = () => run('list', () => LSB.drive.backups(), setList);
@@ -1046,6 +1069,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();
