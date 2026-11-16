@@ -12,6 +12,8 @@
   const USER_KEYS = ['settings', 'notes', 'chats', 'copilot', 'research', 'drafts', 'photo'];
   const PAGE = 1000, LOG_MAX = 300, NEWEST_FIRST = { cases: 1, clients: 1, docs: 1, orders: 1, invoices: 1, lims: 1 };
   let snap = {}, firmSnap = '', userSnap = '', teamSnap = '', meSnap = '', firmId = '', uid = '', busy = null, again = false;
+  /* Profile photo: photoCol is true once the members table has the photo column (migration 0020); mePhoto is the caller's photo as stored there. */
+  let photoCol = false, mePhoto = '';
   const fail = (e, what) => { const m = (e && (e.message || e.error_description || e.error)) || String(e); throw new Error(what ? what + ': ' + m : m); };
   const ok = r => { if (r.error) fail(r.error); return r.data; };
   /* PostgREST returns at most 1,000 rows per request, so read in pages until a page comes back empty. q() must be stably ordered. */
@@ -30,9 +32,14 @@
   }
   async function members(d) {
     const rows = ok(await sb.from('members').select('*').eq('firm_id', firmId).order('created_at'));
-    d.team = rows.map(m => ({ id: m.id, name: m.name || m.email.split('@')[0], title: m.title || m.name || m.email, role: m.role, email: m.email, status: m.status, owner: m.is_owner, userId: m.user_id }));
+    d.team = rows.map(m => ({ id: m.id, name: m.name || m.email.split('@')[0], title: m.title || m.name || m.email, role: m.role, email: m.email, status: m.status, owner: m.is_owner, userId: m.user_id, photo: m.photo || '' }));
+    if (rows.length) photoCol = 'photo' in rows[0];
     const me = rows.find(m => m.user_id === uid);
-    if (me) { d.user = { name: me.name, title: me.title, role: me.role, email: me.email, phone: me.phone }; d.isOwner = me.is_owner; }
+    if (me) { d.user = { name: me.name, title: me.title, role: me.role, email: me.email, phone: me.phone }; d.isOwner = me.is_owner; mePhoto = me.photo || ''; }
+  }
+  async function pushPhoto(d) {
+    const p = d.photo || ''; ok(await sb.rpc('set_my_photo', { f: firmId, p_photo: p })); mePhoto = p;
+    const row = d.team.find(x => x.userId === uid); if (row) row.photo = p;
   }
   async function subscription(d) {
     const s = ok(await sb.from('subscriptions').select('*').eq('firm_id', firmId).maybeSingle());
@@ -64,7 +71,10 @@
       const u = ok(us); if (u && u.data) USER_KEYS.forEach(k => { if (u.data[k] != null) d[k] = k === 'settings' ? Object.assign(d.settings, u.data[k]) : u.data[k]; });
       /* A calculation kept in the older firm state (one object in firms.state.lim) becomes a 'limitation' record; the next sync stores it and clears the old key. */
       const legacy = !!(d.lim && d.lim.judgment); window.LS.migrate(d);
-      await members(d); await subscription(d); take(d);
+      await members(d); await subscription(d);
+      /* The member row is what the team sees. A device that has no photo of its own yet takes it from there; a photo saved before the column existed is sent up now. */
+      if (photoCol) { if (!(u && u.data && 'photo' in u.data)) d.photo = mePhoto; else if ((d.photo || '') !== mePhoto) await pushPhoto(d).catch(() => {}); }
+      take(d);
       if (legacy) { delete snap['limitation|llegacy']; delete snap['deadline|dlllegacy']; firmSnap = ''; d.migrated = true; }
       /* Keep only the newest activity entries so the log cannot crowd out practice records. */
       const old = d.log.slice(LOG_MAX); d.log = d.log.slice(0, LOG_MAX);
@@ -89,6 +99,7 @@
           snap = now;
           const fr = firmRow(d), fs = JSON.stringify(fr); if (fs !== firmSnap) { changed(ok(await sb.from('firms').update(fr).eq('id', firmId).select('id')), 'The firm profile'); firmSnap = fs; }
           const ur = userRow(d), us = JSON.stringify(ur); if (us !== userSnap) { ok(await sb.from('user_state').upsert({ user_id: uid, firm_id: firmId, data: ur, updated_at: new Date().toISOString() })); userSnap = us; }
+          if (photoCol && (d.photo || '') !== mePhoto) await pushPhoto(d);
           if (teamKey(d.team) !== teamSnap) {
             const before = JSON.parse(teamSnap || '[]'), ids = new Set(d.team.map(u => u.id));
             try {
