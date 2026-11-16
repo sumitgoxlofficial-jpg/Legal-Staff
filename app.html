@@ -829,6 +829,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <span style="display:inline-flex;gap:6px;align-items:center">{{ dictLangSel }}<button onClick="{{ toggleDict }}" style="{{ dictBtn }}">{{ dictLabel }}</button></span>
+            {{ draft.aiBtn }}
             {{ draft.saveBtn }}
             <button class="ls-btn" onClick="{{ draft.docx }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Export DOCX</button>
             <button class="ls-btn" onClick="{{ draft.pdf }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Export PDF</button>
@@ -1145,11 +1146,29 @@ class Component extends DCLogic {
   ask(label) {
     const id = (this.db.cases.find(x => x.id === this.state.brainCase) || this.db.cases[0] || {}).id;
     if (!id) return this.toast('Add a case first, then ask about it.');
+    if (LSB.on && LSB.ai) return this.askAi(id, label);
     this.mut(db => { const a = LS.answer(db, id, label); this.chat(id).push({ role: 'user', text: label }, Object.assign({ role: 'ai', text: a.text, cites: a.cites }, a.need ? { need: a.need } : null));
       if (a.brief) { const nh = LSV.nextHearing(db, id); if (nh) nh.brief = true; } });
     this.setState({ q: '' });
     if (!LSV.reduced()) { clearTimeout(this.thT); this.setState({ thinking: id }); this.thT = setTimeout(() => this.setState({ thinking: '' }), 650); }
     setTimeout(() => { const el = document.getElementById('ls-chat-end'); el && el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 50);
+  }
+  /* Real AI answer from the server, from this case's own records; source tags such as [Order 12.03.2026] become links.
+     If the AI cannot answer, the rule-based answer is shown instead, with the reason. */
+  askAi(id, label) {
+    if (this.aiBusy) return this.toast('Still answering the last question…'); this.aiBusy = true;
+    const hist = this.chat(id).slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
+    this.mut(db => { this.chat(id).push({ role: 'user', text: label }, { role: 'ai', text: '', cites: [] }); });
+    if (this.locked()) { this.aiBusy = false; return; }
+    this.setState({ q: '', thinking: id });
+    const scroll = () => setTimeout(() => { const el = document.getElementById('ls-chat-end'); el && el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 50); scroll();
+    const put = (text, cites, need) => this.mut(db => { const c = this.chat(id), m = c[c.length - 1]; if (m && m.role === 'ai' && !m.text) { m.text = text; m.cites = cites; if (need) m.need = need; } });
+    LSB.ai({ mode: 'brain', case_id: id, question: label, history: hist }).then(r => {
+      const tags = [...new Set((r.text.match(/\[([^\]\n]{3,60})\]/g) || []).map(t => t.slice(1, -1)).filter(t => /^(Order|Hearing|Case details|Documents|Tasks)/.test(t)))];
+      put(r.text, tags.length ? tags : ['AI answer from this case\'s records']);
+      this.db.sub.aiUsed = r.used;
+    }).catch(e => { const a = LS.answer(this.db, id, label); put('The AI could not answer (' + e.message + '). Here is the answer from the case details instead:\n\n' + a.text, a.cites, a.need); })
+      .finally(() => { this.aiBusy = false; this.setState({ thinking: '' }); scroll(); });
   }
   copilot(q) {
     const d = this.db, lc = q.toLowerCase(), T = LS.today(); let text = '', go = null;
@@ -1381,6 +1400,7 @@ class Component extends DCLogic {
     const draft = { title: S.tpl === 2 ? 'Legal notice, s.138 NI Act' : this.tplNames[S.tpl], footer: `Draft ${vlist[vi].v.split(' ')[0]} · Prepared on Legal Staff · ${plain.trim().split(/\s+/).length} words`,
       body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length, ref: el => { this.ed = el; }, contentEditable: true, suppressContentEditableWarning: true, spellCheck: true, style: { position: 'relative', outline: 'none' }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
       checks: h(React.Fragment, null, chk.map(([m, t], i) => h('div', { key: i, style: { color: m === '✓' ? '#0A0A0A' : '#B42318' } }, m + ' ' + t))),
+      aiBtn: LSB.on && LSB.ai ? h(V.Btn, { onClick: () => V.aiDraft(this, S.tpl, this.tplNames[S.tpl]) }, '✦ Draft with AI') : null,
       saveBtn: h(V.Btn, { onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
       docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }], ...LS.htmlToRuns(this.ed)]); this.toast('DOCX downloaded'); },
       pdf: () => { const sec = this.ed && this.ed.closest('section'); if (!sec) return; sec.classList.add('ls-print'); const done = () => { sec.classList.remove('ls-print'); window.removeEventListener('afterprint', done); }; window.addEventListener('afterprint', done); window.print(); } };
