@@ -867,9 +867,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
     <sc-if value="{{ s.pricing }}" hint-placeholder-val="{{ false }}">
       <div style="display:flex;flex-direction:column;gap:28px;max-width:1240px;margin:0 auto">
+        {{ subPanel }}
+        <sc-if value="{{ showPlans }}" hint-placeholder-val="{{ true }}">
         <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px">
           <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">Subscription</div>
-          <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:0;text-wrap:balance">Choose a plan for your practice</h1>
+          <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:0;text-wrap:balance">{{ pricingTitle }}</h1>
           <div style="font-size:15px;color:#5E5E5E">{{ pricingNote }}</div>
           <div style="display:flex;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:4px;margin-top:6px">
             <sc-for list="{{ cycles }}" as="c" hint-placeholder-count="2">
@@ -893,6 +895,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             </div>
           </sc-for>
         </div>
+        </sc-if>
       </div>
       <sc-if value="{{ checkoutOpen }}" hint-placeholder-val="{{ false }}">
         <div style="position:fixed;inset:0;background:rgba(32,30,29,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px">
@@ -904,7 +907,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <sc-if value="{{ hasPromo }}" hint-placeholder-val="{{ false }}">
                   <div style="display:flex;justify-content:space-between;color:#137333"><span>Promo {{ promoCode }} · {{ promoLabel }}</span><span>− {{ promoOff }}</span></div>
                 </sc-if>
-                <div style="display:flex;justify-content:space-between;color:#5E5E5E"><span>GST @ 18%</span><span>{{ coGst }}</span></div>
                 <div style="display:flex;justify-content:space-between;border-top:1px solid #E5E5E5;padding-top:12px;font-weight:600;font-size:16px"><span>Total</span><span>{{ coTotal }}</span></div>
               </div>
               <sc-if value="{{ showPromo }}" hint-placeholder-val="{{ false }}">
@@ -914,7 +916,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                   {{ promoMsg }}
                 </div>
               </sc-if>
-              <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:13px;color:#5E5E5E">GSTIN (optional)</label><input value="{{ gstin }}" onChange="{{ setGstin }}" placeholder="07AAAAA0000A1Z5" style="height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums">{{ co.gstErr }}</div>
               <sc-if value="{{ canTrial }}" hint-placeholder-val="{{ true }}">
                 <button class="ls-btn" onClick="{{ startTrial }}" style="white-space:nowrap;height:40px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:14px;font-weight:600">{{ trialBtn }}</button>
                 <div style="font-size:12px;color:#5E5E5E;text-align:center;margin-top:-8px">{{ trialHint }}</div>
@@ -927,7 +928,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <button class="ls-btn" onClick="{{ pay }}" style="{{ payStyle }}">{{ payBtn }}</button>
               </sc-if>
               <div style="font-size:12px;color:#5E5E5E;text-align:center">{{ payHint }}</div>
-              <div style="font-size:12px;color:#5E5E5E;text-align:center">Auto-renews {{ co.renew }}. You can cancel any time from Settings → Subscriptions.</div>
+              <div style="font-size:12px;color:#5E5E5E;text-align:center">{{ coTerms }}</div>
             </sc-if>
             <sc-if value="{{ paid }}" hint-placeholder-val="{{ false }}">
               <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">{{ payHead }}</div>
@@ -936,7 +937,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               <div style="background:#FFFFFF;border-radius:12px;padding:20px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:10px;font-size:13px">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:10px;border-bottom:2px solid #0A0A0A"><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><img src="assets/ls-mark-black.png" alt="" style="height:20px;display:block"><span style="font-weight:600;font-size:14px;letter-spacing:-.02em;line-height:1;color:#0A0A0A">Legal Staff</span></span><span style="font-size:12px;font-weight:600">Tax invoice</span></div>
                 <div style="display:flex;justify-content:space-between"><span>{{ co.name }} plan · {{ co.cycle }}</span><span>{{ co.base }}</span></div>
-                <div style="display:flex;justify-content:space-between;color:#5E5E5E"><span>IGST @ 18%</span><span>{{ co.gst }}</span></div>
                 <div style="display:flex;justify-content:space-between;font-weight:600;font-size:15px;border-top:1px solid #E5E5E5;padding-top:8px"><span>{{ payLabel }}</span><span>{{ co.total }}</span></div>
               </div>
               <div style="font-size:12px;color:#0A0A0A">{{ payNote }}</div>
@@ -1443,7 +1443,7 @@ class Component extends DCLogic {
     });
     let co = {};
     if (S.plan !== null) {
-      const [name, , m, a] = P[S.plan], ann = S.cycle === 'annual', base = ann ? a : m, gst = Math.round(base * 18) / 100, renews = LS.addDays(T, ann ? 365 : 30);
+      const [name, , m, a] = P[S.plan], ann = S.cycle === 'annual', base = ann ? a : m, gst = 0, renews = LS.addDays(T, ann ? 365 : 30);
       co = { name, cycle: ann ? 'Annual' : 'Monthly', base: inr(base), gst: inr(gst), total: inr(base + gst), renew: ann ? 'every year' : 'every month', next: LS.fmt(renews), renews, gstErr: S.gstErr ? h('div', { style: { fontSize: 12.5, color: '#B42318', marginTop: 6 } }, S.gstErr) : null };
     }
     /* Plans are paid only by UPI straight to our account (Legal Staff's own payment flow, no outside gateway). */
@@ -1597,14 +1597,18 @@ class Component extends DCLogic {
       dictBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, border: S.dict ? '1px solid #B42318' : '1px solid #E5E5E5', background: S.dict ? '#FDECEA' : '#FFFFFF', color: S.dict ? '#B42318' : '#0A0A0A' },
       cycles, plans, co, checkoutOpen: S.plan !== null, canTrial, startTrial, payUpi, showUpi: upiOn, showCardPay: !upiOn, upiBtn: promoOk ? `Pay ${rp(S.promo.total)} by UPI` : `Pay ${co.total || ''} by UPI`,
       showPromo: upiOn, hasPromo: promoOk, promoCode: promoOk ? S.promo.code : '', promoLabel: promoOk ? S.promo.label : '', promoOff: promoOk ? rp(S.promo.discount) : '',
-      coGst: promoOk ? rp(S.promo.gst) : co.gst, coTotal: promoOk ? rp(S.promo.total) : co.total,
+      coTotal: promoOk ? rp(S.promo.total) : co.total,
       promoInput: S.promoInput || '', setPromoInput: e => this.setState({ promoInput: e.target.value.toUpperCase(), promoErr: '' }), promoKey: e => { if (e.key === 'Enter') { e.preventDefault(); promoOk ? null : applyPromo(); } },
       promoBtn: promoOk ? 'Remove' : this.promoBusy ? 'Checking…' : 'Apply', promoBtnClick: promoOk ? removePromo : applyPromo,
-      promoMsg: S.promoErr ? h('div', { style: { fontSize: 12.5, color: '#B42318' } }, S.promoErr) : promoOk ? h('div', { style: { fontSize: 12.5, color: '#137333' } }, `Code applied. You save ${rp(S.promo.base + Math.round(S.promo.base * 0.18) - S.promo.total)} in total.`) : null,
+      promoMsg: S.promoErr ? h('div', { style: { fontSize: 12.5, color: '#B42318' } }, S.promoErr) : promoOk ? h('div', { style: { fontSize: 12.5, color: '#137333' } }, `Code applied. You save ${rp(S.promo.base - S.promo.total)}.`) : null,
       upiStyle: { whiteSpace: 'nowrap', padding: '9px 12px', borderRadius: 8, fontSize: 14, textAlign: 'center', background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
       trialBtn: acc.state === 'trial' ? `Switch my trial to ${co.name || ''}` : 'Start 7-day free trial', trialHint: acc.state === 'trial' ? `No payment needed. Your trial still ends on ${trialEndsTxt}.` : `No payment needed. Full ${co.name || ''} plan until ${trialEndsTxt}; then subscribe to keep working.`,
       payStyle: { whiteSpace: 'nowrap', height: 36, borderRadius: 8, fontSize: 13.5, fontWeight: 500, background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
-      pricingNote: acc.state === 'none' ? 'Every plan starts with a 7-day free trial. No payment needed to start. Prices exclude 18% GST.' : acc.state === 'trial' ? `You are on a free trial of the ${acc.plan} plan, ${acc.daysLeft} day${acc.daysLeft === 1 ? '' : 's'} left. Subscribe any time; unused trial days are kept.` : acc.state === 'expired' ? `Your ${acc.wasTrial ? 'free trial' : 'plan'} has ended. Subscribe to reopen your workspace. Prices exclude 18% GST.` : 'Prices exclude 18% GST. You can change plans at any time.', paid: S.paid, notPaid: !S.paid, gstin: S.gstin, setGstin: e => this.setState({ gstin: e.target.value, gstErr: '' }),
+      subPanel: LSB.on && V.SubPanel ? h(V.SubPanel, { app: this }) : null,
+      showPlans: acc.state !== 'active' || !LSB.on || !!S.showPlans,
+      pricingTitle: acc.state === 'active' ? 'Change or renew your plan' : 'Choose a plan for your practice',
+      coTerms: LSB.on ? `One-time UPI payment for ${S.cycle === 'annual' ? 'one year' : 'one month'}. No automatic charges; you get an invoice by email.` : `Auto-renews ${co.renew || ''}. You can cancel any time from Settings → Subscriptions.`,
+      pricingNote: acc.state === 'active' ? `You are on the ${D.sub.plan} plan (${D.sub.cycle === 'annual' ? 'annual' : 'monthly'}) until ${LS.fmt(D.sub.renews)}.` : acc.state === 'none' ? 'Every plan starts with a 7-day free trial. No payment needed to start.' : acc.state === 'trial' ? `You are on a free trial of the ${acc.plan} plan, ${acc.daysLeft} day${acc.daysLeft === 1 ? '' : 's'} left. Subscribe any time; unused trial days are kept.` : acc.state === 'expired' ? `Your ${acc.wasTrial ? 'free trial' : 'plan'} has ended. Subscribe to reopen your workspace.` : 'You can change plans at any time.', paid: S.paid, notPaid: !S.paid, gstin: S.gstin, setGstin: e => this.setState({ gstin: e.target.value, gstErr: '' }),
       closeCheckout: () => this.setState({ plan: null }), pay, finishPay: () => { this.setState({ plan: null, paid: false }); this.go('dashboard'); },
       apps, cur, adminNote: S.adminNote, setAdminNote: e => this.setState({ adminNote: e.target.value }), verify: () => this.setStatus('verified', ca), askInfo: () => this.setStatus('info', ca), reject: () => this.setStatus('rejected', ca),
       cq: S.cq, setCq: e => this.setState({ cq: e.target.value }), cqKey: e => { if (e.key === 'Enter' && S.cq.trim()) this.copilot(S.cq.trim()); }, copilotAsk: () => S.cq.trim() ? this.copilot(S.cq.trim()) : this.toast('Type a question first.'),

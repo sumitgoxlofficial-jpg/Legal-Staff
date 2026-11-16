@@ -979,7 +979,7 @@
         formCard('Your profile', d.user, [{ k: 'name', label: 'Full name', req: true, half: true }, owner ? { k: 'role', label: 'Designation', req: true, half: true } : { k: 'role', label: 'Designation (set by the firm owner)', ro: true, roNote: 'Only the firm owner can change designations', half: true }, { k: 'email', label: 'Email (from sign-in)', ro: true, roNote: 'This is the address you sign in with', half: true }, { k: 'phone', label: 'Mobile (WhatsApp)', type: 'tel', half: true }], 'user'),
         h(Card, { title: 'Notifications' }, row('WhatsApp', 'The morning briefing on WhatsApp, to the mobile in Your profile, once WhatsApp is connected for Legal Staff', h(Toggle, { on: s.whatsapp, label: 'WhatsApp notifications', onChange: v => set('whatsapp', v) })), row('Email', 'The morning briefing email, sent automatically every day at your chosen time', h(Toggle, { on: s.email, label: 'Email notifications', onChange: v => set('email', v) })), row('In-app alerts', 'The Alerts menu in the top bar', h(Toggle, { on: s.inapp, label: 'In-app alerts', onChange: v => set('inapp', v) })), row('Morning briefing time', 'IST. Briefings go out on the half hour, once a day.', h(Select, { value: briefAt(s), onChange: v => set('briefingTime', v), options: BRIEF_TIMES.map(t => [t, L.t12ap(t)]), style: { minWidth: 130 } })), row('Hearing reminder', `The briefing lists hearings today and ${plural(+s.remindDays || 2, 'day')} ahead`, h(Select, { value: String(s.remindDays), onChange: v => set('remindDays', +v), options: [['1', '1 day'], ['2', '2 days'], ['3', '3 days'], ['7', '7 days']], style: { minWidth: 130 } })), window.LSB && LSB.on ? row('Send today\'s briefing now', 'To you only, now: hearings today and in ' + plural(+s.remindDays || 2, 'day') + ', deadlines and limitation dates, overdue tasks. Email and WhatsApp only once those services are connected.', h(Btn, { small: true, onClick: () => { app.toast('Sending…'); LSB.notify().then(r => { const rs = (r && r.results) || [], okN = rs.filter(x => x.ok).length, sk = rs.find(x => x.skipped), er = rs.find(x => x.error); app.toast(okN ? `Briefing sent (${rs.filter(x => x.ok).map(x => x.channel).join(' and ')})` : (er ? 'Sending failed: ' + er.error : (sk ? sk.skipped : 'Nothing was sent. Check your email and WhatsApp number in Your profile.'))); }).catch(e => app.toast(e.message)); } }, 'Send')) : h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 10, lineHeight: 1.5 } }, 'Preferences are saved on this device. Briefing emails and WhatsApp messages need the server to be connected; until then, alerts show in the Alerts menu when you open the app.')),
         h(Card, { title: 'Appearance' }, row('Sidebar', null, h(Select, { value: s.sidebar, onChange: v => set('sidebar', v), options: [['Light', 'Light'], ['Ink', 'Ink (dark)']], style: { minWidth: 150 } })), row('Background', null, h(Select, { value: s.backdrop, onChange: v => set('backdrop', v), options: ['Wallpaper', 'Dots', 'Grid', 'Plain'].map(x => [x, x]), style: { minWidth: 150 } })), row('Density', null, h(Select, { value: s.density, onChange: v => set('density', v), options: [['Comfortable', 'Comfortable'], ['Compact', 'Compact']], style: { minWidth: 150 } }))),
-        h(Card, { title: 'Subscription' }, (acc => row(planName(acc) + (acc.state === 'active' ? ' · ' + (d.sub.cycle === 'annual' ? 'Annual' : 'Monthly') : ''), planSub(acc), h(Btn, { small: true, primary: !acc.ok, onClick: () => app.go('pricing') }, acc.state === 'none' ? 'Start free trial' : acc.ok ? 'Change plan' : 'Subscribe')))(L.access(d.sub)), d.sub.history.map((x, i) => row(x.plan + ' · ' + x.total, server ? 'Paid ' + L.fmt(x.date) + ' by UPI' : 'Recorded ' + L.fmt(x.date) + ' on this device · no payment taken (payments need the server)', null))),
+        h(Card, { title: 'Subscription' }, (acc => row(planName(acc) + (acc.state === 'active' ? ' · ' + (d.sub.cycle === 'annual' ? 'Annual' : 'Monthly') : ''), planSub(acc), h(Btn, { small: true, primary: !acc.ok, onClick: () => app.go('pricing') }, acc.state === 'none' ? 'Start free trial' : acc.ok ? 'Change plan' : 'Subscribe')))(L.access(d.sub)), server && d.sub.history.length ? row('Invoices', 'Download or email your invoices', h(Btn, { small: true, onClick: () => app.go('pricing') }, 'View invoices')) : null, d.sub.history.map((x, i) => row(x.plan + ' · ' + x.total, server ? 'Paid ' + L.fmt(x.date) + ' by UPI' : 'Recorded ' + L.fmt(x.date) + ' on this device · no payment taken (payments need the server)', null))),
         dataCard));
   }
   /* Removes what this browser keeps (saved data, file blobs) and signs out. Server data is untouched. */
@@ -1004,6 +1004,106 @@
   }
   /* ---------- Pay by UPI: straight to the operator's UPI ID, confirmed automatically (functions/upi-pay) ---------- */
   const loadQr = () => window.qrcode ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load the QR code.')); document.head.appendChild(s); });
+  /* ---- billing: GST invoices for plan payments (server function 'billing') ---- */
+  const rupees = paise => L.inr(paise / 100), istDay = ts => new Date(Date.parse(ts) + 5.5 * 3600e3).toISOString().slice(0, 10);
+  async function downloadInvoice(id) {
+    const r = await LSB.billing.pdf(id), bin = atob(r.pdf), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([u8], { type: 'application/pdf' })), a = document.createElement('a');
+    a.href = url; a.download = r.filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  /* Payment in flight: gold ₹ coins racing from the phone to the bank while we wait for the bank's confirmation. */
+  function coinCss() {
+    if (document.getElementById('ls-coin-css')) return;
+    const st = document.createElement('style'); st.id = 'ls-coin-css';
+    st.textContent = `
+      .ls-coinflow{position:relative;width:280px;max-width:100%;height:64px;margin:2px auto 0}
+      .ls-coinflow .lane{position:absolute;left:52px;right:52px;top:31px;height:2px;border-radius:2px;background:linear-gradient(90deg,#E5E5E5 0%,#E5E5E5 40%,#F4C542 50%,#E5E5E5 60%,#E5E5E5 100%);background-size:200% 100%;animation:lsLane 1.1s linear infinite}
+      .ls-coinflow .end{position:absolute;top:10px;width:44px;height:44px;border-radius:12px;background:#0A0A0A;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+      .ls-coinflow .end.l{left:0}.ls-coinflow .end.r{right:0;animation:lsBank 1.1s ease-in-out infinite}
+      .ls-coinflow .coin{position:absolute;left:46px;top:20px;width:22px;height:22px;border-radius:50%;font:700 12px/22px system-ui,sans-serif;text-align:center;color:#7A5200;
+        background:radial-gradient(circle at 32% 30%,#FFF6C8 0%,#FFD95A 35%,#E9A800 75%,#B97F00 100%);box-shadow:0 0 0 1.5px #C88E00 inset,0 3px 8px rgba(201,142,0,.45);
+        animation:lsCoin 1.1s cubic-bezier(.55,.05,.35,1) infinite;opacity:0}
+      .ls-coinflow .coin:nth-child(4){animation-delay:.37s}.ls-coinflow .coin:nth-child(5){animation-delay:.74s}
+      @keyframes lsCoin{0%{transform:translateX(0) translateY(6px) scale(.5) rotateY(0);opacity:0}15%{opacity:1}50%{transform:translateX(83px) translateY(-10px) scale(1.08) rotateY(360deg)}85%{opacity:1}100%{transform:translateX(166px) translateY(4px) scale(.55) rotateY(720deg);opacity:0}}
+      @keyframes lsLane{0%{background-position:100% 0}100%{background-position:-100% 0}}
+      @keyframes lsBank{0%,70%,100%{transform:scale(1)}85%{transform:scale(1.08)}}
+      @keyframes lsPop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
+      .ls-pop{animation:lsPop .5s cubic-bezier(.2,.9,.3,1.3) both}
+      @media (prefers-reduced-motion:reduce){.ls-coinflow .coin,.ls-coinflow .lane,.ls-coinflow .end.r,.ls-pop{animation:none}.ls-coinflow .coin:nth-child(3){opacity:1;left:calc(50% - 11px)}}`;
+    document.head.appendChild(st);
+  }
+  const svgIcon = d => h('svg', { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d }));
+  function CoinFlow({ label }) {
+    coinCss();
+    return h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }, role: 'status', 'aria-live': 'polite' },
+      h('div', { className: 'ls-coinflow' },
+        h('div', { className: 'end l', title: 'Your UPI app' }, svgIcon('M8 2.5h8a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 20V4A1.5 1.5 0 0 1 8 2.5z M11 18.5h2')),
+        h('div', { className: 'lane' }),
+        h('span', { className: 'coin' }, '₹'), h('span', { className: 'coin' }, '₹'), h('span', { className: 'coin' }, '₹'),
+        h('div', { className: 'end r', title: 'Legal Staff' }, svgIcon('M3 9.5 12 4l9 5.5 M5 10v8 M9.5 10v8 M14.5 10v8 M19 10v8 M3 20.5h18'))),
+      h('div', { style: { fontSize: 13.5, fontWeight: 600, color: K.ink } }, label));
+  }
+  /* On the "Payment received" screen: the invoice for this order, once the server has issued it. */
+  function PaidInvoice({ orderNo }) {
+    const [inv, setInv] = useState(null), [busy, setBusy] = useState(false), [err, setErr] = useState('');
+    React.useEffect(() => { let dead = false, n = 0;
+      const look = () => LSB.billing.list().then(x => { const i = (x.invoices || []).find(v => v.order_no === orderNo); if (dead) return; if (i) setInv(i); else if (++n < 6) setTimeout(look, 3000); }).catch(() => { if (!dead && ++n < 6) setTimeout(look, 3000); });
+      look(); return () => { dead = true; }; }, []);
+    if (!inv) return h('div', { style: { fontSize: 12.5, color: K.mut } }, 'Preparing your invoice…');
+    return h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 16px', border: '1px solid ' + K.line, borderRadius: 10, background: '#FAFAF9', width: '100%', boxSizing: 'border-box' } },
+      h('div', { style: { fontSize: 13.5, fontWeight: 600 } }, 'Invoice ' + inv.invoice_no),
+      h('div', { style: { fontSize: 12.5, color: K.mut } }, inv.emailed_to ? 'A copy has been emailed to ' + inv.emailed_to + '.' : 'A copy is being emailed to you.'),
+      h(Btn, { small: true, disabled: busy, onClick: () => { setBusy(true); setErr(''); downloadInvoice(inv.id).catch(e => setErr(e.message)).finally(() => setBusy(false)); } }, busy ? 'Preparing PDF…' : 'Download invoice (PDF)'),
+      err && h('div', { style: { fontSize: 12, color: K.red } }, err));
+  }
+  /* Pricing page, top: the current plan, its dates, the last payment and every invoice. */
+  function SubPanel({ app }) {
+    const d = app.db, acc = L.access(d.sub), [bill, setBill] = useState(null), [busy, setBusy] = useState(''), [msg, setMsg] = useState(null);
+    React.useEffect(() => { let dead = false; LSB.billing.list().then(x => !dead && setBill(x)).catch(e => !dead && setBill({ invoices: [], err: e.message })); return () => { dead = true; }; }, [app.state.rev0, d.sub.renews, d.sub.plan]);
+    if (acc.state !== 'active' && !(bill && bill.invoices.length)) return null;
+    const invs = (bill && bill.invoices) || [], last = invs[0], today = L.today(), sub = d.sub;
+    const starts = sub.since && sub.since > today, left = sub.renews ? Math.max(0, Math.round((Date.parse(sub.renews) - Date.parse(today)) / 864e5) + 1) : 0;
+    const status = acc.state !== 'active' ? ['Ended', '#B42318', '#FDECEA'] : starts ? ['Starts ' + L.fmt(sub.since), '#1D4ED8', '#E8EEFD'] : left <= 15 ? ['Ends in ' + left + ' day' + (left === 1 ? '' : 's'), '#B54708', '#FEF3E2'] : ['Active', '#137333', '#E7F6EC'];
+    const act = (key, fn, ok) => { setBusy(key); setMsg(null); fn().then(r => ok && setMsg({ ok: true, t: ok(r) })).catch(e => setMsg({ ok: false, t: e.message })).finally(() => setBusy('')); };
+    const fact = (k, v, sub2) => h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 } },
+      h('div', { style: { fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, k),
+      h('div', { style: { fontSize: 15, fontWeight: 600, color: K.ink } }, v), sub2 && h('div', { style: { fontSize: 12.5, color: K.mut } }, sub2));
+    const cycle = sub.cycle === 'annual' ? 'Annual' : 'Monthly';
+    return h('div', { style: { background: '#FFFFFF', border: '1px solid ' + K.line, borderRadius: 12, padding: 24, display: 'flex', flexDirection: 'column', gap: 20, textAlign: 'left' } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' } },
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+          h('div', { style: { fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, 'Your subscription'),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
+            h('div', { style: { fontSize: 20, fontWeight: 600, letterSpacing: '-.02em' } }, `${sub.plan} plan · ${cycle}`),
+            h('span', { style: { fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999, color: status[1], background: status[2] } }, status[0]))),
+        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+          acc.state === 'active' && h(Btn, { small: true, primary: true, onClick: () => app.setState(x => ({ showPlans: !x.showPlans })) }, app.state.showPlans ? 'Hide plans' : 'Upgrade or renew'),
+          last && h(React.Fragment, null,
+          h(Btn, { small: true, disabled: !!busy, onClick: () => act('dl', () => downloadInvoice(last.id)) }, busy === 'dl' ? 'Preparing PDF…' : 'Download latest invoice'),
+          h(Btn, { small: true, disabled: !!busy, onClick: () => act('em', () => LSB.billing.email(last.id), r => 'Invoice ' + last.invoice_no + ' emailed to ' + r.sent_to + '.') }, busy === 'em' ? 'Sending…' : 'Email invoice')))),
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 18, padding: '16px 0', borderTop: '1px solid ' + K.line, borderBottom: '1px solid ' + K.line } },
+        fact(starts ? 'Starts on' : 'Started on', sub.since ? L.fmt(sub.since) : '—', starts ? 'After your free trial ends' : null),
+        fact(acc.state === 'active' ? 'Valid until' : 'Ended on', sub.renews ? L.fmt(sub.renews) : '—', acc.state === 'active' ? (starts ? `${cycle} plan period` : `${left} day${left === 1 ? '' : 's'} left`) : null),
+        fact('Last payment', last ? rupees(last.total) : '—', last ? L.fmt(istDay(last.issued_at)) + ' · ' + (last.method || 'UPI') + (last.promo ? ' · code ' + last.promo : '') : null),
+        fact('Payment reference', last && last.utr ? last.utr : '—', last ? 'Order ' + (last.order_no || '—') : null)),
+      msg && h('div', { style: { fontSize: 13, color: msg.ok ? '#137333' : K.red } }, msg.t),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        h('div', { style: { fontSize: 13, fontWeight: 600 } }, 'Invoices'),
+        !bill ? h('div', { style: { fontSize: 13, color: K.mut } }, 'Loading invoices…')
+          : bill.err ? h('div', { style: { fontSize: 13, color: K.red } }, 'Could not load invoices: ' + bill.err)
+          : !invs.length ? h('div', { style: { fontSize: 13, color: K.mut } }, 'No invoices yet.')
+          : h('div', { style: { display: 'flex', flexDirection: 'column' } }, invs.map(i => h('div', { key: i.id, style: { display: 'grid', gridTemplateColumns: 'minmax(130px,1fr) minmax(90px,.8fr) minmax(150px,1.4fr) minmax(80px,.7fr) auto', gap: 12, alignItems: 'center', padding: '10px 0', borderTop: '1px solid ' + K.line, fontSize: 13.5 } },
+              h('span', { style: { fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }, i.invoice_no),
+              h('span', { style: { color: K.mut } }, L.fmt(istDay(i.issued_at))),
+              h('span', null, `${i.plan} · ${i.cycle === 'annual' ? 'Annual' : 'Monthly'}`, i.period && h('span', { style: { color: K.mut } }, ' · ' + L.fmt(i.period.from) + ' – ' + L.fmt(i.period.to))),
+              h('span', { style: { fontVariantNumeric: 'tabular-nums', fontWeight: 600 } }, rupees(i.total)),
+              h('span', { style: { display: 'flex', gap: 6 } },
+                h(Btn, { small: true, disabled: !!busy, onClick: () => act('dl' + i.id, () => downloadInvoice(i.id)) }, busy === 'dl' + i.id ? '…' : 'PDF'),
+                h(Btn, { small: true, disabled: !!busy, onClick: () => act('em' + i.id, () => LSB.billing.email(i.id), r => 'Invoice ' + i.invoice_no + ' emailed to ' + r.sent_to + '.') }, busy === 'em' + i.id ? '…' : 'Email')))))),
+      h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.6 } }, 'Plans are paid by UPI in advance, with no automatic charges and no GST added. Use Upgrade or renew any time; a new payment starts after your current period ends.'));
+  }
+
   function upiPay(app, o) {
     const Body = () => {
       const [st, setSt] = useState({ phase: 'creating' }), [qr, setQr] = useState(''), [left, setLeft] = useState(0);
@@ -1015,6 +1115,7 @@
           setSt({ phase: 'waiting', r });
           loadQr().then(() => { const q = window.qrcode(0, 'M'); q.addData(r.link); q.make(); if (!dead) setQr(q.createSvgTag({ cellSize: 5, margin: 2, scalable: true })); }).catch(() => {});
           const end = Date.parse(r.expires_at);
+          setLeft(Math.max(0, Math.round((end - Date.now()) / 1000)));
           tick = setInterval(() => setLeft(Math.max(0, Math.round((end - Date.now()) / 1000))), 1000);
           const check = () => LSB.upi.status(r.order_no).then(x => {
             if (dead) return;
@@ -1026,13 +1127,14 @@
         return () => { dead = true; clearInterval(poll); clearInterval(tick); };
       }, []);
       const r = st.r, amt = r ? L.inr(r.amount / 100) : '', mm = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
-      if (st.phase === 'creating') return h('div', { style: { padding: '30px 0', textAlign: 'center', color: K.mut } }, 'Preparing your UPI payment…');
+      if (st.phase === 'creating') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Preparing your UPI payment…' }));
       if (st.phase === 'error') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } }, h('div', { style: { color: K.red, fontSize: 14 } }, st.msg), h(Btn, { onClick: () => app.modal(null) }, 'Close'));
       if (st.phase === 'paid') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center', padding: '10px 0' } },
-        h('div', { style: { width: 54, height: 54, borderRadius: 27, background: '#E7F6EC', color: '#137333', fontSize: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '✓'),
+        h('div', { className: 'ls-pop', style: { width: 58, height: 58, borderRadius: 29, background: '#E7F6EC', color: '#137333', fontSize: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 8px #F3FBF5' } }, '✓'),
         h('div', { style: { fontSize: 18, fontWeight: 600 } }, 'Payment received'),
         h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `${amt} for the ${o.name} plan (${o.cycleLabel}). Your plan is active.`),
         st.x.utr && h('div', { style: { fontSize: 12.5, color: K.mut } }, 'UPI reference ' + st.x.utr + ' · order ' + r.order_no),
+        h(PaidInvoice, { orderNo: r.order_no }),
         h(Btn, { primary: true, onClick: () => { app.modal(null); app.go('dashboard'); } }, 'Go to dashboard'));
       if (st.phase === 'expired') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
         h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `This payment window has closed. If you already paid ${amt}, it is still confirmed automatically within 24 hours and your plan turns on by itself. If you have not paid, start again.`),
@@ -1045,7 +1147,7 @@
         h('div', { style: { fontSize: 13.5, color: K.txt } }, 'Scan with any UPI app: GPay, PhonePe, Paytm, BHIM'),
         h('a', { href: r.link, style: { display: 'inline-block', background: K.ink, color: '#fff', borderRadius: 8, padding: '10px 18px', fontSize: 14, fontWeight: 600, textDecoration: 'none' } }, 'Open UPI app (on your phone)'),
         h('div', { style: { fontSize: 12.5, color: K.mut } }, `Paying ${r.payee} · ${r.upi_id}`),
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: K.txt, background: K.soft2, borderRadius: 8, padding: '8px 12px' } }, h('span', { className: 'ls-typing', style: { display: 'inline-flex' } }, h('span'), h('span'), h('span')), `Waiting for your payment · ${mm}`),
+        h(CoinFlow, { label: `Verifying your payment… ${mm}` }),
         h('div', { style: { fontSize: 12, color: K.mut, lineHeight: 1.5 } }, 'Keep this window open. Your plan turns on by itself as soon as the payment arrives. Pay the exact amount shown, including paise, so it is matched to your order ' + r.order_no + '.'));
     };
     app.modal(() => h(Modal, { title: 'Pay by UPI', onClose: () => app.modal(null), width: 420 }, h(Body)));
@@ -1153,6 +1255,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { upiPay, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { upiPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();
