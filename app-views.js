@@ -289,6 +289,7 @@
   function newCase(app, init, editId) {
     const d = app.db, c0 = editId && d.cases.find(c => c.id === editId);
     if (editId && (!c0 || !allowed(app, 'case.edit'))) return;
+    if (!editId && overLimit(app, 'cases')) return;
     const lead = c0 ? (c0.team || [])[0] : '', stages = c0 && c0.stage && !STAGES.includes(c0.stage) ? [...STAGES, c0.stage] : STAGES;
     app.modal(() => h(Modal, { title: c0 ? 'Edit case' : 'New case', sub: c0 ? c0.no : 'Add the matter manually. You can upload orders and documents afterwards.', onClose: () => app.modal(null), width: 600 },
       h(Form, { init: c0 ? { title: c0.title, full: c0.full || c0.title, no: c0.no, cnr: c0.cnr || '', court: c0.court, stage: c0.stage || STAGES[0], clientId: c0.clientId || '', team: lead || d.user.name } : Object.assign({ team: d.user.name, stage: 'Pleadings' }, init), submit: c0 ? 'Save changes' : 'Create case', onCancel: () => app.modal(null),
@@ -462,7 +463,7 @@
         onSubmit: v => { if (window.LSB && LSB.on && !app.db.firmId) { app.modal(null); return app.createFirm(v); } app.mut(db => { const name = v.name.trim(), old = db.user.name; db.user.name = name; db.user.role = v.role; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + name;
           db.firm.name = v.firm.trim(); db.firm.city = v.city.trim(); db.firm.address = (v.address || '').trim() || v.city.trim();
           const u = db.team.find(x => x.email === db.user.email) || db.team[0]; if (u) Object.assign(u, { name, title: db.user.title, role: v.role }); else db.team.push({ id: 'u1', name, title: db.user.title, role: v.role, email: db.user.email, status: 'Active' });
-          if (old && old !== name) { db.tasks.forEach(t => { if (t.who === old) t.who = name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? name : n); }); } }, 'Your practice is set up'); app.modal(null); } }),
+          if (old && old !== name) { db.tasks.forEach(t => { if (t.who === old) t.who = name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? name : n); }); } }, 'Your practice is set up', true); app.modal(null); if (!L.access(app.db.sub).ok && L.access(app.db.sub).state === 'none') app.go('pricing'); } }),
       must && h('div', { style: { fontSize: 13, color: K.mut, borderTop: '1px solid ' + K.line, paddingTop: 12 } }, 'Signed in as ' + ((d.session && d.session.email) || d.user.email) + '. ', h('a', { href: '#', onClick: e => { e.preventDefault(); app.modal(null); app.signOut(); } }, 'Sign out'))));
   }
   /* ---------- limitation calculations (records of kind 'limitation', d.lims) ---------- */
@@ -815,7 +816,7 @@
   }
   function Team({ app }) {
     const d = app.db, roles = ['Managing Partner', 'Partner', 'Associate', 'Junior Advocate', 'Paralegal', 'Office Manager', 'Intern'];
-    const invite = () => (window.LSB && LSB.on && !d.isOwner) ? app.toast('Only the firm owner can invite or change members.') : app.modal(() => h(Modal, { title: 'Invite a team member', onClose: () => app.modal(null) }, h(Form, { submit: 'Add to team', onCancel: () => app.modal(null), note: window.LSB && LSB.on ? 'They join your firm the first time they sign in with this Google account. Tell them the site address; no invitation email is sent.' : 'No invitation email is sent in this browser-only version. The member is added with the status "Invited".', fields: [{ k: 'name', label: 'Full name', req: true }, { k: 'email', label: 'Work email', type: 'email', req: true, check: v => d.team.some(u => u.email.toLowerCase() === v.toLowerCase()) ? 'This email is already on the team' : '' }, { k: 'role', label: 'Role', type: 'select', options: roles }], onSubmit: v => { app.mut(db => { db.team.push({ id: L.uid('u'), name: v.name.trim(), title: (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + v.name.trim(), role: v.role, email: v.email.trim(), status: 'Invited' }); }, 'Team member added'); app.modal(null); } })));
+    const invite = () => (window.LSB && LSB.on && !d.isOwner) ? app.toast('Only the firm owner can invite or change members.') : overLimit(app, 'users') ? null : app.modal(() => h(Modal, { title: 'Invite a team member', onClose: () => app.modal(null) }, h(Form, { submit: 'Add to team', onCancel: () => app.modal(null), note: window.LSB && LSB.on ? 'They join your firm the first time they sign in with this Google account. Tell them the site address; no invitation email is sent.' : 'No invitation email is sent in this browser-only version. The member is added with the status "Invited".', fields: [{ k: 'name', label: 'Full name', req: true }, { k: 'email', label: 'Work email', type: 'email', req: true, check: v => d.team.some(u => u.email.toLowerCase() === v.toLowerCase()) ? 'This email is already on the team' : '' }, { k: 'role', label: 'Role', type: 'select', options: roles }], onSubmit: v => { app.mut(db => { db.team.push({ id: L.uid('u'), name: v.name.trim(), title: (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + v.name.trim(), role: v.role, email: v.email.trim(), status: 'Invited' }); }, 'Team member added'); app.modal(null); } })));
     const edit = u => (window.LSB && LSB.on && !d.isOwner) ? app.toast('Only the firm owner can invite or change members.') : app.modal(() => h(Modal, { title: u.title, sub: u.email, onClose: () => app.modal(null) }, h(Form, { init: { role: u.role, status: u.status }, submit: 'Save', onCancel: () => app.modal(null), fields: [{ k: 'role', label: 'Role', type: 'select', options: roles, half: true }, { k: 'status', label: 'Status', type: 'select', options: ['Active', 'Invited', 'Suspended'], half: true }], onSubmit: v => { app.mut(db => { Object.assign(db.team.find(x => x.id === u.id), v); }, 'Team member updated'); app.modal(null); } }),
       u.name !== d.user.name && h('div', { style: { borderTop: '1px solid ' + K.line, paddingTop: 14, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' } }, h('span', { style: { fontSize: 13, color: K.mut } }, 'Their tasks and hearings stay assigned by name.'), h(Btn, { danger: true, onClick: () => { app.mut(db => { db.team = db.team.filter(x => x.id !== u.id); }, 'Removed from team'); app.modal(null); } }, 'Remove from team'))));
     return h(Page, { art: 'team', kicker: 'Firm', title: 'Team', sub: `${d.team.length} members · click a row to change role or status`, actions: [h(Btn, { key: 1, primary: true, onClick: invite }, '+ Invite member')] },
@@ -906,7 +907,7 @@
         formCard('Your profile', d.user, [{ k: 'name', label: 'Full name', req: true, half: true }, owner ? { k: 'role', label: 'Designation', req: true, half: true } : { k: 'role', label: 'Designation (set by the firm owner)', ro: true, roNote: 'Only the firm owner can change designations', half: true }, { k: 'email', label: 'Email (from sign-in)', ro: true, roNote: 'This is the address you sign in with', half: true }, { k: 'phone', label: 'Mobile (WhatsApp)', type: 'tel', half: true }], 'user'),
         h(Card, { title: 'Notifications' }, row('WhatsApp', 'The morning briefing on WhatsApp, to the mobile in Your profile, once WhatsApp is connected for Legal Staff', h(Toggle, { on: s.whatsapp, label: 'WhatsApp notifications', onChange: v => set('whatsapp', v) })), row('Email', 'The morning briefing email at your chosen time', h(Toggle, { on: s.email, label: 'Email notifications', onChange: v => set('email', v) })), row('In-app alerts', 'The Alerts menu in the top bar', h(Toggle, { on: s.inapp, label: 'In-app alerts', onChange: v => set('inapp', v) })), row('Morning briefing time', 'IST. Briefings go out on the half hour, once a day.', h(Select, { value: briefAt(s), onChange: v => set('briefingTime', v), options: BRIEF_TIMES.map(t => [t, L.t12ap(t)]), style: { minWidth: 130 } })), row('Hearing reminder', `The briefing lists hearings today and ${plural(+s.remindDays || 2, 'day')} ahead`, h(Select, { value: String(s.remindDays), onChange: v => set('remindDays', +v), options: [['1', '1 day'], ['2', '2 days'], ['3', '3 days'], ['7', '7 days']], style: { minWidth: 130 } })), window.LSB && LSB.on ? row('Send today\'s briefing now', 'To you only, now: hearings today and in ' + plural(+s.remindDays || 2, 'day') + ', deadlines and limitation dates, overdue tasks. Email and WhatsApp only once those services are connected.', h(Btn, { small: true, onClick: () => { app.toast('Sending…'); LSB.notify().then(r => { const rs = (r && r.results) || [], okN = rs.filter(x => x.ok).length, sk = rs.find(x => x.skipped), er = rs.find(x => x.error); app.toast(okN ? `Briefing sent (${rs.filter(x => x.ok).map(x => x.channel).join(' and ')})` : (er ? 'Sending failed: ' + er.error : (sk ? sk.skipped : 'Nothing was sent. Check your email and WhatsApp number in Your profile.'))); }).catch(e => app.toast(e.message)); } }, 'Send')) : h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 10, lineHeight: 1.5 } }, 'Preferences are saved on this device. Briefing emails and WhatsApp messages need the server to be connected; until then, alerts show in the Alerts menu when you open the app.')),
         h(Card, { title: 'Appearance' }, row('Sidebar', null, h(Select, { value: s.sidebar, onChange: v => set('sidebar', v), options: [['Light', 'Light'], ['Ink', 'Ink (dark)']], style: { minWidth: 150 } })), row('Background', null, h(Select, { value: s.backdrop, onChange: v => set('backdrop', v), options: ['Wallpaper', 'Dots', 'Grid', 'Plain'].map(x => [x, x]), style: { minWidth: 150 } })), row('Density', null, h(Select, { value: s.density, onChange: v => set('density', v), options: [['Comfortable', 'Comfortable'], ['Compact', 'Compact']], style: { minWidth: 150 } }))),
-        h(Card, { title: 'Subscription' }, row(d.sub.plan ? d.sub.plan + ' plan · ' + (d.sub.cycle === 'annual' ? 'Annual' : 'Monthly') : 'No plan selected', d.sub.plan ? 'Renews ' + L.fmt(d.sub.renews) : 'Choose a plan to continue', h(Btn, { small: true, onClick: () => app.go('pricing') }, d.sub.plan ? 'Change plan' : 'Choose a plan')), d.sub.history.map((x, i) => row(x.plan + ' · ' + x.total, server ? 'Paid ' + L.fmt(x.date) + ' via Razorpay' : 'Recorded ' + L.fmt(x.date) + ' on this device · no payment taken (payments need the server)', null))),
+        h(Card, { title: 'Subscription' }, (acc => row(planName(acc) + (acc.state === 'active' ? ' · ' + (d.sub.cycle === 'annual' ? 'Annual' : 'Monthly') : ''), planSub(acc), h(Btn, { small: true, primary: !acc.ok, onClick: () => app.go('pricing') }, acc.state === 'none' ? 'Start free trial' : acc.ok ? 'Change plan' : 'Subscribe')))(L.access(d.sub)), d.sub.history.map((x, i) => row(x.plan + ' · ' + x.total, server ? 'Paid ' + L.fmt(x.date) + ' via Razorpay' : 'Recorded ' + L.fmt(x.date) + ' on this device · no payment taken (payments need the server)', null))),
         dataCard));
   }
   /* Removes what this browser keeps (saved data, file blobs) and signs out. Server data is untouched. */
@@ -929,6 +930,76 @@
     return h(Page, { art: 'order', kicker: 'Practice', title: 'Court Orders', sub: `${rows.length} orders · ${need} awaiting your confirmation`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addOrder(app) }, '+ Add court order')] },
       h(Table, { onRow: o => app.go('order', o.id), min: 860, cols: [{ label: 'Case', w: 'minmax(220px,1.6fr)', get: o => h('span', null, caseOf(d, o.caseId).title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, caseOf(d, o.caseId).no)) }, { label: 'Order dated', w: '110px', get: o => L.dmy(o.date) }, { label: 'Summary', w: 'minmax(240px,2.4fr)', get: o => h('span', null, o.summary, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, o.source)) }, { label: 'Next date', w: '110px', get: o => o.nextDate ? L.dmy(o.nextDate) : '—' }, { label: 'Status', w: '150px', get: o => h(Chip, { tone: o.confirmed || !o.nextDate ? '' : 'red' }, o.confirmed ? 'Confirmed' : (o.nextDate ? 'Needs confirmation' : 'No date found')) }], rows, empty: { title: 'No orders yet', text: 'Add an order to extract the next date.' } }));
   }
+  /* ---------- plan, free trial and access ---------- */
+  const PLAN_ORDER = ['Solo', 'Professional', 'Firm'];
+  const MOD_LABEL = { brain: 'AI Case Brain', drafting: 'AI Drafting Studio', portal: 'Client Portal', agents: 'AI Agents', reports: 'Reports and analytics' };
+  const n0 = x => x === Infinity ? 'Unlimited' : Number(x).toLocaleString('en-IN');
+  const planName = acc => acc.state === 'none' ? 'No plan yet' : acc.state === 'trial' ? acc.plan + ' · free trial' : acc.state === 'expired' ? acc.plan + ' · ' + (acc.wasTrial ? 'trial ended' : 'expired') : acc.plan + ' plan';
+  const planSub = acc => acc.state === 'none' ? 'Start a 7-day free trial' : acc.state === 'trial' ? plural(acc.daysLeft, 'day') + ' left' : acc.state === 'expired' ? 'Subscribe to continue' : 'Renews ' + L.fmt(acc.ends);
+  const endsOn = acc => String(acc.ends || '').includes('T') ? new Date(acc.ends).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : L.fmt(acc.ends);
+  const liveCases = d => d.cases.filter(c => c.status === 'active' || c.status === 'pending').length;
+  /* Opens the Subscription screen, with a plan's checkout already open when one is named. */
+  const choosePlan = (app, name) => { const i = PLAN_ORDER.indexOf(name); if (i >= 0) app.setState({ plan: i, paid: false, gstin: app.db.firm.gstin || '', gstErr: '' }); app.go('pricing'); };
+  const notOwner = app => !!(window.LSB && LSB.on && !app.db.isOwner);
+  /* Refuses to go past the plan's user or active-case limit, and says why. */
+  function overLimit(app, what) {
+    const d = app.db, acc = L.access(d.sub), lim = acc.limits, have = what === 'users' ? d.team.length : liveCases(d), cap = lim[what];
+    if (have < cap) return false;
+    const next = PLAN_ORDER.find(p => L.PLANS[p][what] > cap);
+    app.toast(`The ${acc.plan || 'current'} plan allows ${n0(cap)} ${what === 'users' ? (cap === 1 ? 'user' : 'users') : 'active cases'}.` + (next ? ` Upgrade to ${next} for ${n0(L.PLANS[next][what])}.` : ''));
+    return true;
+  }
+  const Meter = ({ label, have, cap }) => { const pct = cap === Infinity ? 0 : Math.min(100, Math.round(have / Math.max(1, cap) * 100)), hot = pct >= 90;
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 } }, h('span', { style: { color: K.mut } }, label), h('span', { style: { fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: hot ? K.red : K.ink } }, n0(have) + ' / ' + n0(cap))),
+      h('div', { style: { height: 6, borderRadius: 3, background: '#EDEDED', overflow: 'hidden' } }, h('div', { style: { width: (cap === Infinity ? 4 : pct) + '%', height: '100%', background: hot ? K.red : K.ink, borderRadius: 3 } }))); };
+  /* Dashboard: the firm's plan, trial countdown, usage against the plan and what the plan includes. */
+  function PlanCard({ app, acc }) {
+    const d = app.db; if (!acc.ok) return null;
+    const lim = acc.limits, trial = acc.state === 'trial', soon = !trial && acc.daysLeft <= 7, next = PLAN_ORDER[PLAN_ORDER.indexOf(acc.plan) + 1];
+    const head = trial
+      ? h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between', background: K.ink, color: '#fff', borderRadius: 10, padding: '16px 20px' } },
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 } },
+            h('div', { style: { textAlign: 'center', flexShrink: 0, minWidth: 52 } }, h('div', { style: { fontFamily: "'Instrument Sans',system-ui,sans-serif", fontSize: 28, fontWeight: 600, lineHeight: 1 } }, acc.daysLeft), h('div', { style: { fontSize: 11, opacity: .75 } }, acc.daysLeft === 1 ? 'day left' : 'days left')),
+            h('div', { style: { minWidth: 0 } }, h('div', { style: { fontSize: 15, fontWeight: 600 } }, `Free trial of the ${acc.plan} plan`), h('div', { style: { fontSize: 13, opacity: .8, lineHeight: 1.5 } }, `Ends ${endsOn(acc)}. After that the workspace stops working until you subscribe. Your data is kept.`))),
+          notOwner(app) ? h('span', { style: { fontSize: 13, opacity: .8 } }, 'The firm owner can subscribe') : h(Btn, { onClick: () => choosePlan(app, acc.plan), style: { background: '#fff', color: K.ink, border: 0, fontWeight: 600 } }, 'Subscribe now'))
+      : h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' } },
+          h('div', null, h('div', { style: { fontSize: 15, fontWeight: 600 } }, `${acc.plan} plan · ${d.sub.cycle === 'annual' ? 'Annual' : 'Monthly'}`), h('div', { style: { fontSize: 13, color: soon ? K.red : K.mut } }, soon ? `Ends ${endsOn(acc)} (${plural(acc.daysLeft, 'day')} left). Renew to keep working.` : `Paid until ${endsOn(acc)}`)),
+          h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, !notOwner(app) && soon && h(Btn, { small: true, primary: true, onClick: () => choosePlan(app, acc.plan) }, 'Renew'), !notOwner(app) && next && h(Btn, { small: true, onClick: () => choosePlan(app, next) }, 'Upgrade to ' + next)));
+    const mods = Object.keys(MOD_LABEL).map(k => { const on = lim.mods.includes(k);
+      return h('button', { key: k, type: 'button', onClick: () => app.go(k), title: on ? 'Open' : `Included from the ${L.MOD_PLAN[k]} plan`, style: { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid ' + (on ? K.line : '#EDEDED'), background: on ? '#FFFFFF' : '#FAFAFA', color: on ? K.ink : '#8A8A8A', borderRadius: 999, padding: '5px 12px', fontSize: 12.5, whiteSpace: 'nowrap' } }, h('span', null, on ? '✓' : '🔒'), MOD_LABEL[k], !on && h('span', { style: { fontSize: 11 } }, '· ' + L.MOD_PLAN[k])); });
+    return h(Card, { title: 'Your plan', right: h('button', { type: 'button', onClick: () => app.go('pricing'), style: { border: 0, background: 'none', padding: 0, fontSize: 13, color: K.mut, textDecoration: 'underline', textUnderlineOffset: 2 } }, 'Compare plans') },
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18 } }, head,
+        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 18 } },
+          h(Meter, { label: 'Users', have: d.team.length, cap: lim.users }), h(Meter, { label: 'Active cases', have: liveCases(d), cap: lim.cases }),
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 } }, h('span', { style: { color: K.mut } }, 'Storage and AI'), h('span', { style: { fontWeight: 600 } }, `${lim.storage} GB · ${n0(lim.ai)} AI credits / month`))),
+        h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } }, mods)));
+  }
+  /* Shown instead of every screen (except Subscription and Settings) when there is no plan, or the trial or plan has ended. */
+  function PlanLock({ app, acc }) {
+    const owner = !notOwner(app), name = acc.plan;
+    const [kicker, title, text] = acc.state === 'none'
+      ? ['Welcome', 'Start your 7-day free trial', 'Choose any plan to try Legal Staff free for 7 days. No payment is needed to start. When the trial ends, subscribe to keep working.']
+      : acc.wasTrial
+        ? ['Free trial ended', 'Your free trial has ended', `Your 7-day trial of the ${name} plan ended on ${endsOn(acc)}. Your cases, documents and settings are kept safely. Subscribe to continue where you left off.`]
+        : ['Plan expired', `Your ${name} plan has expired`, `The paid period ended on ${endsOn(acc)}. Your data is kept safely. Renew to continue where you left off.`];
+    return h(Page, { kicker, title, max: 760 }, h(Card, null,
+      h(Empty, { title, text: owner ? text : text + ' Only the firm owner can choose or pay for a plan, so please ask them.', art: 'setup' }),
+      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', paddingBottom: 12 } },
+        owner && acc.state !== 'none' && h(Btn, { key: 1, primary: true, onClick: () => choosePlan(app, name) }, (acc.wasTrial ? 'Subscribe to ' : 'Renew ') + name),
+        h(Btn, { key: 2, primary: owner && acc.state === 'none', onClick: () => app.go('pricing') }, acc.state === 'none' ? 'Choose a plan' : 'Compare plans'),
+        acc.state !== 'none' && h(Btn, { key: 3, onClick: () => app.go('settings') }, 'Export a backup')),
+      acc.state !== 'none' && h('div', { style: { fontSize: 12.5, color: K.mut, textAlign: 'center', paddingBottom: 6 } }, 'Until a plan is active the workspace is read-only and closed. Settings stays open so you can export a backup.')));
+  }
+  /* Shown when a screen belongs to a higher plan than the firm's. */
+  function PlanUpgrade({ app, acc, mod }) {
+    const need = L.MOD_PLAN[mod], lim = L.PLANS[need];
+    return h(Page, { kicker: 'Upgrade', title: MOD_LABEL[mod], max: 760 }, h(Card, null,
+      h(Empty, { title: `${MOD_LABEL[mod]} is part of the ${need} plan`, text: `You are on the ${acc.plan} plan${acc.state === 'trial' ? ' (free trial)' : ''}. ${need} adds ${lim.mods.filter(k => !acc.limits.mods.includes(k)).map(k => MOD_LABEL[k]).join(', ')}, up to ${n0(lim.users)} users and ${n0(lim.cases).toLowerCase()} active cases.` }),
+      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', paddingBottom: 12 } },
+        notOwner(app) ? h('span', { style: { fontSize: 13, color: K.mut } }, 'Ask the firm owner to upgrade the plan.') : h(Btn, { primary: true, onClick: () => choosePlan(app, need) }, acc.state === 'trial' ? `Switch the trial to ${need}` : `Upgrade to ${need}`),
+        h(Btn, { onClick: () => app.go('dashboard') }, 'Back to dashboard'))));
+  }
   const MODULES = { workspace: Workspace, courts: Courts, clients: Clients, documents: p => h(Docs, { app: p.app, kind: 'document' }), evidence: p => h(Docs, { app: p.app, kind: 'evidence' }), research: Research, agents: Agents, team: Team, billing: Billing, portal: Portal, reports: Reports, settings: Settings, orders: Orders };
 
   /* ---------- top-bar dropdowns ---------- */
@@ -944,6 +1015,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();

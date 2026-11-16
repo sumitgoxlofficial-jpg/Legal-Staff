@@ -385,7 +385,7 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
 <section id="pricing" style="position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:clamp(64px,10vw,112px) clamp(20px,4vw,28px);display:flex;flex-direction:column;gap:40px">
   <div class="ls-reveal" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px">
     <h2 style="font-weight:600;font-size:clamp(32px,3.8vw,46px);line-height:1.12;letter-spacing:-.025em;margin:0">Simple plans for every size of practice</h2>
-    <p style="margin:0;color:#5E5E5E;font-size:17px">All plans are paid subscriptions. Prices exclude 18% GST. Upgrade, downgrade or cancel at any time.</p>
+    <p style="margin:0;color:#5E5E5E;font-size:17px">Every plan starts with a 7-day free trial, no payment needed. Prices exclude 18% GST. Upgrade, downgrade or cancel at any time.</p>
     <div id="ls-cycle" class="lp-cycle">
       <span class="lp-knob" aria-hidden="true"></span>
       <sc-for list="{{ cycles }}" as="c" hint-placeholder-count="2">
@@ -609,7 +609,7 @@ class Component extends DCLogic {
         para('A plain-language summary of the terms that apply when you subscribe to Legal Staff.', 'p'),
         ...[['The service', 'Legal Staff is practice-management software for advocates and law firms in India. It is not a law firm and does not give legal advice.'],
           ['AI output and calculations', 'Order summaries, extracted dates, limitation calculations and drafts are decision aids. An advocate must review and approve them before relying on them.'],
-          ['Subscriptions', 'All plans are paid subscriptions billed monthly or annually in INR, exclusive of 18% GST. You can upgrade, downgrade or cancel at any time; cancellation takes effect at the end of the current billing period.'],
+          ['Subscriptions', 'Every plan starts with a free trial of 7 days, once per firm. After the trial, plans are paid subscriptions billed monthly or annually in INR, exclusive of 18% GST, and the workspace stops working until a plan is paid for; your data is kept. You can upgrade, downgrade or cancel at any time; cancellation takes effect at the end of the current billing period.'],
           ['Your data', 'You own the records and documents you add. You can export them at any time and for 30 days after your subscription ends.'],
           ['Advocate directory', 'Directory profiles show factual information only, in keeping with Bar Council of India rules. Legal Staff does not rank or recommend advocates, assign matters or share in fees.'],
           ['Acceptable use', 'Do not upload material you have no right to hold, attempt to reach another organisation\'s data, or misuse court-data sources.']].map(([t, d], i) => sect(t, d, i)),
@@ -992,13 +992,13 @@ class Component extends DCLogic {
       cycles: [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, pressed: S.cycle === k ? 'true' : 'false', go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: narrow ? '9px 14px' : '9px 18px', fontSize: narrow ? 14 : 15, background: 'transparent', color: S.cycle === k ? '#0A0A0A' : '#5E5E5E', fontWeight: S.cycle === k ? 600 : 400 } })),
       plans: P.map(([name, who, m, a, feats], i) => {
         const feat = i === 1;
-        return { name, who, feats, feat, delay: i * 110, price: h('span', { key: S.cycle, className: 'lp-price' }, m ? inr(ann ? a : m) : 'Custom'), per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '', cta: m ? `Choose ${name}` : 'Contact sales',
+        return { name, who, feats, feat, delay: i * 110, price: h('span', { key: S.cycle, className: 'lp-price' }, m ? inr(ann ? a : m) : 'Custom'), per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '', cta: m ? 'Start 7-day free trial' : 'Contact sales',
           href: m ? `app.html?plan=${name.toLowerCase()}&cycle=${S.cycle}` : '#contact', go: m ? () => {} : open('contact', 'Enterprise'),
           card: { flex: 1, transition: 'transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s', background: '#FFFFFF', border: feat ? '2px solid #0A0A0A' : '1px solid #E5E5E5', boxShadow: feat ? '0 8px 24px rgba(0,0,0,.08)' : 'none', borderRadius: 16, padding: 30, display: 'flex', flexDirection: 'column', gap: 10 },
           btn: { height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', border: feat ? 0 : '1px solid #0A0A0A', borderRadius: 8, fontSize: 16, fontWeight: 600, background: feat ? '#0A0A0A' : 'transparent', color: feat ? '#fff' : '#0A0A0A', margin: '8px 0' } };
       }),
       faqs: [
-        ['Is there a free plan?', 'No. Legal Staff is a paid subscription. You choose a plan at sign-up and pay securely with Razorpay, and you receive a GST invoice for every payment.'],
+        ['Is there a free trial?', 'Yes. Every plan starts with a 7-day free trial, with no payment needed. When the trial ends, the account stops working until you subscribe; your data is kept. You pay securely with Razorpay and receive a GST invoice for every payment.'],
         ['Where do court orders come from?', 'From authorised court-data sources where they are available, or from your own uploads. Each order shows its source and when it was retrieved. An upload is never labelled as an official retrieval.'],
         ['Can I rely on the limitation calculations?', 'Each calculation shows the provision, the trigger date, every exclusion and the court-holiday check. It is a decision aid that an advocate must review and approve. It is not legal advice.'],
         ['Will my juniors see every case?', 'No. Roles and case assignments control access. Juniors and paralegals see only the cases and documents assigned to them.'],
