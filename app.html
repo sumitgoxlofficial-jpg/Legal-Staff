@@ -45,6 +45,7 @@
 .ls-greet-name{background:linear-gradient(100deg,#0A0A0A 42%,#9A9A9A 50%,#0A0A0A 58%) 0 0/300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:ls-greet-word .6s var(--ls-ease) backwards,ls-greet-shine 1.4s ease-in-out .7s backwards}
 .ls-sync{display:inline-flex;align-items:center;gap:8px;animation:ls-sync-in .5s var(--ls-ease) .45s backwards;transition:background .2s,transform .2s}
 .ls-sync:hover{background:#E9E9E7!important;transform:translateY(-1px)}
+.ls-avatar-btn{transition:transform .2s var(--ls-ease),box-shadow .2s}.ls-avatar-btn:hover{transform:scale(1.04);box-shadow:0 0 0 3px #E5E5E5}.ls-crop:focus-visible{outline:2px solid #0A0A0A;outline-offset:3px}
 .ls-sync-dot{position:relative;width:7px;height:7px;border-radius:50%;background:#16A34A;flex:none}
 .ls-sync-dot::after{content:"";position:absolute;inset:0;border-radius:50%;background:#16A34A;animation:ls-sync-ping 2.2s ease-out 1s infinite}
 @media (prefers-reduced-motion:reduce){.ls-greet-date,.ls-greet-w,.ls-greet-name,.ls-sync,.ls-sync-dot::after{animation:none}}
@@ -201,7 +202,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <button class="ls-btn" onClick="{{ toggleCollapse }}" style="flex-shrink:0;margin:0 12px 10px;height:36px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;font-size:13px;color:#5E5E5E;display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap">{{ collapseLabel }}</button>
   </sc-if>
   <button onClick="{{ userMenu }}" title="Account" style="flex-shrink:0;padding:12px 18px;border:0;border-top:1px solid #E5E5E5;background:none;text-align:left;width:100%;color:#0A0A0A;display:flex;align-items:center;gap:10px;overflow:hidden">
-    <div style="width:34px;height:34px;border-radius:50%;background:#F0F0EF;color:#0A0A0A;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0">{{ userInit }}</div>
+    {{ userAvatar }}
     <div>
       <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}"><div style="font-size:13px;font-weight:600;white-space:nowrap">{{ userName }}</div><div style="font-size:12px;color:#5E5E5E;white-space:nowrap">{{ userRole }}</div></sc-if>
     </div>
@@ -1525,7 +1526,7 @@ class Component extends DCLogic {
     const overlay = h(React.Fragment, null,
       S.menu === 'alerts' && dropFixed({ top: 52, right: mobile ? 8 : 150, width: 340, maxWidth: 'calc(100vw - 16px)' }, [h('div', { key: 'h', style: { padding: '8px 10px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: '#6B6B6B', fontWeight: 600 } }, alerts.length ? 'Alerts' : (st.inapp ? 'No alerts' : 'In-app alerts are switched off')), ...alerts.map((a, i) => h(V.Item, { key: i, onClick: () => { this.setState({ menu: null }); a.go(); } }, a.text)), !st.inapp && h(V.Item, { key: 's', onClick: () => this.go('settings') }, 'Open notification settings')]),
       S.menu === 'firm' && dropFixed({ top: 106, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.firm.address }, D.firm.name), h(V.Item, { key: 2, onClick: () => this.go('pricing'), sub: V.planSub(acc) }, V.planName(acc)), h(V.Item, { key: 3, onClick: () => this.go('team') }, 'Team and roles'), h(V.Item, { key: 4, onClick: () => this.go('billing') }, 'Billing & Finance')]),
-      S.menu === 'user' && dropFixed({ bottom: 64, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.session ? D.session.email : D.user.email }, 'Profile and settings'), h(V.Item, { key: 2, onClick: () => this.go('workspace') }, 'My Workspace'), h(V.Item, { key: 3, onClick: () => { this.setState({ menu: null }); V.help(this); } }, 'Help and shortcuts'), h(V.Item, { key: 4, onClick: () => this.signOut() }, 'Sign out')]),
+      S.menu === 'user' && dropFixed({ bottom: 64, left: 10, width: 236 }, [h(V.Item, { key: 1, onClick: () => this.go('settings'), sub: D.session ? D.session.email : D.user.email }, 'Profile and settings'), h(V.Item, { key: 5, onClick: () => { this.setState({ menu: null }); V.editPhoto(this); } }, D.photo ? 'Change profile photo' : 'Add profile photo'), h(V.Item, { key: 2, onClick: () => this.go('workspace') }, 'My Workspace'), h(V.Item, { key: 3, onClick: () => { this.setState({ menu: null }); V.help(this); } }, 'Help and shortcuts'), h(V.Item, { key: 4, onClick: () => this.signOut() }, 'Sign out')]),
       S.modalOn && this._modal ? this._modal() : null);
     const results = S.searchOpen ? V.searchAll(D, S.search) : [];
     const pick = r => { this.setState({ search: '', searchOpen: false }); this.go(...r.to); };
@@ -1536,7 +1537,7 @@ class Component extends DCLogic {
       expanded: exp, collapsed: !exp, notMobile: !mobile, toggleCollapse: () => this.mut(db => { db.settings.collapsed = !db.settings.collapsed; }, null, true), collapseLabel: st.collapsed ? '»' : '« Collapse sidebar',
       showLogin: S.auth === 'login', booting: S.auth === 'boot', loginStage: h(V.LoginStage), bootView: h(V.Boot, { text: 'Loading your workspace…' }), loginForm: h(V.LoginForm, { app: this }),
       firmName: D.firm.name || 'Your practice', firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')) || 'LS', firmLine: [V.planName(acc), D.firm.city].filter(Boolean).join(' · '), firmAddress: D.firm.address, firmMenu: openMenu('firm'),
-      userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userEmail: D.user.email, searchPh: mobile ? 'Search…' : 'Search cases, CNR, parties, documents…', userMenu: openMenu('user'),
+      userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userAvatar: h(V.Avatar, { app: this, size: 34 }), userEmail: D.user.email, searchPh: mobile ? 'Search…' : 'Search cases, CNR, parties, documents…', userMenu: openMenu('user'),
       searchQ: S.search, setSearch: e => this.setState({ search: e.target.value, searchOpen: true }), searchFocus: () => this.setState({ searchOpen: true, menu: null }), searchBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 150), searchKey: e => { if (e.key === 'Enter' && results[0]) pick(results[0]); }, searchDrop,
       newCase: () => V.newCase(this), importCnr: () => V.importCnr(this), help: () => V.help(this), alertsMenu: openMenu('alerts'), alertCount: alerts.length, hasAlerts: alerts.length > 0, overlay,
       toast: S.toast, hasToast: !!S.toast, goCases: () => this.go('cases'),

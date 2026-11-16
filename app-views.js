@@ -959,6 +959,80 @@
       list && list.slice(0, 10).map(b => row(L.fmt(b.date), new Date(b.created).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) + ' · ' + L.size(b.size) + ' encrypted', owner ? h(Btn, { small: true, onClick: () => restore(b), disabled: !!busy }, 'Restore') : null)),
       list && !owner && h('div', { style: { fontSize: 12.5, color: K.mut, paddingTop: 8 } }, 'Only the firm owner can restore a backup.'));
   }
+  /* ---- profile photo: pick an image, then drag and zoom it inside a circle; a small square JPEG is saved in db.photo ---- */
+  const PHOTO_PX = 320, PHOTO_MAX_ZOOM = 4;
+  function Avatar({ app, size, style }) {
+    const p = app.db.photo, n = size || 34;
+    return h('div', { style: Object.assign({ width: n, height: n, borderRadius: '50%', background: K.soft2, color: K.ink, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: Math.round(n * .38), flexShrink: 0, overflow: 'hidden' }, style) },
+      p ? h('img', { src: p, alt: '', draggable: false, style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' } }) : (L.initials(app.db.user.name) || '?'));
+  }
+  function PhotoCrop({ img, src, onSave, onCancel }) {
+    const [box, setBox] = useState(() => Math.max(220, Math.min(340, window.innerWidth - 84)));
+    const [v, setV] = useState({ z: 1, x: 0, y: 0 }), [drag, setDrag] = useState(false);
+    const el = React.useRef(null), pts = React.useRef(new Map()), cur = React.useRef(v); cur.current = v;
+    const w = img.naturalWidth, ht = img.naturalHeight, s0 = box / Math.min(w, ht);
+    const fit = n => { const z = Math.max(1, Math.min(PHOTO_MAX_ZOOM, n.z)), mx = (w * s0 * z - box) / 2, my = (ht * s0 * z - box) / 2; return { z, x: Math.max(-mx, Math.min(mx, n.x)), y: Math.max(-my, Math.min(my, n.y)) }; };
+    const move = f => setV(o => fit(f(o)));
+    /* Zoom about a point of the box (px from its centre), so the spot under the cursor or between two fingers stays put. */
+    const zoomAt = (z, px, py) => move(o => { const nz = Math.max(1, Math.min(PHOTO_MAX_ZOOM, z)), k = nz / o.z; return { z: nz, x: px - (px - o.x) * k, y: py - (py - o.y) * k }; });
+    React.useEffect(() => {
+      const n = el.current, wheel = e => { e.preventDefault(); const r = n.getBoundingClientRect(); zoomAt(cur.current.z * Math.exp(-e.deltaY * .0015), e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2); };
+      const size = () => setBox(Math.max(220, Math.min(340, window.innerWidth - 84)));
+      n.addEventListener('wheel', wheel, { passive: false }); window.addEventListener('resize', size);
+      return () => { n.removeEventListener('wheel', wheel); window.removeEventListener('resize', size); };
+    }, []);
+    const down = e => { e.currentTarget.setPointerCapture(e.pointerId); pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); setDrag(true); };
+    const up = e => { pts.current.delete(e.pointerId); if (!pts.current.size) setDrag(false); };
+    const mv = e => {
+      const m = pts.current, p = m.get(e.pointerId); if (!p) return;
+      const q = { x: e.clientX, y: e.clientY };
+      if (m.size === 1) { const dx = q.x - p.x, dy = q.y - p.y; move(o => ({ z: o.z, x: o.x + dx, y: o.y + dy })); }
+      else if (m.size === 2) {
+        const o = [...m.entries()].find(a => a[0] !== e.pointerId)[1], d0 = Math.hypot(p.x - o.x, p.y - o.y), d1 = Math.hypot(q.x - o.x, q.y - o.y), r = el.current.getBoundingClientRect();
+        if (d0 > 0) zoomAt(cur.current.z * d1 / d0, (q.x + o.x) / 2 - r.left - r.width / 2, (q.y + o.y) / 2 - r.top - r.height / 2);
+      }
+      m.set(e.pointerId, q);
+    };
+    const key = e => { const st = e.shiftKey ? 40 : 10, d = { ArrowLeft: [st, 0], ArrowRight: [-st, 0], ArrowUp: [0, st], ArrowDown: [0, -st] }[e.key];
+      if (d) { e.preventDefault(); move(o => ({ z: o.z, x: o.x + d[0], y: o.y + d[1] })); } else if (e.key === '+' || e.key === '=') zoomAt(v.z * 1.1, 0, 0); else if (e.key === '-') zoomAt(v.z / 1.1, 0, 0); };
+    const save = () => {
+      const sc = s0 * v.z, side = box / sc, c = document.createElement('canvas'); c.width = c.height = PHOTO_PX;
+      const g = c.getContext('2d'); g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, PHOTO_PX, PHOTO_PX); g.imageSmoothingQuality = 'high';
+      g.drawImage(img, w / 2 - v.x / sc - side / 2, ht / 2 - v.y / sc - side / 2, side, side, 0, 0, PHOTO_PX, PHOTO_PX);
+      onSave(c.toDataURL('image/jpeg', .86));
+    };
+    const third = (o, i) => h('i', { key: o + i, style: Object.assign({ position: 'absolute', background: 'rgba(255,255,255,.75)' }, o === 'v' ? { top: 0, bottom: 0, width: 1, left: (i * 100 / 3) + '%' } : { left: 0, right: 0, height: 1, top: (i * 100 / 3) + '%' }) });
+    return h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 } },
+      h('div', { ref: el, tabIndex: 0, role: 'application', 'aria-label': 'Photo position. Drag or use the arrow keys to move, plus and minus to zoom.', onPointerDown: down, onPointerMove: mv, onPointerUp: up, onPointerCancel: up, onKeyDown: key, onDoubleClick: () => zoomAt(v.z > 1.01 ? 1 : 2, 0, 0),
+        className: 'ls-crop', style: { position: 'relative', width: box, height: box, overflow: 'hidden', borderRadius: 12, background: '#0A0A0A', touchAction: 'none', userSelect: 'none', cursor: drag ? 'grabbing' : 'grab' } },
+        h('img', { src, alt: '', draggable: false, style: { position: 'absolute', left: '50%', top: '50%', width: w * s0 * v.z, height: ht * s0 * v.z, maxWidth: 'none', transform: `translate(calc(-50% + ${v.x}px), calc(-50% + ${v.y}px))`, pointerEvents: 'none', transition: drag ? 'none' : 'width .12s, height .12s, transform .12s' } }),
+        h('div', { style: { position: 'absolute', inset: 0, borderRadius: '50%', boxShadow: '0 0 0 9999px rgba(10,10,10,.55)', border: '1.5px solid rgba(255,255,255,.9)', pointerEvents: 'none' } }),
+        h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none', opacity: drag ? 1 : 0, transition: 'opacity .2s' } }, [1, 2].map(i => third('v', i)), [1, 2].map(i => third('h', i)))),
+      h('label', { style: { display: 'flex', alignItems: 'center', gap: 10, width: box, fontSize: 12.5, color: K.mut } },
+        h('span', { 'aria-hidden': true, style: { fontSize: 15, lineHeight: 1 } }, '−'),
+        h('input', { type: 'range', min: 1, max: PHOTO_MAX_ZOOM, step: .01, value: v.z, 'aria-label': 'Zoom', onChange: e => zoomAt(+e.target.value, 0, 0), style: { flex: 1, accentColor: K.ink } }),
+        h('span', { 'aria-hidden': true, style: { fontSize: 17, lineHeight: 1 } }, '+')),
+      h('div', { style: { fontSize: 12.5, color: K.mut, textAlign: 'center' } }, 'Drag to move. Pinch, scroll or use the slider to zoom.'),
+      h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, width: '100%' } }, h(Btn, { onClick: onCancel }, 'Cancel'), h(Btn, { primary: true, onClick: save }, 'Save photo')));
+  }
+  function savePhoto(app, url, msg) {
+    const server = !!(window.LSB && LSB.on);
+    app.mut(db => { db.photo = url; }, server ? null : msg);
+    if (app.db.photo !== url) return; /* the change was refused, e.g. the plan has ended; mut() has said why */
+    if (server) app.flush().then(() => app.toast(msg), e => app.toast('Not saved: ' + e.message));
+  }
+  function editPhoto(app) {
+    L.pickFile('image/*').then(fs => {
+      const f = fs[0]; if (!f) return;
+      if (!/^image\//.test(f.type)) return app.toast('Choose an image file, such as a JPG or PNG');
+      if (f.size > 20 * 1024 * 1024) return app.toast('That image is over 20 MB. Choose a smaller one');
+      const src = URL.createObjectURL(f), img = new Image(), close = () => { app.modal(null); URL.revokeObjectURL(src); };
+      img.onerror = () => { URL.revokeObjectURL(src); app.toast('That image could not be opened. Try a JPG or PNG'); };
+      img.onload = () => app.modal(() => h(Modal, { title: 'Edit profile photo', onClose: close, width: 420 }, h(PhotoCrop, { img, src, onCancel: close, onSave: url => { close(); savePhoto(app, url, 'Profile photo updated'); } })));
+      img.src = src;
+    });
+  }
+  const removePhoto = app => savePhoto(app, '', 'Profile photo removed');
   function Settings({ app }) {
     const d = app.db, s = d.settings, set = (k, v, msg) => app.mut(db => { db.settings[k] = v; }, msg || 'Setting saved');
     const row = (label, sub, ctl) => h(Line, null, h('div', { style: { flex: 1, minWidth: 0 } }, label, sub && h('div', { style: { fontSize: 12.5, color: K.mut } }, sub)), ctl);
@@ -978,6 +1052,10 @@
     return h(Page, { art: 'settings', kicker: 'Firm', title: 'Settings', sub: server ? 'Saved to your firm\'s account' : 'Everything here is saved on this device', max: 1100 },
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,440px),1fr))', gap: 20, alignItems: 'start' } },
         formCard('Firm profile', d.firm, [{ k: 'name', label: 'Firm name', req: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'gstin', label: 'GSTIN (optional)', half: true, check: v => v && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/i.test(v) ? 'A GSTIN has 15 characters, e.g. 07AAAAA0000A1Z5' : '' }, { k: 'address', label: 'Address on letterhead and invoices' }], 'firm'),
+        h(Card, { title: 'Profile photo' }, h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
+          h('button', { type: 'button', onClick: () => editPhoto(app), title: d.photo ? 'Change photo' : 'Upload a photo', className: 'ls-avatar-btn', style: { border: 0, padding: 0, background: 'none', borderRadius: '50%', cursor: 'pointer' } }, h(Avatar, { app, size: 72 })),
+          h('div', { style: { flex: 1, minWidth: 180 } }, h('div', { style: { fontSize: 13.5 } }, d.photo ? 'This photo shows next to your name.' : 'Add a photo to show next to your name.'), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 2 } }, 'JPG or PNG. You can move and zoom it before saving.')),
+          h('div', { style: { display: 'flex', gap: 8 } }, h(Btn, { small: true, onClick: () => editPhoto(app) }, d.photo ? 'Change photo' : 'Upload photo'), d.photo && h(Btn, { small: true, danger: true, onClick: () => removePhoto(app) }, 'Remove')))),
         formCard('Your profile', d.user, [{ k: 'name', label: 'Full name', req: true, half: true }, owner ? { k: 'role', label: 'Designation', req: true, half: true } : { k: 'role', label: 'Designation (set by the firm owner)', ro: true, roNote: 'Only the firm owner can change designations', half: true }, { k: 'email', label: 'Email (from sign-in)', ro: true, roNote: 'This is the address you sign in with', half: true }, { k: 'phone', label: 'Mobile (WhatsApp)', type: 'tel', half: true }], 'user'),
         h(Card, { title: 'Notifications' }, row('WhatsApp', 'The morning briefing on WhatsApp, to the mobile in Your profile, once WhatsApp is connected for Legal Staff', h(Toggle, { on: s.whatsapp, label: 'WhatsApp notifications', onChange: v => set('whatsapp', v) })), row('Email', 'The morning briefing email, sent automatically every day at your chosen time', h(Toggle, { on: s.email, label: 'Email notifications', onChange: v => set('email', v) })), row('In-app alerts', 'The Alerts menu in the top bar', h(Toggle, { on: s.inapp, label: 'In-app alerts', onChange: v => set('inapp', v) })), row('Morning briefing time', 'IST. Briefings go out on the half hour, once a day.', h(Select, { value: briefAt(s), onChange: v => set('briefingTime', v), options: BRIEF_TIMES.map(t => [t, L.t12ap(t)]), style: { minWidth: 130 } })), row('Hearing reminder', `The briefing lists hearings today and ${plural(+s.remindDays || 2, 'day')} ahead`, h(Select, { value: String(s.remindDays), onChange: v => set('remindDays', +v), options: [['1', '1 day'], ['2', '2 days'], ['3', '3 days'], ['7', '7 days']], style: { minWidth: 130 } })), window.LSB && LSB.on ? row('Send today\'s briefing now', 'To you only, now: hearings today and in ' + plural(+s.remindDays || 2, 'day') + ', deadlines and limitation dates, overdue tasks. Email and WhatsApp only once those services are connected.', h(Btn, { small: true, onClick: () => { app.toast('Sending…'); LSB.notify().then(r => { const rs = (r && r.results) || [], okN = rs.filter(x => x.ok).length, sk = rs.find(x => x.skipped), er = rs.find(x => x.error); app.toast(okN ? `Briefing sent (${rs.filter(x => x.ok).map(x => x.channel).join(' and ')})` : (er ? 'Sending failed: ' + er.error : (sk ? sk.skipped : 'Nothing was sent. Check your email and WhatsApp number in Your profile.'))); }).catch(e => app.toast(e.message)); } }, 'Send')) : h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 10, lineHeight: 1.5 } }, 'Preferences are saved on this device. Briefing emails and WhatsApp messages need the server to be connected; until then, alerts show in the Alerts menu when you open the app.')),
         h(Card, { title: 'Appearance' }, row('Sidebar', null, h(Select, { value: s.sidebar, onChange: v => set('sidebar', v), options: [['Light', 'Light'], ['Ink', 'Ink (dark)']], style: { minWidth: 150 } })), row('Background', null, h(Select, { value: s.backdrop, onChange: v => set('backdrop', v), options: ['Wallpaper', 'Dots', 'Grid', 'Plain'].map(x => [x, x]), style: { minWidth: 150 } })), row('Density', null, h(Select, { value: s.density, onChange: v => set('density', v), options: [['Comfortable', 'Comfortable'], ['Compact', 'Compact']], style: { minWidth: 150 } }))),
@@ -1257,6 +1335,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { upiPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { Avatar, editPhoto, removePhoto, upiPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();

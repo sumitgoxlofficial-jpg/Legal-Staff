@@ -31,7 +31,7 @@
       firm: { name: '', city: '', address: '', gstin: '' },
       user: { name: '', title: '', role: 'Advocate', email: '', phone: '' },
       sub: { plan: '', cycle: 'annual', status: '', since: '', renews: '', trialEnds: '', history: [] },
-      lim: null, lims: [], deadlines: [], chats: {}, copilot: [], drafts: {}, notes: '', research: [], watch: [],
+      lim: null, lims: [], deadlines: [], chats: {}, copilot: [], drafts: {}, notes: '', photo: '', research: [], watch: [],
       agents: [
         { id: 'briefing', name: 'Daily briefing', what: "Compiles today's hearings, clashes and deadlines for every team member.", when: 'When you press Run now', on: true, runs: [] },
         { id: 'sentinel', name: 'Deadline sentinel', what: 'Checks limitation deadlines and overdue tasks and raises alerts.', when: 'When you press Run now', on: true, runs: [] },
