@@ -1,7 +1,8 @@
 // Also emails firm owners before their free trial ends (trialReminders, scheduled runs only).
 // Sends the morning briefing (hearings today and in N days, deadlines and approved limitation dates, overdue tasks)
 // by email (Resend) and WhatsApp (Meta Cloud API). Two callers: the hourly schedule (header x-cron-secret, pg_cron at
-// minute 0 UTC = HH:30 IST), which briefs each member once a day in the IST hour of their Settings › Morning briefing time;
+// minute 0 UTC = HH:30 IST), which briefs each member once a day in the IST hour of their Settings › Morning briefing time
+// (every day, even when nothing is due);
 // or a signed-in member ({ firm_id }) sending today's briefing to themselves now ("Send now", no once-a-day limit).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -142,7 +143,8 @@ async function briefFirm(admin: any, firm: any, opts: { onlyUser: string | null;
     const todays = mine.filter((h: any) => h.date === today).sort((a: any, b: any) => String(a.time).localeCompare(String(b.time)));
     const soonDay = addIso(today, remind), soon = mine.filter((h: any) => h.date === soonDay);
     const overdue = of("task").filter((t: any) => t.who === m.name && !t.done && t.due < today);
-    if (!opts.onlyUser && !todays.length && !soon.length && !overdue.length && !dls.length) continue;
+    // The scheduled briefing goes out every day at the member's chosen time, even when nothing is due (they can turn email off in Settings).
+    const quiet = !todays.length && !soon.length && !overdue.length && !dls.length;
     const line = (h: any) => `${t12(h.time)} ${cases[h.caseId]?.title ?? "Hearing"} — ${h.court}${h.item ? ", " + h.item : ""}`;
     const dl = (d: any) => `${[0, 1, 3].includes(d.days) ? "!! " : ""}${d.flag}: ${d.title} — ${nice(d.due)}${d.limitation ? " (limitation date, approved)" : ""}${d.rule ? " · " + d.rule : ""}`;
     const body = [`Good morning, ${m.title || m.name}.`, "", todays.length ? `Hearings today (${todays.length}):` : "No hearings today.", ...todays.map(line),
@@ -151,9 +153,9 @@ async function briefFirm(admin: any, firm: any, opts: { onlyUser: string | null;
       ...(overdue.length ? ["", `Overdue tasks (${overdue.length}):`, ...overdue.map((t: any) => t.t)] : []), "", firm.name + " · Legal Staff"].join("\n");
     const urgentDl = dls.filter((d: any) => d.days <= 1);
     const html = emailHtml({
-      preheader: `${todays.length ? todays.length + " hearing" + (todays.length === 1 ? "" : "s") + " today" : "No hearings today"}${dls.length ? " · " + dls.length + " deadline" + (dls.length === 1 ? "" : "s") : ""}${overdue.length ? " · " + overdue.length + " overdue task" + (overdue.length === 1 ? "" : "s") : ""}`,
+      preheader: quiet ? "Nothing is due today." : `${todays.length ? todays.length + " hearing" + (todays.length === 1 ? "" : "s") + " today" : "No hearings today"}${dls.length ? " · " + dls.length + " deadline" + (dls.length === 1 ? "" : "s") : ""}${overdue.length ? " · " + overdue.length + " overdue task" + (overdue.length === 1 ? "" : "s") : ""}`,
       kicker: `Morning briefing · ${nice(today)}`, heading: `Good morning, ${m.title || m.name}`,
-      intro: [todays.length ? `You have ${todays.length} hearing${todays.length === 1 ? "" : "s"} today.` : "You have no hearings today."],
+      intro: [quiet ? "Nothing is due today: no hearings, no deadlines in the next week and no overdue tasks. Have a good day." : todays.length ? `You have ${todays.length} hearing${todays.length === 1 ? "" : "s"} today.` : "You have no hearings today."],
       blocks: [
         { title: "Hearings today", rows: todays.map((h: any) => ({ lead: t12(h.time), main: cases[h.caseId]?.title ?? "Hearing", sub: [h.court, h.item].filter(Boolean).join(" · ") })), empty: "No hearings listed for today." },
         ...(soon.length ? [{ title: `Coming up · ${nice(soonDay)}`, rows: soon.map((h: any) => ({ lead: t12(h.time), main: cases[h.caseId]?.title ?? "Hearing", sub: [h.court, h.item].filter(Boolean).join(" · ") })) }] : []),
@@ -164,7 +166,7 @@ async function briefFirm(admin: any, firm: any, opts: { onlyUser: string | null;
       reason: `You receive the morning briefing as a member of ${firm.name}. Change it in Settings › Notifications.`
     });
     const urgent = urgentDl;
-    const subject = (urgent.length ? `Deadline ${urgent[0].days === 0 ? "today" : "tomorrow"}: ${urgent[0].title} · ` : "") + `${todays.length} hearing${todays.length === 1 ? "" : "s"} today · ${nice(today)}`;
+    const subject = quiet ? `Your briefing · nothing due today · ${nice(today)}` : (urgent.length ? `Deadline ${urgent[0].days === 0 ? "today" : "tomorrow"}: ${urgent[0].title} · ` : "") + `${todays.length} hearing${todays.length === 1 ? "" : "s"} today · ${nice(today)}`;
     for (const [channel, on, to] of [["email", st.email !== false, m.email], ["whatsapp", st.whatsapp !== false, m.phone]] as const) {
       if (!on || !to) continue;
       if (!opts.onlyUser && sentToday(sent, m.user_id, channel, today)) { results.push({ channel, to, skipped: "Already sent today." }); continue; }
