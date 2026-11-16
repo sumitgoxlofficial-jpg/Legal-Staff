@@ -138,7 +138,9 @@ Deno.serve(async (req: Request) => {
       let m: any = body;
       if (body.type === "email.received" || body.data?.email_id) {
         const id = body.data?.email_id ?? body.data?.id;
-        const r = await fetch("https://api.resend.com/emails/receiving/" + encodeURIComponent(id), { headers: { Authorization: "Bearer " + (Deno.env.get("RESEND_READ_KEY") || Deno.env.get("RESEND_API_KEY") || "") }, signal: AbortSignal.timeout(10000) });
+        const { data: vaultKey } = await admin.rpc("resend_read_key");   // full-access key kept in Vault (migration 0012)
+        const readKey = Deno.env.get("RESEND_READ_KEY") || vaultKey || Deno.env.get("RESEND_API_KEY") || "";
+        const r = await fetch("https://api.resend.com/emails/receiving/" + encodeURIComponent(id), { headers: { Authorization: "Bearer " + readKey }, signal: AbortSignal.timeout(10000) });
         const got = await r.json().catch(() => ({}));
         if (!r.ok) { await admin.from("upi_sms").insert({ sender: "email", body: "could not read email " + id + ": " + JSON.stringify(got).slice(0, 400), note: "email fetch failed (" + r.status + ")" }); return json({ ok: false }, 200); }
         m = { ...body.data, ...got };
