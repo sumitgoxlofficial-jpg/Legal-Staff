@@ -132,7 +132,7 @@
       snap = {}; return all.length;
     },
     /* Enterprise enquiries go to the same table as the website's contact form. */
-    async contact(row) { ok(await sb.from('contact_requests').insert(row)); },
+    async contact(row) { ok(await sb.from('contact_requests').insert(Object.assign(row.source === 'app' ? { firm_id: firmId || null, user_id: uid || null } : {}, row))); },
     async refreshSub(d) { await subscription(d); },
     /* Owner only: starts (or, while it runs, switches) the firm's 7-day free trial. No payment is taken. */
     async startTrial(d, plan, cycle) { ok(await sb.rpc('start_trial', { f: firmId, p_plan: plan, p_cycle: cycle })); await subscription(d); },
@@ -166,6 +166,28 @@
       create: (plan, cycle, gstin, promo) => B.fn('upi-pay', { action: 'create', firm_id: firmId, plan, cycle, gstin, promo: promo || '' }),
       promo: (plan, cycle, promo) => B.fn('upi-pay', { action: 'promo', firm_id: firmId, plan, cycle, promo }),
       status: orderNo => B.fn('upi-pay', { action: 'status', firm_id: firmId, order_no: orderNo })
+    },
+    /* Team chat: the firm's group chat ('team') and one-to-one chats ('dm:<uid>:<uid>'), live through Supabase Realtime. */
+    chat: {
+      me: () => uid,
+      dm: other => 'dm:' + [uid, other].sort().join(':'),
+      async list(channel, before) {
+        let q = sb.from('chat_messages').select('id,channel,sender,body,created_at').eq('firm_id', firmId).eq('channel', channel).order('created_at', { ascending: false }).limit(150);
+        if (before) q = q.lt('created_at', before);
+        return ok(await q).reverse();
+      },
+      async send(channel, body) { return ok(await sb.from('chat_messages').insert({ firm_id: firmId, channel, body }).select('id,channel,sender,body,created_at').single()); },
+      async remove(id) { ok(await sb.from('chat_messages').delete().eq('id', id)); },
+      async unread() { const rows = ok(await sb.rpc('chat_unread', { f: firmId })) || []; const out = {}; rows.forEach(r => out[r.channel] = Number(r.unread)); return out; },
+      async read(channel) { ok(await sb.from('chat_reads').upsert({ firm_id: firmId, user_id: uid, channel, read_at: new Date().toISOString() })); },
+      /* Calls back with every new or deleted message in this firm the user may see; returns a function that stops listening. */
+      watch(onNew, onDelete) {
+        const f = firmId, ch = sb.channel('chat-' + f + '-' + Math.random().toString(36).slice(2))
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: 'firm_id=eq.' + f }, p => onNew(p.new))
+          .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, p => onDelete && onDelete(p.old))
+          .subscribe();
+        return { firm: f, stop: () => { try { sb.removeChannel(ch); } catch (e) {} } };
+      }
     },
     /* GST invoices for plan payments (server function 'billing'). */
     billing: {

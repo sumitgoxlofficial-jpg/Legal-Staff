@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Legal Staff Admin</title>
+<link rel="icon" href="assets/ls-favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<script src="vendor/supabase.js"></script>
+<style>
+  :root { --bg:#F4F4F2; --card:#FFFFFF; --ink:#0A0A0A; --txt:#363636; --mut:#6B6B6B; --line:#E5E5E5; --soft:#F5F5F4; --rev:#2a78d6; --exp:#eb6834;
+    --good:#137333; --goodbg:#E7F6EC; --warn:#B54708; --warnbg:#FEF3E2; --bad:#B42318; --badbg:#FDECEA; --info:#1D4ED8; --infobg:#E8EEFD; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 'Instrument Sans',system-ui,-apple-system,sans-serif; -webkit-font-smoothing:antialiased; }
+  button, input, select, textarea { font:inherit; color:inherit; }
+  .btn { height:34px; padding:0 14px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; font-weight:500; white-space:nowrap; }
+  .btn:hover { border-color:#BDBDBD; } .btn.pri { background:var(--ink); color:#fff; border-color:var(--ink); } .btn.pri:hover { background:#262626; }
+  .btn.sm { height:28px; padding:0 10px; font-size:12.5px; } .btn.danger { color:var(--bad); } .btn:disabled { opacity:.5; cursor:default; }
+  input, select, textarea { height:36px; border:1px solid var(--line); border-radius:8px; padding:0 10px; background:#fff; width:100%; }
+  textarea { height:auto; padding:10px; resize:vertical; line-height:1.5; }
+  input:focus, select:focus, textarea:focus { outline:2px solid #0A0A0A22; border-color:#9A9A9A; }
+  label.f { display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:var(--mut); font-weight:500; }
+  .wrap { max-width:1240px; margin:0 auto; padding:0 20px; }
+  header.top { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+  header.top .wrap { display:flex; align-items:center; gap:18px; height:60px; }
+  .brand { display:flex; align-items:center; gap:9px; font-weight:700; font-size:16px; letter-spacing:-.02em; white-space:nowrap; }
+  .brand img { width:24px; height:25px; } .brand small { font-weight:600; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:#fff; background:var(--ink); padding:2px 7px; border-radius:5px; }
+  nav.tabs { display:flex; gap:2px; overflow-x:auto; flex:1; scrollbar-width:none; } nav.tabs::-webkit-scrollbar { display:none; }
+  nav.tabs button { border:0; background:none; padding:8px 12px; border-radius:8px; cursor:pointer; color:var(--mut); font-weight:500; white-space:nowrap; position:relative; }
+  nav.tabs button:hover { color:var(--ink); background:var(--soft); } nav.tabs button.on { color:var(--ink); background:var(--soft); font-weight:600; }
+  nav.tabs .badge { margin-left:6px; background:var(--bad); color:#fff; border-radius:999px; padding:0 6px; font-size:11px; font-weight:600; }
+  .who { font-size:12.5px; color:var(--mut); white-space:nowrap; display:flex; gap:10px; align-items:center; }
+  main { padding:26px 0 60px; }
+  h1 { font-size:22px; letter-spacing:-.02em; margin:0 0 4px; } .sub { color:var(--mut); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; }
+  .grid { display:grid; gap:14px; } .k4 { grid-template-columns:repeat(4,minmax(0,1fr)); } @media (max-width:980px) { .k4 { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .kpi .k { font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--mut); font-weight:600; }
+  .kpi .v { font-size:26px; font-weight:700; letter-spacing:-.02em; margin-top:6px; font-variant-numeric:tabular-nums; } .kpi .s { font-size:12.5px; color:var(--mut); margin-top:2px; }
+  .kpi .v.neg { color:var(--bad); }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; } .between { justify-content:space-between; } .grow { flex:1; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; } th { text-align:left; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); font-weight:600; padding:10px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:11px 10px; border-bottom:1px solid #EFEFEE; vertical-align:middle; } tr:last-child td { border-bottom:0; } td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  tbody tr:hover { background:#FAFAF9; } .tscroll { overflow-x:auto; margin:0 -20px; padding:0 20px; }
+  .chip { display:inline-block; font-size:11.5px; font-weight:600; padding:2px 9px; border-radius:999px; white-space:nowrap; }
+  .c-good { color:var(--good); background:var(--goodbg); } .c-warn { color:var(--warn); background:var(--warnbg); } .c-bad { color:var(--bad); background:var(--badbg); } .c-info { color:var(--info); background:var(--infobg); } .c-mut { color:var(--mut); background:var(--soft); }
+  .muted { color:var(--mut); } .small { font-size:12.5px; } .strong { font-weight:600; } .mono { font-variant-numeric:tabular-nums; }
+  .empty { padding:30px; text-align:center; color:var(--mut); }
+  .seg { display:inline-flex; background:var(--soft); border-radius:8px; padding:3px; gap:2px; } .seg button { border:0; background:none; padding:5px 11px; border-radius:6px; cursor:pointer; color:var(--mut); font-weight:500; font-size:13px; } .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .chart { position:relative; } .chart svg { display:block; width:100%; height:auto; overflow:visible; }
+  .legend { display:flex; gap:16px; font-size:12.5px; color:var(--txt); } .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .tip { position:absolute; pointer-events:none; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.1); padding:8px 11px; font-size:12.5px; white-space:nowrap; transform:translate(-50%,-100%); display:none; z-index:2; }
+  .tip b { display:block; margin-bottom:3px; }
+  .modal-bg { position:fixed; inset:0; background:rgba(20,20,20,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:20; }
+  .modal { background:#fff; border-radius:14px; width:100%; max-width:520px; max-height:92vh; overflow:auto; padding:24px; display:flex; flex-direction:column; gap:14px; box-shadow:0 24px 64px rgba(0,0,0,.2); }
+  .modal h2 { margin:0; font-size:17px; } .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 16px; border-radius:10px; font-size:13.5px; z-index:30; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+  .err { color:var(--bad); font-size:13px; }
+  .split { display:grid; grid-template-columns:minmax(260px,360px) 1fr; gap:14px; align-items:start; }
+  .msg-item { padding:12px 14px; border-bottom:1px solid #EFEFEE; cursor:pointer; } .msg-item:hover { background:#FAFAF9; } .msg-item.on { background:var(--soft); }
+  .login { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .login .card { width:100%; max-width:380px; padding:28px; display:flex; flex-direction:column; gap:14px; }
+  .bar-fill { height:6px; border-radius:3px; background:var(--soft); overflow:hidden; } .bar-fill > div { height:100%; background:var(--ink); border-radius:3px; }
+  @media (max-width: 760px) { .split { grid-template-columns:1fr; } .two { grid-template-columns:1fr; } .who span { display:none; } header.top .wrap { gap:10px; } .kpi .v { font-size:22px; } }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(() => {
+  const cfg = window.LS_CONFIG || {};
+  const root = document.getElementById('root');
+  if (!cfg.supabaseUrl || !window.supabase) { root.innerHTML = '<div class="login"><div class="card">The server is not configured.</div></div>'; return; }
+  const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+
+  // ---------- helpers ----------
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const rs = p => '₹' + (Number(p || 0) / 100).toLocaleString('en-IN', { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 });
+  const rsShort = p => { const r = Number(p || 0) / 100; return r >= 1e7 ? '₹' + (r / 1e7).toFixed(1).replace(/\.0$/, '') + ' Cr' : r >= 1e5 ? '₹' + (r / 1e5).toFixed(1).replace(/\.0$/, '') + ' L' : r >= 1e3 ? '₹' + (r / 1e3).toFixed(1).replace(/\.0$/, '') + 'k' : '₹' + Math.round(r); };
+  const day = s => s ? new Date(s.length === 10 ? s + 'T00:00:00+05:30' : s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '—';
+  const dt = s => s ? new Date(s).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '—';
+  const mon = ym => new Date(ym + '-01T00:00:00Z').toLocaleDateString('en-IN', { month: 'short', timeZone: 'UTC' });
+  const istToday = () => new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+  const addDays = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+  const addMonths = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 10); };
+  const STATUS = { paid: ['Paying', 'c-good'], paid_upcoming: ['Paid · starts later', 'c-info'], trial: ['Trial', 'c-warn'], expired: ['Expired', 'c-bad'], none: ['No plan', 'c-mut'] };
+  const chip = s => { const [t, c] = STATUS[s] || [s, 'c-mut']; return `<span class="chip ${c}">${t}</span>`; };
+  let toastT; const toast = t => { clearTimeout(toastT); document.querySelectorAll('.toast').forEach(x => x.remove()); const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); toastT = setTimeout(() => d.remove(), 3200); };
+  async function api(action, body = {}) {
+    const r = await sb.functions.invoke('admin', { body: Object.assign({ action }, body) });
+    if (r.error) { let m = r.error.message; try { const j = await r.error.context.json(); if (j && j.error) m = j.error; } catch (e) {} throw new Error(m); }
+    return r.data;
+  }
+  function modal(html, onMount) {
+    const bg = document.createElement('div'); bg.className = 'modal-bg'; bg.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`;
+    const close = () => bg.remove(); bg.addEventListener('click', e => { if (e.target === bg) close(); });
+    document.addEventListener('keydown', function k(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', k); } });
+    document.body.appendChild(bg); onMount && onMount(bg.querySelector('.modal'), close); return close;
+  }
+
+  // ---------- sign in (email code) ----------
+  let me = null, tab = 'overview', unread = 0;
+  function loginView(msg) {
+    root.innerHTML = `<div class="login"><div class="card">
+      <div class="brand"><img src="assets/ls-mark-black.png" alt="">Legal Staff <small>Admin</small></div>
+      <div><h1 style="font-size:19px">Sign in</h1><p class="sub" style="margin:0">Administrators only. We email you a sign-in code.</p></div>
+      <form id="f1" class="grid" style="gap:12px"><label class="f">Email<input id="em" type="email" autocomplete="email" required placeholder="you@example.com"></label><button class="btn pri" id="b1">Email me a code</button></form>
+      <form id="f2" class="grid" style="gap:12px;display:none"><label class="f">6-digit code<input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required></label><button class="btn pri" id="b2">Sign in</button><button type="button" class="btn" id="back">Use a different email</button></form>
+      <div class="err" id="er">${esc(msg || '')}</div></div></div>`;
+    const er = root.querySelector('#er'), em = root.querySelector('#em');
+    root.querySelector('#f1').onsubmit = async e => { e.preventDefault(); er.textContent = ''; const b = root.querySelector('#b1'); b.disabled = true; b.textContent = 'Sending…';
+      const { error } = await sb.auth.signInWithOtp({ email: em.value.trim().toLowerCase(), options: { shouldCreateUser: true } });
+      b.disabled = false; b.textContent = 'Email me a code';
+      if (error) return er.textContent = error.message;
+      root.querySelector('#f1').style.display = 'none'; root.querySelector('#f2').style.display = 'grid'; root.querySelector('#code').focus(); };
+    root.querySelector('#back').onclick = () => { root.querySelector('#f2').style.display = 'none'; root.querySelector('#f1').style.display = 'grid'; };
+    root.querySelector('#f2').onsubmit = async e => { e.preventDefault(); er.textContent = ''; const b = root.querySelector('#b2'); b.disabled = true; b.textContent = 'Checking…';
+      const { error } = await sb.auth.verifyOtp({ email: em.value.trim().toLowerCase(), token: root.querySelector('#code').value.trim(), type: 'email' });
+      b.disabled = false; b.textContent = 'Sign in';
+      if (error) return er.textContent = error.message.includes('expired') || error.message.includes('invalid') ? 'That code is wrong or has expired. Request a new one.' : error.message;
+      boot(); };
+  }
+  async function boot() {
+    const { data } = await sb.auth.getSession();
+    if (!data.session) return loginView();
+    me = data.session.user;
+    root.innerHTML = '<div class="login"><div class="muted">Loading…</div></div>';
+    try { await api('settings'); } catch (e) { await sb.auth.signOut(); return loginView(e.message); }
+    shell();
+  }
+
+  // ---------- layout ----------
+  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings']];
+  function shell() {
+    root.innerHTML = `<header class="top"><div class="wrap">
+        <div class="brand"><img src="assets/ls-mark-black.png" alt="">Legal Staff <small>Admin</small></div>
+        <nav class="tabs" id="tabs"></nav>
+        <div class="who"><span>${esc(me.email)}</span><button class="btn sm" id="out">Sign out</button></div>
+      </div></header><main><div class="wrap" id="page"></div></main>`;
+    root.querySelector('#out').onclick = async () => { await sb.auth.signOut(); loginView(); };
+    drawTabs(); go(location.hash.slice(1) || 'overview');
+    api('support').then(r => { unread = r.messages.filter(m => m.status === 'open').length; drawTabs(); }).catch(() => {});
+  }
+  function drawTabs() {
+    const t = root.querySelector('#tabs'); if (!t) return;
+    t.innerHTML = TABS.map(([k, l]) => `<button data-k="${k}" class="${k === tab ? 'on' : ''}">${l}${k === 'support' && unread ? `<span class="badge">${unread}</span>` : ''}</button>`).join('');
+    t.querySelectorAll('button').forEach(b => b.onclick = () => go(b.dataset.k));
+  }
+  function go(k) { if (!TABS.some(t => t[0] === k)) k = 'overview'; tab = k; history.replaceState(null, '', '#' + k); drawTabs(); const p = root.querySelector('#page'); p.innerHTML = '<div class="muted">Loading…</div>'; VIEWS[k](p).catch(e => p.innerHTML = `<div class="card err">${esc(e.message)}</div>`); }
+
+  // ---------- views ----------
+  const VIEWS = {};
+
+  VIEWS.overview = async p => {
+    const o = await api('overview');
+    const k = (label, val, sub, neg) => `<div class="card kpi"><div class="k">${label}</div><div class="v ${neg ? 'neg' : ''}">${val}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
+    const paying = o.states.paid + o.states.paid_upcoming;
+    p.innerHTML = `<h1>Overview</h1><p class="sub">Legal Staff business at a glance · ${esc(new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }))}</p>
+      <div class="grid k4">
+        ${k('Revenue this month', rs(o.revenue.month), `${o.payments.month} payment${o.payments.month === 1 ? '' : 's'}`)}
+        ${k('Revenue ' + esc(o.fyLabel), rs(o.revenue.fy), `Calendar ${o.year}: ${rs(o.revenue.year)}`)}
+        ${k('Profit this month', rs(o.profit.month), `Expenses ${rs(o.expenses.month)}`, o.profit.month < 0)}
+        ${k('Profit ' + esc(o.fyLabel), rs(o.profit.fy), `Expenses ${rs(o.expenses.fy)}`, o.profit.fy < 0)}
+        ${k('Monthly recurring revenue', rs(o.mrr), 'From active paid plans, at list price')}
+        ${k('Total revenue (all time)', rs(o.revenue.all), `${o.payments.count} payments · ${o.payments.promo} with a coupon`)}
+        ${k('Paying firms', paying, `${o.states.trial} on trial · ${o.states.expired} expired`)}
+        ${k('Users', o.users, `${o.firms} firms · ${o.newFirmsMonth} new this month`)}
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="row between" style="margin-bottom:14px"><div><div class="strong">Revenue and expenses</div><div class="muted small">Last 12 months, India time</div></div>
+          <div class="row"><div class="legend"><span><i style="background:var(--rev)"></i>Revenue</span><span><i style="background:var(--exp)"></i>Expenses</span></div><div class="seg" id="cv"><button class="on" data-v="chart">Chart</button><button data-v="table">Table</button></div></div></div>
+        <div id="cbox"></div>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
+        <div class="card"><div class="strong" style="margin-bottom:12px">Paying firms by plan</div>${planBars(o.byPlan)}</div>
+        <div class="card"><div class="strong" style="margin-bottom:12px">Firms by status</div>${statusList(o.states, o.firms)}</div>
+      </div>`;
+    const box = p.querySelector('#cbox'), show = v => { box.innerHTML = v === 'table' ? seriesTable(o.series) : ''; if (v === 'chart') barChart(box, o.series); p.querySelectorAll('#cv button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); };
+    p.querySelectorAll('#cv button').forEach(b => b.onclick = () => show(b.dataset.v)); show('chart');
+  };
+  const planBars = by => { const plans = ['Solo', 'Professional', 'Firm'], max = Math.max(1, ...plans.map(x => by[x] || 0));
+    return plans.map(x => `<div style="margin-bottom:12px"><div class="row between small"><span>${x}</span><span class="strong mono">${by[x] || 0}</span></div><div class="bar-fill"><div style="width:${(by[x] || 0) / max * 100}%"></div></div></div>`).join(''); };
+  const statusList = (s, total) => `<table><tbody>${[['paid', s.paid], ['paid_upcoming', s.paid_upcoming], ['trial', s.trial], ['expired', s.expired], ['none', s.none]].map(([k, v]) => `<tr><td>${chip(k)}</td><td class="num strong">${v}</td><td class="num muted small">${total ? Math.round(v / total * 100) : 0}%</td></tr>`).join('')}</tbody></table>`;
+  const seriesTable = ser => `<div class="tscroll"><table><thead><tr><th>Month</th><th class="num">Revenue</th><th class="num">Expenses</th><th class="num">Profit</th></tr></thead><tbody>${ser.slice().reverse().map(r => `<tr><td>${mon(r.month)} ${r.month.slice(0, 4)}</td><td class="num">${rs(r.revenue)}</td><td class="num">${rs(r.expenses)}</td><td class="num strong" style="${r.revenue - r.expenses < 0 ? 'color:var(--bad)' : ''}">${rs(r.revenue - r.expenses)}</td></tr>`).join('')}</tbody></table></div>`;
+  function barChart(box, ser) {
+    const W = 1000, H = 280, pl = 56, pr = 8, pt = 14, pb = 30, iw = W - pl - pr, ih = H - pt - pb;
+    const max = Math.max(1, ...ser.flatMap(r => [r.revenue, r.expenses])), nice = (() => { const r = max / 100, m = Math.pow(10, Math.floor(Math.log10(r))), f = r / m; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * m * 100; })();
+    const y = v => pt + ih - v / nice * ih, slot = iw / ser.length, bw = Math.min(26, slot * 0.32), gap = 2;
+    const ticks = [0, .25, .5, .75, 1].map(t => t * nice);
+    const bar = (x, v, c) => { const h = Math.max(0, ih - (y(v) - pt)); if (!h) return ''; const r = Math.min(4, h); return `<path d="M${x},${pt + ih} V${pt + ih - h + r} Q${x},${pt + ih - h} ${x + r},${pt + ih - h} H${x + bw - r} Q${x + bw},${pt + ih - h} ${x + bw},${pt + ih - h + r} V${pt + ih} Z" fill="${c}"/>`; };
+    box.innerHTML = `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Revenue and expenses for the last 12 months">
+      ${ticks.map(t => `<line x1="${pl}" x2="${W - pr}" y1="${y(t)}" y2="${y(t)}" stroke="${t ? '#EFEFEE' : '#D4D4D2'}"/><text x="${pl - 8}" y="${y(t) + 4}" text-anchor="end" font-size="12" fill="#6B6B6B">${rsShort(t)}</text>`).join('')}
+      ${ser.map((r, i) => { const cx = pl + slot * i + slot / 2; return `<g>${bar(cx - bw - gap / 2, r.revenue, 'var(--rev)')}${bar(cx + gap / 2, r.expenses, 'var(--exp)')}<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="12" fill="#6B6B6B">${mon(r.month)}</text><rect class="hit" data-i="${i}" x="${pl + slot * i}" y="${pt}" width="${slot}" height="${ih}" fill="transparent"/></g>`; }).join('')}
+    </svg><div class="tip"></div></div>`;
+    const svg = box.querySelector('svg'), tip = box.querySelector('.tip');
+    svg.querySelectorAll('.hit').forEach(h => { h.onmouseenter = () => { const r = ser[+h.dataset.i], bb = svg.getBoundingClientRect(), sx = bb.width / W, cx = (pl + slot * (+h.dataset.i) + slot / 2) * sx;
+      tip.innerHTML = `<b>${mon(r.month)} ${r.month.slice(0, 4)}</b><span style="color:var(--txt)"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--rev);margin-right:6px"></i>Revenue ${rs(r.revenue)}</span><br><span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--exp);margin-right:6px"></i>Expenses ${rs(r.expenses)}</span><br><span class="strong">Profit ${rs(r.revenue - r.expenses)}</span>`;
+      tip.style.left = Math.min(Math.max(cx, 90), bb.width - 90) + 'px'; tip.style.top = Math.max(8, y(Math.max(r.revenue, r.expenses)) * (bb.height / H) - 8) + 'px'; tip.style.display = 'block'; h.setAttribute('fill', 'rgba(10,10,10,.035)'); };
+      h.onmouseleave = () => { tip.style.display = 'none'; h.setAttribute('fill', 'transparent'); }; });
+  }
+
+  VIEWS.firms = async p => {
+    const { firms } = await api('firms');
+    let q = '', f = 'all';
+    p.innerHTML = `<div class="row between"><div><h1>Firms & users</h1><p class="sub">${firms.length} firms · ${firms.reduce((a, x) => a + x.members, 0)} team members</p></div></div>
+      <div class="card"><div class="row" style="margin-bottom:12px"><input id="q" class="grow" placeholder="Search firm, owner email or city" style="max-width:340px">
+        <div class="seg" id="fs">${[['all', 'All'], ['paid', 'Paying'], ['trial', 'Trial'], ['expired', 'Expired']].map(([k, l]) => `<button data-k="${k}" class="${k === 'all' ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+        <div class="tscroll"><table><thead><tr><th>Firm</th><th>Owner</th><th>Plan</th><th>Status</th><th>Valid until</th><th class="num">Paid</th><th class="num">Members</th><th>Joined</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>`;
+    const draw = () => {
+      const rows = firms.filter(x => (f === 'all' || (f === 'paid' ? x.status.startsWith('paid') : x.status === f)) && (!q || [x.name, x.owner, x.city, x.ownerName].join(' ').toLowerCase().includes(q)));
+      p.querySelector('#tb').innerHTML = rows.length ? rows.map(x => `<tr><td><div class="strong">${esc(x.name)}</div><div class="muted small">${esc(x.city)}</div></td><td><div>${esc(x.ownerName)}</div><div class="muted small">${esc(x.owner)}</div></td>
+        <td>${x.plan ? esc(x.plan) + ' <span class="muted small">' + (x.cycle === 'annual' ? 'annual' : 'monthly') + '</span>' : '<span class="muted">—</span>'}</td><td>${chip(x.status)}</td>
+        <td class="mono">${x.status === 'trial' ? 'Trial to ' + day(x.trial_ends) : day(x.renews)}</td><td class="num">${x.paid ? rs(x.paid) : '<span class="muted">—</span>'}</td><td class="num">${x.joined}/${x.members}</td><td class="mono muted">${day(x.created_at)}</td>
+        <td><button class="btn sm" data-id="${x.id}">Manage</button></td></tr>`).join('') : `<tr><td colspan="9" class="empty">No firms match.</td></tr>`;
+      p.querySelectorAll('#tb button').forEach(b => b.onclick = () => manageFirm(firms.find(x => x.id === b.dataset.id), () => go('firms')));
+    };
+    p.querySelector('#q').oninput = e => { q = e.target.value.trim().toLowerCase(); draw(); };
+    p.querySelectorAll('#fs button').forEach(b => b.onclick = () => { f = b.dataset.k; p.querySelectorAll('#fs button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
+    draw();
+  };
+  function manageFirm(x, done) {
+    const base = x.renews && x.renews >= istToday() ? x.renews : istToday();
+    modal(`<h2>${esc(x.name)}</h2><div class="muted small">${esc(x.owner)} · ${chip(x.status)} ${x.renews ? '· valid until ' + day(x.renews) : ''}</div>
+      <div class="two"><label class="f">Plan<select id="pl">${['Solo', 'Professional', 'Firm'].map(p => `<option ${p === (x.plan || 'Solo') ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
+        <label class="f">Billing<select id="cy"><option value="monthly" ${x.cycle !== 'annual' ? 'selected' : ''}>Monthly</option><option value="annual" ${x.cycle === 'annual' ? 'selected' : ''}>Annual</option></select></label></div>
+      <label class="f">Valid until<input id="rn" type="date" value="${x.renews && x.renews >= istToday() ? x.renews : addMonths(istToday(), 1)}"></label>
+      <div class="row small"><span class="muted">Quick:</span><button class="btn sm" data-a="7">+7 days</button><button class="btn sm" data-m="1">+1 month</button><button class="btn sm" data-m="12">+1 year</button></div>
+      <div class="muted small">Use this to give a free plan, extend a plan or fix a payment that did not match. No money is taken and no invoice is created.</div>
+      <div class="err" id="er"></div>
+      <div class="row between"><button class="btn danger" id="end">End plan now</button><div class="row"><button class="btn" id="cn">Cancel</button><button class="btn pri" id="sv">Save</button></div></div>`, (m, close) => {
+      const rn = m.querySelector('#rn');
+      m.querySelectorAll('[data-a]').forEach(b => b.onclick = () => rn.value = addDays(base, +b.dataset.a));
+      m.querySelectorAll('[data-m]').forEach(b => b.onclick = () => rn.value = addDays(addMonths(base, +b.dataset.m), base === istToday() ? -1 : 0));
+      m.querySelector('#cn').onclick = close;
+      m.querySelector('#sv').onclick = async () => { try { await api('firm_update', { firm_id: x.id, plan: m.querySelector('#pl').value, cycle: m.querySelector('#cy').value, renews: rn.value }); close(); toast('Plan saved for ' + x.name); done(); } catch (e) { m.querySelector('#er').textContent = e.message; } };
+      m.querySelector('#end').onclick = async () => { if (!confirm(`End the plan for ${x.name} now? Their workspace closes until they pay.`)) return; try { await api('firm_update', { firm_id: x.id, end: true }); close(); toast('Plan ended for ' + x.name); done(); } catch (e) { m.querySelector('#er').textContent = e.message; } };
+    });
+  }
+
+  VIEWS.payments = async p => {
+    const { payments, bank } = await api('payments');
+    const st = x => x.status === 'paid' ? '<span class="chip c-good">Paid</span>' : x.status === 'failed' ? '<span class="chip c-bad">Failed</span>' : '<span class="chip c-mut">Not paid</span>';
+    const unmatched = bank.filter(b => b.amount_paise && !b.payment_id);
+    p.innerHTML = `<h1>Payments</h1><p class="sub">Every checkout and every bank alert that reached Legal Staff</p>
+      ${unmatched.length ? `<div class="card" style="margin-bottom:14px;border-color:#F3D9A4;background:#FFFCF5"><div class="strong">${unmatched.length} bank credit${unmatched.length === 1 ? '' : 's'} not matched to an order</div><div class="muted small">Money arrived but no open order had exactly that amount. If it was a customer, switch their plan on from Firms & users.</div></div>` : ''}
+      <div class="card"><div class="strong" style="margin-bottom:10px">Orders</div><div class="tscroll"><table><thead><tr><th>Created</th><th>Firm</th><th>Plan</th><th class="num">Amount</th><th>Status</th><th>Coupon</th><th>UPI reference</th><th>Order</th></tr></thead><tbody>
+        ${payments.length ? payments.map(x => `<tr><td class="mono">${dt(x.created_at)}</td><td>${esc(x.firm)}</td><td>${esc(x.plan)} <span class="muted small">${x.cycle === 'annual' ? 'annual' : 'monthly'}</span></td><td class="num strong">${rs(x.amount_paise)}</td><td>${st(x)}${x.confirmed_by ? ` <span class="muted small">by ${esc(x.confirmed_by)}</span>` : ''}</td><td>${esc(x.promo_code || '')}</td><td class="mono small">${esc(x.utr || '')}</td><td class="mono small muted">${esc(x.order_no || '')}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No payments yet.</td></tr>'}
+      </tbody></table></div></div>
+      <div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:10px">Bank alerts received</div><div class="tscroll"><table><thead><tr><th>Received</th><th>From</th><th class="num">Amount</th><th>UPI reference</th><th>Result</th></tr></thead><tbody>
+        ${bank.length ? bank.map(b => `<tr><td class="mono">${dt(b.received_at)}</td><td class="small">${esc(b.sender)}</td><td class="num">${b.amount_paise ? rs(b.amount_paise) : '—'}</td><td class="mono small">${esc(b.utr || '')}</td><td class="small">${b.payment_id ? '<span class="chip c-good">Matched</span>' : b.amount_paise ? '<span class="chip c-warn">Not matched</span>' : ''} <span class="muted">${esc(b.note || '')}</span></td></tr>`).join('') : '<tr><td colspan="5" class="empty">No bank alerts yet.</td></tr>'}
+      </tbody></table></div></div>`;
+  };
+
+  VIEWS.coupons = async p => {
+    const { coupons } = await api('coupons');
+    const disc = c => c.fixed_total != null ? `Pay ${rs(c.fixed_total)}` : [c.percent_off ? c.percent_off + '% off' : '', c.amount_off ? '₹' + c.amount_off + ' off' : ''].filter(Boolean).join(' + ');
+    const expired = c => c.expires_at && Date.parse(c.expires_at) < Date.now(), full = c => c.max_uses != null && c.uses >= c.max_uses;
+    p.innerHTML = `<div class="row between"><div><h1>Coupons</h1><p class="sub">Promo codes customers enter at checkout</p></div><button class="btn pri" id="nw">New coupon</button></div>
+      <div class="card"><div class="tscroll"><table><thead><tr><th>Code</th><th>Discount</th><th>Plans</th><th class="num">Used</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>
+      ${coupons.length ? coupons.map(c => `<tr><td><div class="strong mono">${esc(c.code)}</div>${c.note ? `<div class="muted small">${esc(c.note)}</div>` : ''}</td><td>${disc(c)}</td>
+        <td class="small">${c.plans ? esc(c.plans.join(', ')) : 'All plans'}${c.cycles ? ' · ' + esc(c.cycles.join(', ')) : ''}${c.once_per_firm ? '<div class="muted">Once per firm</div>' : ''}</td>
+        <td class="num">${c.uses}${c.max_uses != null ? ' / ' + c.max_uses : ''}</td><td class="mono">${c.expires_at ? day(c.expires_at) : '<span class="muted">Never</span>'}</td>
+        <td>${!c.active ? '<span class="chip c-mut">Off</span>' : expired(c) ? '<span class="chip c-bad">Expired</span>' : full(c) ? '<span class="chip c-warn">Used up</span>' : '<span class="chip c-good">Active</span>'}</td>
+        <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-e="${esc(c.code)}">Edit</button><button class="btn sm" data-t="${esc(c.code)}">${c.active ? 'Turn off' : 'Turn on'}</button><button class="btn sm danger" data-d="${esc(c.code)}">Delete</button></div></td></tr>`).join('') : '<tr><td colspan="7" class="empty">No coupons yet.</td></tr>'}
+      </tbody></table></div></div>`;
+    const byCode = k => coupons.find(c => c.code === k);
+    p.querySelector('#nw').onclick = () => couponForm(null);
+    p.querySelectorAll('[data-e]').forEach(b => b.onclick = () => couponForm(byCode(b.dataset.e)));
+    p.querySelectorAll('[data-t]').forEach(b => b.onclick = async () => { const c = byCode(b.dataset.t); try { await api('coupon_save', { coupon: toForm(c, { active: !c.active }) }); toast(c.code + (c.active ? ' turned off' : ' turned on')); go('coupons'); } catch (e) { toast(e.message); } });
+    p.querySelectorAll('[data-d]').forEach(b => b.onclick = async () => { const c = byCode(b.dataset.d); if (!confirm(`Delete ${c.code}?${c.uses ? ' It has been used, so it will be turned off instead.' : ''}`)) return; try { const r = await api('coupon_delete', { code: c.code }); toast(r.deactivated ? c.code + ' turned off (it has been used)' : c.code + ' deleted'); go('coupons'); } catch (e) { toast(e.message); } });
+  };
+  const toForm = (c, over = {}) => Object.assign({ code: c.code, kind: c.fixed_total != null ? 'fixed' : c.percent_off ? 'percent' : 'amount', value: c.fixed_total != null ? c.fixed_total / 100 : c.percent_off || c.amount_off,
+    plans: c.plans || [], cycles: c.cycles || [], max_uses: c.max_uses, once_per_firm: c.once_per_firm, expires_at: c.expires_at ? new Date(Date.parse(c.expires_at) + 5.5 * 3600e3).toISOString().slice(0, 10) : '', active: c.active, note: c.note }, over);
+  function couponForm(c) {
+    const v = c ? toForm(c) : { code: '', kind: 'percent', value: '', plans: [], cycles: [], max_uses: '', once_per_firm: true, expires_at: '', active: true, note: '' };
+    modal(`<h2>${c ? 'Edit ' + esc(c.code) : 'New coupon'}</h2>
+      <label class="f">Code<input id="cd" value="${esc(v.code)}" ${c ? 'readonly' : ''} placeholder="LAUNCH20" style="text-transform:uppercase"></label>
+      <div class="two"><label class="f">Discount<select id="kd"><option value="percent">Percent off</option><option value="amount">Rupees off</option><option value="fixed">Fixed price (pay exactly)</option></select></label>
+        <label class="f" id="vl">Value<input id="vv" type="number" min="0" step="any" value="${esc(v.value ?? '')}"></label></div>
+      <div class="two"><div class="f"><span>Plans</span><div class="row">${['Solo', 'Professional', 'Firm'].map(x => `<label class="row small" style="gap:5px"><input type="checkbox" value="${x}" class="pp" style="width:auto;height:auto" ${!v.plans.length || v.plans.includes(x) ? 'checked' : ''}>${x}</label>`).join('')}</div></div>
+        <div class="f"><span>Billing</span><div class="row">${[['monthly', 'Monthly'], ['annual', 'Annual']].map(([x, l]) => `<label class="row small" style="gap:5px"><input type="checkbox" value="${x}" class="cc" style="width:auto;height:auto" ${!v.cycles.length || v.cycles.includes(x) ? 'checked' : ''}>${l}</label>`).join('')}</div></div></div>
+      <div class="two"><label class="f">Total uses allowed<input id="mx" type="number" min="1" placeholder="Unlimited" value="${esc(v.max_uses ?? '')}"></label><label class="f">Expires on<input id="ex" type="date" value="${esc(v.expires_at)}"></label></div>
+      <label class="row small" style="gap:7px"><input id="op" type="checkbox" style="width:auto;height:auto" ${v.once_per_firm ? 'checked' : ''}>Each firm can use it only once</label>
+      <label class="f">Note (only you see it)<input id="nt" value="${esc(v.note)}" placeholder="e.g. Launch offer for Bar Council members"></label>
+      <div class="err" id="er"></div><div class="row" style="justify-content:flex-end"><button class="btn" id="cn">Cancel</button><button class="btn pri" id="sv">Save coupon</button></div>`, (m, close) => {
+      const kd = m.querySelector('#kd'), lab = () => m.querySelector('#vl').firstChild.textContent = kd.value === 'percent' ? 'Percent (1–100)' : kd.value === 'amount' ? 'Rupees off' : 'Customer pays (₹)';
+      kd.value = v.kind; lab(); kd.onchange = lab;
+      m.querySelector('#cn').onclick = close;
+      m.querySelector('#sv').onclick = async () => {
+        const pick = cls => { const all = [...m.querySelectorAll(cls)], on = all.filter(x => x.checked).map(x => x.value); return on.length === all.length ? [] : on; };
+        const plans = pick('.pp'), cycles = pick('.cc');
+        if ([...m.querySelectorAll('.pp')].every(x => !x.checked) || [...m.querySelectorAll('.cc')].every(x => !x.checked)) return m.querySelector('#er').textContent = 'Pick at least one plan and one billing cycle.';
+        try { await api('coupon_save', { coupon: { code: m.querySelector('#cd').value, kind: kd.value, value: m.querySelector('#vv').value, plans, cycles, max_uses: m.querySelector('#mx').value || null, expires_at: m.querySelector('#ex').value || null, once_per_firm: m.querySelector('#op').checked, active: v.active, note: m.querySelector('#nt').value } });
+          close(); toast('Coupon saved'); go('coupons'); } catch (e) { m.querySelector('#er').textContent = e.message; } };
+    });
+  }
+
+  VIEWS.support = async p => {
+    const { messages } = await api('support');
+    unread = messages.filter(m => m.status === 'open').length; drawTabs();
+    let f = 'open', sel = null;
+    p.innerHTML = `<h1>Support</h1><p class="sub">Messages from the website contact form and from inside the app</p>
+      <div class="split"><div class="card" style="padding:0;overflow:hidden"><div style="padding:12px 14px;border-bottom:1px solid var(--line)"><div class="seg" id="fs">${[['open', 'Open'], ['replied', 'Replied'], ['closed', 'Closed'], ['all', 'All']].map(([k, l]) => `<button data-k="${k}" class="${k === f ? 'on' : ''}">${l}</button>`).join('')}</div></div><div id="list" style="max-height:70vh;overflow:auto"></div></div>
+      <div class="card" id="det"><div class="empty">Choose a message.</div></div></div>`;
+    const list = () => {
+      const rows = messages.filter(m => f === 'all' || m.status === f);
+      p.querySelector('#list').innerHTML = rows.length ? rows.map(m => `<div class="msg-item ${sel === m.id ? 'on' : ''}" data-id="${m.id}"><div class="row between"><span class="strong">${esc(m.name || m.email)}</span><span class="muted small">${dt(m.created_at)}</span></div>
+        <div class="small">${esc(m.topic || 'Message')} ${m.source === 'app' ? '<span class="chip c-info" style="margin-left:4px">In app</span>' : ''}</div><div class="muted small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.message)}</div></div>`).join('') : '<div class="empty">Nothing here.</div>';
+      p.querySelectorAll('.msg-item').forEach(el => el.onclick = () => { sel = el.dataset.id; list(); detail(messages.find(m => m.id === sel)); });
+    };
+    const detail = m => {
+      const d = p.querySelector('#det');
+      d.innerHTML = `<div class="row between" style="align-items:flex-start"><div><div class="strong" style="font-size:16px">${esc(m.topic || 'Message')}</div><div class="muted small">${esc(m.name)} · <a href="mailto:${esc(m.email)}">${esc(m.email)}</a>${m.phone ? ' · ' + esc(m.phone) : ''}${m.firm ? ' · ' + esc(m.firm) : ''}${m.team_size ? ' · team ' + esc(m.team_size) : ''}</div><div class="muted small">${dt(m.created_at)} · from ${esc(m.source)}</div></div>
+        <span class="chip ${m.status === 'open' ? 'c-warn' : m.status === 'replied' ? 'c-good' : 'c-mut'}">${m.status === 'open' ? 'Open' : m.status === 'replied' ? 'Replied' : 'Closed'}</span></div>
+        <div style="margin:16px 0;padding:14px;background:var(--soft);border-radius:10px;white-space:pre-wrap">${esc(m.message || '(no message)')}</div>
+        ${m.reply ? `<div class="small muted" style="margin-bottom:6px">Your reply · ${dt(m.replied_at)}</div><div style="margin-bottom:16px;padding:14px;border:1px solid var(--line);border-radius:10px;white-space:pre-wrap">${esc(m.reply)}</div>` : ''}
+        <label class="f">${m.reply ? 'Send another reply' : 'Reply by email'}<textarea id="rp" rows="6" placeholder="Write your reply. It is emailed to ${esc(m.email)}."></textarea></label>
+        <div class="err" id="er"></div>
+        <div class="row between" style="margin-top:12px"><div class="row">${m.status !== 'closed' ? '<button class="btn" id="cl">Close</button>' : '<button class="btn" id="ro">Reopen</button>'}</div><button class="btn pri" id="sd">Send reply</button></div>`;
+      const set = async s => { await api('support_status', { id: m.id, status: s }); m.status = s; unread = messages.filter(x => x.status === 'open').length; drawTabs(); list(); detail(m); };
+      d.querySelector('#cl') && (d.querySelector('#cl').onclick = () => set('closed').catch(e => toast(e.message)));
+      d.querySelector('#ro') && (d.querySelector('#ro').onclick = () => set('open').catch(e => toast(e.message)));
+      d.querySelector('#sd').onclick = async () => { const b = d.querySelector('#sd'), t = d.querySelector('#rp').value.trim(); if (!t) return d.querySelector('#er').textContent = 'Write a reply first.';
+        b.disabled = true; b.textContent = 'Sending…';
+        try { await api('support_reply', { id: m.id, reply: t }); Object.assign(m, { reply: t, status: 'replied', replied_at: new Date().toISOString() }); toast('Reply sent to ' + m.email); unread = messages.filter(x => x.status === 'open').length; drawTabs(); list(); detail(m); }
+        catch (e) { d.querySelector('#er').textContent = e.message; b.disabled = false; b.textContent = 'Send reply'; } };
+    };
+    p.querySelectorAll('#fs button').forEach(b => b.onclick = () => { f = b.dataset.k; p.querySelectorAll('#fs button').forEach(x => x.classList.toggle('on', x === b)); list(); });
+    list();
+  };
+
+  VIEWS.expenses = async p => {
+    const { expenses } = await api('expenses');
+    const ym = istToday().slice(0, 7), month = expenses.filter(e => e.spent_on.startsWith(ym)).reduce((a, e) => a + e.amount_paise, 0);
+    p.innerHTML = `<h1>Expenses</h1><p class="sub">What the business spends: hosting, email, marketing, salaries. Profit on the Overview is revenue minus these.</p>
+      <div class="card" style="margin-bottom:14px"><form id="ad" class="row" style="align-items:flex-end"><label class="f" style="width:160px">Date<input id="dd" type="date" value="${istToday()}" required></label>
+        <label class="f grow" style="min-width:200px">What for<input id="lb" required placeholder="e.g. Supabase, Resend, Google Ads"></label><label class="f" style="width:150px">Amount (₹)<input id="am" type="number" min="1" step="any" required></label><button class="btn pri">Add expense</button></form><div class="err" id="er"></div></div>
+      <div class="card"><div class="row between" style="margin-bottom:10px"><div class="strong">All expenses</div><div class="muted small">This month: <span class="strong" style="color:var(--ink)">${rs(month)}</span></div></div>
+      <div class="tscroll"><table><thead><tr><th>Date</th><th>What for</th><th class="num">Amount</th><th></th></tr></thead><tbody>
+      ${expenses.length ? expenses.map(e => `<tr><td class="mono">${day(e.spent_on)}</td><td>${esc(e.label)}</td><td class="num strong">${rs(e.amount_paise)}</td><td style="text-align:right"><button class="btn sm danger" data-id="${e.id}">Delete</button></td></tr>`).join('') : '<tr><td colspan="4" class="empty">No expenses yet.</td></tr>'}
+      </tbody></table></div></div>`;
+    p.querySelector('#ad').onsubmit = async ev => { ev.preventDefault(); try { await api('expense_add', { spent_on: p.querySelector('#dd').value, label: p.querySelector('#lb').value, amount: p.querySelector('#am').value }); toast('Expense added'); go('expenses'); } catch (e) { p.querySelector('#er').textContent = e.message; } };
+    p.querySelectorAll('[data-id]').forEach(b => b.onclick = async () => { if (!confirm('Delete this expense?')) return; await api('expense_delete', { id: b.dataset.id }); go('expenses'); });
+  };
+
+  VIEWS.settings = async p => {
+    const { settings: s, admins } = await api('settings');
+    const inp = (k, l, ph = '', t = 'text') => `<label class="f">${l}<input data-k="${k}" type="${t}" value="${esc(s[k] ?? '')}" placeholder="${esc(ph)}"></label>`;
+    p.innerHTML = `<h1>Settings</h1><p class="sub">Payments, invoices and alerts</p>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+        <div class="card grid" style="gap:12px;align-content:start"><div class="strong">UPI payments</div>
+          <label class="row small" style="gap:8px"><input data-k="upi_enabled" type="checkbox" style="width:auto;height:auto" ${s.upi_enabled ? 'checked' : ''}>Accept plan payments by UPI</label>
+          ${inp('upi_id', 'UPI ID (where customers pay)', 'name@bank')}${inp('payee_name', 'Payee name customers see', 'Legal Staff')}
+          ${inp('alert_email', 'Email me about every new payment', 'you@example.com', 'email')}</div>
+        <div class="card grid" style="gap:12px;align-content:start"><div class="strong">Invoice details (Billed by)</div>
+          ${inp('seller_name', 'Business name')}${inp('seller_address', 'Address')}<div class="two">${inp('seller_state_code', 'GST state code', '10 for Bihar')}${inp('seller_phone', 'Phone')}</div>
+          <div class="two">${inp('seller_email', 'Support email', '', 'email')}${inp('seller_pan', 'PAN')}</div>${inp('seller_gstin', 'GSTIN (leave empty: no GST)')}</div>
+      </div>
+      <div class="row" style="margin-top:14px;justify-content:space-between"><div class="muted small">Administrators: ${admins.map(esc).join(', ')}</div><div class="row"><span class="err" id="er"></span><button class="btn pri" id="sv">Save settings</button></div></div>`;
+    p.querySelector('#sv').onclick = async () => { const out = {}; p.querySelectorAll('[data-k]').forEach(i => out[i.dataset.k] = i.type === 'checkbox' ? i.checked : i.value);
+      try { await api('settings_save', { settings: out }); p.querySelector('#er').textContent = ''; toast('Settings saved'); } catch (e) { p.querySelector('#er').textContent = e.message; } };
+  };
+
+  sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') loginView(); });
+  boot();
+})();
+</script>
+</body>
+</html>
