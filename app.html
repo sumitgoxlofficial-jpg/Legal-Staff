@@ -71,6 +71,7 @@
 .ls-art-bob2{animation:ls-bob 6s ease-in-out -2s infinite}
 .ls-art-sway{transform-box:view-box;transform-origin:80px 30px;animation:ls-sway 7s ease-in-out infinite}
 .ls-art-dot{animation:ls-typing 1.2s ease-in-out infinite}
+.ls-msg .ls-react{opacity:0;transition:opacity .12s}.ls-msg:hover .ls-react,.ls-react:focus-visible{opacity:1}@media (hover:none){.ls-msg .ls-react{opacity:.55}}
 .ls-art-flow{animation:ls-dash-flow 1.6s linear infinite}
 .ls-art-draw{--ls-len:120;stroke-dasharray:120;stroke-dashoffset:120;animation:ls-draw 1.4s var(--ls-ease) .3s forwards}
 .ls-art-rise{animation:ls-rise 1.3s var(--ls-ease-out) .1s backwards}
@@ -1095,7 +1096,7 @@ class Component extends DCLogic {
     if (!LSB.on || !LSB.chat) return;
     if (this.chatSub && this.chatSub.firm === this.db.firmId) return;
     if (this.chatSub) this.chatSub.stop();
-    this.chatSub = LSB.chat.watch(m => { if (this.chatEvt) this.chatEvt(m); if (m.sender !== LSB.chat.me()) this.refreshChat(); }, m => { if (this.chatDel) this.chatDel(m); });
+    this.chatSub = LSB.chat.watch(m => { if (this.chatEvt) this.chatEvt(m); if (m.sender !== LSB.chat.me()) this.refreshChat(); }, m => { if (this.chatDel) this.chatDel(m); }, (r, on) => { if (this.chatReact) this.chatReact(r, on); });
     this.refreshChat();
   }
   refreshChat() { clearTimeout(this.chatT); this.chatT = setTimeout(() => LSB.chat.unread().then(u => { this.chatUnread = u; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => {}), 250); }

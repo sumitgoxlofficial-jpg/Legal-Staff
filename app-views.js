@@ -1021,13 +1021,85 @@
   }
   /* ---------- Pay by UPI: straight to the operator's UPI ID, confirmed automatically (functions/upi-pay) ---------- */
   const loadQr = () => window.qrcode ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load the QR code.')); document.head.appendChild(s); });
+  /* ---------- Team chat extras: files, meeting cards, reactions, background ---------- */
+  const EMOJIS = ['👍', '❤️', '😂', '🙏', '✅', '👏'];
+  const fileSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  /* A soft doodle wallpaper (scales, gavel, book, page, ₹, quote marks) behind the messages, like a messenger's chat background. */
+  const CHAT_BG = (() => {
+    const g = '<g fill="none" stroke="#0A0A0A" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".06">' +
+      '<path d="M30 20v28 M18 26h24 M18 26l-6 12h12z M42 26l-6 12h12z M24 50h12"/>' +
+      '<path d="M120 30l14 14 M114 36l12-12 M128 50l8-8 M131 37l18 18"/>' +
+      '<path d="M200 22h22a4 4 0 0 1 4 4v30h-22a4 4 0 0 0-4 4z M200 22v38"/>' +
+      '<path d="M60 110h22l8 8v26H60z M82 110v8h8 M66 126h18 M66 134h14"/>' +
+      '<path d="M160 112h16 M160 120h16 M164 112c10 0 10 8 0 8 M166 120l10 14"/>' +
+      '<path d="M226 120c-6 0-8 4-8 9 0 4 3 6 6 6 M240 120c-6 0-8 4-8 9 0 4 3 6 6 6"/>' +
+      '<circle cx="110" cy="190" r="10"/><path d="M110 184v6l4 3"/>' +
+      '<path d="M20 180l10 10 18-20"/><path d="M190 186a14 14 0 1 0 28 0 14 14 0 1 0-28 0 M204 176v20 M196 186h16"/></g>';
+    return 'url("data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="260" height="230" viewBox="0 0 260 230">' + g + '</svg>') + '")';
+  })();
+  function FileMsg({ m, mine }) {
+    const f = m.data || {}, img = /^image\//.test(f.type || ''), [src, setSrc] = useState(''), [busy, setBusy] = useState(false);
+    React.useEffect(() => { if (img && f.path) LSB.chat.url(f.path).then(setSrc).catch(() => {}); }, [f.path]);
+    const open = dl => { setBusy(true); LSB.chat.url(f.path, dl).then(u => window.open(u, '_blank', 'noopener')).catch(e => alert(e.message)).finally(() => setBusy(false)); };
+    const ext = (String(f.name).split('.').pop() || 'file').slice(0, 4).toUpperCase(), pdf = ext === 'PDF';
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+      img ? h('button', { onClick: () => open(false), style: { border: 0, padding: 0, background: 'none', cursor: 'zoom-in', display: 'block' }, title: 'Open ' + f.name },
+          src ? h('img', { src, alt: f.name, style: { display: 'block', maxWidth: 260, maxHeight: 240, borderRadius: 10, objectFit: 'cover' } }) : h('div', { style: { width: 220, height: 140, borderRadius: 10, background: mine ? '#262626' : K.soft2 } }))
+        : h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 10, background: mine ? '#1F1F1F' : K.soft, minWidth: 220 } },
+          h('span', { style: { width: 38, height: 46, borderRadius: 6, background: pdf ? '#D93025' : '#5E5E5E', color: '#fff', fontSize: 10.5, fontWeight: 700, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 6, flexShrink: 0 } }, ext),
+          h('span', { style: { display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 } }, h('span', { style: { fontWeight: 600, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 } }, f.name), h('span', { style: { fontSize: 12, opacity: .7 } }, fileSize(f.size || 0) + ' · ' + (pdf ? 'PDF document' : 'File')))),
+      !img && h('div', { style: { display: 'flex', gap: 6 } },
+        h('button', { onClick: () => open(false), disabled: busy, style: { flex: 1, height: 30, borderRadius: 7, border: '1px solid ' + (mine ? '#3A3A3A' : K.line), background: 'transparent', color: 'inherit', cursor: 'pointer', font: 'inherit', fontSize: 12.5, fontWeight: 600 } }, 'Open'),
+        h('button', { onClick: () => open(true), disabled: busy, style: { flex: 1, height: 30, borderRadius: 7, border: '1px solid ' + (mine ? '#3A3A3A' : K.line), background: 'transparent', color: 'inherit', cursor: 'pointer', font: 'inherit', fontSize: 12.5, fontWeight: 600 } }, 'Download')),
+      m.body && h('div', null, m.body));
+  }
+  function MeetMsg({ m, mine }) {
+    const d = m.data || {}, start = new Date(d.start), end = new Date(start.getTime() + (d.minutes || 30) * 60e3);
+    const g = x => x.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const cal = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(d.title || 'Team meeting') + '&dates=' + g(start) + '/' + g(end) + '&details=' + encodeURIComponent('Join with Google Meet: ' + d.link + (d.note ? '\n\n' + d.note : '')) + '&location=' + encodeURIComponent(d.link);
+    const past = Date.now() > end.getTime();
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, minWidth: 240 } },
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
+        h('span', { style: { width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid ' + K.line } },
+          h('svg', { width: 24, height: 24, viewBox: '0 0 24 24', 'aria-hidden': true }, h('rect', { x: 2, y: 6, width: 13, height: 12, rx: 2.5, fill: '#00832D' }), h('path', { d: 'M15 10.5 21 7v10l-6-3.5z', fill: '#0066DA' }), h('rect', { x: 2, y: 6, width: 6, height: 6, rx: 1.5, fill: '#FFBA00' }))),
+        h('span', { style: { display: 'flex', flexDirection: 'column' } }, h('span', { style: { fontWeight: 700, fontSize: 14.5 } }, d.title || 'Team meeting'),
+          h('span', { style: { fontSize: 12.5, opacity: .75 } }, start.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + start.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) + ' – ' + end.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })))),
+      d.note && h('div', { style: { fontSize: 13.5 } }, d.note),
+      h('a', { href: d.link, target: '_blank', rel: 'noopener', style: { display: 'block', textAlign: 'center', height: 34, lineHeight: '34px', borderRadius: 8, background: past ? (mine ? '#262626' : K.soft2) : '#1A73E8', color: past ? 'inherit' : '#fff', fontWeight: 600, fontSize: 13.5, textDecoration: 'none' } }, past ? 'Meeting ended · open link' : 'Join with Google Meet'),
+      !past && h('a', { href: cal, target: '_blank', rel: 'noopener', style: { textAlign: 'center', fontSize: 12.5, color: 'inherit', opacity: .8 } }, 'Add to Google Calendar'));
+  }
+  function MeetForm({ onSend, onClose }) {
+    const now = new Date(Date.now() + 30 * 60e3); now.setMinutes(now.getMinutes() < 30 ? 30 : 60, 0, 0);
+    const [v, setV] = useState({ title: 'Team meeting', date: L.iso(now), time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'), minutes: '30', link: '', note: '' }), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
+    const set = k => e => setV(Object.assign({}, v, { [k]: e.target.value }));
+    const inp = { height: 36, border: '1px solid ' + K.line, borderRadius: 8, padding: '0 10px', font: 'inherit', fontSize: 14, width: '100%', boxSizing: 'border-box' };
+    const lab = (t, el) => h('label', { style: { display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12.5, color: K.mut, fontWeight: 500, flex: 1 } }, t, el);
+    const go = () => { const link = v.link.trim(); if (!v.title.trim()) return setErr('Give the meeting a title.');
+      if (!/^https:\/\/meet\.google\.com\/[a-z]{3,4}-[a-z]{4}-[a-z]{3,4}/i.test(link)) return setErr('Paste a Google Meet link, like https://meet.google.com/abc-defg-hij');
+      const start = new Date(v.date + 'T' + v.time); if (isNaN(start)) return setErr('Choose a date and time.');
+      setBusy(true); onSend({ title: v.title.trim(), start: start.toISOString(), minutes: +v.minutes || 30, link: link.split(/\s/)[0], note: v.note.trim() }).then(onClose).catch(e => { setErr(e.message); setBusy(false); }); };
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+      lab('Title', h('input', { value: v.title, onChange: set('title'), style: inp })),
+      h('div', { style: { display: 'flex', gap: 10 } }, lab('Date', h('input', { type: 'date', value: v.date, onChange: set('date'), style: inp })), lab('Time', h('input', { type: 'time', value: v.time, onChange: set('time'), style: inp })),
+        lab('Length', h('select', { value: v.minutes, onChange: set('minutes'), style: inp }, [15, 30, 45, 60, 90, 120].map(n => h('option', { key: n, value: n }, n < 60 ? n + ' min' : n / 60 + ' hr' + (n > 60 ? 's' : '')))))),
+      h('div', { style: { padding: 12, borderRadius: 10, background: K.soft, display: 'flex', flexDirection: 'column', gap: 8 } },
+        h('div', { style: { fontSize: 13, color: K.txt, lineHeight: 1.5 } }, '1. Create the meeting in Google Meet, then copy its link.'),
+        h('a', { href: 'https://meet.google.com/new', target: '_blank', rel: 'noopener', style: { alignSelf: 'flex-start', height: 32, lineHeight: '32px', padding: '0 14px', borderRadius: 8, background: '#1A73E8', color: '#fff', fontWeight: 600, fontSize: 13, textDecoration: 'none' } }, 'Create a Google Meet link ↗'),
+        h('div', { style: { fontSize: 13, color: K.txt } }, '2. Paste the link here.'),
+        h('input', { value: v.link, onChange: set('link'), placeholder: 'https://meet.google.com/abc-defg-hij', style: inp })),
+      lab('Agenda (optional)', h('input', { value: v.note, onChange: set('note'), placeholder: 'e.g. Prepare for Rao vs State, item 14', style: inp })),
+      err && h('div', { style: { fontSize: 13, color: K.red } }, err),
+      h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8 } }, h(Btn, { onClick: onClose }, 'Cancel'), h(Btn, { primary: true, onClick: go, disabled: busy }, busy ? 'Posting…' : 'Post meeting')));
+  }
+
   /* ---------- Team chat: the firm's group chat and one-to-one chats with team members (live) ---------- */
   function Chat({ app }) {
     const d = app.db, server = window.LSB && LSB.on && LSB.chat;
     const me = server ? LSB.chat.me() : '';
     const people = d.team.filter(u => u.userId && u.userId !== me && u.status === 'Active');
     const [sel, setSel] = useState('team'), [msgs, setMsgs] = useState({}), [text, setText] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [mob, setMob] = useState('list');
-    const scroller = React.useRef(null), box = React.useRef(null), selRef = React.useRef(sel); selRef.current = sel;
+    const [reacts, setReacts] = useState({}), [pick, setPick] = useState(null), [up, setUp] = useState(false);
+    const scroller = React.useRef(null), box = React.useRef(null), fileIn = React.useRef(null), selRef = React.useRef(sel); selRef.current = sel;
     const narrow = app.state.w < 760;
     const who = id => d.team.find(u => u.userId === id);
     const chOf = u => LSB.chat.dm(u.userId);
@@ -1036,11 +1108,15 @@
       app.chatEvt = m => { setMsgs(all => { const list = all[m.channel]; if (!list || list.some(x => x.id === m.id)) return all; return Object.assign({}, all, { [m.channel]: list.concat(m) }); });
         if (m.channel === selRef.current && m.sender !== me && document.visibilityState === 'visible') LSB.chat.read(m.channel).then(() => app.refreshChat()).catch(() => {}); };
       app.chatDel = m => setMsgs(all => { const out = {}; Object.keys(all).forEach(k => out[k] = all[k].filter(x => x.id !== m.id)); return out; });
-      return () => { app.chatEvt = null; app.chatDel = null; };
+      app.chatReact = (r, on) => setReacts(all => { const list = (all[r.channel] || Object.values(all).find(l => l.some(x => x.message_id === r.message_id)) || []).filter(x => !(x.message_id === r.message_id && x.user_id === r.user_id && x.emoji === r.emoji));
+        const ch = r.channel || Object.keys(all).find(k => all[k].some(x => x.message_id === r.message_id)); if (!ch) return all;
+        return Object.assign({}, all, { [ch]: on ? list.concat({ message_id: r.message_id, user_id: r.user_id, emoji: r.emoji }) : list }); });
+      return () => { app.chatEvt = null; app.chatDel = null; app.chatReact = null; };
     }, []);
     React.useEffect(() => {
       if (!server) return; let dead = false; setErr('');
       LSB.chat.list(sel).then(list => { if (!dead) setMsgs(all => Object.assign({}, all, { [sel]: list })); }).catch(e => !dead && setErr(e.message));
+      LSB.chat.reactions(sel).then(list => { if (!dead) setReacts(all => Object.assign({}, all, { [sel]: list })); }).catch(() => {});
       LSB.chat.read(sel).then(() => app.refreshChat()).catch(() => {});
       return () => { dead = true; };
     }, [sel]);
@@ -1050,13 +1126,23 @@
     const send = () => { const body = text.trim(); if (!body || busy) return; setBusy(true); setErr('');
       LSB.chat.send(sel, body).then(m => { setText(''); setMsgs(all => { const list = all[sel] || []; return list.some(x => x.id === m.id) ? all : Object.assign({}, all, { [sel]: list.concat(m) }); }); if (box.current) { box.current.style.height = 'auto'; box.current.focus(); } })
         .catch(e => setErr(e.message)).finally(() => setBusy(false)); };
-    const open = ch => { setSel(ch); setMob('chat'); };
+    const post = (body, kind, data) => LSB.chat.send(sel, body, kind, data).then(m => setMsgs(all => { const list = all[sel] || []; return list.some(x => x.id === m.id) ? all : Object.assign({}, all, { [sel]: list.concat(m) }); }));
+    const attach = e => { const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return;
+      if (file.size > 20 * 1048576) return setErr('Files up to 20 MB can be sent.');
+      setUp(true); setErr(''); const caption = text.trim();
+      LSB.chat.upload(sel, file).then(f => post(caption, 'file', f)).then(() => setText('')).catch(x => setErr(x.message)).finally(() => setUp(false)); };
+    const meet = () => app.modal(() => h(Modal, { title: 'Schedule a team meeting', sub: 'Posts a Google Meet card in this chat', onClose: () => app.modal(null) }, h(MeetForm, { onSend: d => post('', 'meeting', d), onClose: () => app.modal(null) })));
+    const react = (m, emoji) => { setPick(null); const list = reacts[m.channel] || [], mineR = list.some(x => x.message_id === m.id && x.user_id === me && x.emoji === emoji);
+      setReacts(all => Object.assign({}, all, { [m.channel]: mineR ? list.filter(x => !(x.message_id === m.id && x.user_id === me && x.emoji === emoji)) : list.concat({ message_id: m.id, user_id: me, emoji }) }));
+      LSB.chat.react(m, emoji, !mineR).catch(e => setErr(e.message)); };
+    const open = ch => { setSel(ch); setMob('chat'); setPick(null); };
     const avatar = (label, dark, size) => h('span', { style: { width: size || 36, height: size || 36, borderRadius: '50%', background: dark ? K.ink : K.soft2, color: dark ? '#fff' : K.ink, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: (size || 36) * .36, fontWeight: 600, flexShrink: 0 } }, label);
     const badge = n => n ? h('span', { style: { marginLeft: 'auto', minWidth: 20, height: 20, borderRadius: 10, background: '#137333', color: '#fff', fontSize: 11.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' } }, n > 99 ? '99+' : n) : null;
+    const preview = m => m.kind === 'file' ? '📎 ' + ((m.data || {}).name || 'File') : m.kind === 'meeting' ? '📅 ' + ((m.data || {}).title || 'Meeting') : m.body;
     const last = ch => { const l = msgs[ch]; return l && l.length ? l[l.length - 1] : null; };
     const row = (ch, title, sub, av) => h('button', { key: ch, onClick: () => open(ch), style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 14px', border: 0, borderBottom: '1px solid #F0F0EF', background: sel === ch && !narrow ? K.soft : 'transparent', textAlign: 'left', cursor: 'pointer', font: 'inherit' } },
       av, h('span', { style: { display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 } }, h('span', { style: { fontSize: 14, fontWeight: unread[ch] ? 700 : 600, color: K.ink } }, title),
-        h('span', { style: { fontSize: 12.5, color: K.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (last(ch) ? (last(ch).sender === me ? 'You: ' : '') + last(ch).body : sub))), badge(unread[ch]));
+        h('span', { style: { fontSize: 12.5, color: K.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (last(ch) ? (last(ch).sender === me ? 'You: ' : '') + preview(last(ch)) : sub))), badge(unread[ch]));
     const list = h('div', { style: { borderRight: narrow ? 0 : '1px solid ' + K.line, overflowY: 'auto', display: narrow && mob === 'chat' ? 'none' : 'block', minHeight: 0 } },
       h('div', { style: { padding: '12px 14px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, 'Group'),
       row('team', d.firm.name || 'Team', `Everyone at the firm · ${people.length + 1} member${people.length ? 's' : ''}`, avatar(L.initials(d.firm.name) || 'T', true)),
@@ -1071,23 +1157,34 @@
         h('span', { style: { fontSize: 12.5, color: K.mut } }, sel === 'team' ? 'Group chat · everyone at the firm can read it' : other ? other.role + ' · only the two of you can read this' : '')));
     const items = msgs[sel], dayLabel = iso => { const t = L.today(), dd = L.iso(new Date(iso)); return dd === t ? 'Today' : dd === L.addDays(t, -1) ? 'Yesterday' : L.fmt(dd); };
     const time = iso => new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
-    const body = h('div', { ref: scroller, style: { flex: 1, overflowY: 'auto', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 4, background: '#FAFAF9', minHeight: 0 } },
+    const body = h('div', { ref: scroller, onClick: e => { if (e.target === e.currentTarget) setPick(null); }, style: { flex: 1, overflowY: 'auto', padding: '16px 52px', display: 'flex', flexDirection: 'column', gap: 4, backgroundColor: '#F4F2EC', backgroundImage: CHAT_BG + ', radial-gradient(circle at 20% 10%, rgba(255,255,255,.7), transparent 60%)', backgroundSize: '260px 230px, 100% 100%', minHeight: 0 } },
       !items ? h('div', { style: { margin: 'auto', color: K.mut, fontSize: 13 } }, 'Loading messages…')
       : !items.length ? h('div', { style: { margin: 'auto', textAlign: 'center', color: K.mut, fontSize: 13.5, maxWidth: 300, lineHeight: 1.6 } }, sel === 'team' ? 'No messages yet. Say hello to your team.' : `No messages yet. Send ${other ? other.name : 'them'} a message.`)
       : items.map((m, i) => { const mine = m.sender === me, prev = items[i - 1], newDay = !prev || dayLabel(prev.created_at) !== dayLabel(m.created_at), sameRun = prev && !newDay && prev.sender === m.sender && Date.parse(m.created_at) - Date.parse(prev.created_at) < 5 * 60e3, u = who(m.sender);
           return h(React.Fragment, { key: m.id },
             newDay && h('div', { style: { alignSelf: 'center', fontSize: 11.5, color: K.mut, background: '#fff', border: '1px solid ' + K.line, borderRadius: 999, padding: '2px 10px', margin: '10px 0 6px' } }, dayLabel(m.created_at)),
-            h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', marginTop: sameRun ? 0 : 6 } },
+            h('div', { className: 'ls-msg', style: { display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', marginTop: sameRun ? 0 : 6, position: 'relative' } },
+              h('button', { className: 'ls-react', onClick: () => setPick(pick === m.id ? null : m.id), 'aria-label': 'React to this message', title: 'React', style: { position: 'absolute', top: '50%', [mine ? 'left' : 'right']: -2, transform: 'translate(' + (mine ? '-100%' : '100%') + ',-50%)', width: 30, height: 30, borderRadius: 15, border: '1px solid ' + K.line, background: '#fff', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '☺'),
               !mine && sel === 'team' && !sameRun && h('span', { style: { fontSize: 12, fontWeight: 600, color: K.txt, margin: '0 0 2px 4px' } }, u ? (u.title || u.name) : 'Former member'),
               h('div', { title: new Date(m.created_at).toLocaleString('en-IN'), style: { maxWidth: 'min(560px, 80%)', padding: '8px 12px', borderRadius: 14, borderTopRightRadius: mine && !sameRun ? 4 : 14, borderTopLeftRadius: !mine && !sameRun ? 4 : 14, background: mine ? K.ink : '#fff', color: mine ? '#fff' : K.ink, border: mine ? 0 : '1px solid ' + K.line, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap', wordBreak: 'break-word' } },
-                m.body, h('span', { style: { display: 'block', fontSize: 10.5, opacity: .6, textAlign: 'right', marginTop: 2 } }, time(m.created_at)))));
+                m.kind === 'file' ? h(FileMsg, { m, mine }) : m.kind === 'meeting' ? h(MeetMsg, { m, mine }) : m.body, h('span', { style: { display: 'block', fontSize: 10.5, opacity: .6, textAlign: 'right', marginTop: 2 } }, time(m.created_at))),
+              (() => { const rs = (reacts[sel] || []).filter(x => x.message_id === m.id); if (!rs.length) return null; const by = {}; rs.forEach(x => (by[x.emoji] = by[x.emoji] || []).push(x.user_id));
+                return h('div', { style: { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: -6, padding: '0 6px', position: 'relative', zIndex: 1 } }, Object.keys(by).map(e => { const meIn = by[e].includes(me);
+                  return h('button', { key: e, onClick: () => react(m, e), title: by[e].map(id => id === me ? 'You' : (who(id) || {}).name || 'Member').join(', '), style: { height: 24, padding: '0 7px', borderRadius: 12, border: '1px solid ' + (meIn ? '#1A73E8' : K.line), background: meIn ? '#E8F0FE' : '#fff', fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 1px 2px rgba(0,0,0,.06)' } }, e, by[e].length > 1 && h('span', { style: { fontSize: 11.5, fontWeight: 600, color: K.txt } }, by[e].length)); })); })(),
+              pick === m.id && h('div', { style: { display: 'flex', gap: 2, background: '#fff', border: '1px solid ' + K.line, borderRadius: 20, padding: '3px 6px', boxShadow: '0 6px 20px rgba(0,0,0,.12)', marginTop: 4 } },
+                EMOJIS.map(e => h('button', { key: e, onClick: () => react(m, e), 'aria-label': 'React ' + e, style: { border: 0, background: 'none', fontSize: 19, cursor: 'pointer', padding: '2px 4px', borderRadius: 8 } }, e)))));
         }));
+    const tool = (label, d, onClick, disabled) => h('button', { onClick, disabled, 'aria-label': label, title: label, style: { width: 38, height: 38, flexShrink: 0, borderRadius: 10, border: '1px solid ' + K.line, background: '#fff', cursor: disabled ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: K.txt, opacity: disabled ? .5 : 1 } },
+      h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d })));
     const composer = h('div', { style: { borderTop: '1px solid ' + K.line, padding: 12, display: 'flex', gap: 8, alignItems: 'flex-end', background: '#fff' } },
+      h('input', { ref: fileIn, type: 'file', accept: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,image/*', onChange: attach, style: { display: 'none' } }),
+      tool(up ? 'Uploading…' : 'Send a PDF or file', 'M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9', () => fileIn.current && fileIn.current.click(), up),
+      tool('Schedule a Google Meet', 'M3 7.5A1.5 1.5 0 0 1 4.5 6h9A1.5 1.5 0 0 1 15 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 3 16.5z M15 10.5l6-3.5v10l-6-3.5', meet),
       h('textarea', { ref: box, value: text, rows: 1, placeholder: sel === 'team' ? 'Message the team' : 'Message ' + (other ? other.name : ''), 'aria-label': 'Message',
         onChange: e => { setText(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = Math.min(140, el.scrollHeight) + 'px'; },
         onKeyDown: e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } },
         style: { flex: 1, resize: 'none', border: '1px solid ' + K.line, borderRadius: 10, padding: '9px 12px', font: 'inherit', fontSize: 14, lineHeight: 1.45, maxHeight: 140, outline: 'none' } }),
-      h(Btn, { primary: true, onClick: send, disabled: busy || !text.trim() }, busy ? 'Sending…' : 'Send'));
+      h(Btn, { primary: true, onClick: send, disabled: busy || up || !text.trim() }, up ? 'Uploading…' : busy ? 'Sending…' : 'Send'));
     const convo = h('div', { style: { display: narrow && mob === 'list' ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 } }, head, body, err && h('div', { style: { padding: '6px 16px', fontSize: 12.5, color: K.red } }, err), composer);
     return h(Page, { art: 'team', kicker: 'Firm', title: 'Team chat', sub: 'Talk to your whole team or to one colleague. Messages are private to your firm.' },
       h('div', { style: { background: '#fff', border: '1px solid ' + K.line, borderRadius: 12, overflow: 'hidden', display: 'grid', gridTemplateColumns: narrow ? '1fr' : '300px 1fr', height: 'calc(100vh - 230px)', minHeight: 420 } }, list, convo));
