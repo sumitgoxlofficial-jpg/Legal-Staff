@@ -1,0 +1,4 @@
+# Not part of the website: tests, the SEO page generator and the database / server-function sources.
+/tests
+/seo
+/supabase

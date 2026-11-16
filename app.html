@@ -54,6 +54,7 @@
 @media (max-width:899px){.ls-side{animation:ls-side-in .28s var(--ls-ease-out) both}}
 .ls-btn{transition:transform .12s var(--ls-ease),background-color .15s ease,border-color .15s ease,box-shadow .2s ease}
 .ls-btn:active:not(:disabled){transform:scale(.97)}
+.ls-btn:disabled{opacity:.45;cursor:not-allowed}
 .ls-lift:active{transform:translateY(-1px) scale(.995)}
 .ls-quick:hover{border-color:#CFCFCF!important}
 .ls-quick-ic{transition:background-color .2s ease,color .2s ease,transform .25s var(--ls-ease)}
@@ -121,7 +122,8 @@ a:hover{color:#2B2B2B}
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #0A0A0A;outline-offset:2px}
-@media print{body *{visibility:hidden!important}.ls-print,.ls-print *{visibility:visible!important}.ls-print{position:absolute!important;left:0;top:0;width:100%;border:0!important}}
+@media print{body *{visibility:hidden!important}.ls-print,.ls-print *{visibility:visible!important}.ls-print{position:absolute!important;left:0;top:0;width:100%;border:0!important}.ls-invoice{padding:0!important;font-size:11pt!important}.ls-backdrop{position:static!important;padding:0!important;overflow:visible!important}*{animation:none!important;transition:none!important}aside,header{display:none!important}}
+@page{size:A4;margin:14mm}
 </style>
 </helmet>
 <div style="display:flex;min-height:100vh;background:#F5F5F4;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:15px;line-height:1.5">
@@ -206,7 +208,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       {{ searchDrop }}
     </div>
     <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><div style="flex:1"></div></sc-if>
-    <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><button class="ls-btn" onClick="{{ newCase }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500;white-space:nowrap">+ New case</button></sc-if>
+    <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><button class="ls-btn" onClick="{{ newCase }}" disabled="{{ gates.caseNew.disabled }}" title="{{ gates.caseNew.title }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500;white-space:nowrap">+ New case</button></sc-if>
     <button class="ls-btn" onClick="{{ alertsMenu }}" style="white-space:nowrap;height:36px;padding:0 12px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A;display:flex;align-items:center;gap:6px">Alerts <sc-if value="{{ hasAlerts }}" hint-placeholder-val="{{ true }}"><span style="background:#B42318;color:#fff;border-radius:8px;font-size:11px;padding:0 6px;font-weight:600">{{ alertCount }}</span></sc-if></button>
     <button onClick="{{ togglePanel }}" style="{{ copilotBtn }}">Copilot</button>
     <sc-if value="{{ notMobile }}" hint-placeholder-val="{{ true }}"><button class="ls-btn" onClick="{{ help }}" title="Help and shortcuts" style="height:36px;width:40px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;color:#5E5E5E;font-size:13.5px;font-weight:600">?</button></sc-if>
@@ -230,6 +232,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       </div>
     </sc-if>
 
+    {{ planBanner }}
     <sc-if value="{{ s.dashboard }}" hint-placeholder-val="{{ true }}">
       <div class="ls-stagger" style="display:flex;flex-direction:column;gap:28px;max-width:1240px">
         <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:4px">
@@ -448,8 +451,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div style="font-size:14px;color:#5E5E5E;margin-top:4px">{{ casesSub }}</div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="ls-btn" onClick="{{ importCnr }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Import by CNR</button>
-            <button class="ls-btn" onClick="{{ newCase }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">+ New case</button>
+            <button class="ls-btn" onClick="{{ importCnr }}" disabled="{{ gates.caseNew.disabled }}" title="{{ gates.caseNew.title }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Import by CNR</button>
+            <button class="ls-btn" onClick="{{ newCase }}" disabled="{{ gates.caseNew.disabled }}" title="{{ gates.caseNew.title }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">+ New case</button>
           </div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
@@ -643,15 +646,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               <sc-if value="{{ notConfirmed }}" hint-placeholder-val="{{ true }}">
                 <div style="font-size:14px;color:#363636">Nothing is added to the calendar until you confirm. {{ reminderPlan }}</div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
-                  <button class="ls-btn" onClick="{{ confirmDate }}" style="white-space:nowrap;height:36px;padding:0 18px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">Confirm and add to calendar</button>
-                  <button class="ls-btn" onClick="{{ toggleEdit }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;color:#0A0A0A;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px">Edit date</button>
+                  <button class="ls-btn" onClick="{{ confirmDate }}" disabled="{{ gates.orderEdit.disabled }}" title="{{ gates.orderEdit.title }}" style="white-space:nowrap;height:36px;padding:0 18px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">Confirm and add to calendar</button>
+                  <button class="ls-btn" onClick="{{ toggleEdit }}" disabled="{{ gates.orderEdit.disabled }}" title="{{ gates.orderEdit.title }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;color:#0A0A0A;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px">Edit date</button>
                 </div>
               </sc-if>
               <sc-if value="{{ confirmed }}" hint-placeholder-val="{{ false }}">
                 <div style="background:#F0F0EF;border-radius:8px;padding:16px 18px;color:#2B2B2B;font-size:14px;display:flex;flex-direction:column;gap:6px">
                   <div style="font-weight:600">Added to calendar. Hearing history updated.</div>
                   <div>{{ reminderLine }}</div>
-                  <div style="display:flex;gap:14px;margin-top:4px"><button onClick="{{ viewInCalendar }}" style="border:0;background:none;padding:0;color:#2B2B2B;font-weight:600;font-size:13.5px;text-decoration:underline">View in calendar</button><button onClick="{{ undoConfirm }}" style="border:0;background:none;padding:0;color:#2B2B2B;font-size:13.5px;text-decoration:underline">Undo</button></div>
+                  <div style="display:flex;gap:14px;margin-top:4px"><button onClick="{{ viewInCalendar }}" style="border:0;background:none;padding:0;color:#2B2B2B;font-weight:600;font-size:13.5px;text-decoration:underline">View in calendar</button><button onClick="{{ undoConfirm }}" disabled="{{ gates.orderEdit.disabled }}" title="{{ gates.orderEdit.title }}" style="border:0;background:none;padding:0;color:#2B2B2B;font-size:13.5px;text-decoration:underline">Undo</button></div>
                 </div>
               </sc-if>
             </section>
@@ -1078,7 +1081,10 @@ class Component extends DCLogic {
   queueSync() { if (!LSB.on || !this.db.firmId) return; clearTimeout(this.syncT); this.syncT = setTimeout(() => this.flush().catch(e => this.toast('Not saved to the server: ' + e.message)), 500); }
   /* Sends pending changes now. Rejects if the server refused them; the view is then redrawn from what the server holds. */
   flush() { if (!LSB.on || !this.db.firmId) return Promise.resolve(false); clearTimeout(this.syncT); this.syncT = null;
-    return LSB.sync(this.db).then(changed => { if (changed) this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); return changed; }, e => { this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); throw e; }); }
+    return LSB.sync(this.db).then(changed => { if (changed) this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); return changed; }, e => { this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 }));
+      /* Refused by a permission rule (roles, invoices, plan): drop the local change by reloading what the server holds. */
+      if (e && (e.code === '42501' || /row-level security|read-only|Only the firm owner/i.test(e.message || ''))) setTimeout(() => this.reload().catch(() => {}), 50);
+      throw e; }); }
   /* True while a reload from the server could throw away something: unsaved draft text, an unsent save, an open dialog, or a field being typed in. */
   busy() { const a = document.activeElement, S = this.state; return !!((this.buf != null && S.screen === 'drafting') || this.syncT || LSB.pending() || S.modalOn || S.plan !== null || (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))); }
   componentDidUpdate() { this.fx(); }
@@ -1107,8 +1113,9 @@ class Component extends DCLogic {
     if (screen === 'dashboard') this.grow(); window.scrollTo(0, 0);
   }
   go(screen, param, tab) { const hs = '#/' + screen + (param ? '/' + encodeURIComponent(param) : '') + (tab ? '/' + tab : ''); if (location.hash !== hs) location.hash = hs; else this.applyRoute(); }
-  mut(fn, msg) { fn(this.db); if (!LS.save(this.db)) msg = 'Could not save. Browser storage is full or blocked.'; this.queueSync(); this.setState(s => ({ rev: s.rev + 1 })); if (msg) this.toast(msg); }
-  replace(db, msg) { LS.migrate(db); if (LSB.on && this.db.firmId) { const o = this.db; Object.assign(db, { firmId: o.firmId, session: o.session, team: o.team, user: o.user, sub: o.sub, isOwner: o.isOwner, firm: db.firm && db.firm.name ? db.firm : o.firm }); } this.db = db; LS.save(db); this.queueSync(); this.buf = null; this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); if (msg) this.toast(msg); }
+  /* Every change goes through here. New records get their creator (user id and name), for the "delete own" rule. */
+  mut(fn, msg) { const before = LS.idSet(this.db); fn(this.db); LS.stampNew(this.db, before, this.db.uid, this.db.user.name); if (!LS.save(this.db)) msg = 'Could not save. Browser storage is full or blocked.'; this.queueSync(); this.setState(s => ({ rev: s.rev + 1 })); if (msg) this.toast(msg); }
+  replace(db, msg) { LS.migrate(db); if (LSB.on && this.db.firmId) { const o = this.db; Object.assign(db, { firmId: o.firmId, session: o.session, team: o.team, user: o.user, sub: o.sub, isOwner: o.isOwner, uid: o.uid, firmCreated: o.firmCreated, firm: db.firm && db.firm.name ? db.firm : o.firm }); } this.db = db; LS.save(db); this.queueSync(); this.buf = null; this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); if (msg) this.toast(msg); }
   modal(fn) { this._modal = fn; this.setState(s => ({ modalOn: !!fn, menu: null, rev: s.rev + 1 })); }
   toast(t) { this.setState({ toast: t }); clearTimeout(this.tt); this.tt = setTimeout(() => this.setState({ toast: '' }), 3200); }
   signIn(email, prof) {
@@ -1207,6 +1214,8 @@ class Component extends DCLogic {
     };
     const icon = (k, sz) => h('svg', { width: sz || 18, height: sz || 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: (sz || 18) <= 16 ? 1.6 : 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }, h('path', { d: IC[k] }));
     const chip = (bg, fg) => ({ fontSize: 12, fontWeight: 500, background: bg, color: fg, borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap', alignSelf: 'flex-start' });
+    /* G: disabled + reason for a button the role or plan does not allow; B: the same merged into button props. */
+    const G = (a, r) => V.gate(this, a, r), B = (props, a, r) => Object.assign(props, V.gate(this, a, r));
     const caseOf = id => V.caseOf(D, id), clashGroups = V.clashes(D), clashIds = new Set(clashGroups.flat().map(x => x.id));
     const LMS = D.lims || [], LM = LMS.find(x => x.id === S.param) || LMS[0] || { id: '', rule: 'cca', title: '', caseId: '', judgment: T, applied: '', ready: '', approved: true, approvedAt: '', sent: false }, lim = LS.limitation(LM), limR = LS.rule(LM.rule), limFilled = !lim.needsReady, limWait = LMS.filter(l => !l.approved && LS.limitation(l).due).length;
     const pendOrders = D.orders.filter(o => !o.confirmed && o.nextDate);
@@ -1261,15 +1270,15 @@ class Component extends DCLogic {
     const emptyBox = t => h(V.Empty, { title: t, small: true });
     const orderByCite = p => { const m = /Order (\d\d\.\d\d\.\d{4})/.exec(p); return m && cOrders.find(o => LS.dmy(o.date) === m[1]); };
     const sumEl = C0.summary ? C0.summary.split(/(\[[^\]]+\])/).map((p, i) => /^\[/.test(p) ? h('a', { key: i, href: '#', onClick: e => { e.preventDefault(); const o = orderByCite(p) || (/Order/.test(p) && cOrders[0]); o ? this.go('order', o.id) : this.go('case', C0.id, 'documents'); } }, p) : p) : 'No summary written yet. Write one in Case details' + (cOrders.length ? ', or draft one from the key points of the orders on file.' : ', or add court orders and draft it from them.');
-    const summaryBtns = C0.id ? h('span', { style: { display: 'inline-flex', gap: 6, flexWrap: 'wrap' } }, h(V.Btn, { small: true, onClick: () => V.caseDetails(this, C0.id, 'summary') }, C0.summary ? 'Edit summary' : 'Write summary'), h(V.Btn, { small: true, disabled: !cOrders.length, title: cOrders.length ? 'Assemble a draft from the key points of the orders' : 'No orders in this case yet', onClick: () => V.caseDetails(this, C0.id, 'summary', true) }, 'Draft from orders')) : null;
+    const summaryBtns = C0.id ? h('span', { style: { display: 'inline-flex', gap: 6, flexWrap: 'wrap' } }, h(V.Btn, B({ small: true, onClick: () => V.caseDetails(this, C0.id, 'summary') }, 'case.edit', C0), C0.summary ? 'Edit summary' : 'Write summary'), h(V.Btn, Object.assign({ small: true, disabled: !cOrders.length, title: cOrders.length ? 'Assemble a draft from the key points of the orders' : 'No orders in this case yet', onClick: () => V.caseDetails(this, C0.id, 'summary', true) }, G('case.edit', C0)), 'Draft from orders')) : null;
     const c = { no: C0.no, full: C0.full, cnrLabel: C0.cnr ? 'CNR ' + C0.cnr : 'CNR not added', forum: C0.forum || C0.court, statusLine: (SC[C0.status] || SC.active)[0] + ' · ' + (C0.stage || ''),
       nextLabel: cNext ? LS.longDate(cNext.date) : (cPend ? LS.longDate(cPend.nextDate) : 'Not fixed'), benchLine: cNext ? [cNext.court, LS.t12ap(cNext.time), C0.bench].filter(Boolean).join(' · ') : (cPend ? 'From the last order · not yet confirmed' : (C0.bench || C0.court)),
       openOrder: () => cOrders[0] ? this.go('order', cOrders[0].id) : V.addOrder(this, C0.id), orderLabel: cOrders[0] ? 'Open latest order' : 'Add court order',
       brief: () => { this.setState({ brainCase: C0.id }); this.go('brain'); setTimeout(() => this.ask('Prepare a hearing brief'), 80); },
-      actions: h(React.Fragment, null, h(V.Btn, { onClick: () => V.newCase(this, null, C0.id) }, 'Edit case'), h(V.Btn, { onClick: () => V.caseDetails(this, C0.id) }, 'Case details'), h(V.Btn, { onClick: () => V.addHearing(this, C0.id) }, '+ Hearing'), h(V.Btn, { onClick: () => V.addOrder(this, C0.id) }, '+ Order'), h(V.Btn, { onClick: () => V.uploadDoc(this, 'document', C0.id) }, '+ Document'),
-        h(V.Select, { value: C0.status, onChange: v => this.mut(db => { db.cases.find(x => x.id === C0.id).status = v; V.logIt(db, 'Status changed to ' + SC[v][0], C0.id); }, 'Case marked ' + SC[v][0].toLowerCase()), options: Object.keys(SC).map(k => [k, SC[k][0]]), style: { height: 36, minWidth: 120, fontSize: 13.5 } }), h(V.Btn, { danger: true, onClick: () => V.delCase(this, C0.id) }, 'Delete case')),
+      actions: h(React.Fragment, null, h(V.Btn, B({ onClick: () => V.newCase(this, null, C0.id) }, 'case.edit', C0), 'Edit case'), h(V.Btn, B({ onClick: () => V.caseDetails(this, C0.id) }, 'case.edit', C0), 'Case details'), h(V.Btn, B({ onClick: () => V.addHearing(this, C0.id) }, 'hearing.create'), '+ Hearing'), h(V.Btn, B({ onClick: () => V.addOrder(this, C0.id) }, 'order.create'), '+ Order'), h(V.Btn, B({ onClick: () => V.uploadDoc(this, 'document', C0.id) }, 'doc.create'), '+ Document'),
+        h(V.Select, { value: C0.status, disabled: !V.can(this, 'case.edit', C0), title: V.why(this, 'case.edit', C0) || undefined, onChange: v => (v === 'active' || v === 'pending') && C0.status !== 'active' && C0.status !== 'pending' && !V.withinLimit(this, 'cases') ? this.setState(s => ({ rev: s.rev + 1 })) : this.mut(db => { db.cases.find(x => x.id === C0.id).status = v; V.logIt(db, 'Status changed to ' + SC[v][0], C0.id); }, 'Case marked ' + SC[v][0].toLowerCase()), options: Object.keys(SC).map(k => [k, SC[k][0]]), style: { height: 36, minWidth: 120, fontSize: 13.5 } }), h(V.Btn, B({ danger: true, onClick: () => V.delCase(this, C0.id) }, 'case.delete', C0), 'Delete case')),
       summaryMeta: C0.summary ? (C0.summaryMeta || 'Written in Case details') : 'Not written yet', summaryEl: sumEl, summaryBtns, detailsEl: C0.id ? V.detailsView(this, C0) : null,
-      tasksEl: h('div', null, cTasks.map(t => h(V.TaskRow, { key: t.id, app: this, t })), !cTasks.length && h('div', { style: { fontSize: 14, color: '#5E5E5E', paddingBottom: 8 } }, 'No tasks in this case.'), h('div', { style: { marginTop: 10 } }, h(V.Btn, { small: true, onClick: () => V.addTask(this, C0.id) }, '+ Add task'))),
+      tasksEl: h('div', null, cTasks.map(t => h(V.TaskRow, { key: t.id, app: this, t })), !cTasks.length && h('div', { style: { fontSize: 14, color: '#5E5E5E', paddingBottom: 8 } }, 'No tasks in this case.'), h('div', { style: { marginTop: 10 } }, h(V.Btn, B({ small: true, onClick: () => V.addTask(this, C0.id) }, 'task.create'), '+ Add task'))),
       advocates: C0.team.map((n, i) => { const u = D.team.find(x => x.name === n) || { title: n, role: '' }; return { name: u.title, role: (i === 0 ? 'Lead · ' : '') + u.role }; }) };
     const caseOrders = cOrders.map(o => ({ date: LS.dmy(o.date), summary: o.summary, source: o.source, go: () => this.go('order', o.id) }));
     const hearingHistory = D.hearings.filter(x => x.caseId === C0.id).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).map(x => { const nx = x.nextHearingId && D.hearings.find(y => y.id === x.nextHearingId);
@@ -1289,7 +1298,7 @@ class Component extends DCLogic {
     const rem = !oDate ? '' : LSB.on ? `It appears in the daily briefing email for the assigned advocate on ${LS.dayMon(LS.addDays(oDate, -st.remindDays))} and on ${LS.dayMon(oDate)}, if briefings are enabled in Settings.` : 'It shows on the calendar and dashboard on this device. Briefing emails need the server.';
     const remPlan = LSB.on ? `Once confirmed, it is included in the daily briefing email ${st.remindDays} day${st.remindDays === 1 ? '' : 's'} before and on the day, if briefings are enabled.` : 'Briefing emails need the server; on this device the hearing shows on the calendar and dashboard.';
     const nextPara = O.nextFrom ? +(/¶(\d+)/.exec(O.nextFrom) || [])[1] : 0;
-    const ord = { caseLine: oc.title + ' · ' + oc.no, actions: O.id ? h('span', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(V.Btn, { onClick: () => V.editOrder(this, O.id) }, 'Edit order'), h(V.Btn, { danger: true, onClick: () => V.delOrder(this, O.id) }, 'Delete order')) : null, file: O.file || 'Order dated ' + LS.dmy(O.date), sourceNote: O.official ? 'Fetched from eCourts. ' + O.source : 'Manually added. Not an official retrieval.', nextFrom: O.nextFrom || (oDate ? 'from the order' : 'Enter the next date below'),
+    const ord = { caseLine: oc.title + ' · ' + oc.no, actions: O.id ? h('span', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(V.Btn, B({ onClick: () => V.editOrder(this, O.id) }, 'order.edit', O), 'Edit order'), h(V.Btn, B({ danger: true, onClick: () => V.delOrder(this, O.id) }, 'order.delete', O), 'Delete order')) : null, file: O.file || 'Order dated ' + LS.dmy(O.date), sourceNote: O.official ? 'Fetched from eCourts. ' + O.source : 'Manually added. Not an official retrieval.', nextFrom: O.nextFrom || (oDate ? 'from the order' : 'Enter the next date below'),
       sumChip: oConf ? 'Reviewed' : 'Draft · needs your review',
       docEl: h(React.Fragment, null, O.court && h('div', { style: { textAlign: 'center', fontWeight: 600, letterSpacing: '.04em' } }, O.court), h('div', { style: { textAlign: 'center', marginTop: 4 } }, O.cause || oc.no),
         O.p1 ? h(React.Fragment, null, h('div', { style: { marginTop: 18 } }, O.p1), h('div', null, 'versus'), h('div', null, O.p2)) : h('div', { style: { marginTop: 18 } }, oc.full || oc.title),
@@ -1301,7 +1310,7 @@ class Component extends DCLogic {
       return { n: done ? '✓' : n, label, style: { display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', fontSize: 13, padding: '6px 14px 6px 6px', borderRadius: 8, background: done ? '#FFFFFF' : '#0A0A0A', color: done ? '#0A0A0A' : '#fff', border: '1px solid #E5E5E5' },
         numStyle: { width: 22, height: 22, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, background: done ? '#F0F0EF' : '#E3E3E2', color: '#0A0A0A', fontWeight: 600 } };
     });
-    const confirmDate = () => { if (!LS.valid(oDate)) return this.toast('Enter the next date first.');
+    const confirmDate = () => { if (!V.allowed(this, 'order.edit', O)) return; if (!LS.valid(oDate)) return this.toast('Enter the next date first.');
       this.mut(db => { const o = db.orders.find(x => x.id === O.id), cs = db.cases.find(x => x.id === o.caseId) || {}; o.confirmed = true;
         if (!db.hearings.some(x => x.caseId === o.caseId && x.date === o.nextDate)) db.hearings.push({ id: LS.uid('h'), caseId: o.caseId, date: o.nextDate, time: '10:30', court: cs.court || '', item: '', purpose: cs.purpose || 'Hearing', assignee: (cs.team || [])[0] || db.user.name, outcome: '', brief: false, fromOrder: o.id });
         V.logIt(db, `Next date ${LS.dmy(o.nextDate)} confirmed by ${db.user.name}`, o.caseId); }, LSB.on ? 'Hearing added to the calendar · it will be in the daily briefing email, if enabled' : 'Hearing added to the calendar on this device'); this.setState({ editDate: false }); };
@@ -1315,23 +1324,23 @@ class Component extends DCLogic {
     const we = LS.addDays(ws, 6), sameM = ws.slice(0, 7) === we.slice(0, 7);
     const weekTitle = wkView ? (sameM ? `${LS.parse(ws).getDate()} – ${LS.fmt(we, { day: 'numeric', month: 'long', year: 'numeric' })}` : `${LS.dayMon(ws)} – ${LS.fmt(we)}`) : LS.fmt(daySel, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const step = n => wkView ? this.setState({ weekStart: LS.addDays(ws, 7 * n) }) : this.setState({ daySel: LS.addDays(daySel, n), weekStart: this.monday(LS.addDays(daySel, n)) });
-    const calNav = h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } }, h(V.Btn, { onClick: () => step(-1), title: 'Previous' }, '‹'), h(V.Btn, { onClick: () => this.setState({ weekStart: this.monday(T), daySel: T }) }, 'Today'), h(V.Btn, { onClick: () => step(1), title: 'Next' }, '›'), h(V.Btn, { primary: true, onClick: () => V.addHearing(this, '', wkView ? '' : daySel) }, '+ Add hearing'));
+    const calNav = h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } }, h(V.Btn, { onClick: () => step(-1), title: 'Previous' }, '‹'), h(V.Btn, { onClick: () => this.setState({ weekStart: this.monday(T), daySel: T }) }, 'Today'), h(V.Btn, { onClick: () => step(1), title: 'Next' }, '›'), h(V.Btn, B({ primary: true, onClick: () => V.addHearing(this, '', wkView ? '' : daySel) }, 'hearing.create'), '+ Add hearing'));
     const shown = wkView ? D.hearings.filter(x => x.date >= ws && x.date <= we) : D.hearings.filter(x => x.date === daySel);
     const cg = clashGroups.find(g => wkView ? (g[0].date >= ws && g[0].date <= we) : g[0].date === daySel);
     const peers = cg ? D.team.filter(u => u.status === 'Active' && u.name !== cg[0].assignee && /Advocate|Partner|Associate/.test(u.role)) : [], other = cg && peers.find(u => !D.hearings.some(x => x.date === cg[0].date && x.time === cg[0].time && x.assignee === u.name));
-    const conflict = cg ? { head: `Conflict, ${LS.fmt(cg[0].date, { weekday: 'short', day: 'numeric', month: 'short' })} at ${LS.t12ap(cg[0].time)}.`, text: cg.map(x => `${caseOf(x.caseId).title} (${x.court})`).join(' and ') + ` are at the same time for ${cg[0].assignee}. Assign one of them to a colleague.`, btn: other ? 'Assign to ' + other.name : (peers.length ? 'No free colleague' : 'Invite a colleague'), assign: () => other ? this.mut(db => { const x = db.hearings.find(y => y.id === cg[1].id); x.assignee = other.name; V.logIt(db, `Hearing on ${LS.dmy(x.date)} assigned to ${other.name}`, x.caseId); }, `${caseOf(cg[1].caseId).title} assigned to ${other.name}`) : peers.length ? this.toast('Every active colleague already has a hearing at that time.') : (this.toast('No other active advocate in Team yet. Invite a colleague first.'), this.go('team')) } : { head: '', text: '', btn: '', assign: () => {} };
+    const conflict = cg ? { head: `Conflict, ${LS.fmt(cg[0].date, { weekday: 'short', day: 'numeric', month: 'short' })} at ${LS.t12ap(cg[0].time)}.`, text: cg.map(x => `${caseOf(x.caseId).title} (${x.court})`).join(' and ') + ` are at the same time for ${cg[0].assignee}. Assign one of them to a colleague.`, btn: other ? 'Assign to ' + other.name : (peers.length ? 'No free colleague' : 'Invite a colleague'), assign: () => !V.allowed(this, 'hearing.edit', cg[1]) ? null : other ? this.mut(db => { const x = db.hearings.find(y => y.id === cg[1].id); x.assignee = other.name; V.logIt(db, `Hearing on ${LS.dmy(x.date)} assigned to ${other.name}`, x.caseId); }, `${caseOf(cg[1].caseId).title} assigned to ${other.name}`) : peers.length ? this.toast('Every active colleague already has a hearing at that time.') : (this.toast('No other active advocate in Team yet. Invite a colleague first.'), this.go('team')) } : { head: '', text: '', btn: '', assign: () => {} };
     const dayHearings = D.hearings.filter(x => x.date === daySel).sort((a, b) => a.time.localeCompare(b.time)).map(hv);
 
     /* ---- limitation ---- */
     const limO = { title: LM.title, readyInput: (this.readyDraftId === LM.id && this.readyDraft) || LS.addDays(LM.applied || T, 14), setReady: e => { this.readyDraft = e.target.value; this.readyDraftId = LM.id; this.setState({ dr: Date.now() }); },
       dueLabel: lim.due ? LS.longDate(lim.due) : 'No date calculated', daysLabel: lim.none ? '—' : lim.daysLeft >= 0 ? `${lim.daysLeft} day${lim.daysLeft === 1 ? '' : 's'}` : `${-lim.daysLeft} day${lim.daysLeft === -1 ? '' : 's'} late`, daysWord: lim.none ? (limR.none ? 'no fixed period' : 'facts missing') : lim.daysLeft >= 0 ? 'remaining' : 'past the last date',
-      sendLabel: LM.sent ? 'Sent for review ✓' : 'Send to a colleague for review', send: () => { if (LM.sent) return this.toast('Already sent. A review task is open.'); const rvu = D.team.find(u => u.name !== me && u.status !== 'Suspended'); if (!rvu) { this.toast('Invite a colleague in Team first.'); return this.go('team'); } const rv = rvu.name; this.mut(db => { const l = db.lims.find(x => x.id === LM.id); l.sent = true; db.tasks.push({ id: LS.uid('t'), caseId: l.caseId, t: 'Review limitation calculation: ' + l.title, who: rv, due: LS.addDays(T, 1), done: false }); V.logIt(db, 'Limitation calculation sent to ' + rv + ' for review', l.caseId); }, 'Review task created for ' + rv); },
+      sendLabel: LM.sent ? 'Sent for review ✓' : 'Send to a colleague for review', send: () => { if (!V.allowed(this, 'deadline.edit', LM)) return; if (LM.sent) return this.toast('Already sent. A review task is open.'); const rvu = D.team.find(u => u.name !== me && u.status !== 'Suspended'); if (!rvu) { this.toast('Invite a colleague in Team first.'); return this.go('team'); } const rv = rvu.name; this.mut(db => { const l = db.lims.find(x => x.id === LM.id); l.sent = true; db.tasks.push({ id: LS.uid('t'), caseId: l.caseId, t: 'Review limitation calculation: ' + l.title, who: rv, due: LS.addDays(T, 1), done: false }); V.logIt(db, 'Limitation calculation sent to ' + rv + ' for review', l.caseId); }, 'Review task created for ' + rv); },
       approvedBy: 'Approved by ' + (LM.approvedBy || D.user.title), approvedText: LM.approved ? `on ${LM.approvedAt}. The last date is in Deadlines and in-app alerts until it passes or is marked done${LSB.on ? ', and in each member\'s morning briefing email from 30 days before (flagged 3 days, 1 day and on the day)' : ''}. Logged in the activity history.` : '',
-      newBtns: h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(V.Btn, { onClick: () => V.newLim(this) }, 'New calculation'), h(V.Btn, { onClick: () => V.addDeadline(this) }, '+ Add a deadline'), h(V.Btn, { danger: true, onClick: () => V.delLim(this, LM.id) }, 'Delete calculation')),
+      newBtns: h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(V.Btn, B({ onClick: () => V.newLim(this) }, 'deadline.create'), 'New calculation'), h(V.Btn, B({ onClick: () => V.addDeadline(this) }, 'deadline.create'), '+ Add a deadline'), h(V.Btn, B({ danger: true, onClick: () => V.delLim(this, LM.id) }, 'deadline.delete', LM), 'Delete calculation')),
       listEl: LMS.length ? V.limList(this, LM.id) : null, ruleChip: 'rules v2026.11 · check the statute / rules',
       deadlinesEl: V.deadlinesCard(this),
-      changeEl: h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 } }, h(V.Btn, { small: true, onClick: () => V.newLim(this, LM.id) }, 'Edit calculation'), limFilled && LM.ready && !LM.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lims.find(x => x.id === LM.id).ready = ''; }) }, 'Change the certified-copy date'), LM.approved && h(V.Btn, { small: true, onClick: () => V.withdrawLim(this, LM.id) }, 'Withdraw approval')) };
-    const fillMissing = () => { const v = limO.readyInput; if (!LS.valid(v)) return this.toast('Enter a valid date.'); if (v < LM.applied) return this.toast('The copy cannot be ready before it was applied for (' + LS.dmy(LM.applied) + ').'); if (v > T) return this.toast('That date is in the future.'); this.mut(db => { const l = db.lims.find(x => x.id === LM.id); if (l) l.ready = v; }); };
+      changeEl: h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 } }, h(V.Btn, B({ small: true, onClick: () => V.newLim(this, LM.id) }, 'deadline.edit', LM), 'Edit calculation'), limFilled && LM.ready && !LM.approved && h(V.Btn, B({ small: true, onClick: () => V.allowed(this, 'deadline.edit', LM) && this.mut(db => { db.lims.find(x => x.id === LM.id).ready = ''; }) }, 'deadline.edit', LM), 'Change the certified-copy date'), LM.approved && h(V.Btn, B({ small: true, onClick: () => V.withdrawLim(this, LM.id) }, 'lim.approve'), 'Withdraw approval')) };
+    const fillMissing = () => { if (!V.allowed(this, 'deadline.edit', LM)) return; const v = limO.readyInput; if (!LS.valid(v)) return this.toast('Enter a valid date.'); if (v < LM.applied) return this.toast('The copy cannot be ready before it was applied for (' + LS.dmy(LM.applied) + ').'); if (v > T) return this.toast('That date is in the future.'); this.mut(db => { const l = db.lims.find(x => x.id === LM.id); if (l) l.ready = v; }); };
 
     /* ---- brain ---- */
     const bc = D.cases.find(x => x.id === S.brainCase) || D.cases[0] || { id: '' }, chat = bc.id ? this.chat(bc.id) : [];
@@ -1364,16 +1373,16 @@ class Component extends DCLogic {
     const draft = { title: S.tpl === 2 ? 'Legal notice, s.138 NI Act' : this.tplNames[S.tpl], footer: `Draft ${vlist[vi].v.split(' ')[0]} · Prepared on Legal Staff · ${plain.trim().split(/\s+/).length} words`,
       body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length, ref: el => { this.ed = el; }, contentEditable: true, suppressContentEditableWarning: true, spellCheck: true, style: { position: 'relative', outline: 'none' }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
       checks: h(React.Fragment, null, chk.map(([m, t], i) => h('div', { key: i, style: { color: m === '✓' ? '#0A0A0A' : '#B42318' } }, m + ' ' + t))),
-      saveBtn: h(V.Btn, { onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
+      saveBtn: h(V.Btn, { disabled: !V.can(this, 'draft.edit'), title: V.why(this, 'draft.edit') || undefined, onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
       docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }], ...LS.htmlToRuns(this.ed)]); this.toast('DOCX downloaded'); },
       pdf: () => { const sec = this.ed && this.ed.closest('section'); if (!sec) return; sec.classList.add('ls-print'); const done = () => { sec.classList.remove('ls-print'); window.removeEventListener('afterprint', done); }; window.addEventListener('afterprint', done); window.print(); } };
 
     /* ---- pricing ---- */
     const cycles = [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14, background: S.cycle === k ? '#0A0A0A' : 'transparent', color: S.cycle === k ? '#fff' : '#363636' } }));
     const P = [
-      ['Solo', 'For an advocate practising alone', 699, 6999, ['1 user', '150 active cases', '10 GB storage', '200 AI credits / month', 'Hearing reminders on WhatsApp and email', 'Limitation tracker']],
-      ['Professional', 'For advocates with juniors or a small chamber', 1499, 14999, ['Up to 3 users', '600 active cases', '50 GB storage', '1,000 AI credits / month', 'AI Case Brain and Drafting Studio', 'Client portal']],
-      ['Firm', 'For law firms with teams and partners', 3999, 39999, ['Up to 15 users', 'Unlimited cases', '250 GB storage', '5,000 AI credits / month', 'Roles, permissions and AI agents', 'Reports and analytics']],
+      ['Solo', 'For an advocate practising alone', 699, 6999, ['1 user', '150 active cases', '10 GB storage', 'Hearing reminders on WhatsApp and email', 'Limitation tracker', 'AI features: coming soon']],
+      ['Professional', 'For advocates with juniors or a small chamber', 1499, 14999, ['Up to 3 users', '600 active cases', '50 GB storage', 'Case Brain answers from your case file (rule-based) and Drafting Studio', 'Client portal', 'AI features: coming soon']],
+      ['Firm', 'For law firms with teams and partners', 3999, 39999, ['Up to 15 users', 'Unlimited cases', '250 GB storage', 'Roles and permissions, and rule-based agents', 'Reports and analytics', 'AI features: coming soon']],
       ['Enterprise', 'For corporate legal departments and large firms', null, null, ['Custom users and storage', 'SSO and audit exports', 'Dedicated onboarding', 'Custom court-data providers']]
     ];
     const inr = LS.inr;
@@ -1384,7 +1393,7 @@ class Component extends DCLogic {
     const plans = P.map(([name, who, m, a, feats], i) => {
       const feat = i === 1, ann = S.cycle === 'annual', curPlan = D.sub.plan === name && D.sub.cycle === S.cycle;
       return { name, who, feats, price: m ? inr(ann ? a : m) : 'Custom', per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '',
-        cta: m ? (curPlan ? 'Current plan' : `Choose ${name}`) : 'Contact sales', pick: () => m ? (curPlan ? this.toast(`You are already on the ${name} plan.`) : this.setState({ plan: i, paid: false, gstin: D.firm.gstin || '', gstErr: '' })) : sales(),
+        cta: m ? (curPlan ? 'Current plan' : `Choose ${name}`) : 'Contact sales', pick: () => m ? (curPlan ? this.toast(`You are already on the ${name} plan.`) : !V.allowed(this, 'plan.buy') ? null : this.setState({ plan: i, paid: false, gstin: D.firm.gstin || '', gstErr: '' })) : sales(),
         card: { background: feat ? '#F5F5F4' : '#FFFFFF', color: '#0A0A0A', border: feat ? '2px solid #0A0A0A' : '1px solid #E5E5E5', borderRadius: 12, padding: 26, display: 'flex', flexDirection: 'column', gap: 10 },
         btn: { height: 38, border: feat ? 0 : '1px solid #0A0A0A', borderRadius: 8, fontSize: 14, fontWeight: 500, background: feat ? '#0A0A0A' : 'transparent', color: feat ? '#fff' : '#0A0A0A', margin: '8px 0', opacity: curPlan ? .55 : 1 } };
     });
@@ -1427,7 +1436,7 @@ class Component extends DCLogic {
     const unpaid = D.invoices.filter(x => !x.paid), hour = new Date().getHours();
     const needO = V.needsOutcome(D).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
     const needOutcome = needO.length ? h(V.Card, { title: 'Needs outcome', right: h('span', { style: { fontSize: 13, color: '#5E5E5E' } }, `${needO.length} past hearing${needO.length > 1 ? 's' : ''} without a recorded outcome`) },
-      needO.slice(0, 6).map(x => h(V.Line, { key: x.id }, h('div', { style: { width: 64, flexShrink: 0, fontSize: 13, color: '#5E5E5E', fontVariantNumeric: 'tabular-nums' } }, LS.dayMon(x.date), h('div', null, LS.t12ap(x.time))), h('div', { style: { flex: 1, minWidth: 0, overflowWrap: 'anywhere' } }, caseOf(x.caseId).title, h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, [x.court, x.purpose, x.assignee].filter(Boolean).join(' · '))), h(V.Btn, { small: true, primary: true, onClick: () => V.recordOutcome(this, x.id) }, 'Record outcome'))),
+      needO.slice(0, 6).map(x => h(V.Line, { key: x.id }, h('div', { style: { width: 64, flexShrink: 0, fontSize: 13, color: '#5E5E5E', fontVariantNumeric: 'tabular-nums' } }, LS.dayMon(x.date), h('div', null, LS.t12ap(x.time))), h('div', { style: { flex: 1, minWidth: 0, overflowWrap: 'anywhere' } }, caseOf(x.caseId).title, h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, [x.court, x.purpose, x.assignee].filter(Boolean).join(' · '))), h(V.Btn, B({ small: true, primary: true, onClick: () => V.recordOutcome(this, x.id) }, 'hearing.outcome', x), 'Record outcome'))),
       needO.length > 6 && h('div', { style: { fontSize: 13, color: '#5E5E5E', paddingTop: 10, borderTop: '1px solid #E5E5E5' } }, `And ${needO.length - 6} more. Open a case's Hearings tab to record them.`)) : null;
     const openMenu = k => () => this.setState({ menu: S.menu === k ? null : k });
 
@@ -1450,7 +1459,8 @@ class Component extends DCLogic {
       userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userEmail: D.user.email, searchPh: mobile ? 'Search…' : 'Search cases, CNR, parties, documents…', userMenu: openMenu('user'),
       searchQ: S.search, setSearch: e => this.setState({ search: e.target.value, searchOpen: true }), searchFocus: () => this.setState({ searchOpen: true, menu: null }), searchBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 150), searchKey: e => { if (e.key === 'Enter' && results[0]) pick(results[0]); }, searchDrop,
       newCase: () => V.newCase(this), importCnr: () => V.importCnr(this), help: () => V.help(this), alertsMenu: openMenu('alerts'), alertCount: alerts.length, hasAlerts: alerts.length > 0, overlay,
-      toast: S.toast, hasToast: !!S.toast, goCases: () => this.go('cases'),
+      toast: S.toast, hasToast: !!S.toast, goCases: () => this.go('cases'), planBanner: S.auth === 'in' ? V.planBanner(this) : null,
+      gates: { caseNew: G('case.create'), orderEdit: G('order.edit', O) },
       hasCrumbs: false, crumb: '', crumbBar: {},
       quick: [['New case', 'Manual entry or CNR import', 'case', () => V.newCase(this)], ['Upload court order', 'Next date and key points', 'upload', () => V.addOrder(this)], ['Calculate limitation', 'Rule-based, with review', 'clock', () => this.go('limitation')], ['Draft a document', 'Templates and dictation', 'pen', () => this.go('drafting')]].map(([label, sub, ic, go]) => ({ label, sub, icon: icon(ic, 20), go })),
       caseFilters: [['all', 'All'], ['active', 'Active'], ['pending', 'Pending'], ['disposed', 'Disposed'], ['archived', 'Archived']].map(([k, label]) => ({ label, count: k === 'all' ? D.cases.length : D.cases.filter(x => x.status === k).length, go: () => this.setState({ caseFilter: k }),
@@ -1498,8 +1508,8 @@ class Component extends DCLogic {
       activity: D.log.slice().sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 4).map(e => ({ t: e.ts.slice(0, 10) === T ? e.ts.slice(11) : LS.dayMon(e.ts.slice(0, 10)), x: e.x })),
       c, tabEmpty, caseOrders, hearingHistory, docs, timeline, tabs, tab,
       ord, nextDate: oDate, nextDateLabel, reminderLine: rem, reminderPlan: remPlan, editDate: (S.editDate || !oDate) && !oConf, confirmed: oConf, notConfirmed: !oConf,
-      setDate: e => { const v = e.target.value; this.mut(db => { const o = db.orders.find(x => x.id === O.id); if (o) { o.nextDate = v; o.nextFrom = 'entered by you'; } }); }, toggleEdit: () => this.setState({ editDate: !S.editDate }),
-      confirmDate, undoConfirm: () => this.mut(db => { const o = db.orders.find(x => x.id === O.id); o.confirmed = false; db.hearings = db.hearings.filter(x => x.fromOrder !== o.id); }, 'Removed from calendar'),
+      setDate: e => { const v = e.target.value; if (!V.allowed(this, 'order.edit', O)) return; this.mut(db => { const o = db.orders.find(x => x.id === O.id); if (o) { o.nextDate = v; o.nextFrom = 'entered by you'; } }); }, toggleEdit: () => this.setState({ editDate: !S.editDate }),
+      confirmDate, undoConfirm: () => V.allowed(this, 'order.edit', O) && this.mut(db => { const o = db.orders.find(x => x.id === O.id); o.confirmed = false; db.hearings = db.hearings.filter(x => x.fromOrder !== o.id); }, 'Removed from calendar'),
       viewInCalendar: () => this.openWeek(oDate), orderSteps,
       calViews: [['week', 'Week'], ['day', 'Day']].map(([k, label]) => ({ label, go: () => this.setState({ calView: k }), style: { border: 0, borderRadius: 8, padding: '6px 14px', fontSize: 13, background: S.calView === k ? '#0A0A0A' : 'transparent', color: S.calView === k ? '#fff' : '#363636' } })),
       weekView: wkView, dayView: !wkView, week, weekTitle, calNav, hasConflict: !!cg, conflict, dayHearings, dayEmpty: !wkView && !dayHearings.length ? h(V.Empty, { title: 'No hearings on this day', text: 'Pick another day, or add a hearing to a case.', art: 'calendar', small: true }) : null,

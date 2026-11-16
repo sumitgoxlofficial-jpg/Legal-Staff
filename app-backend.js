@@ -12,7 +12,8 @@
   const USER_KEYS = ['settings', 'notes', 'chats', 'copilot', 'research', 'drafts'];
   const PAGE = 1000, LOG_MAX = 300, NEWEST_FIRST = { cases: 1, clients: 1, docs: 1, orders: 1, invoices: 1, lims: 1 };
   let snap = {}, firmSnap = '', userSnap = '', teamSnap = '', meSnap = '', firmId = '', uid = '', busy = null, again = false;
-  const fail = (e, what) => { const m = (e && (e.message || e.error_description || e.error)) || String(e); throw new Error(what ? what + ': ' + m : m); };
+  /* Keeps the Postgres error code (42501 = refused by a permission rule) so the app can tell a refusal from a network error. */
+  const fail = (e, what) => { const m = (e && (e.message || e.error_description || e.error)) || String(e), x = new Error(what ? what + ': ' + m : m); x.code = e && e.code; throw x; };
   const ok = r => { if (r.error) fail(r.error); return r.data; };
   /* PostgREST returns at most 1,000 rows per request, so read in pages until a page comes back empty. q() must be stably ordered. */
   async function pages(q) { const out = []; for (let from = 0; ; ) { const rows = ok(await q().range(from, from + PAGE - 1)) || []; if (!rows.length) return out; out.push(...rows); from += rows.length; } }
@@ -22,7 +23,9 @@
   function order(d) { Object.keys(KIND).forEach(c => { if (c === 'log') return d.log.sort((a, b) => String(b.ts).localeCompare(String(a.ts)) || String(b.id).localeCompare(String(a.id))); const s = NEWEST_FIRST[c] ? -1 : 1; d[c].sort((a, b) => s * (String(a.created || '').localeCompare(String(b.created || '')) || String(a.id).localeCompare(String(b.id)))); }); }
   const teamKey = t => JSON.stringify(t.map(u => [u.id, u.email, u.name, u.title, u.role, u.status]));
   const meKey = u => JSON.stringify([u.name, u.title, u.phone]);
-  const firmRow = d => ({ name: d.firm.name, city: d.firm.city, address: d.firm.address, gstin: d.firm.gstin, state: { lim: d.lim, agents: d.agents } });
+  /* Invoice details of the firm (legal name, GST state, PAN, registration, invoice prefix, default SAC) live in firms.state.profile. */
+  const PROFILE = ['legalName', 'stateCode', 'pan', 'gstReg', 'prefix', 'sac'];
+  const firmRow = d => ({ name: d.firm.name, city: d.firm.city, address: d.firm.address, gstin: d.firm.gstin, state: { lim: d.lim, agents: d.agents, profile: Object.fromEntries(PROFILE.map(k => [k, d.firm[k] || ''])) } });
   const userRow = d => Object.fromEntries(USER_KEYS.map(k => [k, d[k]]));
   function take(d) {
     snap = {}; Object.keys(KIND).forEach(c => (d[c] || []).forEach(r => { snap[KIND[c] + '|' + r.id] = JSON.stringify(r); }));
@@ -33,11 +36,12 @@
     d.team = rows.map(m => ({ id: m.id, name: m.name || m.email.split('@')[0], title: m.title || m.name || m.email, role: m.role, email: m.email, status: m.status, owner: m.is_owner, userId: m.user_id }));
     const me = rows.find(m => m.user_id === uid);
     if (me) { d.user = { name: me.name, title: me.title, role: me.role, email: me.email, phone: me.phone }; d.isOwner = me.is_owner; }
+    d.uid = uid;
   }
   async function subscription(d) {
     const s = ok(await sb.from('subscriptions').select('*').eq('firm_id', firmId).maybeSingle());
     const pays = ok(await sb.from('payments').select('plan,cycle,amount_paise,paid_at').eq('firm_id', firmId).eq('status', 'paid').order('paid_at', { ascending: false }));
-    d.sub = { plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', since: s ? s.since : '', renews: s ? s.renews : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
+    d.sub = { plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', since: s ? s.since : '', renews: s ? s.renews : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
   }
 
   const B = {
@@ -54,7 +58,7 @@
     async load(id, session) {
       firmId = id; const d = window.LS.seed(); d.firmId = id; d.session = { email: session.user.email, provider: (session.user.app_metadata || {}).provider || 'google' };
       const [firm, recs, us] = await Promise.all([sb.from('firms').select('*').eq('id', id).single(), pages(() => sb.from('records').select('kind,id,data').eq('firm_id', id).order('kind').order('id')), sb.from('user_state').select('data').eq('firm_id', id).eq('user_id', uid).maybeSingle()]);
-      const f = ok(firm); d.firm = { name: f.name, city: f.city, address: f.address, gstin: f.gstin };
+      const f = ok(firm); d.firm = Object.assign({ name: f.name, city: f.city, address: f.address, gstin: f.gstin }, Object.fromEntries(PROFILE.map(k => [k, ((f.state || {}).profile || {})[k] || '']))); d.firmCreated = String(f.created_at || '').slice(0, 10);
       if (f.state && f.state.lim) d.lim = f.state.lim; if (f.state && Array.isArray(f.state.agents) && f.state.agents.length) d.agents = f.state.agents;
       const by = {}; Object.keys(KIND).forEach(c => { by[KIND[c]] = d[c] = []; });
       recs.forEach(r => { if (by[r.kind]) by[r.kind].push(Object.assign({}, r.data, { id: r.id })); });
@@ -129,6 +133,13 @@
     /* Enterprise enquiries go to the same table as the website's contact form. */
     async contact(row) { ok(await sb.from('contact_requests').insert(row)); },
     async refreshSub(d) { await subscription(d); },
+    /* Next number in an invoice series (e.g. 'RA/2026-27/'), counted on the server so two people never get the same number.
+       Returns null on a database without migration 0006; the app then counts the invoices it has. */
+    async nextInvoiceNo(prefix) {
+      const r = await sb.rpc('next_invoice_no', { f: firmId, p_prefix: prefix });
+      if (r.error) { if (r.error.code === 'PGRST202' || /could not find the function/i.test(r.error.message || '')) return null; fail(r.error); }
+      return r.data;
+    },
     /* ---- documents ---- */
     path: (docId, name) => firmId + '/' + docId + '/' + String(name).replace(/[^\w.\- ]+/g, '_'),
     async upload(docId, file) { ok(await sb.storage.from('documents').upload(B.path(docId, file.name), file, { upsert: false, contentType: file.type || 'application/octet-stream' })); },
