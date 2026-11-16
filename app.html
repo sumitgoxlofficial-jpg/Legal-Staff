@@ -188,7 +188,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   </div>
   <sc-if value="{{ expanded }}" hint-placeholder-val="{{ true }}">
   <button onClick="{{ firmMenu }}" style="flex-shrink:0;margin:12px 10px 4px;padding:8px 10px;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:8px;display:flex;align-items:center;gap:10px;text-align:left">
-    <div style="width:28px;height:28px;border-radius:6px;background:#0A0A0A;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:14px">{{ firmInit }}</div>
+    {{ firmMark }}
     <div style="flex:1;min-width:0">
       <div style="font-size:13px;font-weight:600;color:#0A0A0A">{{ firmName }}</div>
       <div style="font-size:12px;color:#5E5E5E">{{ firmLine }}</div>
@@ -1560,7 +1560,7 @@ class Component extends DCLogic {
     return {
       expanded: exp, collapsed: !exp, notMobile: !mobile, toggleCollapse: () => this.mut(db => { db.settings.collapsed = !db.settings.collapsed; }, null, true), collapseLabel: st.collapsed ? '»' : '« Collapse sidebar',
       showLogin: S.auth === 'login', booting: S.auth === 'boot', loginStage: h(V.LoginStage), bootView: h(V.Boot, { text: 'Loading your workspace…' }), loginForm: h(V.LoginForm, { app: this }),
-      firmName: D.firm.name || 'Your practice', firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')) || 'LS', firmLine: [V.planName(acc), D.firm.city].filter(Boolean).join(' · '), firmAddress: D.firm.address, firmMenu: openMenu('firm'),
+      firmName: D.firm.name || 'Your practice', firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')) || 'LS', firmMark: h(V.FirmMark, { app: this, size: 34, invert: st.sidebar === 'Ink' }), firmLine: [V.planName(acc), D.firm.city].filter(Boolean).join(' · '), firmAddress: D.firm.address, firmMenu: openMenu('firm'),
       userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userAvatar: h(V.Avatar, { app: this, size: 34, invert: st.sidebar === 'Ink' }), userEmail: D.user.email, searchPh: mobile ? 'Search…' : 'Search cases, CNR, parties, documents…', userMenu: openMenu('user'),
       searchQ: S.search, setSearch: e => this.setState({ search: e.target.value, searchOpen: true }), searchFocus: () => this.setState({ searchOpen: true, menu: null }), searchBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 150), searchKey: e => { if (e.key === 'Enter' && results[0]) pick(results[0]); }, searchDrop,
       newCase: () => V.newCase(this), importCnr: () => V.importCnr(this), help: () => V.help(this), alertsMenu: openMenu('alerts'), alertCount: alerts.length, hasAlerts: alerts.length > 0, overlay,

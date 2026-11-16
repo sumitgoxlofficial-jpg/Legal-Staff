@@ -24,7 +24,7 @@
   function order(d) { Object.keys(KIND).forEach(c => { if (c === 'log') return d.log.sort((a, b) => String(b.ts).localeCompare(String(a.ts)) || String(b.id).localeCompare(String(a.id))); const s = NEWEST_FIRST[c] ? -1 : 1; d[c].sort((a, b) => s * (String(a.created || '').localeCompare(String(b.created || '')) || String(a.id).localeCompare(String(b.id)))); }); }
   const teamKey = t => JSON.stringify(t.map(u => [u.id, u.email, u.name, u.title, u.role, u.status]));
   const meKey = u => JSON.stringify([u.name, u.title, u.phone]);
-  const firmRow = d => ({ name: d.firm.name, city: d.firm.city, address: d.firm.address, gstin: d.firm.gstin, state: { lim: d.lim, agents: d.agents } });
+  const firmRow = d => ({ name: d.firm.name, city: d.firm.city, address: d.firm.address, gstin: d.firm.gstin, state: { lim: d.lim, agents: d.agents, court: d.firm.court || '', photo: d.firm.photo || '' } });
   const userRow = d => Object.fromEntries(USER_KEYS.map(k => [k, d[k]]));
   function take(d) {
     snap = {}; Object.keys(KIND).forEach(c => (d[c] || []).forEach(r => { snap[KIND[c] + '|' + r.id] = JSON.stringify(r); }));
@@ -63,7 +63,7 @@
     async load(id, session) {
       firmId = id; const d = window.LS.seed(); d.firmId = id; d.session = { email: session.user.email, provider: (session.user.app_metadata || {}).provider || 'google' };
       const [firm, recs, us] = await Promise.all([sb.from('firms').select('*').eq('id', id).single(), pages(() => sb.from('records').select('kind,id,data').eq('firm_id', id).order('kind').order('id')), sb.from('user_state').select('data').eq('firm_id', id).eq('user_id', uid).maybeSingle()]);
-      const f = ok(firm); d.firm = { name: f.name, city: f.city, address: f.address, gstin: f.gstin };
+      const f = ok(firm); d.firm = { name: f.name, city: f.city, address: f.address, gstin: f.gstin, court: (f.state && f.state.court) || '', photo: (f.state && f.state.photo) || '' };
       if (f.state && f.state.lim) d.lim = f.state.lim; if (f.state && Array.isArray(f.state.agents) && f.state.agents.length) d.agents = f.state.agents;
       const by = {}; Object.keys(KIND).forEach(c => { by[KIND[c]] = d[c] = []; });
       recs.forEach(r => { if (by[r.kind]) by[r.kind].push(Object.assign({}, r.data, { id: r.id })); });

@@ -984,7 +984,19 @@
     return h('div', { style: Object.assign({ width: n, height: n, borderRadius: '50%', background: K.soft2, color: K.ink, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: Math.round(n * .38), flexShrink: 0, overflow: 'hidden' }, style) },
       p ? h('img', { src: p, alt: '', draggable: false, style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: invert ? 'invert(1) hue-rotate(180deg)' : 'none' } }) : (L.initials((user || app.db.user).name) || '?'));
   }
-  function PhotoCrop({ img, src, onSave, onCancel }) {
+  /* Courts a firm can pick as its main court. A court with a picture in assets/courts/ (COURT_PICS) shows it on the firm's mark in the sidebar. */
+  const COURTS = ['Supreme Court of India', 'Allahabad High Court', 'Andhra Pradesh High Court', 'Bombay High Court', 'Calcutta High Court', 'Chhattisgarh High Court', 'Delhi High Court', 'Gauhati High Court', 'Gujarat High Court', 'Himachal Pradesh High Court', 'High Court of Jammu and Kashmir and Ladakh', 'Jharkhand High Court', 'Karnataka High Court', 'Kerala High Court', 'Madhya Pradesh High Court', 'Madras High Court', 'Manipur High Court', 'Meghalaya High Court', 'Orissa High Court', 'Patna High Court', 'Punjab and Haryana High Court', 'Rajasthan High Court', 'Sikkim High Court', 'Telangana High Court', 'Tripura High Court', 'Uttarakhand High Court'];
+  /* Empty until the pictures are added: the Main court field in Settings appears once this lists at least one court. */
+  const COURT_PICS = [];
+  const courtPic = name => COURT_PICS.includes(name) ? 'assets/courts/' + name.toLowerCase().replace(/[^a-z]+/g, '-') + '.jpg' : '';
+  /* The firm's mark: its own uploaded picture, else the picture of its main court, else its initials. */
+  function FirmMark({ app, size, invert, style }) {
+    const f = app.db.firm, n = size || 32, [bad, setBad] = useState('');
+    const src = f.photo || courtPic(f.court), show = src && bad !== src;
+    return h('div', { title: !f.photo && show ? f.court : undefined, style: Object.assign({ width: n, height: n, borderRadius: Math.round(n * .22), background: K.ink, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Instrument Sans',system-ui,sans-serif", fontWeight: 600, fontSize: Math.round(n * .44), flexShrink: 0, overflow: 'hidden' }, style) },
+      show ? h('img', { src, alt: '', draggable: false, onError: () => setBad(src), style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: invert ? 'invert(1) hue-rotate(180deg)' : 'none' } }) : (L.initials((f.name || '').replace(/&/g, ' ')) || 'LS'));
+  }
+  function PhotoCrop({ img, src, onSave, onCancel, square }) {
     const [box, setBox] = useState(() => Math.max(220, Math.min(340, window.innerWidth - 84)));
     const [v, setV] = useState({ z: 1, x: 0, y: 0 }), [drag, setDrag] = useState(false);
     const el = React.useRef(null), pts = React.useRef(new Map()), cur = React.useRef(v); cur.current = v;
@@ -1014,7 +1026,7 @@
     const key = e => { const st = e.shiftKey ? 40 : 10, d = { ArrowLeft: [st, 0], ArrowRight: [-st, 0], ArrowUp: [0, st], ArrowDown: [0, -st] }[e.key];
       if (d) { e.preventDefault(); move(o => ({ z: o.z, x: o.x + d[0], y: o.y + d[1] })); } else if (e.key === '+' || e.key === '=') zoomAt(v.z * 1.1, 0, 0); else if (e.key === '-') zoomAt(v.z / 1.1, 0, 0); };
     const save = () => {
-      const sc = s0 * v.z, side = box / sc, c = document.createElement('canvas'); c.width = c.height = PHOTO_PX;
+      const sc = s0 * v.z, side = (box - (square ? 20 : 0)) / sc, c = document.createElement('canvas'); c.width = c.height = PHOTO_PX;
       const g = c.getContext('2d'); g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, PHOTO_PX, PHOTO_PX); g.imageSmoothingQuality = 'high';
       g.drawImage(img, w / 2 - v.x / sc - side / 2, ht / 2 - v.y / sc - side / 2, side, side, 0, 0, PHOTO_PX, PHOTO_PX);
       onSave(c.toDataURL('image/jpeg', .86));
@@ -1024,14 +1036,14 @@
       h('div', { ref: el, tabIndex: 0, role: 'application', 'aria-label': 'Photo position. Drag or use the arrow keys to move, plus and minus to zoom.', onPointerDown: down, onPointerMove: mv, onPointerUp: up, onPointerCancel: up, onKeyDown: key, onDoubleClick: () => zoomAt(v.z > 1.01 ? 1 : 2, 0, 0),
         className: 'ls-crop', style: { position: 'relative', width: box, height: box, overflow: 'hidden', borderRadius: 12, background: '#0A0A0A', touchAction: 'none', userSelect: 'none', cursor: drag ? 'grabbing' : 'grab' } },
         h('img', { src, alt: '', draggable: false, style: { position: 'absolute', left: '50%', top: '50%', width: w * s0 * v.z, height: ht * s0 * v.z, maxWidth: 'none', transform: `translate(calc(-50% + ${v.x}px), calc(-50% + ${v.y}px))`, pointerEvents: 'none', transition: drag ? 'none' : 'width .12s, height .12s, transform .12s' } }),
-        h('div', { style: { position: 'absolute', inset: 0, borderRadius: '50%', boxShadow: '0 0 0 9999px rgba(10,10,10,.55)', border: '1.5px solid rgba(255,255,255,.9)', pointerEvents: 'none' } }),
+        h('div', { style: { position: 'absolute', inset: square ? 10 : 0, borderRadius: square ? '18%' : '50%', boxShadow: '0 0 0 9999px rgba(10,10,10,.55)', border: '1.5px solid rgba(255,255,255,.9)', pointerEvents: 'none' } }),
         h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none', opacity: drag ? 1 : 0, transition: 'opacity .2s' } }, [1, 2].map(i => third('v', i)), [1, 2].map(i => third('h', i)))),
       h('label', { style: { display: 'flex', alignItems: 'center', gap: 10, width: box, fontSize: 12.5, color: K.mut } },
         h('span', { 'aria-hidden': true, style: { fontSize: 15, lineHeight: 1 } }, '−'),
         h('input', { type: 'range', min: 1, max: PHOTO_MAX_ZOOM, step: .01, value: v.z, 'aria-label': 'Zoom', onChange: e => zoomAt(+e.target.value, 0, 0), style: { flex: 1, accentColor: K.ink } }),
         h('span', { 'aria-hidden': true, style: { fontSize: 17, lineHeight: 1 } }, '+')),
       h('div', { style: { fontSize: 12.5, color: K.mut, textAlign: 'center' } }, 'Drag to move. Pinch, scroll or use the slider to zoom.'),
-      h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, width: '100%' } }, h(Btn, { onClick: onCancel }, 'Cancel'), h(Btn, { primary: true, onClick: save }, 'Save photo')));
+      h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, width: '100%' } }, h(Btn, { onClick: onCancel }, 'Cancel'), h(Btn, { primary: true, onClick: save }, square ? 'Save picture' : 'Save photo')));
   }
   function savePhoto(app, url, msg) {
     const server = !!(window.LSB && LSB.on);
@@ -1039,14 +1051,24 @@
     if (app.db.photo !== url) return; /* the change was refused, e.g. the plan has ended; mut() has said why */
     if (server) app.flush().then(() => app.toast(msg), e => app.toast('Not saved: ' + e.message));
   }
-  function editPhoto(app) {
+  /* opts.firm: the picture is for the firm's mark (rounded square, saved in db.firm.photo) instead of the user's profile photo. */
+  function saveFirmPhoto(app, url, msg) {
+    const server = !!(window.LSB && LSB.on);
+    if (server && !app.db.isOwner) return app.toast('Only the firm owner can change the firm picture.');
+    app.mut(db => { db.firm.photo = url; }, server ? null : msg);
+    if ((app.db.firm.photo || '') !== url) return;
+    if (server) app.flush().then(() => app.toast(msg), e => app.toast('Not saved: ' + e.message));
+  }
+  function editPhoto(app, opts) {
+    const firm = !!(opts && opts.firm);
+    if (firm && window.LSB && LSB.on && !app.db.isOwner) return app.toast('Only the firm owner can change the firm picture.');
     L.pickFile('image/*').then(fs => {
       const f = fs[0]; if (!f) return;
       if (!/^image\//.test(f.type)) return app.toast('Choose an image file, such as a JPG or PNG');
       if (f.size > 20 * 1024 * 1024) return app.toast('That image is over 20 MB. Choose a smaller one');
       const src = URL.createObjectURL(f), img = new Image(), close = () => { app.modal(null); URL.revokeObjectURL(src); };
       img.onerror = () => { URL.revokeObjectURL(src); app.toast('That image could not be opened. Try a JPG or PNG'); };
-      img.onload = () => app.modal(() => h(Modal, { title: 'Edit profile photo', onClose: close, width: 420 }, h(PhotoCrop, { img, src, onCancel: close, onSave: url => { close(); savePhoto(app, url, 'Profile photo updated'); } })));
+      img.onload = () => app.modal(() => h(Modal, { title: firm ? 'Edit firm picture' : 'Edit profile photo', onClose: close, width: 420 }, h(PhotoCrop, { img, src, square: firm, onCancel: close, onSave: url => { close(); firm ? saveFirmPhoto(app, url, 'Firm picture updated') : savePhoto(app, url, 'Profile photo updated'); } })));
       img.src = src;
     });
   }
@@ -1055,7 +1077,7 @@
     const d = app.db, s = d.settings, set = (k, v, msg) => app.mut(db => { db.settings[k] = v; }, msg || 'Setting saved');
     const row = (label, sub, ctl) => h(Line, null, h('div', { style: { flex: 1, minWidth: 0 } }, label, sub && h('div', { style: { fontSize: 12.5, color: K.mut } }, sub)), ctl);
     const server = !!(window.LSB && LSB.on), owner = !server || !!d.isOwner;
-    const formCard = (title, obj, fields, key) => h(Card, { title }, h(Form, { key: key + app.state.rev0, fields, init: obj, submit: 'Save', onSubmit: v => { app.mut(db => { Object.assign(db[key], v); if (key === 'user') { const u = db.team.find(x => x.email === obj.email) || db.team[0]; const old = u.name; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + v.name.trim(); Object.assign(u, { name: v.name.trim(), title: db.user.title, role: v.role, email: v.email }); if (old !== u.name) { db.tasks.forEach(t => { if (t.who === old) t.who = u.name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = u.name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? u.name : n); }); } } }, server ? null : 'Saved');
+    const formCard = (title, obj, fields, key) => h(Card, { title }, h(Form, { key: key + app.state.rev0, fields, init: obj, submit: 'Save', onSubmit: v => { app.mut(db => { Object.assign(db[key], Object.fromEntries(fields.map(f => [f.k, v[f.k]]))); if (key === 'user') { const u = db.team.find(x => x.email === obj.email) || db.team[0]; const old = u.name; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + v.name.trim(); Object.assign(u, { name: v.name.trim(), title: db.user.title, role: v.role, email: v.email }); if (old !== u.name) { db.tasks.forEach(t => { if (t.who === old) t.who = u.name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = u.name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? u.name : n); }); } } }, server ? null : 'Saved');
       /* On the server, say "Saved" only once the server has accepted the change. */
       if (server) app.flush().then(() => app.toast('Saved'), e => app.toast('Not saved: ' + e.message)); } }));
     const backup = row('Back up', 'Download everything as a JSON file', h(Btn, { small: true, onClick: () => L.download('legal-staff-backup-' + L.today() + '.json', new Blob([JSON.stringify(d, null, 1)], { type: 'application/json' })) }, 'Export'));
@@ -1069,7 +1091,11 @@
       : h(Card, { title: 'Data on this device' }, backup, restore, row('Erase all data', 'Delete every case, client, invoice, file and setting on this device', h(Btn, { small: true, danger: true, onClick: () => confirmBox(app, 'Erase all data?', 'Every case, client, invoice, document and setting on this device will be deleted, including uploaded files. Export a backup first if you may need it. This cannot be undone.', 'Erase everything', () => { const s0 = d.session, u0 = d.user; L.files.clear(); const x = L.reset(); x.session = s0; x.user = u0; x.team = [{ id: 'u1', name: u0.name, title: u0.title, role: u0.role, email: u0.email, status: 'Active' }]; app.replace(x, 'All data erased'); onboard(app); }) }, 'Erase')), signOut);
     return h(Page, { art: 'settings', kicker: 'Firm', title: 'Settings', sub: server ? 'Saved to your firm\'s account' : 'Everything here is saved on this device', max: 1100 },
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,440px),1fr))', gap: 20, alignItems: 'start' } },
-        formCard('Firm profile', d.firm, [{ k: 'name', label: 'Firm name', req: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'gstin', label: 'GSTIN (optional)', half: true, check: v => v && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/i.test(v) ? 'A GSTIN has 15 characters, e.g. 07AAAAA0000A1Z5' : '' }, { k: 'address', label: 'Address on letterhead and invoices' }], 'firm'),
+        formCard('Firm profile', d.firm, [{ k: 'name', label: 'Firm name', req: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'gstin', label: 'GSTIN (optional)', half: true, check: v => v && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/i.test(v) ? 'A GSTIN has 15 characters, e.g. 07AAAAA0000A1Z5' : '' }, COURT_PICS.length ? { k: 'court', label: 'Main court', type: 'select', blank: 'Not set', options: COURTS, half: true } : null, { k: 'address', label: 'Address on letterhead and invoices' }].filter(Boolean), 'firm'),
+        h(Card, { title: 'Firm picture' }, h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
+          h('button', { type: 'button', onClick: () => editPhoto(app, { firm: true }), title: 'Upload a picture', className: 'ls-avatar-btn', style: { border: 0, padding: 0, background: 'none', borderRadius: 16, cursor: 'pointer' } }, h(FirmMark, { app, size: 72 })),
+          h('div', { style: { flex: 1, minWidth: 180 } }, h('div', { style: { fontSize: 13.5 } }, d.firm.photo ? 'Your own picture shows next to the firm name.' : courtPic(d.firm.court) ? 'The ' + d.firm.court + ' shows next to the firm name.' : 'Shows next to the firm name, for everyone in the firm.'), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 2 } }, d.firm.photo ? 'Remove it to go back to ' + (courtPic(d.firm.court) ? 'the photo of your main court.' : 'the firm initials.') : COURT_PICS.length ? 'Choose a main court in Firm profile to show its photo, or upload a logo or picture of your own.' : 'Upload a logo, or a picture such as your main court. You can move and zoom it before saving.')),
+          h('div', { style: { display: 'flex', gap: 8 } }, h(Btn, { small: true, onClick: () => editPhoto(app, { firm: true }) }, d.firm.photo ? 'Change picture' : 'Upload picture'), d.firm.photo && h(Btn, { small: true, danger: true, onClick: () => saveFirmPhoto(app, '', 'Firm picture removed') }, 'Remove')))),
         h(Card, { title: 'Profile photo' }, h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
           h('button', { type: 'button', onClick: () => editPhoto(app), title: d.photo ? 'Change photo' : 'Upload a photo', className: 'ls-avatar-btn', style: { border: 0, padding: 0, background: 'none', borderRadius: '50%', cursor: 'pointer' } }, h(Avatar, { app, size: 72 })),
           h('div', { style: { flex: 1, minWidth: 180 } }, h('div', { style: { fontSize: 13.5 } }, d.photo ? 'Your team sees this photo next to your name.' : 'Add a photo for your team to see next to your name.'), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 2 } }, 'JPG or PNG. You can move and zoom it before saving.')),
@@ -1525,6 +1551,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { Avatar, editPhoto, removePhoto, upiPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, upiPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();
