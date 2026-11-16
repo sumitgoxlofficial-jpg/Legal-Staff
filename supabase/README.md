@@ -16,7 +16,7 @@
 
 ## Current project
 
-Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 and 0002 are applied and `config.js` points at it. Migration 0003 (the daily schedule) is not applied yet; it needs the two Vault values first.
+Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0006 are applied and `config.js` points at it.
 
 ## Set-up, in order
 
