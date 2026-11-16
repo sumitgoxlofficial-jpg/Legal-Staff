@@ -93,7 +93,8 @@
             const before = JSON.parse(teamSnap || '[]'), ids = new Set(d.team.map(u => u.id));
             try {
               for (const u of d.team) { const was = before.find(x => x[0] === u.id);
-                if (!was) ok(await sb.from('members').insert({ firm_id: firmId, email: String(u.email).trim().toLowerCase(), name: u.name, title: u.title, role: u.role }));
+                if (!was) { const em = String(u.email).trim().toLowerCase(); ok(await sb.from('members').insert({ firm_id: firmId, email: em, name: u.name, title: u.title, role: u.role }));
+                  B.fn('notify', { action: 'invite', firm_id: firmId, email: em }).catch(() => {}); }   // invitation email; never blocks saving
                 else if (was[4] !== u.role || was[5] !== u.status) changed(ok(await sb.from('members').update({ role: u.role, status: u.status, title: u.title }).eq('id', u.id).select('id')), 'The change to ' + (u.name || u.email)); }
               for (const x of before) if (!ids.has(x[0])) ok(await sb.from('members').delete().eq('id', x[0]));
             } finally { await members(d); teamSnap = teamKey(d.team); meSnap = meKey(d.user); refreshed = true; }
@@ -175,6 +176,7 @@
     /* Real AI (server function 'ai', Groq): mode 'brain' | 'research' | 'draft'. Resolves to { text, used, limit }. */
     ai: body => B.fn('ai', Object.assign({ firm_id: firmId }, body)),
     notify: () => B.fn('notify', { firm_id: firmId }),
+    invite: email => B.fn('notify', { action: 'invite', firm_id: firmId, email: String(email).trim().toLowerCase() }),
     court: cnr => B.fn('court-status', { cnr }),
     /* ---- directory moderation ---- */
     async isAdmin() { return !!ok(await sb.rpc('is_platform_admin')); },

@@ -227,6 +227,23 @@ async function emailInvoice(admin: any, inv: any, to: string) {
   await admin.from("invoices").update({ emailed_to: to, emailed_at: new Date().toISOString() }).eq("id", inv.id);
 }
 
+/** Tells the business owner about a new payment (pay_settings.alert_email, or the seller email). Never blocks anything. */
+async function alertOwner(admin: any, inv: any) {
+  const { data: s } = await admin.from("pay_settings").select("alert_email,seller_email").eq("id", 1).single();
+  const to = s?.alert_email || s?.seller_email, key = Deno.env.get("RESEND_API_KEY"), from = Deno.env.get("EMAIL_FROM");
+  if (!to || !key || !from) return;
+  const d = inv.data, FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  const rows: [string, string][] = [["Amount", "₹" + inr(d.total)], ["Firm", d.buyer.name || "-"], ["Buyer", d.buyer.email || "-"], ["Plan", `${d.plan} · ${d.cycle === "annual" ? "Annual" : "Monthly"}`],
+    ...(d.period ? [["Period", `${fmtDate(d.period.from)} – ${fmtDate(d.period.to)}`] as [string, string]] : []), ["Invoice", inv.invoice_no], ["Paid by", d.method + (d.utr ? " · ref " + d.utr : "")], ...(d.promo ? [["Promo code", d.promo] as [string, string]] : [])];
+  const html = `<!doctype html><html><body style="margin:0;padding:24px 12px;background:#F4F4F2"><table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #E5E5E5;border-radius:12px"><tr><td style="padding:26px 28px">
+<div style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#137333;padding-bottom:8px">New payment</div>
+<div style="font:700 22px/1.3 ${FONT};color:#0A0A0A;padding-bottom:14px">₹${esc(inr(d.total))} from ${esc(d.buyer.name || "a firm")}</div>
+<table role="presentation" width="100%">${rows.map(([k, v]) => `<tr><td style="padding:9px 12px 9px 0;border-top:1px solid #EDEDED;width:110px;font:600 13px ${FONT};color:#6B6B6B">${esc(k)}</td><td style="padding:9px 0;border-top:1px solid #EDEDED;font:14px ${FONT};color:#0A0A0A">${esc(v)}</td></tr>`).join("")}</table>
+<div style="padding-top:14px;font:13px/1.5 ${FONT};color:#6B6B6B">The plan is active and the invoice has been emailed to the buyer.</div></td></tr></table></body></html>`;
+  await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: [to], subject: `New payment: ₹${inr(d.total)} · ${d.buyer.name || "firm"} · ${d.plan}`, html, text: rows.map(([k, v]) => `${k}: ${v}`).join("\n") }) }).catch(() => {});
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const url = Deno.env.get("SUPABASE_URL")!, service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, admin = createClient(url, service);
@@ -240,7 +257,7 @@ Deno.serve(async (req: Request) => {
       const { data: p } = await admin.from("payments").select("*").eq("id", body.payment_id).eq("status", "paid").maybeSingle();
       if (!p) throw new Fail("Paid payment not found.", 404);
       const inv = await ensureInvoice(admin, p);
-      if (!inv.emailed_at) await emailInvoice(admin, inv, inv.data.buyer.email).catch((e) => console.error("invoice email", e));
+      if (!inv.emailed_at) { await emailInvoice(admin, inv, inv.data.buyer.email).catch((e) => console.error("invoice email", e)); await alertOwner(admin, inv); }
       return json({ invoice_no: inv.invoice_no });
     }
 

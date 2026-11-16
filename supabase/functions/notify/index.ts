@@ -1,4 +1,5 @@
-// Also emails firm owners before their free trial ends (trialReminders, scheduled runs only).
+// Also emails firm owners before their free trial ends (trialReminders) and before a paid plan runs out (planReminders),
+// scheduled runs only. UPI plans do not renew by themselves, so the plan reminders are how a firm knows to renew.
 // Sends the morning briefing (hearings today and in N days, deadlines and approved limitation dates, overdue tasks)
 // by email (Resend) and WhatsApp (Meta Cloud API). Two callers: the hourly schedule (header x-cron-secret, pg_cron at
 // minute 0 UTC = HH:30 IST), which briefs each member once a day in the IST hour of their Settings › Morning briefing time
@@ -231,6 +232,83 @@ async function trialReminders(admin: any, now: number) {
   return results;
 }
 
+/** Paid-plan reminder due today, from the days left until the plan's last day: 7 days before, 1 day before, and after it ends. */
+const planStage = (daysLeft: number) => daysLeft >= 2 && daysLeft <= 7 ? "plan_7d" : daysLeft >= 0 && daysLeft <= 1 ? "plan_1d" : daysLeft >= -2 && daysLeft <= -1 ? "plan_end" : null;
+
+// Emails the firm owner before a paid plan runs out, and once after it has ended. Once per firm per plan period
+// (the kind carries the period's last day, so a renewal starts fresh); a failed send is retried on later runs, at most 3 times.
+async function planReminders(admin: any, now: number) {
+  const clock = istClock(now); if (!trialHourOk(clock.hour)) return [];
+  const { data: subs, error } = await admin.from("subscriptions").select("firm_id,plan,cycle,since,renews").eq("status", "active");
+  if (error) throw error;
+  const app = (Deno.env.get("APP_URL") ?? "https://legalstaff.in").replace(/\/$/, "") + "/app#/pricing";
+  const results: any[] = [];
+  for (const s of subs ?? []) {
+    if (!s.renews) continue;
+    const daysLeft = dayDiff(s.renews, clock.date), stage = planStage(daysLeft); if (!stage) continue;
+    const kind = stage + ":" + s.renews;
+    const { data: past } = await admin.from("notifications").select("status").eq("firm_id", s.firm_id).eq("kind", kind);
+    if ((past ?? []).some((n: any) => n.status === "sent") || (past ?? []).length >= 3) continue;
+    const { data: firm } = await admin.from("firms").select("name").eq("id", s.firm_id).single();
+    const { data: owners } = await admin.from("members").select("user_id,email,name,title").eq("firm_id", s.firm_id).eq("is_owner", true).eq("status", "Active");
+    const fname = firm?.name ?? "your firm", endDay = nice(s.renews), ended = stage === "plan_end";
+    const when = daysLeft <= 0 ? "today" : daysLeft === 1 ? "tomorrow" : `in ${daysLeft} days`;
+    const cyc = s.cycle === "annual" ? "annual" : "monthly";
+    for (const o of owners ?? []) {
+      if (!o.email) continue;
+      const hello = `Hello ${o.title || o.name || ""},`.replace(" ,", ",");
+      const subject = ended ? `Your Legal Staff ${s.plan} plan has ended` : `Your Legal Staff ${s.plan} plan ends ${when}`;
+      const intro = ended
+        ? [hello, `The ${cyc} ${s.plan} plan for ${fname} ended on ${endDay}. The workspace is closed until you renew.`, "Your cases, documents and settings are kept safely. Renew by UPI in a minute and everything is back at once."]
+        : [hello, `The ${cyc} ${s.plan} plan for ${fname} is paid until ${endDay} and ends ${when}.`, "Plans paid by UPI do not renew by themselves. Renew now to keep working without interruption: the new period starts the day after your current one ends, so you lose no days."];
+      const body = intro.concat(["", (ended ? "Renew now: " : "Renew your plan: ") + app, "", "Legal Staff"]).join("\n");
+      const html = emailHtml({
+        preheader: ended ? "Your workspace is closed until you renew. Your data is kept safely." : `Your ${s.plan} plan ends ${when}. Renew by UPI to keep working without interruption.`,
+        kicker: ended ? "Plan ended" : `Plan · ends ${when}`,
+        heading: ended ? `Your ${s.plan} plan has ended` : `Your ${s.plan} plan ends ${when}`,
+        intro, cta: { label: ended ? "Renew now" : "Renew plan", url: app },
+        note: ended ? undefined : "You will get an invoice by email as soon as the renewal payment is confirmed.",
+        reason: `You receive this as the owner of ${fname} on Legal Staff.`
+      });
+      const r: any = await sendEmail(o.email, subject, body, html);
+      if (r.skipped) { results.push({ kind, to: o.email, skipped: r.skipped }); continue; }
+      await admin.from("notifications").insert({ firm_id: s.firm_id, user_id: o.user_id, kind, channel: "email", recipient: o.email, subject, body, status: r.ok ? "sent" : "failed", error: r.error ?? null, sent_at: r.ok ? new Date().toISOString() : null });
+      results.push({ kind, to: o.email, ok: !!r.ok, error: r.error });
+    }
+  }
+  return results;
+}
+
+/** Emails a person the firm owner has just added to the team: who invited them, to which firm, and how to join.
+ *  Owner only; the member row must exist and not have signed in yet; at most 3 invitations per person per day. */
+async function sendInvite(admin: any, asUser: any, user: any, firmId: string, email: string) {
+  const { data: owner } = await asUser.rpc("is_owner", { f: firmId });
+  if (!owner) return { error: "Only the firm owner can invite members." };
+  const { data: m } = await admin.from("members").select("id,name,role,user_id").eq("firm_id", firmId).eq("email", email).maybeSingle();
+  if (!m) return { error: "Add them to the team first." };
+  if (m.user_id) return { skipped: "already joined" };
+  const since = new Date(Date.now() - 864e5).toISOString();
+  const { data: past } = await admin.from("notifications").select("id").eq("firm_id", firmId).eq("kind", "invite").eq("recipient", email).gte("created_at", since);
+  if ((past ?? []).length >= 3) return { skipped: "invited recently" };
+  const [{ data: firm }, { data: me }] = await Promise.all([
+    admin.from("firms").select("name").eq("id", firmId).single(),
+    admin.from("members").select("name,title").eq("firm_id", firmId).eq("user_id", user.id).maybeSingle(),
+  ]);
+  const fname = firm?.name ?? "a firm", who = me?.title || me?.name || user.email;
+  const app = (Deno.env.get("APP_URL") ?? "https://legalstaff.in").replace(/\/$/, "") + "/app";
+  const subject = `${who} invited you to ${fname} on Legal Staff`;
+  const intro = [`Hello${m.name ? " " + m.name : ""},`, `${who} has added you to ${fname} on Legal Staff${m.role ? " as " + m.role : ""}. Legal Staff keeps the firm's cases, hearings, court orders, documents and deadlines in one place.`,
+    `To join, open Legal Staff and sign in with this email address (${email}), using Google or a one-time email code. You will land straight in ${fname}'s workspace.`];
+  const body = intro.concat(["", "Join now: " + app, "", "Legal Staff"]).join("\n");
+  const html = emailHtml({ preheader: `Sign in with ${email} to join ${fname}.`, kicker: "Team invitation", heading: `Join ${fname} on Legal Staff`, intro,
+    cta: { label: "Accept invitation", url: app }, note: "If you did not expect this, you can ignore this email; nothing happens until you sign in.",
+    reason: `You receive this because ${who} added ${email} to ${fname} on Legal Staff.` });
+  const r: any = await sendEmail(email, subject, body, html);
+  if (r.skipped) return { skipped: r.skipped };
+  await admin.from("notifications").insert({ firm_id: firmId, user_id: null, kind: "invite", channel: "email", recipient: email, subject, body, status: r.ok ? "sent" : "failed", error: r.error ?? null, sent_at: r.ok ? new Date().toISOString() : null });
+  return r.ok ? { sent: email } : { error: "Could not send the invitation email." };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -244,14 +322,16 @@ Deno.serve(async (req: Request) => {
       const now = Date.now(); let sent = 0, skipped = 0;
       for (const f of firms ?? []) { const rs = await briefFirm(admin, f, { onlyUser: null, now }); sent += rs.filter((r: any) => r.ok).length; skipped += rs.filter((r: any) => r.skipped).length; }
       let trial: any[] = []; try { trial = await trialReminders(admin, now); } catch (e) { console.error("trial reminders", e); }
-      return json({ sent, skipped, trial, ist: istClock(now) });
+      let plan: any[] = []; try { plan = await planReminders(admin, now); } catch (e) { console.error("plan reminders", e); }
+      return json({ sent, skipped, trial, plan, ist: istClock(now) });
     }
     const asUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
     const { data: { user } } = await asUser.auth.getUser();
     if (!user) return json({ error: "Sign in again." }, 401);
-    const { firm_id } = await req.json();
+    const reqBody = await req.json(), { firm_id } = reqBody;
     const { data: member } = await asUser.rpc("is_member", { f: firm_id });
     if (!member) return json({ error: "Not a member of this firm." }, 403);
+    if (reqBody.action === "invite") return json(await sendInvite(admin, asUser, user, firm_id, String(reqBody.email ?? "").trim().toLowerCase()));
     const { data: firm } = await admin.from("firms").select("id,name").eq("id", firm_id).single();
     return json({ results: await briefFirm(admin, firm, { onlyUser: user.id, now: Date.now() }) });
   } catch (e) { console.error(e); return json({ error: "Could not send the briefing." }, 500); }
