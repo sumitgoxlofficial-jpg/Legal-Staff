@@ -146,13 +146,6 @@
       if (r.error) { let msg = r.error.message; try { const j = await r.error.context.json(); if (j && j.error) msg = j.error; } catch (e) {} throw new Error(msg); }
       return r.data;
     },
-    /* Opens Razorpay Checkout for a plan and resolves once the server has verified the payment. */
-    async checkout(d, plan, cycle, gstin) {
-      const o = await B.fn('razorpay-order', { firm_id: firmId, plan, cycle, gstin });
-      if (!window.Razorpay) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay Checkout.')); document.head.appendChild(s); });
-      const paid = await new Promise((res, rej) => { const rz = new window.Razorpay({ key: o.key_id, order_id: o.order_id, amount: o.amount, currency: o.currency, name: 'Legal Staff', description: plan + ' plan · ' + (cycle === 'annual' ? 'Annual' : 'Monthly'), prefill: { email: o.email, name: d.user.name, contact: d.user.phone || '' }, notes: { firm: d.firm.name }, theme: { color: '#0A0A0A' }, handler: res, modal: { ondismiss: () => rej(new Error('Payment was cancelled.')) } }); rz.on('payment.failed', e => rej(new Error((e.error && e.error.description) || 'The payment failed.'))); rz.open(); });
-      await B.fn('razorpay-verify', paid); await subscription(d);
-    },
     /* ---- encrypted storage in the user's own Google Drive (hidden app folder; see supabase/functions/drive) ---- */
     drive: {
       status: () => B.fn('drive', { action: 'status' }),

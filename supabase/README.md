@@ -9,9 +9,6 @@
 | `migrations/0003_schedule.sql` | Daily 7:30 AM IST briefing job |
 | `migrations/0007_drive.sql` | Encrypted Google Drive storage: connected accounts, the master key in Vault, the nightly 2:30 AM IST backup job |
 | `migrations/0006_trial.sql` | 7-day free trial, read-only workspace once the trial or paid period ends, members capped by plan |
-| `functions/razorpay-order` | Creates a Razorpay order at the server-side price |
-| `functions/razorpay-verify` | Verifies the checkout signature and activates the plan |
-| `functions/razorpay-webhook` | Activates the plan from Razorpay's webhook (deploy with JWT verification off) |
 | `functions/notify` | Email (Resend) and WhatsApp (Meta Cloud API) briefings and reminders, and free-trial reminder emails to firm owners 3 days and 1 day before the trial ends and when it has ended (deploy with JWT verification off; it checks the caller itself) |
 | `functions/court-status` | CNR lookup through a court-data provider |
 | `functions/auth-email` | Supabase Auth "Send Email" hook: sign-in codes, sign-up confirmations, invites, email changes and security notices in the Legal Staff design, sent through Resend (deploy with JWT verification off; it checks the hook signature) |
@@ -33,8 +30,6 @@ Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0010 
 
 | Secret | For |
 | --- | --- |
-| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Payments. Or keep them in Vault as `razorpay_key_id` and `razorpay_key_secret` (migration 0009) |
-| `RAZORPAY_WEBHOOK_SECRET` (or Vault `razorpay_webhook_secret`) | Razorpay webhook (point it at `/functions/v1/razorpay-webhook`, events `payment.captured` and `payment.failed`) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Email, e.g. `Legal Staff <briefing@yourdomain.in>` on a verified domain |
 | `APP_URL` (optional) | Site address used in trial reminder links; defaults to `https://legalstaff.in` |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE` | WhatsApp. The template must be approved and have one body variable |
@@ -68,7 +63,7 @@ Losing the Vault key `drive_master_key` makes every Drive file unreadable: never
 
 Settings are one row in `public.pay_settings`: `upi_enabled`, `upi_id` (where customers pay), `payee_name`, `paytm_mid`
 (Paytm for Business merchant ID, optional) and `sms_secret` (generated). When `upi_enabled` is true the plan checkout shows
-**Pay by UPI** instead of Razorpay. Each order gets a unique amount (0–99 paise above the price) so a payment can be matched
+**Pay by UPI**, the only way to pay. Each order gets a unique amount (0–99 paise above the price) so a payment can be matched
 to exactly one order. Confirmation is automatic, by whichever comes first:
 
 - **Paytm for Business:** with `paytm_mid` set and `upi_id` being the Paytm merchant UPI ID, the order number travels in the

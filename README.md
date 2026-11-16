@@ -39,4 +39,4 @@ The Client ID is public and safe to commit. No client secret is needed. Until it
 
 ## Not available without a backend
 
-These are labelled in the UI: the Razorpay checkout takes no money, AI answers are rule-based search over the case file, there is no live court-data sync, and WhatsApp or email messages are not sent. Because Google sign-in is checked only in the browser, it identifies the user but does not protect data on a shared device.
+These are labelled in the UI: the plan checkout takes no money, AI answers are rule-based search over the case file, there is no live court-data sync, and WhatsApp or email messages are not sent. Because Google sign-in is checked only in the browser, it identifies the user but does not protect data on a shared device.

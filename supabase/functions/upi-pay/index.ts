@@ -90,7 +90,7 @@ async function settings(admin: any) {
 
 /** Marks a UPI payment paid and activates the plan; the paid period starts after any free-trial days or paid period left. */
 async function activate(admin: any, p: any, utr: string | null, by: string) {
-  const { data: claimed } = await admin.from("payments").update({ status: "paid", utr, confirmed_by: by, razorpay_payment_id: null, paid_at: new Date().toISOString() })
+  const { data: claimed } = await admin.from("payments").update({ status: "paid", utr, confirmed_by: by, paid_at: new Date().toISOString() })
     .eq("id", p.id).eq("status", "created").select("id");
   if (!claimed?.length) return false;              // already confirmed by the other route
   const { data: cur } = await admin.from("subscriptions").select("*").eq("firm_id", p.firm_id).maybeSingle();
