@@ -1052,23 +1052,24 @@
     if (server) app.flush().then(() => app.toast(msg), e => app.toast('Not saved: ' + e.message));
   }
   /* opts.firm: the picture is for the firm's mark (rounded square, saved in db.firm.photo) instead of the user's profile photo. */
-  function saveFirmPhoto(app, url, msg) {
-    const server = !!(window.LSB && LSB.on);
-    if (server && !app.db.isOwner) return app.toast('Only the firm owner can change the firm picture.');
-    app.mut(db => { db.firm.photo = url; }, server ? null : msg);
-    if ((app.db.firm.photo || '') !== url) return;
+  /* key: 'photo' is the firm's mark in the sidebar; 'groupPhoto' is the picture of the firm's group chat. Both live with the firm. */
+  function saveFirmPhoto(app, url, msg, key) {
+    const server = !!(window.LSB && LSB.on), k = key || 'photo';
+    if (server && !app.db.isOwner) return app.toast(k === 'photo' ? 'Only the firm owner can change the firm picture.' : 'Only the firm owner can change the group photo.');
+    app.mut(db => { db.firm[k] = url; }, server ? null : msg);
+    if ((app.db.firm[k] || '') !== url) return;
     if (server) app.flush().then(() => app.toast(msg), e => app.toast('Not saved: ' + e.message));
   }
   function editPhoto(app, opts) {
-    const firm = !!(opts && opts.firm);
-    if (firm && window.LSB && LSB.on && !app.db.isOwner) return app.toast('Only the firm owner can change the firm picture.');
+    const firm = !!(opts && opts.firm), group = !!(opts && opts.group);
+    if ((firm || group) && window.LSB && LSB.on && !app.db.isOwner) return app.toast(group ? 'Only the firm owner can change the group photo.' : 'Only the firm owner can change the firm picture.');
     L.pickFile('image/*').then(fs => {
       const f = fs[0]; if (!f) return;
       if (!/^image\//.test(f.type)) return app.toast('Choose an image file, such as a JPG or PNG');
       if (f.size > 20 * 1024 * 1024) return app.toast('That image is over 20 MB. Choose a smaller one');
       const src = URL.createObjectURL(f), img = new Image(), close = () => { app.modal(null); URL.revokeObjectURL(src); };
       img.onerror = () => { URL.revokeObjectURL(src); app.toast('That image could not be opened. Try a JPG or PNG'); };
-      img.onload = () => app.modal(() => h(Modal, { title: firm ? 'Edit firm picture' : 'Edit profile photo', onClose: close, width: 420 }, h(PhotoCrop, { img, src, square: firm, onCancel: close, onSave: url => { close(); firm ? saveFirmPhoto(app, url, 'Firm picture updated') : savePhoto(app, url, 'Profile photo updated'); } })));
+      img.onload = () => app.modal(() => h(Modal, { title: group ? 'Edit group photo' : firm ? 'Edit firm picture' : 'Edit profile photo', onClose: close, width: 420 }, h(PhotoCrop, { img, src, square: firm, onCancel: close, onSave: url => { close(); group ? saveFirmPhoto(app, url, 'Group photo updated', 'groupPhoto') : firm ? saveFirmPhoto(app, url, 'Firm picture updated') : savePhoto(app, url, 'Profile photo updated'); } })));
       img.src = src;
     });
   }
@@ -1245,7 +1246,16 @@
       setReacts(all => Object.assign({}, all, { [m.channel]: mineR ? list.filter(x => !(x.message_id === m.id && x.user_id === me && x.emoji === emoji)) : list.concat({ message_id: m.id, user_id: me, emoji }) }));
       LSB.chat.react(m, emoji, !mineR).catch(e => setErr(e.message)); };
     const open = ch => { setSel(ch); setMob('chat'); setPick(null); };
-    const avatar = (label, dark, size) => h('span', { style: { width: size || 36, height: size || 36, borderRadius: '50%', background: dark ? K.ink : K.soft2, color: dark ? '#fff' : K.ink, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: (size || 36) * .36, fontWeight: 600, flexShrink: 0 } }, label);
+    const avatar = (label, dark, size, src) => h('span', { style: { width: size || 36, height: size || 36, borderRadius: '50%', background: dark ? K.ink : K.soft2, color: dark ? '#fff' : K.ink, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: (size || 36) * .36, fontWeight: 600, flexShrink: 0, overflow: 'hidden' } },
+      src ? h('img', { src, alt: '', draggable: false, style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' } }) : label);
+    /* The group's photo: its own, else the firm picture or main court photo, else the firm's initials. Members show their profile photos. */
+    const groupSrc = d.firm.groupPhoto || d.firm.photo || courtPic(d.firm.court);
+    const groupAv = size => avatar(L.initials(d.firm.name) || 'T', true, size, groupSrc), userAv = (u, size) => avatar(L.initials(u ? u.name : '?'), false, size, u ? photoOf(d, u) : '');
+    const groupPhoto = () => { if (!d.isOwner) return app.toast('Only the firm owner can change the group photo.');
+      if (!d.firm.groupPhoto) return editPhoto(app, { group: true });
+      app.modal(() => h(Modal, { title: 'Group photo', sub: 'Everyone at the firm sees this photo on the group chat.', onClose: () => app.modal(null), width: 400 },
+        h('div', { style: { display: 'flex', justifyContent: 'center', padding: '4px 0 8px' } }, groupAv(112)),
+        h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' } }, h(Btn, { danger: true, onClick: () => { app.modal(null); saveFirmPhoto(app, '', 'Group photo removed', 'groupPhoto'); } }, 'Remove'), h(Btn, { primary: true, onClick: () => { app.modal(null); editPhoto(app, { group: true }); } }, 'Change photo')))); };
     const badge = n => n ? h('span', { style: { marginLeft: 'auto', minWidth: 20, height: 20, borderRadius: 10, background: '#137333', color: '#fff', fontSize: 11.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' } }, n > 99 ? '99+' : n) : null;
     const preview = m => m.kind === 'file' ? '📎 ' + ((m.data || {}).name || 'File') : m.kind === 'meeting' ? '📅 ' + ((m.data || {}).title || 'Meeting') : m.body;
     const last = ch => { const l = msgs[ch]; return l && l.length ? l[l.length - 1] : null; };
@@ -1254,14 +1264,14 @@
         h('span', { style: { fontSize: 12.5, color: K.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (last(ch) ? (last(ch).sender === me ? 'You: ' : '') + preview(last(ch)) : sub))), badge(unread[ch]));
     const list = h('div', { style: { borderRight: narrow ? 0 : '1px solid ' + K.line, overflowY: 'auto', display: narrow && mob === 'chat' ? 'none' : 'block', minHeight: 0 } },
       h('div', { style: { padding: '12px 14px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, 'Group'),
-      row('team', d.firm.name || 'Team', `Everyone at the firm · ${people.length + 1} member${people.length ? 's' : ''}`, avatar(L.initials(d.firm.name) || 'T', true)),
+      row('team', d.firm.name || 'Team', `Everyone at the firm · ${people.length + 1} member${people.length ? 's' : ''}`, groupAv()),
       h('div', { style: { padding: '14px 14px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, 'Direct messages'),
-      people.length ? people.map(u => row(chOf(u), u.title || u.name, u.role, avatar(L.initials(u.name)))) :
+      people.length ? people.map(u => row(chOf(u), u.title || u.name, u.role, userAv(u))) :
         h('div', { style: { padding: '8px 14px 16px', fontSize: 13, color: K.mut, lineHeight: 1.5 } }, 'Team members appear here once they join. ', h('button', { onClick: () => app.go('team'), style: { border: 0, background: 'none', padding: 0, color: K.ink, textDecoration: 'underline', cursor: 'pointer', font: 'inherit' } }, 'Invite your team')));
     const other = sel === 'team' ? null : people.find(u => chOf(u) === sel);
     const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid ' + K.line } },
       narrow && h('button', { onClick: () => setMob('list'), 'aria-label': 'Back to chats', style: { border: 0, background: 'none', fontSize: 20, cursor: 'pointer', padding: '0 6px 0 0' } }, '‹'),
-      sel === 'team' ? avatar(L.initials(d.firm.name) || 'T', true, 34) : avatar(L.initials(other ? other.name : '?'), false, 34),
+      sel === 'team' ? h('button', { type: 'button', onClick: groupPhoto, title: d.isOwner ? 'Change group photo' : 'Group photo', 'aria-label': 'Group photo', className: 'ls-avatar-btn', style: { border: 0, padding: 0, background: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex' } }, groupAv(34)) : userAv(other, 34),
       h('div', { style: { display: 'flex', flexDirection: 'column' } }, h('span', { style: { fontWeight: 600, fontSize: 15 } }, sel === 'team' ? (d.firm.name || 'Team') : other ? (other.title || other.name) : 'Chat'),
         h('span', { style: { fontSize: 12.5, color: K.mut } }, sel === 'team' ? 'Group chat · everyone at the firm can read it' : other ? other.role + ' · only the two of you can read this' : '')));
     const items = msgs[sel], dayLabel = iso => { const t = L.today(), dd = L.iso(new Date(iso)); return dd === t ? 'Today' : dd === L.addDays(t, -1) ? 'Yesterday' : L.fmt(dd); };
