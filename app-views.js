@@ -1179,14 +1179,15 @@
     const me = server ? LSB.chat.me() : '';
     const people = d.team.filter(u => u.userId && u.userId !== me && u.status === 'Active');
     const [sel, setSel] = useState('team'), [msgs, setMsgs] = useState({}), [text, setText] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [mob, setMob] = useState('list');
-    const [reacts, setReacts] = useState({}), [pick, setPick] = useState(null), [up, setUp] = useState(false);
+    const [reacts, setReacts] = useState({}), [pick, setPick] = useState(null), [up, setUp] = useState(false), [fly, setFly] = useState(false);
+    const fresh = React.useRef(new Set());   // ids that arrived after the chat opened: these animate in
     const scroller = React.useRef(null), box = React.useRef(null), fileIn = React.useRef(null), selRef = React.useRef(sel); selRef.current = sel;
     const narrow = app.state.w < 760;
     const who = id => d.team.find(u => u.userId === id);
     const chOf = u => LSB.chat.dm(u.userId);
     React.useEffect(() => {
       if (!server) return;
-      app.chatEvt = m => { setMsgs(all => { const list = all[m.channel]; if (!list || list.some(x => x.id === m.id)) return all; return Object.assign({}, all, { [m.channel]: list.concat(m) }); });
+      app.chatEvt = m => { fresh.current.add(m.id); setMsgs(all => { const list = all[m.channel]; if (!list || list.some(x => x.id === m.id)) return all; return Object.assign({}, all, { [m.channel]: list.concat(m) }); });
         if (m.channel === selRef.current && m.sender !== me && document.visibilityState === 'visible') LSB.chat.read(m.channel).then(() => app.refreshChat()).catch(() => {}); };
       app.chatDel = m => setMsgs(all => { const out = {}; Object.keys(all).forEach(k => out[k] = all[k].filter(x => x.id !== m.id)); return out; });
       app.chatReact = (r, on) => setReacts(all => { const list = (all[r.channel] || Object.values(all).find(l => l.some(x => x.message_id === r.message_id)) || []).filter(x => !(x.message_id === r.message_id && x.user_id === r.user_id && x.emoji === r.emoji));
@@ -1205,9 +1206,10 @@
     if (!server) return h(Page, { art: 'team', kicker: 'Firm', title: 'Team chat' }, h(Empty, { title: 'Team chat needs the server', text: 'Chat works when Legal Staff is connected to its server, so messages reach your team on every device.' }));
     const unread = app.chatUnread || {};
     const send = () => { const body = text.trim(); if (!body || busy) return; setBusy(true); setErr('');
-      LSB.chat.send(sel, body).then(m => { setText(''); setMsgs(all => { const list = all[sel] || []; return list.some(x => x.id === m.id) ? all : Object.assign({}, all, { [sel]: list.concat(m) }); }); if (box.current) { box.current.style.height = 'auto'; box.current.focus(); } })
+      setFly(true); setTimeout(() => setFly(false), 450);
+      LSB.chat.send(sel, body).then(m => { fresh.current.add(m.id); setText(''); setMsgs(all => { const list = all[sel] || []; return list.some(x => x.id === m.id) ? all : Object.assign({}, all, { [sel]: list.concat(m) }); }); if (box.current) { box.current.style.height = 'auto'; box.current.focus(); } })
         .catch(e => setErr(e.message)).finally(() => setBusy(false)); };
-    const post = (body, kind, data) => LSB.chat.send(sel, body, kind, data).then(m => setMsgs(all => { const list = all[sel] || []; return list.some(x => x.id === m.id) ? all : Object.assign({}, all, { [sel]: list.concat(m) }); }));
+    const post = (body, kind, data) => LSB.chat.send(sel, body, kind, data).then(m => fresh.current.add(m.id) && setMsgs(all => { const list = all[sel] || []; return list.some(x => x.id === m.id) ? all : Object.assign({}, all, { [sel]: list.concat(m) }); }));
     const attach = e => { const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return;
       if (file.size > 20 * 1048576) return setErr('Files up to 20 MB can be sent.');
       setUp(true); setErr(''); const caption = text.trim();
@@ -1238,7 +1240,7 @@
         h('span', { style: { fontSize: 12.5, color: K.mut } }, sel === 'team' ? 'Group chat · everyone at the firm can read it' : other ? other.role + ' · only the two of you can read this' : '')));
     const items = msgs[sel], dayLabel = iso => { const t = L.today(), dd = L.iso(new Date(iso)); return dd === t ? 'Today' : dd === L.addDays(t, -1) ? 'Yesterday' : L.fmt(dd); };
     const time = iso => new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
-    const body = h('div', { ref: scroller, onClick: e => { if (e.target === e.currentTarget) setPick(null); }, style: { flex: 1, overflowY: 'auto', padding: '16px 52px', display: 'flex', flexDirection: 'column', gap: 4, backgroundColor: '#F4F2EC', backgroundImage: CHAT_BG + ', radial-gradient(circle at 20% 10%, rgba(255,255,255,.7), transparent 60%)', backgroundSize: '260px 230px, 100% 100%', minHeight: 0 } },
+    const body = h('div', { ref: scroller, className: 'ls-chatbg-pan', onClick: e => { if (e.target === e.currentTarget) setPick(null); }, style: { flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '16px 52px', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, backgroundColor: 'rgba(244,242,236,.82)', backgroundImage: CHAT_BG + ', radial-gradient(circle at 20% 10%, rgba(255,255,255,.7), transparent 60%)', backgroundSize: '260px 230px, 100% 100%', minHeight: 0 } },
       !items ? h('div', { style: { margin: 'auto', color: K.mut, fontSize: 13 } }, 'Loading messages…')
       : !items.length ? h('div', { style: { margin: 'auto', textAlign: 'center', color: K.mut, fontSize: 13.5, maxWidth: 300, lineHeight: 1.6 } }, sel === 'team' ? 'No messages yet. Say hello to your team.' : `No messages yet. Send ${other ? other.name : 'them'} a message.`)
       : items.map((m, i) => { const mine = m.sender === me, prev = items[i - 1], newDay = !prev || dayLabel(prev.created_at) !== dayLabel(m.created_at), sameRun = prev && !newDay && prev.sender === m.sender && Date.parse(m.created_at) - Date.parse(prev.created_at) < 5 * 60e3, u = who(m.sender);
@@ -1247,12 +1249,12 @@
             h('div', { className: 'ls-msg', style: { display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', marginTop: sameRun ? 0 : 6, position: 'relative' } },
               h('button', { className: 'ls-react', onClick: () => setPick(pick === m.id ? null : m.id), 'aria-label': 'React to this message', title: 'React', style: { position: 'absolute', top: '50%', [mine ? 'left' : 'right']: -2, transform: 'translate(' + (mine ? '-100%' : '100%') + ',-50%)', width: 30, height: 30, borderRadius: 15, border: '1px solid ' + K.line, background: '#fff', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '☺'),
               !mine && sel === 'team' && !sameRun && h('span', { style: { fontSize: 12, fontWeight: 600, color: K.txt, margin: '0 0 2px 4px' } }, u ? (u.title || u.name) : 'Former member'),
-              h('div', { title: new Date(m.created_at).toLocaleString('en-IN'), style: { maxWidth: 'min(560px, 80%)', padding: '8px 12px', borderRadius: 14, borderTopRightRadius: mine && !sameRun ? 4 : 14, borderTopLeftRadius: !mine && !sameRun ? 4 : 14, background: mine ? K.ink : '#fff', color: mine ? '#fff' : K.ink, border: mine ? 0 : '1px solid ' + K.line, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap', wordBreak: 'break-word' } },
+              h('div', { className: fresh.current.has(m.id) ? (mine ? 'ls-in-me' : 'ls-in-them') : undefined, title: new Date(m.created_at).toLocaleString('en-IN'), style: { maxWidth: 'min(560px, 80%)', padding: '8px 12px', borderRadius: 14, borderTopRightRadius: mine && !sameRun ? 4 : 14, borderTopLeftRadius: !mine && !sameRun ? 4 : 14, background: mine ? K.ink : '#fff', color: mine ? '#fff' : K.ink, border: mine ? 0 : '1px solid ' + K.line, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap', wordBreak: 'break-word' } },
                 m.kind === 'file' ? h(FileMsg, { m, mine }) : m.kind === 'meeting' ? h(MeetMsg, { m, mine }) : m.body, h('span', { style: { display: 'block', fontSize: 10.5, opacity: .6, textAlign: 'right', marginTop: 2 } }, time(m.created_at))),
               (() => { const rs = (reacts[sel] || []).filter(x => x.message_id === m.id); if (!rs.length) return null; const by = {}; rs.forEach(x => (by[x.emoji] = by[x.emoji] || []).push(x.user_id));
                 return h('div', { style: { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: -6, padding: '0 6px', position: 'relative', zIndex: 1 } }, Object.keys(by).map(e => { const meIn = by[e].includes(me);
-                  return h('button', { key: e, onClick: () => react(m, e), title: by[e].map(id => id === me ? 'You' : (who(id) || {}).name || 'Member').join(', '), style: { height: 24, padding: '0 7px', borderRadius: 12, border: '1px solid ' + (meIn ? '#1A73E8' : K.line), background: meIn ? '#E8F0FE' : '#fff', fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 1px 2px rgba(0,0,0,.06)' } }, e, by[e].length > 1 && h('span', { style: { fontSize: 11.5, fontWeight: 600, color: K.txt } }, by[e].length)); })); })(),
-              pick === m.id && h('div', { style: { display: 'flex', gap: 2, background: '#fff', border: '1px solid ' + K.line, borderRadius: 20, padding: '3px 6px', boxShadow: '0 6px 20px rgba(0,0,0,.12)', marginTop: 4 } },
+                  return h('button', { key: e, className: 'ls-pill', onClick: () => react(m, e), title: by[e].map(id => id === me ? 'You' : (who(id) || {}).name || 'Member').join(', '), style: { height: 24, padding: '0 7px', borderRadius: 12, border: '1px solid ' + (meIn ? '#1A73E8' : K.line), background: meIn ? '#E8F0FE' : '#fff', fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 1px 2px rgba(0,0,0,.06)' } }, e, by[e].length > 1 && h('span', { style: { fontSize: 11.5, fontWeight: 600, color: K.txt } }, by[e].length)); })); })(),
+              pick === m.id && h('div', { className: 'ls-picker', style: { display: 'flex', gap: 2, background: '#fff', border: '1px solid ' + K.line, borderRadius: 20, padding: '3px 6px', boxShadow: '0 6px 20px rgba(0,0,0,.12)', marginTop: 4 } },
                 EMOJIS.map(e => h('button', { key: e, onClick: () => react(m, e), 'aria-label': 'React ' + e, style: { border: 0, background: 'none', fontSize: 19, cursor: 'pointer', padding: '2px 4px', borderRadius: 8 } }, e)))));
         }));
     const tool = (label, d, onClick, disabled) => h('button', { onClick, disabled, 'aria-label': label, title: label, style: { width: 38, height: 38, flexShrink: 0, borderRadius: 10, border: '1px solid ' + K.line, background: '#fff', cursor: disabled ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: K.txt, opacity: disabled ? .5 : 1 } },
@@ -1265,8 +1267,9 @@
         onChange: e => { setText(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = Math.min(140, el.scrollHeight) + 'px'; },
         onKeyDown: e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } },
         style: { flex: 1, resize: 'none', border: '1px solid ' + K.line, borderRadius: 10, padding: '9px 12px', font: 'inherit', fontSize: 14, lineHeight: 1.45, maxHeight: 140, outline: 'none' } }),
-      h(Btn, { primary: true, onClick: send, disabled: busy || up || !text.trim() }, up ? 'Uploading…' : busy ? 'Sending…' : 'Send'));
-    const convo = h('div', { style: { display: narrow && mob === 'list' ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 } }, head, body, err && h('div', { style: { padding: '6px 16px', fontSize: 12.5, color: K.red } }, err), composer);
+      h('button', { className: 'ls-btn ls-send' + (fly ? ' fly' : ''), onClick: send, disabled: busy || up || !text.trim(), 'aria-label': 'Send', style: { height: 38, padding: '0 16px', borderRadius: 10, border: 0, background: K.ink, color: '#fff', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', opacity: busy || up || !text.trim() ? .45 : 1, flexShrink: 0 } },
+        up ? 'Uploading…' : 'Send', h('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: 'M22 2 11 13 M22 2l-7 20-4-9-9-4z' }))));
+    const convo = h('div', { style: { display: narrow && mob === 'list' ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 } }, head, h('div', { className: 'ls-chatbg', style: { flex: 1, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, body), err && h('div', { style: { padding: '6px 16px', fontSize: 12.5, color: K.red } }, err), composer);
     return h(Page, { art: 'team', kicker: 'Firm', title: 'Team chat', sub: 'Talk to your whole team or to one colleague. Messages are private to your firm.' },
       h('div', { style: { background: '#fff', border: '1px solid ' + K.line, borderRadius: 12, overflow: 'hidden', display: 'grid', gridTemplateColumns: narrow ? '1fr' : '300px 1fr', height: 'calc(100vh - 230px)', minHeight: 420 } }, list, convo));
   }
