@@ -44,10 +44,59 @@ const trialHourOk = (istHour: number) => istHour >= 9 && istHour <= 20;
 const nice = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const t12 = (t: string) => { const [h, m] = (t || "10:30").split(":").map(Number); return ((h % 12) || 12) + ":" + String(m).padStart(2, "0") + (h >= 12 ? " PM" : " AM"); };
 
-async function sendEmail(to: string, subject: string, text: string) {
+// ---------- branded HTML email (table layout and inline styles, which every mail app supports) ----------
+const SITE = (Deno.env.get("APP_URL") ?? "https://legalstaff.in").replace(/\/$/, "");
+const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as Record<string, string>)[c]);
+type Row = { lead?: string; main: string; sub?: string; tag?: string; urgent?: boolean };
+type Block = { title: string; rows?: Row[]; empty?: string };
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+function emailHtml(o: { preheader: string; kicker?: string; heading: string; intro?: string[]; blocks?: Block[]; cta?: { label: string; url: string }; note?: string; reason: string }) {
+  const p = (t: string) => `<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#363636">${esc(t)}</p>`;
+  const row = (r: Row) => `<tr>
+      <td valign="top" style="padding:12px 14px 12px 0;border-top:1px solid #EDEDED;width:92px;font:600 13px/1.4 ${FONT};color:${r.urgent ? "#B42318" : "#0A0A0A"};white-space:nowrap">${esc(r.lead ?? "")}</td>
+      <td valign="top" style="padding:12px 0;border-top:1px solid #EDEDED;font:15px/1.45 ${FONT};color:#0A0A0A">${esc(r.main)}${r.tag ? ` <span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:6px;font:600 11px/18px ${FONT};background:${r.urgent ? "#FDECEA" : "#F0F0EF"};color:${r.urgent ? "#B42318" : "#363636"}">${esc(r.tag)}</span>` : ""}${r.sub ? `<div style="font:13px/1.5 ${FONT};color:#6B6B6B;margin-top:2px">${esc(r.sub)}</div>` : ""}</td>
+    </tr>`;
+  const block = (b: Block) => `<tr><td style="padding:10px 0 4px">
+      <div style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#6B6B6B;margin-bottom:6px">${esc(b.title)}</div>
+      ${b.rows?.length ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${b.rows.map(row).join("")}</table>` : `<div style="padding:12px 0;border-top:1px solid #EDEDED;font:14px/1.5 ${FONT};color:#6B6B6B">${esc(b.empty ?? "Nothing here.")}</div>`}
+    </td></tr>`;
+  const cta = o.cta ? `<tr><td style="padding:22px 0 6px"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-radius:8px;background:#0A0A0A">
+      <a href="${esc(o.cta.url)}" style="display:inline-block;padding:12px 22px;font:600 14px/1 ${FONT};color:#FFFFFF;text-decoration:none;border-radius:8px">${esc(o.cta.label)}</a></td></tr></table></td></tr>` : "";
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${esc(o.heading)}</title></head>
+<body style="margin:0;padding:0;background:#F4F4F2;-webkit-text-size-adjust:100%">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(o.preheader)}</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F4F4F2"><tr><td align="center" style="padding:28px 12px">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px">
+    <tr><td style="padding:0 4px 16px">
+      <a href="${SITE}" style="text-decoration:none"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
+        <td valign="middle" style="padding-right:10px"><img src="${SITE}/assets/email-mark.png" width="31" height="32" alt="Legal Staff" style="display:block;border:0"></td>
+        <td valign="middle" style="font:700 18px/1 ${FONT};letter-spacing:-.02em;color:#0A0A0A">Legal Staff</td>
+      </tr></table></a>
+    </td></tr>
+    <tr><td style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:30px 30px 26px">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        ${o.kicker ? `<tr><td style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#6B6B6B;padding-bottom:8px">${esc(o.kicker)}</td></tr>` : ""}
+        <tr><td style="font:700 22px/1.3 ${FONT};letter-spacing:-.02em;color:#0A0A0A;padding-bottom:16px">${esc(o.heading)}</td></tr>
+        <tr><td>${(o.intro ?? []).map(p).join("")}</td></tr>
+        ${(o.blocks ?? []).map(block).join("")}
+        ${cta}
+        ${o.note ? `<tr><td style="padding-top:16px;font:13px/1.55 ${FONT};color:#6B6B6B">${esc(o.note)}</td></tr>` : ""}
+      </table>
+    </td></tr>
+    <tr><td style="padding:18px 6px 0;font:12px/1.6 ${FONT};color:#8A8A8A;text-align:center">
+      <a href="${SITE}" style="color:#5E5E5E;text-decoration:none;font-weight:600">Legal Staff</a> · Practice management for Indian advocates<br>
+      ${esc(o.reason)}<br>
+      <a href="${SITE}/privacy" style="color:#8A8A8A">Privacy</a> · <a href="${SITE}/terms" style="color:#8A8A8A">Terms</a>
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>`;
+}
+
+async function sendEmail(to: string, subject: string, text: string, html?: string) {
   const key = Deno.env.get("RESEND_API_KEY"), from = Deno.env.get("EMAIL_FROM");
   if (!key || !from) return { skipped: "Email is not configured." };
-  const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [to], subject, text }) });
+  const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [to], subject, text, ...(html ? { html } : {}) }) });
   return r.ok ? { ok: true } : { error: (await r.text()).slice(0, 300) };
 }
 async function sendWhatsApp(to: string, text: string) {
@@ -99,12 +148,26 @@ async function briefFirm(admin: any, firm: any, opts: { onlyUser: string | null;
       ...(soon.length ? ["", `Coming up on ${nice(soonDay)} (in ${remind} day${remind === 1 ? "" : "s"}):`, ...soon.map(line)] : []),
       ...(dls.length ? ["", `Deadlines and limitation dates (${dls.length}):`, ...dls.map(dl)] : []),
       ...(overdue.length ? ["", `Overdue tasks (${overdue.length}):`, ...overdue.map((t: any) => t.t)] : []), "", firm.name + " · Legal Staff"].join("\n");
-    const urgent = dls.filter((d: any) => d.days <= 1);
+    const urgentDl = dls.filter((d: any) => d.days <= 1);
+    const html = emailHtml({
+      preheader: `${todays.length ? todays.length + " hearing" + (todays.length === 1 ? "" : "s") + " today" : "No hearings today"}${dls.length ? " · " + dls.length + " deadline" + (dls.length === 1 ? "" : "s") : ""}${overdue.length ? " · " + overdue.length + " overdue task" + (overdue.length === 1 ? "" : "s") : ""}`,
+      kicker: `Morning briefing · ${nice(today)}`, heading: `Good morning, ${m.title || m.name}`,
+      intro: [todays.length ? `You have ${todays.length} hearing${todays.length === 1 ? "" : "s"} today.` : "You have no hearings today."],
+      blocks: [
+        { title: "Hearings today", rows: todays.map((h: any) => ({ lead: t12(h.time), main: cases[h.caseId]?.title ?? "Hearing", sub: [h.court, h.item].filter(Boolean).join(" · ") })), empty: "No hearings listed for today." },
+        ...(soon.length ? [{ title: `Coming up · ${nice(soonDay)}`, rows: soon.map((h: any) => ({ lead: t12(h.time), main: cases[h.caseId]?.title ?? "Hearing", sub: [h.court, h.item].filter(Boolean).join(" · ") })) }] : []),
+        ...(dls.length ? [{ title: "Deadlines and limitation dates", rows: dls.map((d: any) => ({ lead: nice(d.due), main: d.title, sub: [d.limitation ? "Limitation date, approved" : "", d.rule].filter(Boolean).join(" · "), tag: d.days === 0 ? "Due today" : d.days === 1 ? "Due tomorrow" : `In ${d.days} days`, urgent: d.days <= 1 })) }] : []),
+        ...(overdue.length ? [{ title: "Overdue tasks", rows: overdue.map((t: any) => ({ lead: t.due ? nice(t.due) : "", main: t.t, tag: "Overdue", urgent: true })) }] : [])
+      ],
+      cta: { label: "Open Legal Staff", url: SITE + "/app" },
+      reason: `You receive the morning briefing as a member of ${firm.name}. Change it in Settings › Notifications.`
+    });
+    const urgent = urgentDl;
     const subject = (urgent.length ? `Deadline ${urgent[0].days === 0 ? "today" : "tomorrow"}: ${urgent[0].title} · ` : "") + `${todays.length} hearing${todays.length === 1 ? "" : "s"} today · ${nice(today)}`;
     for (const [channel, on, to] of [["email", st.email !== false, m.email], ["whatsapp", st.whatsapp !== false, m.phone]] as const) {
       if (!on || !to) continue;
       if (!opts.onlyUser && sentToday(sent, m.user_id, channel, today)) { results.push({ channel, to, skipped: "Already sent today." }); continue; }
-      const r: any = channel === "email" ? await sendEmail(to, subject, body) : await sendWhatsApp(to, body);
+      const r: any = channel === "email" ? await sendEmail(to, subject, body, html) : await sendWhatsApp(to, body);
       if (r.skipped) { results.push({ channel, to, skipped: r.skipped }); continue; }
       await admin.from("notifications").insert({ firm_id: firm.id, user_id: m.user_id, kind: opts.onlyUser ? "briefing_now" : "briefing", channel, recipient: to, subject, body, status: r.ok ? "sent" : "failed", error: r.error ?? null, sent_at: r.ok ? new Date().toISOString() : null });
       results.push({ channel, to, ok: !!r.ok, error: r.error });
@@ -144,7 +207,19 @@ async function trialReminders(admin: any, now: number) {
         "To keep working without interruption, choose a plan before then. Subscribing now does not cut the trial short: the paid period starts when the trial ends.", "",
         `Choose a plan: ${app}`, "",
         "If the trial ends without a plan, the workspace closes until you subscribe. Your data is kept."]).concat(["", "Legal Staff"]).join("\n");
-      const r: any = await sendEmail(o.email, subject, body);
+      const ended = kind === "trial_end", fname = firm?.name ?? "your firm";
+      const html = emailHtml({
+        preheader: ended ? `Your workspace is closed until you subscribe. Your data is kept safely.` : `Your ${s.plan} trial ends ${when}. Subscribe to keep working without interruption.`,
+        kicker: ended ? "Free trial ended" : `Free trial · ends ${when}`,
+        heading: ended ? "Your free trial has ended" : `Your free trial ends ${when}`,
+        intro: ended
+          ? [`${hello}`, `The 7-day free trial of the ${s.plan} plan for ${fname} ended on ${endDay} at ${endTime} IST. The workspace is now closed until you subscribe.`, "Your cases, documents and settings are kept safely. Everything is back the moment you choose a plan."]
+          : [`${hello}`, `The 7-day free trial of the ${s.plan} plan for ${fname} ends ${when}, on ${endDay} at ${endTime} IST.`, "Choose a plan before then to keep working without interruption. Subscribing now does not cut the trial short: the paid period starts when the trial ends."],
+        cta: { label: ended ? "Subscribe now" : "Choose a plan", url: app },
+        note: ended ? undefined : "If the trial ends without a plan, the workspace closes until you subscribe. Your data is kept.",
+        reason: `You receive this as the owner of ${fname} on Legal Staff.`
+      });
+      const r: any = await sendEmail(o.email, subject, body, html);
       if (r.skipped) { results.push({ kind, to: o.email, skipped: r.skipped }); continue; }
       await admin.from("notifications").insert({ firm_id: s.firm_id, user_id: o.user_id, kind, channel: "email", recipient: o.email, subject, body, status: r.ok ? "sent" : "failed", error: r.error ?? null, sent_at: r.ok ? new Date().toISOString() : null });
       results.push({ kind, to: o.email, ok: !!r.ok, error: r.error });
