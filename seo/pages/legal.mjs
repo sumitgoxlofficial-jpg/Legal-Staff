@@ -131,13 +131,14 @@ function privacy() {
     ['Advocate directory applications', 'Name, enrolment number, State Bar Council, enrolment year, city, email, mobile, practice areas, courts, languages, and the names of the verification documents you attach.', 'To verify and, once approved, publish your directory profile. Contact details are used to reach you about the application.', 'Consent'],
     ['Demo and contact requests', 'Name, email, phone, firm and your message.', 'To reply to you and arrange a demo.', 'Consent'],
     ['Payments', 'Order and payment IDs, plan, billing cycle, amount and GSTIN (if you give one). Card, UPI and bank details are handled by Razorpay and never reach us.', 'To activate your plan, issue GST invoices and keep tax records.', 'Contract; legal obligation'],
+    ['Google Drive backup (optional)', 'If you turn it on: permission to use one hidden app-data folder in your own Google Drive, a Google access token (stored encrypted), and the email address of the connected Google account. We cannot see or open any other file in your Drive.', 'To save your uploads and a nightly backup of your firm’s data, encrypted, in your own Drive, and to let your team open those files through Legal Staff.', 'Consent'],
     ['Notifications', 'The email address or WhatsApp number of the member a reminder is for, and the hearing details in it.', 'To send hearing reminders and briefings that your firm has turned on.', 'Consent; on the firm’s instructions'],
     ['Technical data', 'Hosting logs (IP address, browser, time, page requested) and data kept in your browser’s storage.', 'To keep the service secure and working, and to keep you signed in. See our <a href="/cookies">Cookie Policy</a>.', 'Legitimate use; necessary for the service']
   ]);
   const providers = table('Service providers who process data for us', ['Provider', 'What they do', 'Where'], [
     ['Supabase', 'Database, authentication and private file storage for accounts and practice data.', 'Mumbai, India (ap-south-1 region)'],
     ['Vercel', 'Hosting and content delivery for the website and app files; security logs.', 'Global edge network'],
-    ['Google', 'Google sign-in; web fonts for the site.', 'Global'],
+    ['Google', 'Google sign-in; web fonts for the site; Google Drive, only for members who turn on Google Drive backup (files are encrypted before they reach Google).', 'Global'],
     ['Razorpay', 'Payment processing and checkout.', 'India'],
     ['Resend', 'Sending email reminders and notices, once email is connected.', 'May be outside India'],
     ['Meta (WhatsApp Business API)', 'Sending WhatsApp reminders, only once your firm connects WhatsApp.', 'May be outside India'],
@@ -154,6 +155,13 @@ function privacy() {
       <p>If you are a client of a firm that uses Legal Staff and have a question about your case data, the firm is the right first contact. If you write to us instead, we will pass your request to that firm and tell you we have done so.</p>` },
     { id: 'collect', title: 'What personal data we collect and why', html: `<p>We collect only what each purpose needs. The table lists each purpose.</p>${collect}
       <p>We do not ask for, and you should not upload to the directory, any document beyond what verification needs. We do not use personal data for advertising, and we do not sell it.</p>` },
+    { id: 'google', title: 'Google user data', html: `<p>Legal Staff asks for access to Google data only when you choose a feature that needs it:</p>
+      <ul>
+        <li><b>Google sign-in</b> uses your name, email address and profile picture to create your account and sign you in.</li>
+        <li><b>Google Drive backup</b>, if you turn it on, uses the <code>drive.appdata</code> permission. This lets Legal Staff create and read files in one hidden app-data folder in your Drive, and nothing else: it cannot see, open or change any other file in your Drive. Your uploads and a nightly backup of your firm’s data are encrypted on our servers (AES-256) before they are sent to Google, so the files in your Drive cannot be read without Legal Staff. You can turn it off at any time in Settings, or remove Legal Staff’s access in your Google Account’s security settings.</li>
+      </ul>
+      <p>We use Google user data only to provide these features to you. We do not sell it, use it for advertising, or use it to train AI models, and people at Legal Staff do not read it except with your permission, for security reasons, or where the law requires.</p>
+      <p>Legal Staff’s use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>` },
     { id: 'basis', title: 'Why we are allowed to use it', html: `<p>Most of our processing is based on your <b>consent</b>, which you give when you sign in, apply to the directory, send us a request or turn on a feature. Consent is specific to the purpose shown at the time, and you can withdraw it (see <a href="#rights">your rights</a>).</p>
       <p>Some processing relies on the <b>“certain legitimate uses”</b> the DPDP Act allows without fresh consent, for example where you have given data voluntarily for a specific purpose, or where we must keep records to comply with law (such as tax and GST records) or respond to a lawful request.</p>
       <p>For practice data, the firm is responsible for having a valid basis for the client and party data it enters.</p>` },
@@ -171,6 +179,7 @@ function privacy() {
     { id: 'security', title: 'How we protect data', html: `<ul>
         <li>Row-level security in the database, so each firm can reach only its own records.</li>
         <li>Private storage for documents, reached only by signed-in members of the firm.</li>
+        <li>Files kept in Google Drive are encrypted with AES-256 before they leave our servers, with a separate key for each firm.</li>
         <li>Encryption in transit (HTTPS) between your browser and our services.</li>
         <li>Sign-in through Google or a one-time email code, so we never store a password.</li>
         <li>Access logging where our providers make it available, and access to production data limited to people who need it.</li>

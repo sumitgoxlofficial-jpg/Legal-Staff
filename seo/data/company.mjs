@@ -36,7 +36,7 @@ export const company = {
   // OWNER MUST CONFIRM: total liability capped at the fees paid in the `months` before the claim. Standard SaaS wording.
   liabilityCap: { months: 12, confirmed: false },
   dataRegion: 'Mumbai, India (AWS ap-south-1, via Supabase)',
-  updated: '2026-11-15'
+  updated: '2026-11-16'
 };
 
 // Text used when a value is null.
