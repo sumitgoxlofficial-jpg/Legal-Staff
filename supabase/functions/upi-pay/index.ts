@@ -2,7 +2,9 @@
 // A plan payment gets an order number and an exact amount; the customer pays by UPI QR or UPI app. The payment is confirmed
 // by whichever comes first:
 //  1. Paytm for Business order status (when paytm_mid is set and upi_id is the Paytm merchant UPI ID; `tr` carries the order),
-//  2. a bank 'credited' SMS that an SMS-forwarder phone posts to ?action=sms&key=<sms_secret>, matched on the exact amount.
+//  2. a bank 'credited' SMS that an SMS-forwarder phone posts to ?action=sms&key=<sms_secret>, matched on the exact amount,
+//  3. a bank 'credited' alert email, auto-forwarded from the operator's mailbox to the payments inbox (Resend inbound,
+//     webhook to ?action=email&key=<sms_secret>); only mail that was sent to pay_settings.email_inbox counts.
 // Two pending orders never share an amount: each gets a unique paise offset (0–99 paise) while it is open.
 // Settings live in public.pay_settings (migration 0010). Deploy with JWT verification off; it checks every caller itself.
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -30,6 +32,14 @@ function parseBankSms(text: string) {
   if (!Number.isFinite(amount) || amount <= 0) return null;
   const ref = t.match(/(?:upi\s*ref(?:erence)?(?:\s*no)?|utr|rrn|ref\s*no|txn\s*id|ref)[\s.:#-]*(\d{12})/i) ?? t.match(/\b(\d{12})\b/);
   return { amount, utr: ref ? ref[1] : null };
+}
+/** Plain text of a bank alert email: subject first, HTML tags removed, safety footers (OTP warnings etc.) dropped. */
+function emailText(subject: string, text: string, html: string) {
+  let t = String(text ?? "");
+  if (!t.trim() && html) t = String(html).replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, ". ").replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#8377;|&#x20b9;/gi, "₹").replace(/&[a-z#0-9]+;/gi, " ");
+  const keep = t.replace(/\s+/g, " ").split(/(?<=[.!?])\s+/).filter((x) => !/\b(OTP|never share|do not share|don't share|disclaimer|unsubscribe|if you have not|if you did not|not done by you)\b/i.test(x));
+  return (String(subject ?? "") + ". " + keep.join(" ")).slice(0, 1500);
 }
 /** The smallest paise offset (0–99) not used by another open order for the same base amount. */
 function pickOffset(base: number, taken: number[]) {
@@ -69,6 +79,23 @@ async function activate(admin: any, p: any, utr: string | null, by: string) {
   return true;
 }
 
+/** Matches a bank 'credited' message (SMS or email) to the one open order with exactly that amount, and activates it. */
+async function confirmFromText(admin: any, sender: string, text: string, via: string) {
+  const parsed = parseBankSms(text);
+  if (!parsed) { await admin.from("upi_sms").insert({ sender, body: text || "(empty)", note: via + ": not a credit message" }); return { ok: true, matched: false }; }
+  const ins = await admin.from("upi_sms").insert({ sender, body: text, amount_paise: parsed.amount, utr: parsed.utr, note: via }).select("id").single();
+  if (ins.error) return { ok: true, matched: false, note: "already received" };   // same bank reference sent twice (SMS and email)
+  const since = new Date(Date.now() - LATE_HOURS * 3600e3).toISOString();
+  const { data: cands } = await admin.from("payments").select("*").eq("method", "upi").eq("status", "created").eq("amount_paise", parsed.amount).gte("created_at", since).order("created_at", { ascending: false });
+  if ((cands ?? []).length !== 1) {
+    await admin.from("upi_sms").update({ note: via + ": " + ((cands ?? []).length ? "more than one open order with this amount" : "no open order with this amount") }).eq("id", ins.data.id);
+    return { ok: true, matched: false };
+  }
+  const ok = await activate(admin, cands![0], parsed.utr, via);
+  await admin.from("upi_sms").update({ payment_id: cands![0].id, note: via + ": " + (ok ? "confirmed the payment" : "payment was already confirmed") }).eq("id", ins.data.id);
+  return { ok: true, matched: ok };
+}
+
 /** Paytm for Business order status: paid only if the order number and the exact amount match. */
 async function paytmCheck(admin: any, s: any, p: any) {
   if (!s.paytm_mid || !p.order_no) return false;
@@ -95,23 +122,41 @@ Deno.serve(async (req: Request) => {
 
     // ---- bank SMS from the forwarder phone (authenticated by the secret key in the URL) ----
     if (action === "sms") {
+      if (req.method !== "POST") return json({ ok: true });   // link previews (e.g. a chat app) are not messages
       const key = q.get("key") ?? req.headers.get("x-sms-key") ?? "";
       if (!key || key !== s.sms_secret) return json({ error: "Not allowed." }, 403);
       const text = String(body.text ?? body.message ?? body.body ?? body.msg ?? body.sms ?? body.content ?? (typeof body === "string" ? body : raw) ?? "").slice(0, 2000);
       const sender = String(body.from ?? body.sender ?? body.number ?? body.address ?? "").slice(0, 60);
-      const parsed = parseBankSms(text);
-      if (!parsed) { await admin.from("upi_sms").insert({ sender, body: text, note: "not a credit message" }); return json({ ok: true, matched: false }); }
-      const ins = await admin.from("upi_sms").insert({ sender, body: text, amount_paise: parsed.amount, utr: parsed.utr }).select("id").single();
-      if (ins.error) return json({ ok: true, matched: false, note: "already received" });   // same bank reference sent twice
-      const since = new Date(Date.now() - LATE_HOURS * 3600e3).toISOString();
-      const { data: cands } = await admin.from("payments").select("*").eq("method", "upi").eq("status", "created").eq("amount_paise", parsed.amount).gte("created_at", since).order("created_at", { ascending: false });
-      if ((cands ?? []).length !== 1) {
-        await admin.from("upi_sms").update({ note: (cands ?? []).length ? "more than one open order with this amount" : "no open order with this amount" }).eq("id", ins.data.id);
+      return json(await confirmFromText(admin, sender, text, "sms"));
+    }
+
+    // ---- bank alert email, forwarded to the payments inbox (Resend inbound webhook, or any poster that knows the key) ----
+    if (action === "email") {
+      if (req.method !== "POST") return json({ ok: true });
+      const key = q.get("key") ?? req.headers.get("x-sms-key") ?? "";
+      if (!key || key !== s.sms_secret) return json({ error: "Not allowed." }, 403);
+      let m: any = body;
+      if (body.type === "email.received" || body.data?.email_id) {
+        const id = body.data?.email_id ?? body.data?.id;
+        const r = await fetch("https://api.resend.com/emails/receiving/" + encodeURIComponent(id), { headers: { Authorization: "Bearer " + (Deno.env.get("RESEND_API_KEY") ?? "") }, signal: AbortSignal.timeout(10000) });
+        const got = await r.json().catch(() => ({}));
+        if (!r.ok) { await admin.from("upi_sms").insert({ sender: "email", body: "could not read email " + id + ": " + JSON.stringify(got).slice(0, 400), note: "email fetch failed (" + r.status + ")" }); return json({ ok: false }, 200); }
+        m = { ...body.data, ...got };
+        // Only mail that was really addressed to the secret payments inbox counts (anyone can email the receiving domain).
+        const inbox = String(s.email_inbox ?? "").toLowerCase();
+        const where = JSON.stringify([m.to, m.cc, m.bcc, m.headers, body.data?.to]).toLowerCase();
+        if (!inbox || !where.includes(inbox + "@")) {
+          await admin.from("upi_sms").insert({ sender: String(m.from ?? "").slice(0, 60), body: String(m.subject ?? "").slice(0, 300), note: "email not sent to the payments inbox" });
+          return json({ ok: true, matched: false });
+        }
+      }
+      const from = String(typeof m.from === "object" ? (m.from?.email ?? JSON.stringify(m.from)) : (m.from ?? m.sender ?? "")).slice(0, 60);
+      const subject = String(m.subject ?? "");
+      if (/forwarding confirmation/i.test(subject)) {   // Gmail asks the inbox to confirm forwarding: keep it so the code can be read
+        await admin.from("upi_sms").insert({ sender: from, body: (subject + " " + String(m.text ?? m.html ?? "")).slice(0, 2000), note: "mailbox forwarding confirmation" });
         return json({ ok: true, matched: false });
       }
-      const ok = await activate(admin, cands![0], parsed.utr, "sms");
-      await admin.from("upi_sms").update({ payment_id: cands![0].id, note: ok ? "confirmed the payment" : "payment was already confirmed" }).eq("id", ins.data.id);
-      return json({ ok: true, matched: ok });
+      return json(await confirmFromText(admin, from, emailText(subject, m.text ?? m.body ?? m.plain ?? "", m.html ?? ""), "email"));
     }
 
     // ---- scheduled check of pending orders with Paytm ----
