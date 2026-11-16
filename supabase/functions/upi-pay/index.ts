@@ -6,8 +6,8 @@
 //  3. a bank 'credited' alert email, auto-forwarded from the operator's mailbox to the payments inbox (Resend inbound,
 //     webhook to ?action=email&key=<sms_secret>); only mail that was sent to pay_settings.email_inbox counts.
 // Two pending orders never share an amount: each gets a unique paise offset (0–99 paise) while it is open.
-// Promo codes (public.promo_codes, migration 0013) take a percentage and/or a flat amount off the price before GST;
-// a code that makes the plan free activates it straight away.
+// Promo codes (public.promo_codes, migration 0013) take a percentage and/or a flat amount off the price, or set a fixed total;
+// a code that makes the plan free activates it straight away. Every confirmed payment gets an invoice (functions/billing).
 // Settings live in public.pay_settings (migration 0010). Deploy with JWT verification off; it checks every caller itself.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -43,19 +43,18 @@ function emailText(subject: string, text: string, html: string) {
   const keep = t.replace(/\s+/g, " ").split(/(?<=[.!?])\s+/).filter((x) => !/\b(OTP|never share|do not share|don't share|disclaimer|unsubscribe|if you have not|if you did not|not done by you)\b/i.test(x));
   return (String(subject ?? "") + ". " + keep.join(" ")).slice(0, 1500);
 }
-/** Price in paise for a plan, after a promo code (percent and/or flat rupees off, before 18% GST). Never below ₹1 unless free. */
+/** Price in paise for a plan after a promo code (percent and/or flat rupees off, or a fixed total). No GST is added.
+ *  Never below ₹1 unless the code makes it free. */
 function priceFor(base: number, promo: { percent_off?: number; amount_off?: number; fixed_total?: number | null } | null) {
   const basePaise = Math.round(base * 100);
-  if (promo && promo.fixed_total != null) {          // a fixed price, GST included (e.g. ₹1 for any plan)
-    const total = Math.min(Math.max(0, promo.fixed_total), Math.round(basePaise * 1.18)), taxable = Math.round(total / 1.18);
-    return { base: basePaise, discount: basePaise - taxable, taxable, gst: total - taxable, total };
+  let total: number;
+  if (promo && promo.fixed_total != null) total = Math.min(Math.max(0, promo.fixed_total), basePaise);
+  else {
+    const off = promo ? Math.round(basePaise * (promo.percent_off ?? 0) / 100) + Math.round((promo.amount_off ?? 0) * 100) : 0;
+    total = basePaise - Math.min(basePaise, Math.max(0, off));
+    if (total > 0 && total < 100) total = 100;
   }
-  let discount = promo ? Math.round(basePaise * (promo.percent_off ?? 0) / 100) + Math.round((promo.amount_off ?? 0) * 100) : 0;
-  discount = Math.min(basePaise, Math.max(0, discount));
-  const taxable = basePaise - discount, gst = Math.round(taxable * 0.18);
-  let total = taxable + gst;
-  if (total > 0 && total < 100) total = 100;
-  return { base: basePaise, discount, taxable, gst: total - taxable, total };
+  return { base: basePaise, discount: basePaise - total, taxable: total, gst: 0, total };
 }
 /** Why a promo code can't be used for this plan right now, or '' if it can. */
 function promoProblem(c: any, plan: string, cycle: string, now = Date.now()) {
@@ -103,7 +102,16 @@ async function activate(admin: any, p: any, utr: string | null, by: string) {
   await admin.from("subscriptions").upsert({ firm_id: p.firm_id, plan: p.plan, cycle: p.cycle, status: "active", since, renews: d.toISOString().slice(0, 10), trial_ends: null, updated_at: new Date().toISOString() });
   if (p.gstin) await admin.from("firms").update({ gstin: p.gstin }).eq("id", p.firm_id);
   if (p.promo_code) await admin.rpc("promo_use", { c: p.promo_code });
+  await issueInvoice(p.id);
   return true;
+}
+
+/** Asks the billing function to create this payment's invoice and email it to the buyer (never blocks the plan). */
+async function issueInvoice(paymentId: string) {
+  try {
+    await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/billing", { method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "issue", payment_id: paymentId }), signal: AbortSignal.timeout(25000) });
+  } catch (e) { console.error("invoice", e); }
 }
 
 /** Matches a bank 'credited' message (SMS or email) to the one open order with exactly that amount, and activates it. */
@@ -248,7 +256,7 @@ Deno.serve(async (req: Request) => {
         await activate(admin, p, null, "promo");
         return json({ free: true, order_no: orderNo, amount: 0 });
       }
-      const basePaise = price.total;   // incl. 18% GST, after the promo code
+      const basePaise = price.total;   // after the promo code; no GST is added
       const { data: open } = await admin.from("payments").select("amount_paise").eq("method", "upi").eq("status", "created")
         .gte("amount_paise", basePaise).lt("amount_paise", basePaise + 100).gte("created_at", new Date(Date.now() - LATE_HOURS * 3600e3).toISOString());
       const k = pickOffset(basePaise, (open ?? []).map((r: any) => r.amount_paise));

@@ -166,6 +166,12 @@
       promo: (plan, cycle, promo) => B.fn('upi-pay', { action: 'promo', firm_id: firmId, plan, cycle, promo }),
       status: orderNo => B.fn('upi-pay', { action: 'status', firm_id: firmId, order_no: orderNo })
     },
+    /* GST invoices for plan payments (server function 'billing'). */
+    billing: {
+      list: () => B.fn('billing', { action: 'list', firm_id: firmId }),
+      pdf: id => B.fn('billing', { action: 'pdf', firm_id: firmId, invoice_id: id }),
+      email: id => B.fn('billing', { action: 'email', firm_id: firmId, invoice_id: id })
+    },
     /* Real AI (server function 'ai', Groq): mode 'brain' | 'research' | 'draft'. Resolves to { text, used, limit }. */
     ai: body => B.fn('ai', Object.assign({ firm_id: firmId }, body)),
     notify: () => B.fn('notify', { firm_id: firmId }),
