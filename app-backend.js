@@ -118,6 +118,8 @@
       const list = async pre => { const out = []; for (let off = 0; ; off += 1000) { const r = ok(await st.list(pre, { limit: 1000, offset: off })) || []; out.push(...r); if (r.length < 1000) return out; } };
       for (const f of await list(firmId)) { if (f.id) paths.add(firmId + '/' + f.name); else for (const g of await list(firmId + '/' + f.name)) if (g.id) paths.add(firmId + '/' + f.name + '/' + g.name); }
       const all = [...paths]; for (let i = 0; i < all.length; i += 100) ok(await st.remove(all.slice(i, i + 100)));
+      /* Files kept in members' Google Drives (encrypted, hidden folder) are deleted too, where that Drive is still connected. */
+      for (const x of d.docs || []) if (x.drive) await B.drive.remove(x.drive);
       const r = await sb.rpc('erase_firm_data', { f: firmId });
       if (r.error) {
         if (!(r.error.code === 'PGRST202' || /could not find the function/i.test(r.error.message || ''))) fail(r.error);
@@ -148,6 +150,19 @@
       if (!window.Razorpay) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay Checkout.')); document.head.appendChild(s); });
       const paid = await new Promise((res, rej) => { const rz = new window.Razorpay({ key: o.key_id, order_id: o.order_id, amount: o.amount, currency: o.currency, name: 'Legal Staff', description: plan + ' plan · ' + (cycle === 'annual' ? 'Annual' : 'Monthly'), prefill: { email: o.email, name: d.user.name, contact: d.user.phone || '' }, notes: { firm: d.firm.name }, theme: { color: '#0A0A0A' }, handler: res, modal: { ondismiss: () => rej(new Error('Payment was cancelled.')) } }); rz.on('payment.failed', e => rej(new Error((e.error && e.error.description) || 'The payment failed.'))); rz.open(); });
       await B.fn('razorpay-verify', paid); await subscription(d);
+    },
+    /* ---- encrypted storage in the user's own Google Drive (hidden app folder; see supabase/functions/drive) ---- */
+    drive: {
+      status: () => B.fn('drive', { action: 'status' }),
+      connect: code => B.fn('drive', { action: 'connect', code }),
+      disconnect: () => B.fn('drive', { action: 'disconnect' }),
+      backupNow: () => B.fn('drive', { action: 'backup_now' }),
+      backups: () => B.fn('drive', { action: 'backups', firm_id: firmId }).then(r => r.backups || []),
+      restore: fileId => B.fn('drive', { action: 'restore', firm_id: firmId, file_id: fileId }),
+      /* Sends the file to the server, which encrypts it and stores it in the caller's Drive. Returns { id, user, email }. */
+      async upload(docId, file) { const r = await B.fn('drive?action=upload&firm_id=' + encodeURIComponent(firmId) + '&doc_id=' + encodeURIComponent(docId), file); return r.drive; },
+      download: drive => B.fn('drive', { action: 'download', firm_id: firmId, drive }),
+      remove: drive => B.fn('drive', { action: 'delete', firm_id: firmId, drive }).catch(() => {})
     },
     notify: () => B.fn('notify', { firm_id: firmId }),
     court: cnr => B.fn('court-status', { cnr }),

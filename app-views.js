@@ -315,7 +315,10 @@
           app.modal(null); app.go('case', id); } })));
   }
   /* Removes a stored file (server storage or this browser's IndexedDB). */
-  const dropFile = x => { if (window.LSB && LSB.on) { if (x.file) LSB.removeFile(x.id, x.file); } else L.files.del(x.id); };
+  const dropFile = x => { if (window.LSB && LSB.on) { if (x.drive) LSB.drive.remove(x.drive); else if (x.file) LSB.removeFile(x.id, x.file); } else L.files.del(x.id); };
+  /* Where a new upload goes: the uploader's Google Drive (encrypted, hidden folder) once they have connected it, otherwise the firm's private storage. */
+  const driveOn = app => !!(window.LSB && LSB.on && app.driveSt && app.driveSt.configured && app.driveSt.connected);
+  const storeFile = (app, id, f) => !(window.LSB && LSB.on) ? L.files.put(id, f).catch(() => {}).then(() => null) : driveOn(app) ? LSB.drive.upload(id, f) : LSB.upload(id, f).then(() => null);
   /* Blocked while the case has invoices. Hearings and orders go with the case; tasks and documents can be kept, unlinked. */
   function delCase(app, id) {
     const d = app.db, c = d.cases.find(x => x.id === id); if (!c || !allowed(app, 'case.delete')) return;
@@ -399,10 +402,10 @@
   function uploadDoc(app, kind, caseId) {
     if (needCase(app)) return;
     const d = app.db, ev = kind === 'evidence';
-    app.modal(() => h(Modal, { title: ev ? 'Add evidence' : 'Upload document', sub: window.LSB && LSB.on ? 'The file is stored privately for your firm.' : 'The file stays in this browser. Nothing is uploaded to a server.', onClose: () => app.modal(null) }, h(Form, { init: { caseId: caseId || (caseOpts(d)[0] || [''])[0], type: ev ? 'Evidence' : 'Pleading' }, submit: 'Choose file…', onCancel: () => app.modal(null),
+    app.modal(() => h(Modal, { title: ev ? 'Add evidence' : 'Upload document', sub: driveOn(app) ? `The file is encrypted and saved to the hidden Legal Staff folder in your Google Drive (${app.driveSt.email || 'connected'}).` : window.LSB && LSB.on ? 'The file is stored privately for your firm.' : 'The file stays in this browser. Nothing is uploaded to a server.', onClose: () => app.modal(null) }, h(Form, { init: { caseId: caseId || (caseOpts(d)[0] || [''])[0], type: ev ? 'Evidence' : 'Pleading' }, submit: 'Choose file…', onCancel: () => app.modal(null),
       fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d) }, ev ? { k: 'exhibit', label: 'Exhibit mark', ph: 'Ex. P-1', half: true } : { k: 'type', label: 'Type', type: 'select', options: ['Pleading', 'Court order', 'Draft', 'Correspondence', 'Other'], half: true }, ev ? { k: 'custody', label: 'Source / chain of custody', ph: 'Received from client on…', half: true } : { k: 'label', label: 'Title (optional)', ph: 'Defaults to the file name', half: true }],
       onSubmit: v => L.pickFile().then(fs => { if (!fs.length) return; const f = fs[0], id = L.uid('d'), ext = (f.name.split('.').pop() || 'FILE').toUpperCase().slice(0, 4);
-        (window.LSB && LSB.on ? LSB.upload(id, f) : L.files.put(id, f).catch(() => {})).then(() => { app.mut(db => { db.docs.unshift({ id, caseId: v.caseId, kind, ext, name: (v.label || '').trim() || f.name.replace(/\.[^.]+$/, ''), meta: `${ev ? 'Evidence' : v.type} · ${L.size(f.size)} · uploaded by ${db.user.name}`, v: 'v1', added: L.today(), file: f.name, exhibit: v.exhibit || '', custody: v.custody || '' }); logIt(db, `${ev ? 'Evidence' : 'Document'} "${f.name}" added by ${db.user.name}`, v.caseId); }, ev ? 'Evidence added' : 'Document uploaded'); app.modal(null); }).catch(e => app.toast('Upload failed: ' + e.message)); }) })));
+        storeFile(app, id, f).then(drive => { app.mut(db => { db.docs.unshift({ id, caseId: v.caseId, kind, ext, ...(drive ? { drive } : {}), name: (v.label || '').trim() || f.name.replace(/\.[^.]+$/, ''), meta: `${ev ? 'Evidence' : v.type} · ${L.size(f.size)} · uploaded by ${db.user.name}`, v: 'v1', added: L.today(), file: f.name, exhibit: v.exhibit || '', custody: v.custody || '' }); logIt(db, `${ev ? 'Evidence' : 'Document'} "${f.name}" added by ${db.user.name}`, v.caseId); }, ev ? 'Evidence added' : 'Document uploaded'); app.modal(null); }).catch(e => app.toast('Upload failed: ' + e.message)); }) })));
   }
   const docType = x => x.kind === 'evidence' ? 'Evidence' : (x.type || (DOC_TYPES.includes((x.meta || '').split(' · ')[0]) ? x.meta.split(' · ')[0] : 'Other'));
   const tagLine = x => (x.tags || []).length ? ' · Tags: ' + x.tags.join(', ') : '';
@@ -421,7 +424,7 @@
     confirmBox(app, 'Delete this ' + (ev ? 'evidence record' : 'document') + '?', `"${x.name}" will be removed from the case file` + (x.file ? ', with its uploaded file.' : '.'), 'Delete', () => { dropFile(x); app.mut(db => { db.docs = db.docs.filter(y => y.id !== id); logIt(db, `${ev ? 'Evidence' : 'Document'} "${x.name}" deleted by ${db.user.name}`, x.caseId); }, 'Deleted'); });
   }
   const docActs = (app, x) => acts(h(Btn, { small: true, onClick: () => openDoc(app, x) }, 'Download'), h(IconBtn, { label: 'Edit ' + x.name, onClick: () => editDoc(app, x.id) }, '✎'), h(IconBtn, { label: 'Delete ' + x.name, danger: true, onClick: () => delDoc(app, x.id) }, '×'));
-  function openDoc(app, doc) { if (!doc.file) return app.toast('No file is attached to this record.'); (window.LSB && LSB.on ? LSB.download(doc.id, doc.file) : L.files.get(doc.id)).then(f => f ? L.download(doc.file, f) : app.toast('The file is no longer in this browser.')).catch(() => app.toast('Could not read the file.')); }
+  function openDoc(app, doc) { if (!doc.file) return app.toast('No file is attached to this record.'); (window.LSB && LSB.on ? (doc.drive ? LSB.drive.download(doc.drive) : LSB.download(doc.id, doc.file)) : L.files.get(doc.id)).then(f => f ? L.download(doc.file, f) : app.toast('The file is no longer in this browser.')).catch(() => app.toast('Could not read the file.')); }
   function addOrder(app, caseId) {
     if (needCase(app)) return;
     const d = app.db;
@@ -885,6 +888,34 @@
       h('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap' } }, h(Stat, { label: 'Open cases', value: live.length, note: d.cases.length + ' in total' }), h(Stat, { label: 'Hearings · next 30 days', value: d.hearings.filter(x => x.date >= T && L.diffDays(x.date, T) <= 30).length }), h(Stat, { label: 'Tasks completed', value: tdone + ' / ' + d.tasks.length, note: d.tasks.filter(overdue).length + ' overdue', red: d.tasks.some(overdue) }), h(Stat, { label: 'Collection rate', value: Math.round(d.invoices.filter(i => i.paid).reduce((a, i) => a + i.amount, 0) / Math.max(1, d.invoices.reduce((a, i) => a + i.amount, 0)) * 100) + '%', note: 'of fees billed' })),
       h('div', { className: 'ls-print', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 20 } }, R.map(([t, rows, f]) => h(Card, { key: t, title: t }, h(Bars, { rows, fmt: f })))));
   }
+  /* ---------- Google Drive: encrypted storage in the user's own Drive (hidden app folder) ---------- */
+  const DRIVE_SCOPE = 'openid email https://www.googleapis.com/auth/drive.appdata';
+  const loadGsi = () => window.google && google.accounts && google.accounts.oauth2 ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.onload = res; sc.onerror = () => rej(new Error('Could not reach Google.')); document.head.appendChild(sc); });
+  function DriveCard({ app }) {
+    const d = app.db, st = app.driveSt, owner = !!d.isOwner;
+    const [busy, setBusy] = useState(''), [list, setList] = useState(null);
+    const row = (label, sub, ctl) => h(Line, null, h('div', { style: { flex: 1, minWidth: 0 } }, label, sub && h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.5 } }, sub)), ctl);
+    const refresh = () => LSB.drive.status().then(x => { app.driveSt = x; app.setState(s => ({ rev: s.rev + 1 })); });
+    const run = (what, p, done) => { if (busy) return; setBusy(what); return p().then(done).catch(e => app.toast(e.message)).finally(() => setBusy('')); };
+    const connect = () => run('connect', () => loadGsi().then(() => new Promise((res, rej) => google.accounts.oauth2.initCodeClient({ client_id: st.clientId, scope: DRIVE_SCOPE, ux_mode: 'popup', login_hint: d.user.email,
+      callback: r => r.code ? LSB.drive.connect(r.code).then(res, rej) : rej(new Error('Google Drive was not connected.')), error_callback: () => rej(new Error('Google Drive was not connected.')) }).requestCode())), () => refresh().then(() => app.toast('Google Drive connected. New uploads are saved there, encrypted.')));
+    const disconnect = () => confirmBox(app, 'Disconnect Google Drive?', 'New uploads will go to the firm\'s private storage again. Files already saved in your Drive stay there, hidden and encrypted, but you and your team cannot open them until you connect the same Google account again.', 'Disconnect', () => run('disconnect', () => LSB.drive.disconnect(), () => { setList(null); refresh().then(() => app.toast('Google Drive disconnected')); }));
+    const backupNow = () => run('backup', () => LSB.drive.backupNow(), r => { app.toast(`Backed up ${plural(r.firms, 'firm')} to your Google Drive`); setList(null); refresh(); });
+    const showList = () => run('list', () => LSB.drive.backups(), setList);
+    const restore = b => confirmBox(app, 'Restore this backup?', `The firm's data for everyone is replaced with the backup from ${L.fmt(b.date)}. Anything added since then is lost. Export a backup first if you may need it.`, 'Restore', () => run('restore', () => LSB.drive.restore(b.id), x => {
+      if (!x || x.v !== 2 || !Array.isArray(x.cases)) throw new Error('That file is not a Legal Staff backup.');
+      ['settings', 'chats', 'copilot', 'drafts', 'notes', 'research', 'adminStatus', 'adminNotes', 'session'].forEach(k => { x[k] = d[k]; }); app.replace(x, 'Backup restored from Google Drive'); }));
+    const head = h('div', { style: { fontSize: 13, color: K.mut, lineHeight: 1.55, paddingBottom: 10 } }, 'Keep your uploads and a daily backup in your own Google Drive. Everything is encrypted before it reaches Google and kept in a hidden folder that only Legal Staff can open, so it does not show in your Drive.');
+    if (!st) return h(Card, { title: 'Google Drive storage' }, head, row('Checking the connection…', null, null));
+    if (!st.configured) return h(Card, { title: 'Google Drive storage' }, head, row('Not available yet', 'Google Drive storage has not been switched on for Legal Staff. Uploads are kept in the firm\'s private storage.', null));
+    if (!st.connected) return h(Card, { title: 'Google Drive storage' }, head, row('Not connected', 'Uploads go to the firm\'s private storage.', h(Btn, { small: true, primary: true, onClick: connect, disabled: !!busy }, busy === 'connect' ? 'Connecting…' : 'Connect Google Drive')));
+    return h(Card, { title: 'Google Drive storage' }, head,
+      row('Connected · ' + (st.email || 'Google account'), 'Your new uploads are encrypted and saved to the hidden Legal Staff folder in this Drive. Your team opens them through Legal Staff.', h(Btn, { small: true, onClick: disconnect, disabled: !!busy }, 'Disconnect')),
+      row('Daily backup', (st.lastBackup ? 'Last backup ' + new Date(st.lastBackup).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'No backup yet') + ' · every night at 2:30 AM, newest 30 kept' + (st.lastError ? ' · Last problem: ' + st.lastError : ''), h(Btn, { small: true, onClick: backupNow, disabled: !!busy }, busy === 'backup' ? 'Backing up…' : 'Back up now')),
+      row('Backups in your Drive', list ? (list.length ? null : 'No backups of this firm yet.') : 'Encrypted copies of this firm\'s data', !list && h(Btn, { small: true, onClick: showList, disabled: !!busy }, busy === 'list' ? 'Loading…' : 'Show backups')),
+      list && list.slice(0, 10).map(b => row(L.fmt(b.date), new Date(b.created).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) + ' · ' + L.size(b.size) + ' encrypted', owner ? h(Btn, { small: true, onClick: () => restore(b), disabled: !!busy }, 'Restore') : null)),
+      list && !owner && h('div', { style: { fontSize: 12.5, color: K.mut, paddingTop: 8 } }, 'Only the firm owner can restore a backup.'));
+  }
   function Settings({ app }) {
     const d = app.db, s = d.settings, set = (k, v, msg) => app.mut(db => { db.settings[k] = v; }, msg || 'Setting saved');
     const row = (label, sub, ctl) => h(Line, null, h('div', { style: { flex: 1, minWidth: 0 } }, label, sub && h('div', { style: { fontSize: 12.5, color: K.mut } }, sub)), ctl);
@@ -896,10 +927,10 @@
     const restore = owner && row('Restore', server ? 'Replace the firm\'s data for everyone with a backup file' : 'Replace the data with a backup file', h(Btn, { small: true, onClick: () => L.pickFile('.json,application/json').then(fs => fs[0] && fs[0].text().then(t => { try { const x = JSON.parse(t); if (!x || x.v !== 2 || !Array.isArray(x.cases)) throw 0; x.session = d.session; app.replace(x, 'Backup restored'); } catch (e) { app.toast('That file is not a Legal Staff backup'); } })) }, 'Import'));
     const signOut = row('Sign out', d.session ? 'Signed in as ' + d.session.email : '', h(Btn, { small: true, onClick: () => app.signOut() }, 'Sign out'));
     const dataCard = server
-      ? h(Card, { title: 'Your firm\'s data' }, backup, restore,
+      ? h(React.Fragment, null, h(DriveCard, { app }), h(Card, { title: 'Your firm\'s data' }, backup, restore,
           row('Clear this device', 'Remove what this browser keeps and sign out. The firm\'s data on the server is not touched.', h(Btn, { small: true, onClick: () => confirmBox(app, 'Clear this device?', 'Everything Legal Staff keeps in this browser is removed and you are signed out. Your firm\'s data on the server stays as it is.', 'Clear and sign out', () => clearDevice(app)) }, 'Clear')),
           owner && row('Delete firm data', 'Permanently delete every record and file of ' + (d.firm.name || 'the firm') + ', for everyone in the firm', h(Btn, { small: true, danger: true, onClick: () => eraseFirm(app) }, 'Delete')),
-          signOut)
+          signOut))
       : h(Card, { title: 'Data on this device' }, backup, restore, row('Erase all data', 'Delete every case, client, invoice, file and setting on this device', h(Btn, { small: true, danger: true, onClick: () => confirmBox(app, 'Erase all data?', 'Every case, client, invoice, document and setting on this device will be deleted, including uploaded files. Export a backup first if you may need it. This cannot be undone.', 'Erase everything', () => { const s0 = d.session, u0 = d.user; L.files.clear(); const x = L.reset(); x.session = s0; x.user = u0; x.team = [{ id: 'u1', name: u0.name, title: u0.title, role: u0.role, email: u0.email, status: 'Active' }]; app.replace(x, 'All data erased'); onboard(app); }) }, 'Erase')), signOut);
     return h(Page, { art: 'settings', kicker: 'Firm', title: 'Settings', sub: server ? 'Saved to your firm\'s account' : 'Everything here is saved on this device', max: 1100 },
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,440px),1fr))', gap: 20, alignItems: 'start' } },
