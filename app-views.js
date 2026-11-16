@@ -1009,8 +1009,10 @@
       const [st, setSt] = useState({ phase: 'creating' }), [qr, setQr] = useState(''), [left, setLeft] = useState(0);
       React.useEffect(() => {
         let dead = false, poll = null, tick = null;
-        LSB.upi.create(o.plan, o.cycle, o.gstin).then(r => {
-          if (dead) return; setSt({ phase: 'waiting', r });
+        LSB.upi.create(o.plan, o.cycle, o.gstin, o.promo).then(r => {
+          if (dead) return;
+          if (r.free) { setSt({ phase: 'paid', r, x: { confirmed_by: 'promo' } }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); return; }
+          setSt({ phase: 'waiting', r });
           loadQr().then(() => { const q = window.qrcode(0, 'M'); q.addData(r.link); q.make(); if (!dead) setQr(q.createSvgTag({ cellSize: 5, margin: 2, scalable: true })); }).catch(() => {});
           const end = Date.parse(r.expires_at);
           tick = setInterval(() => setLeft(Math.max(0, Math.round((end - Date.now()) / 1000))), 1000);

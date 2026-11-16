@@ -16,7 +16,7 @@
 | `functions/court-status` | CNR lookup through a court-data provider |
 | `functions/auth-email` | Supabase Auth "Send Email" hook: sign-in codes, sign-up confirmations, invites, email changes and security notices in the Legal Staff design, sent through Resend (deploy with JWT verification off; it checks the hook signature) |
 | `functions/ai` | Real AI for AI Case Brain, AI Legal Research and AI Drafting Studio through Groq; picks the best model from Groq's live list; counts AI credits per firm per month by plan (deploy with JWT verification off; it checks the caller itself) |
-| `functions/upi-pay` | Pay by UPI straight to the operator's UPI ID, no gateway: creates orders with a unique amount, confirms them automatically by Paytm for Business order status and/or bank 'credited' SMS from an SMS-forwarder phone, then activates the plan (deploy with JWT verification off; it checks every caller itself) |
+| `functions/upi-pay` | Pay by UPI straight to the operator's UPI ID, no gateway: creates orders with a unique amount, confirms them automatically by Paytm for Business order status, bank 'credited' SMS from an SMS-forwarder phone, or forwarded bank alert emails, applies promo codes, then activates the plan (deploy with JWT verification off; it checks every caller itself) |
 | `functions/drive` | Encrypted storage in each user's own Google Drive: uploads and nightly backups, encrypted with AES-256-GCM (a key per firm) and kept in the Drive's hidden app folder (deploy with JWT verification off; it checks the caller itself) |
 
 ## Current project
@@ -77,3 +77,20 @@ to exactly one order. Confirmation is automatic, by whichever comes first:
 - **Bank SMS:** an Android phone with the bank SIM runs an SMS-forwarder app that POSTs each SMS to
   `/functions/v1/upi-pay?action=sms&key=<sms_secret>`. A 'credited' SMS whose amount matches one open order confirms it;
   each bank reference (UTR) can confirm only one payment. Every SMS is kept in `public.upi_sms` with what happened to it.
+- **Bank alert email:** the mailbox that receives the bank's 'credited' alerts forwards them (a mail filter) to the secret
+  payments inbox `<pay_settings.email_inbox>@<your>.resend.app`; Resend's `email.received` webhook calls
+  `/functions/v1/upi-pay?action=email&key=<sms_secret>`, and the function reads the mail with the full-access Resend key
+  kept in Vault as `resend_read_key` (migration 0012). Only mail addressed to that inbox counts. Matched like the SMS.
+
+### Promo codes
+
+`public.promo_codes` (migration 0013, server only). A code takes `percent_off` and/or `amount_off` (rupees) off the price
+before GST, or sets `fixed_total` (paise, GST included; e.g. 100 = Rs 1 for any plan). Optional limits: `plans`, `cycles`,
+`max_uses`, `once_per_firm` (default on), `starts_at`, `expires_at`, `active`. A code that makes the plan free switches it
+on at once. Examples:
+
+```sql
+insert into public.promo_codes (code, percent_off) values ('LAUNCH20', 20);
+insert into public.promo_codes (code, fixed_total, max_uses) values ('NEW100', 100, 50);
+update public.promo_codes set active = false where code = 'NEW100';
+```
