@@ -27,7 +27,7 @@
 
   function seed() {
     return {
-      v: 2, anchor: today(), session: null, labels: [], cases: [], hearings: [], orders: [], tasks: [], docs: [], clients: [], team: [], invoices: [], log: [],
+      v: 2, anchor: today(), session: null, labels: [], cases: [], hearings: [], orders: [], tasks: [], docs: [], clients: [], team: [], invoices: [], esign: [], log: [],
       firm: { name: '', city: '', address: '', gstin: '', court: '', photo: '', groupPhoto: '', kind: '', domain: '' },
       user: { name: '', title: '', role: 'Advocate', email: '', phone: '' },
       sub: { plan: '', cycle: 'annual', status: '', since: '', renews: '', trialEnds: '', history: [] },
@@ -105,7 +105,7 @@
   /* Older data kept one calculation in d.lim (firm state). Move it into d.lims, the list of saved calculations, and give an approved one its deadline record. */
   function migrate(d) {
     if (!d) return d;
-    if (!Array.isArray(d.labels)) d.labels = []; if (!Array.isArray(d.lims)) d.lims = []; if (!Array.isArray(d.deadlines)) d.deadlines = [];
+    if (!Array.isArray(d.esign)) d.esign = []; if (!Array.isArray(d.labels)) d.labels = []; if (!Array.isArray(d.lims)) d.lims = []; if (!Array.isArray(d.deadlines)) d.deadlines = [];
     /* A client saved without sharing settings (an older backup or record) gets the defaults, so the client screens can always read them. */
     (d.clients || []).forEach(c => { if (c && !c.share) c.share = { dates: true, orders: true, invoices: false }; });
     const o = d.lim;

@@ -11,6 +11,7 @@
 <script src="app-practice.js"></script>
 <script src="app-backend.js"></script>
 <script src="app-views.js"></script>
+<script src="app-esign.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
@@ -1094,7 +1095,7 @@ class Component extends DCLogic {
   tplNames = ['Legal notice', 'Petition', 'Section 138 notice', 'Bail application', 'Affidavit', 'Written statement', 'Reply', 'Appeal', 'Revision', 'Agreement'];
   dirList = [];
   state = { auth: LSB.on ? 'boot' : (this.db.session ? 'in' : 'login'), screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: '', promo: null, promoInput: '', promoErr: '' };
-  SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'causelist', 'ordersdate', 'ordersnotif', 'board', 'labels', 'courts', 'clients', 'documents', 'evidence', 'research', 'agents', 'team', 'chat', 'billing', 'portal', 'reports', 'settings'];
+  SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'causelist', 'ordersdate', 'ordersnotif', 'board', 'labels', 'courts', 'clients', 'documents', 'esign', 'evidence', 'research', 'agents', 'team', 'chat', 'billing', 'portal', 'reports', 'settings'];
 
   componentDidMount() {
     this.onR = () => this.setState({ w: window.innerWidth }); window.addEventListener('resize', this.onR);
@@ -1321,7 +1322,7 @@ class Component extends DCLogic {
     /* ---- navigation ---- */
     const navDef = [
       ['Overview', [['Dashboard', 'dashboard', 'dashboard'], ['My Workspace', 'workspace', 'user']]],
-      ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Daily Causelist', 'causelist', 'cal'], ['Orders by Date', 'ordersdate', 'order'], ['Orders by Notification', 'ordersnotif', 'order', pendOrders.length], ['Display Board', 'board', 'court'], ['Labels', 'labels', 'tag'], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', limWait]]],
+      ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Daily Causelist', 'causelist', 'cal'], ['Orders by Date', 'ordersdate', 'order'], ['Orders by Notification', 'ordersnotif', 'order', pendOrders.length], ['Display Board', 'board', 'court'], ['Labels', 'labels', 'tag'], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['E-Sign', 'esign', 'pen'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', limWait]]],
       ['AI', [['AI Case Brain', 'brain', 'spark'], ['AI Drafting Studio', 'drafting', 'pen'], ['AI Legal Research', 'research', 'search'], ['AI Agents', 'agents', 'cpu']]],
       ['Firm', [['Team', 'team', 'team'], ['Team chat', 'chat', 'chat', LSB.on ? Object.values(this.chatUnread || {}).reduce((a, b) => a + b, 0) || 0 : 0], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
     ];
