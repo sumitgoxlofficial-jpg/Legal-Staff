@@ -8,7 +8,14 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 class Fail extends Error { status: number; constructor(msg: string, status = 400) { super(msg); this.status = status; } }
 
-const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 699, annual: 6999 }, Professional: { monthly: 1499, annual: 14999 }, Firm: { monthly: 3999, annual: 39999 } };
+const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 299, annual: 2999 }, Professional: { monthly: 799, annual: 7999 }, Firm: { monthly: 3999, annual: 39999 } };
+// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with upi-pay, billing and admin.
+const PER_USER: Record<string, number> = { monthly: 249, annual: 2499 }, MAX_USERS = 15;
+/** List price in rupees for a plan and cycle; seats only counts for Professional (missing → 1). */
+const listPrice = (plan: string, cycle: string, seats?: number | null) => {
+  const p = PRICES[plan]?.[cycle]; if (!p) return 0;
+  return p + (plan === "Professional" ? (Math.max(1, Number(seats) || 1) - 1) * PER_USER[cycle] : 0);
+};
 const SITE = (Deno.env.get("APP_URL") ?? "https://legalstaff.in").replace(/\/$/, "");
 
 // logic:start — pure functions, unit-tested in node.
@@ -80,7 +87,7 @@ Deno.serve(async (req: Request) => {
       const [users, firms, subs, paid, exps] = await Promise.all([
         userCount(admin),
         all(() => admin.from("firms").select("id,created_at").order("id")),
-        all(() => admin.from("subscriptions").select("firm_id,plan,cycle,status,since,renews,trial_ends").order("firm_id")),
+        all(() => admin.from("subscriptions").select("firm_id,plan,cycle,seats,status,since,renews,trial_ends").order("firm_id")),
         all(() => admin.from("payments").select("amount_paise,paid_at,plan,cycle,promo_code,method").eq("status", "paid").order("paid_at")),
         all(() => admin.from("admin_expenses").select("amount_paise,spent_on").order("spent_on")),
       ]);
@@ -89,7 +96,7 @@ Deno.serve(async (req: Request) => {
       const exp = (pred: (ym: string) => boolean) => sum(exps.filter((e: any) => pred(e.spent_on.slice(0, 7))).map((e: any) => e.amount_paise));
       const states: Record<string, number> = { paid: 0, paid_upcoming: 0, trial: 0, expired: 0, none: 0 };
       const byPlan: Record<string, number> = {}; let mrr = 0;
-      for (const s of subs) { const st = subState(s, now); states[st]++; if (st === "paid" || st === "paid_upcoming") { byPlan[s.plan] = (byPlan[s.plan] ?? 0) + 1; const p = PRICES[s.plan]?.[s.cycle] ?? 0; mrr += Math.round((s.cycle === "annual" ? p / 12 : p) * 100); } }
+      for (const s of subs) { const st = subState(s, now); states[st]++; if (st === "paid" || st === "paid_upcoming") { byPlan[s.plan] = (byPlan[s.plan] ?? 0) + 1; const p = listPrice(s.plan, s.cycle, s.seats); mrr += Math.round((s.cycle === "annual" ? p / 12 : p) * 100); } }
       states.none += Math.max(0, firms.length - subs.length);
       const r = { month: rev((m) => m === thisMonth), fy: rev((m) => m >= fy && m <= thisMonth), year: rev((m) => m.startsWith(yr)), all: rev(() => true) };
       const e = { month: exp((m) => m === thisMonth), fy: exp((m) => m >= fy && m <= thisMonth), year: exp((m) => m.startsWith(yr)), all: exp(() => true) };

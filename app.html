@@ -931,6 +931,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <sc-if value="{{ notPaid }}" hint-placeholder-val="{{ true }}">
               <div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;align-items:center;gap:12px"><h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">Checkout</h2></div><button onClick="{{ closeCheckout }}" style="border:0;background:none;font-size:20px;color:#5E5E5E">×</button></div>
               <div style="display:flex;flex-direction:column;gap:10px;font-size:14px">
+                <sc-if value="{{ co.perUser }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><span>Users</span><span style="display:flex;align-items:center;gap:10px"><button type="button" aria-label="One user fewer" onClick="{{ co.lessUsers }}" style="width:30px;height:30px;border:1px solid #E5E5E5;border-radius:8px;background:#fff;font-size:16px;cursor:pointer">−</button><span style="min-width:64px;text-align:center;font-weight:600">{{ co.usersLabel }}</span><button type="button" aria-label="One user more" onClick="{{ co.moreUsers }}" style="width:30px;height:30px;border:1px solid #E5E5E5;border-radius:8px;background:#fff;font-size:16px;cursor:pointer">+</button></span></div>
+                  <div style="font-size:12.5px;color:#5E5E5E;margin-top:-4px">{{ co.usersNote }}</div>
+                </sc-if>
                 <div style="display:flex;justify-content:space-between"><span>{{ co.name }} plan · {{ co.cycle }}</span><span>{{ co.base }}</span></div>
                 <sc-if value="{{ hasPromo }}" hint-placeholder-val="{{ false }}">
                   <div style="display:flex;justify-content:space-between;color:#137333"><span>Promo {{ promoCode }} · {{ promoLabel }}</span><span>− {{ promoOff }}</span></div>
@@ -1462,44 +1466,53 @@ class Component extends DCLogic {
     /* ---- pricing ---- */
     const cycles = [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14, background: S.cycle === k ? '#0A0A0A' : 'transparent', color: S.cycle === k ? '#fff' : '#363636' } }));
     const P = [
-      ['Solo', 'For an advocate practising alone', 699, 6999, ['1 user', '150 active cases', '10 GB storage', '200 AI credits / month', 'Hearing reminders on WhatsApp and email', 'Limitation tracker']],
-      ['Professional', 'For advocates with juniors or a small chamber', 1499, 14999, ['Up to 3 users', '600 active cases', '50 GB storage', '1,000 AI credits / month', 'AI Case Brain and Drafting Studio', 'Client portal']],
+      ['Solo', 'For an advocate practising alone', 299, 2999, ['1 user', '150 active cases', '10 GB storage', '200 AI credits / month', 'Hearing reminders on WhatsApp and email', 'Limitation tracker']],
+      ['Professional', 'For advocates with juniors or a small chamber', 799, 7999, ['1 user included, up to 15', '600 active cases', '50 GB storage', '1,000 AI credits / month', 'AI Case Brain and Drafting Studio', 'Client portal']],
       ['Firm', 'For law firms with teams and partners', 3999, 39999, ['Up to 15 users', 'Unlimited cases', '250 GB storage', '5,000 AI credits / month', 'Roles, permissions and AI agents', 'Reports and analytics']],
       ['Enterprise', 'For corporate legal departments and large firms', null, null, ['Custom users and storage', 'SSO and audit exports', 'Dedicated onboarding', 'Custom court-data providers']]
     ];
-    const inr = LS.inr;
+    const inr = LS.inr, PER_USER = { monthly: 249, annual: 2499 }, MAX_USERS = 15;
     const sales = () => this.modal(() => h(V.Modal, { title: 'Talk to sales', sub: 'Tell us about your team and we will prepare an Enterprise quote.', onClose: () => this.modal(null) }, h(V.Form, { init: { name: D.user.name, email: D.user.email, org: D.firm.name }, submit: LSB.on ? 'Send request' : 'Save request', onCancel: () => this.modal(null), note: LSB.on ? 'The request is sent to the Legal Staff team, who will reply by email.' : 'No server is connected, so the request is stored on this device only and is not sent. Please also email us.', fields: [{ k: 'name', label: 'Your name', req: true, half: true }, { k: 'email', label: 'Work email', type: 'email', req: true, half: true }, { k: 'org', label: 'Organisation', req: true, half: true }, { k: 'users', label: 'Number of users', type: 'number', req: true, half: true }, { k: 'msg', label: 'What do you need?', type: 'textarea', rows: 3 }],
       onSubmit: v => { if (!LSB.on) { this.mut(db => { (db.salesRequests = db.salesRequests || []).push(Object.assign({ at: T }, v)); }, 'Request saved on this device. It has not been sent.'); return this.modal(null); }
         if (this.sending) return; this.sending = true;
         LSB.contact({ name: v.name.trim(), email: v.email.trim(), phone: D.user.phone || '', firm: v.org.trim(), topic: 'Enterprise quote', message: `Users: ${v.users}` + (v.msg ? '\n' + v.msg.trim() : ''), source: 'app · pricing' }).then(() => { this.modal(null); this.toast('Request sent. We will reply by email.'); }).catch(e => this.toast('Could not send the request: ' + e.message)).finally(() => { this.sending = false; }); } })));
     const plans = P.map(([name, who, m, a, feats], i) => {
-      const feat = i === 1, ann = S.cycle === 'annual', curPlan = acc.state === 'active' && D.sub.plan === name && D.sub.cycle === S.cycle, onTrial = acc.state === 'trial' && D.sub.plan === name;
-      return { name, who, feats, price: m ? inr(ann ? a : m) : 'Custom', per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '',
-        cta: m ? (curPlan ? 'Current plan' : onTrial ? `Subscribe to ${name}` : acc.state === 'none' ? 'Start 7-day free trial' : acc.state === 'trial' ? `Switch trial to ${name}` : `Choose ${name}`) : 'Contact sales', pick: () => m ? (curPlan ? this.toast(`You are already on the ${name} plan.`) : this.setState({ plan: i, paid: false, gstin: D.firm.gstin || '', gstErr: '', promo: null, promoInput: '', promoErr: '' })) : sales(),
+      const feat = i === 1, ann = S.cycle === 'annual', onPlan = acc.state === 'active' && D.sub.plan === name && D.sub.cycle === S.cycle, curPlan = onPlan && name !== 'Professional', onTrial = acc.state === 'trial' && D.sub.plan === name;
+      const extra = name === 'Professional' ? [`+ ${inr(PER_USER[S.cycle])} ${ann ? '/ year' : '/ month'} per additional user`] : [];
+      return { name, who, feats: extra.concat(feats), price: m ? inr(ann ? a : m) : 'Custom', per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '',
+        cta: m ? (curPlan ? 'Current plan' : onPlan ? 'Change users' : onTrial ? `Subscribe to ${name}` : acc.state === 'none' ? 'Start 7-day free trial' : acc.state === 'trial' ? `Switch trial to ${name}` : `Choose ${name}`) : 'Contact sales', pick: () => m ? (curPlan ? this.toast(`You are already on the ${name} plan.`) : this.setState({ plan: i, paid: false, users: Math.min(MAX_USERS, Math.max(1, D.team.length, D.sub.plan === 'Professional' && D.sub.seats || 1)), gstin: D.firm.gstin || '', gstErr: '', promo: null, promoInput: '', promoErr: '' })) : sales(),
         card: { background: feat ? '#F5F5F4' : '#FFFFFF', color: '#0A0A0A', border: feat ? '2px solid #0A0A0A' : '1px solid #E5E5E5', borderRadius: 12, padding: 26, display: 'flex', flexDirection: 'column', gap: 10 },
         btn: { height: 38, border: feat ? 0 : '1px solid #0A0A0A', borderRadius: 8, fontSize: 14, fontWeight: 500, background: feat ? '#0A0A0A' : 'transparent', color: feat ? '#fff' : '#0A0A0A', margin: '8px 0', opacity: curPlan ? .55 : 1 } };
     });
     let co = {};
     if (S.plan !== null) {
-      const [name, , m, a] = P[S.plan], ann = S.cycle === 'annual', base = ann ? a : m, gst = 0, renews = LS.addDays(T, ann ? 365 : 30);
-      co = { name, cycle: ann ? 'Annual' : 'Monthly', base: inr(base), gst: inr(gst), total: inr(base + gst), renew: ann ? 'every year' : 'every month', next: LS.fmt(renews), renews, gstErr: S.gstErr ? h('div', { style: { fontSize: 12.5, color: '#B42318', marginTop: 6 } }, S.gstErr) : null };
+      const [name, , m, a] = P[S.plan], ann = S.cycle === 'annual', perUser = name === 'Professional', used = D.team.length;
+      const users = perUser ? Math.min(MAX_USERS, Math.max(1, S.users || 1)) : null, extra = perUser ? (users - 1) * PER_USER[S.cycle] : 0;
+      const base = (ann ? a : m) + extra, gst = 0, renews = LS.addDays(T, ann ? 365 : 30);
+      const setUsers = n => this.setState({ users: Math.min(MAX_USERS, Math.max(1, n)), gstErr: '', promo: null, promoErr: '' });
+      co = { name, cycle: ann ? 'Annual' : 'Monthly', base: inr(base), users, perUser, usersLabel: perUser ? users + (users === 1 ? ' user' : ' users') : '', usedTooMany: perUser && used > users,
+        usersNote: perUser ? `${inr(ann ? a : m)} for the first user + ${inr(PER_USER[S.cycle])} for each additional user` + (used > users ? `. Your team has ${used} users.` : '') : '',
+        lessUsers: () => setUsers(users - 1), moreUsers: () => setUsers(users + 1), gst: inr(gst), total: inr(base + gst), renew: ann ? 'every year' : 'every month', next: LS.fmt(renews), renews, gstErr: S.gstErr ? h('div', { style: { fontSize: 12.5, color: '#B42318', marginTop: 6 } }, S.gstErr) : null };
     }
     /* Plans are paid only by UPI straight to our account (Legal Staff's own payment flow, no outside gateway). */
     const upiOn = !!LSB.on;
     /* Promo code: checked by the server for this plan and billing cycle; the discount comes off before GST. */
-    const promoOk = !!(S.promo && co.name && S.promo.plan === co.name && S.promo.cycle === S.cycle);
+    const promoOk = !!(S.promo && co.name && S.promo.plan === co.name && S.promo.cycle === S.cycle && S.promo.users === co.users);
     const applyPromo = () => { const code = String(S.promoInput || '').trim().toUpperCase();
       if (!code) return this.setState({ promoErr: 'Enter a promo code.' });
       if (this.promoBusy) return; this.promoBusy = true; this.setState({ promoErr: '' });
-      LSB.upi.promo(co.name, S.cycle, code).then(r => this.setState({ promo: Object.assign({ plan: co.name, cycle: S.cycle }, r), promoInput: r.code }))
+      LSB.upi.promo(co.name, S.cycle, code, co.users).then(r => this.setState({ promo: Object.assign({ plan: co.name, cycle: S.cycle, users: co.users }, r), promoInput: r.code }))
         .catch(e => this.setState({ promo: null, promoErr: e.message })).finally(() => { this.promoBusy = false; this.setState(s => ({ rev: s.rev + 1 })); }); };
     const removePromo = () => this.setState({ promo: null, promoInput: '', promoErr: '' });
     const rp = p => inr(p / 100);
+    const tooFew = () => co.usedTooMany ? (this.setState({ gstErr: `Choose at least ${D.team.length} users, or remove team members first.` }), true) : false;
     const payUpi = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
-      const o = { plan: co.name, cycle: S.cycle, gstin: g, name: co.name, cycleLabel: co.cycle, promo: promoOk ? S.promo.code : '' }; this.setState({ plan: null, gstErr: '' }); V.upiPay(this, o); };
+      if (tooFew()) return;
+      const o = { plan: co.name, cycle: S.cycle, gstin: g, name: co.name, cycleLabel: co.cycle + (co.perUser ? ' · ' + co.usersLabel : ''), promo: promoOk ? S.promo.code : '', users: co.users }; this.setState({ plan: null, gstErr: '' }); V.upiPay(this, o); };
     const pay = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
       if (LSB.on) return payUpi();
-      this.mut(db => { db.sub.plan = co.name; db.sub.cycle = S.cycle; db.sub.status = 'active'; db.sub.trialEnds = ''; db.sub.since = T; db.sub.renews = co.renews; db.sub.history.unshift({ plan: co.name + ' · ' + co.cycle, total: co.total, date: T }); if (g) db.firm.gstin = g; V.logIt(db, `Subscription changed to ${co.name} (${co.cycle})`); }); this.setState({ paid: true, gstErr: '' }); };
+      if (tooFew()) return;
+      this.mut(db => { db.sub.plan = co.name; db.sub.cycle = S.cycle; db.sub.seats = co.users; db.sub.status = 'active'; db.sub.trialEnds = ''; db.sub.since = T; db.sub.renews = co.renews; db.sub.history.unshift({ plan: co.name + ' · ' + co.cycle, total: co.total, date: T }); if (g) db.firm.gstin = g; V.logIt(db, `Subscription changed to ${co.name} (${co.cycle})`); }); this.setState({ paid: true, gstErr: '' }); };
 
     /* ---- free trial: one per firm, 7 days, on the chosen plan; can switch plan while it runs ---- */
     const canTrial = S.plan !== null && (acc.state === 'none' || (acc.state === 'trial' && D.sub.plan !== co.name));

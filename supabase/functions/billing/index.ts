@@ -14,7 +14,14 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 class Fail extends Error { status: number; constructor(msg: string, status = 400) { super(msg); this.status = status; } }
 
 const SITE = (Deno.env.get("APP_URL") ?? "https://legalstaff.in").replace(/\/$/, "");
-const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 699, annual: 6999 }, Professional: { monthly: 1499, annual: 14999 }, Firm: { monthly: 3999, annual: 39999 } };
+const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 299, annual: 2999 }, Professional: { monthly: 799, annual: 7999 }, Firm: { monthly: 3999, annual: 39999 } };
+// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with upi-pay, billing and admin.
+const PER_USER: Record<string, number> = { monthly: 249, annual: 2499 }, MAX_USERS = 15;
+/** List price in rupees for a plan and cycle; seats only counts for Professional (missing → 1). */
+const listPrice = (plan: string, cycle: string, seats?: number | null) => {
+  const p = PRICES[plan]?.[cycle]; if (!p) return 0;
+  return p + (plan === "Professional" ? (Math.max(1, Number(seats) || 1) - 1) * PER_USER[cycle] : 0);
+};
 const STATES: Record<string, string> = { "01": "Jammu and Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh", "05": "Uttarakhand", "06": "Haryana", "07": "Delhi", "08": "Rajasthan", "09": "Uttar Pradesh", "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh", "13": "Nagaland", "14": "Manipur", "15": "Mizoram", "16": "Tripura", "17": "Meghalaya", "18": "Assam", "19": "West Bengal", "20": "Jharkhand", "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh", "24": "Gujarat", "26": "Dadra and Nagar Haveli and Daman and Diu", "27": "Maharashtra", "29": "Karnataka", "30": "Goa", "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu", "34": "Puducherry", "35": "Andaman and Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh", "38": "Ladakh", "97": "Other Territory" };
 
 // logic:start — pure functions, unit-tested in node.
@@ -70,7 +77,7 @@ async function buildInvoice(admin: any, p: any, s: any) {
   const sellerState = (s.seller_gstin || "").slice(0, 2) || s.seller_state_code || "";
   const buyerState = buyerGstin.slice(0, 2) || sellerState;
   const t = { taxable: p.amount_paise, gst: 0, intra: true, cgst: 0, sgst: 0, igst: 0 };   // no GST is charged
-  const list = Math.round((PRICES[p.plan]?.[p.cycle] ?? 0) * 100);
+  const list = Math.round(listPrice(p.plan, p.cycle, p.seats) * 100);
   return {
     seller: { name: s.seller_name || "Legal Staff", address: s.seller_address || "", gstin: s.seller_gstin || "", pan: s.seller_pan || "", email: s.seller_email || "", phone: s.seller_phone || "", state: STATES[sellerState] ?? "", stateCode: sellerState },
     buyer: { name: firm?.name ?? "", address: [firm?.address, firm?.city].filter(Boolean).join(", "), gstin: buyerGstin, email, state: STATES[buyerState] ?? "", stateCode: buyerState },

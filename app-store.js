@@ -289,7 +289,8 @@
   function access(sub, nowMs) {
     const s = sub || {}, now = nowMs || Date.now(), plan = PLANS[s.plan] ? s.plan : '';
     if (!plan) return { state: 'none', ok: false, plan: '', limits: PLANS.Solo, daysLeft: 0, trialUsed: false };
-    const limits = PLANS[plan];
+    /* Professional: the users bought (sub.seats); 3 on a trial or a plan bought before per-user pricing. */
+    const limits = plan === 'Professional' && s.seats ? Object.assign({}, PLANS[plan], { users: s.seats }) : PLANS[plan];
     if (s.status === 'trialing') {
       const end = Date.parse(s.trialEnds || ''), ms = end - now;
       if (ms > 0) return { state: 'trial', ok: true, plan, limits, ends: s.trialEnds, daysLeft: Math.max(1, Math.ceil(ms / 864e5)), trialUsed: true };
