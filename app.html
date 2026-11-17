@@ -1106,6 +1106,10 @@ class Component extends DCLogic {
     };
     window.addEventListener('keydown', this.onK);
     this.applyRoute(); this.grow(); this.fx();
+    /* Keep every screen current without a manual refresh: the date rolls over at midnight, other tabs of this browser sync, and (server mode) other devices are picked up every two minutes while the page is open. */
+    this.day = LS.today();
+    this.tickT = setInterval(() => { if (LS.today() !== this.day) { this.day = LS.today(); this.setState(x => ({ rev: x.rev + 1, weekStart: '', daySel: '' })); } else if (LSB.on && document.visibilityState === 'visible' && this.state.auth === 'in' && this.db.firmId && !this.busy() && Date.now() - (this.loadedAt || 0) > 120000) this.reload().catch(() => {}); }, 30000);
+    if (!LSB.on) { this.onSt = e => { if (e.key === LS.KEY && e.newValue && this.state.auth === 'in' && !this.state.modalOn) { try { const d = LS.migrate(JSON.parse(e.newValue)); if (d && d.v === 2) { this.db = d; this.setState(x => ({ rev: x.rev + 1 })); } } catch (err) {} } }; window.addEventListener('storage', this.onSt); }
     if (LSB.on) { this.onF = () => { if (this.state.auth === 'in' && this.db.firmId && !this.busy() && Date.now() - (this.loadedAt || 0) > 60000) this.reload().catch(() => {}); }; window.addEventListener('focus', this.onF);
       /* Send the last edits before the tab is hidden or closed, and warn on close only while a save is still on its way. */
       this.onVis = () => { if (document.visibilityState === 'hidden') { LSB.hiding(true); if (this.syncT) this.flush().catch(() => {}); } else LSB.hiding(false); };
@@ -1169,7 +1173,7 @@ class Component extends DCLogic {
     ind.style.transform = 'translateY(' + a.offsetTop + 'px)'; ind.style.height = a.offsetHeight + 'px'; ind.style.opacity = '1';
     if (first) { void ind.offsetWidth; ind.style.transition = ''; ind.dataset.on = '1'; }
   }
-  componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('hashchange', this.onH); window.removeEventListener('keydown', this.onK); this.onF && window.removeEventListener('focus', this.onF); this.onVis && document.removeEventListener('visibilitychange', this.onVis); this.onHide && window.removeEventListener('pagehide', this.onHide); this.onBU && window.removeEventListener('beforeunload', this.onBU); this.rec && this.rec.stop(); }
+  componentWillUnmount() { clearInterval(this.acT); clearInterval(this.tickT); this.onSt && window.removeEventListener('storage', this.onSt); window.removeEventListener('resize', this.onR); window.removeEventListener('hashchange', this.onH); window.removeEventListener('keydown', this.onK); this.onF && window.removeEventListener('focus', this.onF); this.onVis && document.removeEventListener('visibilitychange', this.onVis); this.onHide && window.removeEventListener('pagehide', this.onHide); this.onBU && window.removeEventListener('beforeunload', this.onBU); this.rec && this.rec.stop(); }
   grow() { clearTimeout(this.gt); this.setState({ grown: false }); this.gt = setTimeout(() => this.setState({ grown: true }), 60); }
   applyRoute() {
     const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean), screen = this.SCREENS.includes(p[0]) ? p[0] : 'dashboard';
@@ -1196,6 +1200,7 @@ class Component extends DCLogic {
       const q = new URLSearchParams(location.search), i = ['solo', 'professional', 'firm'].indexOf((q.get('plan') || '').toLowerCase());
       if (i >= 0) { this.setState({ plan: i, paid: false, cycle: q.get('cycle') === 'monthly' ? 'monthly' : 'annual' }); history.replaceState(null, '', location.pathname + '#/pricing'); this.applyRoute(); }
       if (!this.db.firm.name) LSV.onboard(this); else if (i < 0 && LS.access(this.db.sub).state === 'none') this.go('pricing');
+      setTimeout(() => LSV.autoCheck(this), 4000); clearInterval(this.acT); this.acT = setInterval(() => LSV.autoCheck(this), 30 * 60e3);
     }, 900);
   }
   signOut() { if (LSB.on) { LSB.signOut(); this.db = LS.seed(); LS.save(this.db); this.dirList = []; } try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) {} this.mut(db => { db.session = null; }, null, true); this.setState({ auth: 'login', menu: null, panel: false }); }
