@@ -27,7 +27,7 @@
 
   function seed() {
     return {
-      v: 2, anchor: today(), session: null, cases: [], hearings: [], orders: [], tasks: [], docs: [], clients: [], team: [], invoices: [], log: [],
+      v: 2, anchor: today(), session: null, labels: [], cases: [], hearings: [], orders: [], tasks: [], docs: [], clients: [], team: [], invoices: [], log: [],
       firm: { name: '', city: '', address: '', gstin: '', legalName: '', stateCode: '', pan: '', gstReg: '', prefix: '', sac: '' },
       user: { name: '', title: '', role: 'Advocate', email: '', phone: '' },
       sub: { plan: '', cycle: 'annual', since: '', renews: '', history: [] },
@@ -105,7 +105,7 @@
   /* Older data kept one calculation in d.lim (firm state). Move it into d.lims, the list of saved calculations, and give an approved one its deadline record. */
   function migrate(d) {
     if (!d) return d;
-    if (!Array.isArray(d.lims)) d.lims = []; if (!Array.isArray(d.deadlines)) d.deadlines = [];
+    if (!Array.isArray(d.labels)) d.labels = []; if (!Array.isArray(d.lims)) d.lims = []; if (!Array.isArray(d.deadlines)) d.deadlines = [];
     const o = d.lim;
     if (o && typeof o === 'object' && o.judgment) {
       const id = 'llegacy';
