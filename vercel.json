@@ -1,6 +1,12 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/api/whatsapp/:path*",
+      "destination": "https://ihbbfgzzbpxznbpspyam.supabase.co/functions/v1/whatsapp/:path*"
+    }
+  ],
   "redirects": [
     {
       "source": "/services",
