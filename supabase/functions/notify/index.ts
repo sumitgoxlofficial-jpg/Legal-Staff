@@ -6,6 +6,7 @@
 // (every day, even when nothing is due);
 // or a signed-in member ({ firm_id }) sending today's briefing to themselves now ("Send now", no once-a-day limit).
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { sha256Hex, maskPhone } from "../_shared/whatsapp-logic.js";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -102,14 +103,24 @@ async function sendEmail(to: string, subject: string, text: string, html?: strin
   const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [to], subject, text, ...(html ? { html } : {}) }) });
   return r.ok ? { ok: true } : { error: (await r.text()).slice(0, 300) };
 }
-async function sendWhatsApp(to: string, text: string) {
-  const token = Deno.env.get("WHATSAPP_TOKEN"), phoneId = Deno.env.get("WHATSAPP_PHONE_ID"), template = Deno.env.get("WHATSAPP_TEMPLATE");
+async function sendWhatsApp(admin: any, to: string, text: string) {
+  const template = Deno.env.get("WHATSAPP_TEMPLATE"), lang = Deno.env.get("WHATSAPP_TEMPLATE_LANG") ?? "en";
+  let token = Deno.env.get("WHATSAPP_TOKEN"), phoneId = Deno.env.get("WHATSAPP_PHONE_ID"), version = "v21.0";
+  if (!token || !phoneId) {   // No number set through function secrets: use the connection made in Admin › Integrations once it is Connected. An existing number is never replaced.
+    const { data: c } = await admin.from("whatsapp_config").select("status,phone_number_id,graph_version").eq("id", 1).maybeSingle();
+    if (c?.status === "connected") { const { data: t } = await admin.rpc("wa_secret_get", { p_name: "wa_access_token" }); if (t) { token = t as string; phoneId = c.phone_number_id; version = c.graph_version || version; } }
+  }
   if (!token || !phoneId || !template) return { skipped: "WhatsApp is not configured." };
   const num = to.replace(/\D/g, ""); if (num.length < 10) return { skipped: "No WhatsApp number." };
+  const full = num.length === 10 ? "91" + num : num;
+  const { data: out } = await admin.from("whatsapp_optouts").select("phone_hash").eq("phone_hash", await sha256Hex(full)).maybeSingle();   // replied STOP
+  if (out) return { skipped: "Recipient opted out of WhatsApp messages." };
   // Business-initiated messages must use an approved template with one body variable.
-  const r = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", to: num.length === 10 ? "91" + num : num, type: "template", template: { name: template, language: { code: Deno.env.get("WHATSAPP_TEMPLATE_LANG") ?? "en" }, components: [{ type: "body", parameters: [{ type: "text", text: text.replace(/\s*\n\s*/g, " | ").slice(0, 1000) }] }] } }) });
-  return r.ok ? { ok: true } : { error: (await r.text()).slice(0, 300) };
+  const r = await fetch(`https://graph.facebook.com/${version}/${phoneId}/messages`, { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", to: full, type: "template", template: { name: template, language: { code: lang }, components: [{ type: "body", parameters: [{ type: "text", text: text.replace(/\s*\n\s*/g, " | ").slice(0, 1000) }] }] } }) });
+  if (!r.ok) return { error: (await r.text()).slice(0, 300).split(token).join("[redacted]") };
+  try { const j = await r.json(); const wamid = j?.messages?.[0]?.id; if (wamid) await admin.from("whatsapp_messages").insert({ wamid, kind: "briefing", to_masked: maskPhone(full), template, language: lang, status: "accepted" }); } catch { /* delivery tracking is best effort */ }
+  return { ok: true };
 }
 
 // PostgREST returns at most 1,000 rows per request: read stably ordered pages until one comes back empty.
@@ -171,7 +182,7 @@ async function briefFirm(admin: any, firm: any, opts: { onlyUser: string | null;
     for (const [channel, on, to] of [["email", st.email !== false, m.email], ["whatsapp", st.whatsapp !== false, m.phone]] as const) {
       if (!on || !to) continue;
       if (!opts.onlyUser && sentToday(sent, m.user_id, channel, today)) { results.push({ channel, to, skipped: "Already sent today." }); continue; }
-      const r: any = channel === "email" ? await sendEmail(to, subject, body, html) : await sendWhatsApp(to, body);
+      const r: any = channel === "email" ? await sendEmail(to, subject, body, html) : await sendWhatsApp(admin, to, body);
       if (r.skipped) { results.push({ channel, to, skipped: r.skipped }); continue; }
       await admin.from("notifications").insert({ firm_id: firm.id, user_id: m.user_id, kind: opts.onlyUser ? "briefing_now" : "briefing", channel, recipient: to, subject, body, status: r.ok ? "sent" : "failed", error: r.error ?? null, sent_at: r.ok ? new Date().toISOString() : null });
       results.push({ channel, to, ok: !!r.ok, error: r.error });
