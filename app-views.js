@@ -209,7 +209,7 @@
   const Field = ({ label, error, children, half }) => h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, flex: half ? '1 1 180px' : '1 1 100%', minWidth: 0 } }, label && h('label', { style: { fontSize: 13, color: K.txt } }, label), children, error && h('div', { style: { fontSize: 12.5, color: K.red } }, error));
   /* fields: [{ k, label, type, options, req, ph, check(v, all), half, ro (read-only) }] */
   const Form = ({ fields, init, submit, onSubmit, onCancel, note, readOnly }) => {
-    const [v, setV] = useState(() => Object.assign({}, ...fields.map(f => ({ [f.k]: f.type === 'select' && !f.blank ? ((f.options[0] || [''])[0] !== undefined && Array.isArray(f.options[0]) ? f.options[0][0] : f.options[0]) || '' : '' })), init || {}));
+    const [v, setV] = useState(() => Object.assign({}, ...fields.map(f => ({ [f.k]: f.type === 'labels' ? [] : f.type === 'select' && !f.blank ? ((f.options[0] || [''])[0] !== undefined && Array.isArray(f.options[0]) ? f.options[0][0] : f.options[0]) || '' : '' })), init || {}));
     const [err, setErr] = useState({});
     const go = e => { e && e.preventDefault(); const er = {};
       fields.forEach(f => { const val = String(v[f.k] == null ? '' : v[f.k]).trim();
@@ -222,6 +222,7 @@
     return h('form', { onSubmit: go, noValidate: true, style: { display: 'flex', flexDirection: 'column', gap: 16 } },
       h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 14 } }, fields.map(f => h(Field, { key: f.k, label: f.label, error: err[f.k], half: f.half },
         f.ro || readOnly ? h('input', { value: (f.type === 'select' && (f.options.find(o => Array.isArray(o) && o[0] === v[f.k]) || [])[1]) || (v[f.k] == null ? '' : v[f.k]), readOnly: true, 'aria-readonly': true, title: f.roNote || 'Cannot be changed here', style: Object.assign({}, X.input, { background: K.soft, color: K.mut }) })
+        : f.type === 'labels' ? (f.options.length ? h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, f.options.map(l => { const on = (v[f.k] || []).includes(l.id); return h('button', { key: l.id, type: 'button', 'aria-pressed': on, title: l.name, onClick: () => setV(Object.assign({}, v, { [f.k]: on ? v[f.k].filter(x => x !== l.id) : [...(v[f.k] || []), l.id] })), style: { border: '1.5px solid ' + l.color, background: on ? l.color : '#fff', color: on ? '#fff' : l.color, fontSize: 12, fontWeight: 600, borderRadius: 999, padding: '3px 11px' } }, l.code); })) : h('div', { style: { fontSize: 13, color: K.mut } }, 'No labels yet. Add them under Labels in the sidebar.'))
         : f.type === 'select' ? h('select', { value: v[f.k], onChange: e => setV(Object.assign({}, v, { [f.k]: e.target.value })), style: X.input }, f.blank && h('option', { value: '' }, f.blank), f.options.map(o => Array.isArray(o) ? h('option', { key: o[0], value: o[0] }, o[1]) : h('option', { key: o, value: o }, o)))
           : f.type === 'textarea' ? h('textarea', { value: v[f.k], placeholder: f.ph, rows: f.rows || 4, onChange: e => setV(Object.assign({}, v, { [f.k]: e.target.value })), style: Object.assign({}, X.input, { height: 'auto', padding: '10px 12px', resize: 'vertical', lineHeight: 1.5 }) })
             : h('input', { type: f.type === 'number' ? 'text' : (f.type || 'text'), inputMode: f.type === 'number' ? 'decimal' : undefined, value: v[f.k], placeholder: f.ph, onChange: e => setV(Object.assign({}, v, { [f.k]: e.target.value })), style: X.input })))),
@@ -268,7 +269,7 @@
      PERM[action] = [partner, associate, clerk, viewer]: 1 allowed, 'own' only records that person created, 0 not allowed. The owner may do everything.
      The server enforces the parts that matter most (migration 0006): invoices, team members, deleting stored files, read-only viewers. */
   const PERM = {
-    'case.create': [1, 1, 0, 0], 'case.edit': [1, 1, 0, 0], 'case.delete': [1, 'own', 'own', 0],
+    'label.edit': [1, 1, 0, 0], 'label.delete': [1, 1, 0, 0], 'case.create': [1, 1, 0, 0], 'case.edit': [1, 1, 0, 0], 'case.delete': [1, 'own', 'own', 0],
     'client.create': [1, 1, 0, 0], 'client.edit': [1, 1, 0, 0], 'client.delete': [1, 'own', 'own', 0],
     'hearing.create': [1, 1, 1, 0], 'hearing.edit': [1, 1, 1, 0], 'hearing.outcome': [1, 1, 1, 0], 'hearing.delete': [1, 'own', 'own', 0],
     'order.create': [1, 1, 0, 0], 'order.edit': [1, 1, 0, 0], 'order.delete': [1, 'own', 'own', 0],
@@ -342,24 +343,28 @@
     if (editId ? (!c0 || !allowed(app, 'case.edit', c0)) : !(allowed(app, 'case.create') && withinLimit(app, 'cases'))) return;
     const lead = c0 ? (c0.team || [])[0] : '', stages = c0 && c0.stage && !STAGES.includes(c0.stage) ? [...STAGES, c0.stage] : STAGES;
     app.modal(() => h(Modal, { title: c0 ? 'Edit case' : 'New case', sub: c0 ? c0.no : 'Add the matter manually. You can upload orders and documents afterwards.', onClose: () => app.modal(null), width: 600 },
-      h(Form, { init: c0 ? { title: c0.title, full: c0.full || c0.title, no: c0.no, cnr: c0.cnr || '', court: c0.court, stage: c0.stage || STAGES[0], clientId: c0.clientId || '', team: lead || d.user.name } : Object.assign({ team: d.user.name, stage: 'Pleadings' }, init), submit: c0 ? 'Save changes' : 'Create case', onCancel: () => app.modal(null),
+      h(Form, { init: c0 ? { title: c0.title, full: c0.full || c0.title, no: c0.no, cnr: c0.cnr || '', court: c0.court, stage: c0.stage || STAGES[0], clientId: c0.clientId || '', team: lead || d.user.name, fileNo: c0.fileNo || '', state: c0.state || '', district: c0.district || '', bench: c0.bench || '', oppAdv: c0.oppAdv || '', labels: (c0.labels || []).slice() } : Object.assign({ team: d.user.name, stage: 'Pleadings' }, init), submit: c0 ? 'Save changes' : 'Create case', onCancel: () => app.modal(null),
         fields: [
           { k: 'title', label: 'Case title', req: true, ph: 'Party A v. Party B' },
           ...(c0 ? [{ k: 'full', label: 'Full cause title', ph: 'As written in the cause list' }] : []),
           { k: 'no', label: 'Case number', req: true, ph: 'Case type and number', half: true }, { k: 'cnr', label: 'CNR (optional)', ph: '16 characters', half: true, check: v => { const c = v.replace(/[\s-]/g, ''); return v && !/^[A-Za-z]{4}\d{12}$/.test(c) ? 'A CNR has 4 letters followed by 12 digits' : (v && app.db.cases.some(x => x.cnr === c.toUpperCase() && x.id !== editId) ? 'Another case already has this CNR' : ''); } },
           { k: 'court', label: 'Court', req: true, ph: 'Court and courtroom', half: true }, { k: 'stage', label: 'Stage', type: 'select', options: stages, half: true },
           { k: 'clientId', label: 'Client', type: 'select', blank: 'Select a client', options: d.clients.map(c => [c.id, c.name]), half: true }, { k: 'team', label: 'Lead advocate', type: 'select', options: lead && !teamOpts(d).includes(lead) ? [lead, ...teamOpts(d)] : teamOpts(d), half: true },
+          { k: 'fileNo', label: 'File number (optional)', ph: 'Your own file reference', half: true }, { k: 'bench', label: 'Bench / judge (optional)', ph: 'Presiding officer', half: true },
+          { k: 'state', label: 'Court state (optional)', ph: 'Bihar', half: true }, { k: 'district', label: 'Court district (optional)', ph: 'Patna', half: true },
+          { k: 'oppAdv', label: 'Opposite advocate (optional)', ph: 'Name', half: true },
+          { k: 'labels', label: 'Labels', type: 'labels', options: d.labels || [] },
           ...(c0 ? [] : [{ k: 'next', label: 'Next hearing date (optional)', type: 'date', half: true }, { k: 'time', label: 'Time', type: 'time', half: true }])
         ],
         onSubmit: v => { if (c0) { app.mut(db => { const c = db.cases.find(x => x.id === editId); if (!c) return;
-            const keepFull = (v.full || '').trim() === (c.full || '') && (c.full || c.title) === c.title, nv = { title: v.title.trim(), full: keepFull ? v.title.trim() : ((v.full || '').trim() || v.title.trim()), no: v.no.trim(), cnr: (v.cnr || '').replace(/[\s-]/g, '').toUpperCase(), court: v.court.trim(), stage: v.stage, clientId: v.clientId || '' };
-            const names = { title: 'title', full: 'cause title', no: 'number', cnr: 'CNR', court: 'court', stage: 'stage', clientId: 'client' }, ch = Object.keys(nv).filter(k => (c[k] || '') !== nv[k]).map(k => names[k]);
+            const keepFull = (v.full || '').trim() === (c.full || '') && (c.full || c.title) === c.title, nv = { title: v.title.trim(), full: keepFull ? v.title.trim() : ((v.full || '').trim() || v.title.trim()), no: v.no.trim(), cnr: (v.cnr || '').replace(/[\s-]/g, '').toUpperCase(), court: v.court.trim(), stage: v.stage, clientId: v.clientId || '', fileNo: (v.fileNo || '').trim(), bench: (v.bench || '').trim(), state: (v.state || '').trim(), district: (v.district || '').trim(), oppAdv: (v.oppAdv || '').trim() };
+            const names = { title: 'title', full: 'cause title', no: 'number', cnr: 'CNR', court: 'court', stage: 'stage', clientId: 'client', fileNo: 'file number', bench: 'bench', state: 'state', district: 'district', oppAdv: 'opposite advocate' }, ch = Object.keys(nv).filter(k => (c[k] || '') !== nv[k]).map(k => names[k]);
             if (nv.court !== c.court) db.hearings.forEach(x => { if (x.caseId === c.id && x.date >= L.today() && !x.outcome && x.court === c.court) x.court = nv.court; });
             if (c.purpose === c.stage) c.purpose = nv.stage; if (c.forum === c.court) c.forum = nv.court;
-            Object.assign(c, nv); if ((c.team || [])[0] !== v.team) { c.team = [v.team, ...(c.team || []).slice(1).filter(n => n !== v.team)]; ch.push('lead advocate'); }
+            Object.assign(c, nv); if ((c.labels || []).join() !== (v.labels || []).join()) { c.labels = (v.labels || []).slice(); ch.push('labels'); } if ((c.team || [])[0] !== v.team) { c.team = [v.team, ...(c.team || []).slice(1).filter(n => n !== v.team)]; ch.push('lead advocate'); }
             logIt(db, `Case edited by ${db.user.name}` + (ch.length ? ': ' + ch.join(', ') + ' changed' : ' (no changes)'), c.id); }, 'Case updated'); return app.modal(null); }
           const id = L.uid('c'); app.mut(db => {
-          db.cases.unshift({ id, title: v.title.trim(), full: v.title.trim(), no: v.no.trim(), cnr: (v.cnr || '').replace(/[\s-]/g, '').toUpperCase(), court: v.court.trim(), forum: v.court.trim(), bench: '', purpose: v.stage, stage: v.stage, status: v.stage === 'Pending filing' ? 'pending' : 'active', team: [v.team], clientId: v.clientId, summary: '', summaryMeta: '', parties: [], issues: [], missing: [], args: '' });
+          db.cases.unshift({ id, title: v.title.trim(), full: v.title.trim(), no: v.no.trim(), cnr: (v.cnr || '').replace(/[\s-]/g, '').toUpperCase(), court: v.court.trim(), forum: v.court.trim(), purpose: v.stage, stage: v.stage, status: v.stage === 'Pending filing' ? 'pending' : 'active', team: [v.team], clientId: v.clientId, fileNo: (v.fileNo || '').trim(), bench: (v.bench || '').trim(), state: (v.state || '').trim(), district: (v.district || '').trim(), oppAdv: (v.oppAdv || '').trim(), labels: (v.labels || []).slice(), createdBy: db.user.name, createdOn: L.today(), summary: '', summaryMeta: '', parties: [], issues: [], missing: [], args: '' });
           if (v.next) db.hearings.push({ id: L.uid('h'), caseId: id, date: v.next, time: v.time || '10:30', court: v.court.trim(), item: '', purpose: v.stage, assignee: v.team, outcome: '', brief: false });
           logIt(db, 'Case created by ' + db.user.name, id); }, 'Case created');
           app.modal(null); app.go('case', id); } })));
@@ -414,12 +419,12 @@
     if (needCase(app)) return;
     const d = app.db, x0 = editId && d.hearings.find(x => x.id === editId);
     if (editId ? (!x0 || !allowed(app, 'hearing.edit', x0)) : !allowed(app, 'hearing.create')) return;
-    app.modal(() => h(Modal, { title: x0 ? 'Edit hearing' : 'Add hearing', sub: x0 ? caseOf(d, x0.caseId).title : null, onClose: () => app.modal(null) }, h(Form, { init: x0 ? { caseId: x0.caseId, date: x0.date, time: x0.time, purpose: x0.purpose || '', item: x0.item || '', assignee: x0.assignee, court: x0.court || '' } : { caseId: caseId || (caseOpts(d)[0] || [''])[0], date: date || L.today(), time: '10:30', assignee: d.user.name }, submit: x0 ? 'Save changes' : 'Add to calendar', onCancel: () => app.modal(null),
-      fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d, x0 && x0.caseId) }, { k: 'date', label: 'Date', type: 'date', req: true, half: true }, { k: 'time', label: 'Time', type: 'time', req: true, half: true }, { k: 'purpose', label: 'Purpose', ph: 'Arguments', half: true }, { k: 'item', label: 'Item no. (optional)', ph: 'Item 12', half: true }, { k: 'assignee', label: 'Appearing', type: 'select', options: withName(teamOpts(d), x0 && x0.assignee), half: !!x0 }, ...(x0 ? [{ k: 'court', label: 'Court', req: true, half: true }] : [])],
+    app.modal(() => h(Modal, { title: x0 ? 'Edit hearing' : 'Add hearing', sub: x0 ? caseOf(d, x0.caseId).title : null, onClose: () => app.modal(null) }, h(Form, { init: x0 ? { caseId: x0.caseId, date: x0.date, time: x0.time, purpose: x0.purpose || '', item: x0.item || '', listNo: x0.listNo || '', bench: x0.bench || '', assignee: x0.assignee, court: x0.court || '' } : { caseId: caseId || (caseOpts(d)[0] || [''])[0], date: date || L.today(), time: '10:30', assignee: d.user.name }, submit: x0 ? 'Save changes' : 'Add to calendar', onCancel: () => app.modal(null),
+      fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d, x0 && x0.caseId) }, { k: 'date', label: 'Date', type: 'date', req: true, half: true }, { k: 'time', label: 'Time', type: 'time', req: true, half: true }, { k: 'purpose', label: 'Purpose', ph: 'Arguments', half: true }, { k: 'item', label: 'Item no. (optional)', ph: 'Item 12', half: true }, { k: 'listNo', label: 'List no. (optional)', ph: 'Supplementary list', half: true }, { k: 'bench', label: 'Bench for this listing (optional)', ph: 'Defaults to the case bench', half: true }, { k: 'assignee', label: 'Appearing', type: 'select', options: withName(teamOpts(d), x0 && x0.assignee), half: !!x0 }, ...(x0 ? [{ k: 'court', label: 'Court', req: true, half: true }] : [])],
       onSubmit: v => clashGate(app, v, x0 ? [x0.id] : [], () => { if (x0) app.mut(db => { const x = db.hearings.find(y => y.id === editId); if (!x) return; const was = x.date;
-          Object.assign(x, { caseId: v.caseId, date: v.date, time: v.time, court: v.court.trim(), item: v.item || '', purpose: v.purpose || x.purpose || 'Hearing', assignee: v.assignee });
+          Object.assign(x, { caseId: v.caseId, date: v.date, time: v.time, court: v.court.trim(), item: v.item || '', listNo: (v.listNo || '').trim(), bench: (v.bench || '').trim(), purpose: v.purpose || x.purpose || 'Hearing', assignee: v.assignee });
           logIt(db, `Hearing of ${L.dmy(was)} edited by ${db.user.name}` + (was !== v.date ? ', moved to ' + L.dmy(v.date) : ''), v.caseId); }, 'Hearing updated');
-        else app.mut(db => { const c = caseOf(db, v.caseId); db.hearings.push({ id: L.uid('h'), caseId: v.caseId, date: v.date, time: v.time, court: c.court, item: v.item || '', purpose: v.purpose || c.purpose || 'Hearing', assignee: v.assignee, outcome: '', brief: false }); logIt(db, `Hearing added for ${L.dmy(v.date)}`, v.caseId); }, 'Hearing added to calendar'); app.modal(null); }) })));
+        else app.mut(db => { const c = caseOf(db, v.caseId); db.hearings.push({ id: L.uid('h'), caseId: v.caseId, date: v.date, time: v.time, court: c.court, item: v.item || '', listNo: (v.listNo || '').trim(), bench: (v.bench || '').trim(), purpose: v.purpose || c.purpose || 'Hearing', assignee: v.assignee, outcome: '', brief: false }); logIt(db, `Hearing added for ${L.dmy(v.date)}`, v.caseId); }, 'Hearing added to calendar'); app.modal(null); }) })));
   }
   function delHearing(app, id) {
     const d = app.db, x = d.hearings.find(y => y.id === id); if (!x || !allowed(app, 'hearing.delete', x)) return;
@@ -1072,7 +1077,126 @@
     return h(Page, { art: 'order', kicker: 'Practice', title: 'Court Orders', sub: `${rows.length} orders · ${need} awaiting your confirmation`, actions: [h(Btn, Object.assign({ key: 1, primary: true, onClick: () => addOrder(app) }, gate(app, 'order.create')), '+ Add court order')] },
       h(Table, { onRow: o => app.go('order', o.id), min: 860, cols: [{ label: 'Case', w: 'minmax(220px,1.6fr)', get: o => h('span', null, caseOf(d, o.caseId).title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, caseOf(d, o.caseId).no)) }, { label: 'Order dated', w: '110px', get: o => L.dmy(o.date) }, { label: 'Summary', w: 'minmax(240px,2.4fr)', get: o => h('span', null, o.summary, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, o.source)) }, { label: 'Next date', w: '110px', get: o => o.nextDate ? L.dmy(o.nextDate) : '—' }, { label: 'Status', w: '150px', get: o => h(Chip, { tone: o.confirmed || !o.nextDate ? '' : 'red' }, o.confirmed ? 'Confirmed' : (o.nextDate ? 'Needs confirmation' : 'No date found')) }], rows, empty: { title: 'No orders yet', text: 'Add an order to extract the next date.' } }));
   }
-  const MODULES = { workspace: Workspace, courts: Courts, clients: Clients, documents: p => h(Docs, { app: p.app, kind: 'document' }), evidence: p => h(Docs, { app: p.app, kind: 'evidence' }), research: Research, agents: Agents, team: Team, billing: Billing, portal: Portal, reports: Reports, settings: Settings, orders: Orders };
+  /* ---------- labels ---------- */
+  const LABEL_COLORS = [['Orange', '#EA6A2E'], ['Blue', '#1F5FA8'], ['Purple', '#8E3FB0'], ['Teal', '#0E8A86'], ['Green', '#3F9A4B'], ['Amber', '#D98A12'], ['Red', '#C23B32'], ['Slate', '#4B5563']];
+  const labelsOf = (d, c) => (c.labels || []).map(id => (d.labels || []).find(l => l.id === id)).filter(Boolean);
+  const LabelChip = ({ l, small }) => h('span', { title: l.name, style: { background: l.color, color: '#fff', fontSize: small ? 11 : 12, fontWeight: 600, borderRadius: 999, padding: small ? '1px 8px' : '2px 10px', whiteSpace: 'nowrap', display: 'inline-block', lineHeight: 1.5 } }, l.code);
+  const labelChips = (d, c, small) => { const ls = labelsOf(d, c); return ls.length ? h('span', { style: { display: 'inline-flex', gap: 5, flexWrap: 'wrap' } }, ls.map(l => h(LabelChip, { key: l.id, l, small }))) : null; };
+  function labelForm(app, editId) {
+    const d = app.db, l0 = editId && (d.labels || []).find(l => l.id === editId);
+    if (!allowed(app, 'label.edit')) return;
+    app.modal(() => h(Modal, { title: l0 ? 'Edit label' : 'Add label', sub: 'A short code shows on the case, for example a bank, a client group or “PC” for private cases.', onClose: () => app.modal(null), width: 480 },
+      h(Form, { init: l0 ? { code: l0.code, name: l0.name, color: l0.color } : { color: LABEL_COLORS[(d.labels || []).length % LABEL_COLORS.length][1] }, submit: l0 ? 'Save changes' : 'Add label', onCancel: () => app.modal(null),
+        fields: [{ k: 'code', label: 'Code', req: true, ph: 'SBI', half: true, check: v => v.length > 8 ? 'Keep it to 8 characters' : ((d.labels || []).some(l => l.code.toLowerCase() === v.toLowerCase() && l.id !== editId) ? 'A label with this code already exists' : '') },
+          { k: 'color', label: 'Colour', type: 'select', options: LABEL_COLORS.map(c => [c[1], c[0]]), half: true }, { k: 'name', label: 'Full name', ph: 'State Bank of India' }],
+        onSubmit: v => { const code = v.code.trim().toUpperCase(), name = (v.name || '').trim() || code;
+          if (l0) app.mut(db => { const l = db.labels.find(x => x.id === editId); if (l) Object.assign(l, { code, name, color: v.color }); }, 'Label updated');
+          else app.mut(db => { db.labels.push({ id: L.uid('lb'), code, name, color: v.color }); }, 'Label added');
+          app.modal(null); } })));
+  }
+  function delLabel(app, id) {
+    const d = app.db, l = (d.labels || []).find(x => x.id === id); if (!l || !allowed(app, 'label.delete')) return;
+    const n = d.cases.filter(c => (c.labels || []).includes(id)).length;
+    confirmBox(app, 'Delete this label?', `“${l.code}” is removed` + (n ? ` from ${plural(n, 'case')}. The cases themselves are not changed.` : '.'), 'Delete label', () => app.mut(db => { db.labels = db.labels.filter(x => x.id !== id); db.cases.forEach(c => { if ((c.labels || []).includes(id)) c.labels = c.labels.filter(x => x !== id); }); }, 'Label deleted'));
+  }
+  function Labels({ app }) {
+    const d = app.db, [q, setQ] = useState(''), s = q.trim().toLowerCase(), all = d.labels || [], rows = all.filter(l => !s || (l.code + ' ' + l.name).toLowerCase().includes(s)), count = l => d.cases.filter(c => (c.labels || []).includes(l.id)).length;
+    return h(Page, { art: 'cases', kicker: 'Practice', title: 'Labels', sub: `${plural(all.length, 'label')} · tag cases by bank, client group or any grouping you use, then filter the list and the causelist by it`,
+      actions: [h(Btn, Object.assign({ key: 1, primary: true, onClick: () => labelForm(app) }, gate(app, 'label.edit')), '+ Add label'), h(Btn, { key: 2, disabled: !all.length, onClick: () => L.csv('labels.csv', [['Code', 'Name', 'Colour', 'Cases'], ...all.map(l => [l.code, l.name, l.color, count(l)])]) }, 'Export CSV')] },
+      h(Search, { value: q, onChange: setQ, placeholder: 'Start typing to search…', width: 300 }),
+      h(Table, { min: 640, empty: { title: all.length ? 'No label matches' : 'No labels yet', text: all.length ? 'Try a different search.' : 'Add one, then tag cases from Edit case.', art: 'cases' }, rows, cols: [
+        { label: 'Label', w: '110px', get: l => h(LabelChip, { l }) }, { label: 'Code', w: '110px', get: l => h('b', null, l.code) }, { label: 'Name', w: 'minmax(200px,2fr)', get: l => l.name },
+        { label: 'Cases', w: '90px', get: l => count(l) },
+        { label: '', w: 'minmax(210px,1.2fr)', get: l => acts(h(Btn, { small: true, disabled: !count(l), onClick: () => { app.setState({ caseQ: l.code, caseFilter: 'all' }); app.go('cases'); } }, 'View cases'), h(IconBtn, Object.assign({ label: 'Edit label ' + l.code, onClick: () => labelForm(app, l.id) }, gate(app, 'label.edit')), '✎'), h(IconBtn, Object.assign({ label: 'Delete label ' + l.code, danger: true, onClick: () => delLabel(app, l.id) }, gate(app, 'label.delete')), '×')) }] }));
+  }
+
+  /* ---------- daily causelist ---------- */
+  const weekOf = s => { const d = L.addDays(s, -new Date(s + 'T00:00:00').getDay()); return Array.from({ length: 7 }, (_, i) => L.addDays(d, i)); };
+  const itemNo = x => { const m = /\d+/.exec(x.item || ''); return m ? +m[0] : 1e9; };
+  function pastListing(d, x) { const p = d.hearings.filter(y => y.caseId === x.caseId && y.date < x.date).sort((a, b) => b.date.localeCompare(a.date))[0]; return p ? p.date : ''; }
+  function Causelist({ app }) {
+    const d = app.db, T = L.today(), [date, setDate] = useState(T), [tab, setTab] = useState('cases'), [q, setQ] = useState(''), [sort, setSort] = useState('default'), [lab, setLab] = useState('');
+    const caseOfH = x => d.cases.find(c => c.id === x.caseId) || { title: '—', no: '', labels: [] }, s = q.trim().toLowerCase();
+    const day = d.hearings.filter(x => x.date === date), isApp = x => !!caseOfH(x).isApp;
+    const nCases = day.filter(x => !isApp(x)).length, nApps = day.length - nCases;
+    const text = x => { const c = caseOfH(x); return [c.title, c.full, c.no, c.cnr, c.fileNo, x.court, x.bench, c.bench, x.item, x.assignee, c.oppAdv, labelsOf(d, c).map(l => l.code + ' ' + l.name).join(' ')].join(' ').toLowerCase(); };
+    const list = day.filter(x => (tab === 'apps') === isApp(x) && (!lab || (caseOfH(x).labels || []).includes(lab)) && (!s || text(x).includes(s)));
+    const cmp = { default: (a, b) => itemNo(a) - itemNo(b) || a.time.localeCompare(b.time), time: (a, b) => a.time.localeCompare(b.time) || itemNo(a) - itemNo(b), title: (a, b) => caseOfH(a).title.localeCompare(caseOfH(b).title) }[sort];
+    const groups = {}; list.forEach(x => { const k = x.court || caseOfH(x).court || 'Court not set'; (groups[k] = groups[k] || []).push(x); });
+    const names = Object.keys(groups).sort((a, b) => a.localeCompare(b)), week = weekOf(date), hasLab = (d.labels || []).length > 0;
+    const pick = s2 => setDate(s2), shift = n => setDate(L.addDays(date, n));
+    const KV = (k, v) => h('div', { key: k, style: { fontSize: 13, color: K.mut, lineHeight: 1.7 } }, k + ' : ', h('span', { style: { color: K.ink, fontWeight: 500 } }, v || '--'));
+    const exportCsv = () => L.csv('causelist-' + date + '.csv', [['Court', 'Bench', 'Item', 'Time', 'Case number', 'CNR', 'Case', 'File number', 'List no.', 'Labels', 'Appearing', 'Opposite advocate'], ...names.flatMap(n => groups[n].slice().sort(cmp).map(x => { const c = caseOfH(x); return [n, x.bench || c.bench || '', x.item || '', L.t12ap(x.time), c.no, c.cnr || '', c.title, c.fileNo || '', x.listNo || '', labelsOf(d, c).map(l => l.code).join(' '), x.assignee || '', c.oppAdv || '']; }))]);
+    const dayBtn = s2 => { const on = s2 === date, dt = new Date(s2 + 'T00:00:00'); return h('button', { key: s2, type: 'button', 'aria-pressed': on, 'aria-label': L.longDate(s2), onClick: () => pick(s2), className: 'ls-btn', style: { flex: '1 1 0', minWidth: 62, border: 0, borderRadius: 8, padding: '10px 4px', background: on ? '#1D5FD0' : 'transparent', color: on ? '#fff' : K.ink, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 } },
+      h('span', { style: { fontSize: 15, fontWeight: 600 } }, dt.getDate() + ' ' + dt.toLocaleDateString('en-IN', { month: 'short' })), h('span', { style: { fontSize: 11, letterSpacing: '.05em', opacity: on ? .9 : .6 } }, dt.toLocaleDateString('en-IN', { weekday: 'short' }).toUpperCase() + (s2 === T ? ' · TODAY' : ''))); };
+    const tabBtn = (k, label, n) => h('button', { key: k, type: 'button', 'aria-pressed': tab === k, onClick: () => setTab(k), style: { border: 0, padding: '8px 22px', fontSize: 13.5, fontWeight: 500, background: tab === k ? '#1D5FD0' : '#fff', color: tab === k ? '#fff' : K.ink } }, label + ' (' + n + ')');
+    return h(Page, { art: 'calendar', kicker: 'Practice', title: 'Daily Causelist', sub: `${L.longDate(date)} · ${plural(day.length, 'matter')} listed · ${plural(names.length, 'court')} shown`,
+      actions: [h(Btn, { key: 1, onClick: () => pick(T) }, 'Today'), h('label', { key: 2, style: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5 } }, h('span', { style: { color: K.mut } }, 'Go to'), h('input', { type: 'date', value: date, 'aria-label': 'Go to date', onChange: e => L.valid(e.target.value) && pick(e.target.value), style: Object.assign({}, X.input, { width: 'auto', height: 36 }) })), h(Btn, { key: 3, disabled: !list.length, onClick: exportCsv }, 'Export')] },
+      h('section', { style: Object.assign({}, X.card, { padding: 8, display: 'flex', alignItems: 'center', gap: 4 }) }, h(IconBtn, { label: 'Previous week', onClick: () => shift(-7) }, '‹'), h('div', { style: { display: 'flex', flex: 1, gap: 2, overflowX: 'auto', minWidth: 0 } }, week.map(dayBtn)), h(IconBtn, { label: 'Next week', onClick: () => shift(7) }, '›')),
+      h('div', { style: { display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' } },
+        h(Select, { value: sort, onChange: setSort, options: [['default', 'Sort by: Court, item no.'], ['time', 'Sort by: Time'], ['title', 'Sort by: Case title']], style: { minWidth: 190 } }),
+        h('div', { style: { display: 'inline-flex', border: '1px solid ' + K.line, borderRadius: 8, overflow: 'hidden' } }, tabBtn('cases', 'Cases', nCases), tabBtn('apps', 'Applications', nApps)),
+        hasLab ? h(Select, { value: lab, onChange: setLab, options: [['', 'All labels'], ...d.labels.map(l => [l.id, l.code + ' · ' + l.name])], style: { minWidth: 170 } }) : h('span')),
+      h(Search, { value: q, onChange: setQ, placeholder: 'Search by case no., CNR, party, court no., item no. or bench', width: 320 }),
+      !names.length ? h(Card, null, h(Empty, { title: day.length ? 'Nothing matches here' : 'Nothing listed on this day', text: day.length ? 'Try the other tab, clear the search, or choose another label.' : 'Hearings you add to a case on this date appear here, grouped by court.', art: 'calendar' })) :
+      names.map(n => { const g = groups[n].slice().sort(cmp), benches = [...new Set(g.map(x => x.bench || caseOfH(x).bench).filter(Boolean))];
+        return h('section', { key: n, style: Object.assign({}, X.card, { overflow: 'hidden' }) },
+          h('div', { style: { background: K.soft, borderBottom: '1px solid ' + K.line, padding: '14px 22px', display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', fontSize: 13, fontWeight: 600, letterSpacing: '.01em', textTransform: 'uppercase' } }, h('span', null, n), benches.length > 0 && h('span', { style: { color: K.mut } }, '|'), benches.length > 0 && h('span', null, 'Bench - ' + benches.join(', ')), h('span', { style: { color: K.mut, fontWeight: 500 } }, '| ' + plural(g.length, 'matter'))),
+          g.map(x => { const c = caseOfH(x), past = pastListing(d, x), bench = x.bench || c.bench || '';
+            return h('div', { key: x.id, style: { padding: '16px 22px', borderTop: '1px solid ' + K.line } },
+              h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' } },
+                h('div', { style: { minWidth: 0 } }, h('div', { style: { fontSize: 12.5, color: K.mut } }, [c.no, c.cnr && 'CNR: ' + c.cnr].filter(Boolean).join('  ·  ')), h('div', { style: { fontSize: 15.5, fontWeight: 600, marginTop: 2, overflowWrap: 'anywhere' } }, c.title), c.id && labelsOf(d, c).length > 0 && h('div', { style: { marginTop: 6 } }, labelChips(d, c, true))),
+                h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }, outcomeChip(x), hearingActs(app, x), c.id && h(Btn, { small: true, onClick: () => app.go('case', c.id) }, 'Open case'))),
+              h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,230px),1fr))', gap: '0 24px', marginTop: 10 } },
+                h('div', null, KV('Item', x.item && x.item.replace(/^item\s*/i, '')), KV('Time', L.t12ap(x.time)), KV('Past listing date', past && L.fmt(past)), KV('Purpose', x.purpose)),
+                h('div', null, KV('File number', c.fileNo), KV('List num', x.listNo), KV('Meeting link', ''), KV('Stage', c.stage)),
+                h('div', null, KV('Appearing', x.assignee), KV('Opposite advocate', c.oppAdv || 'Unknown'), KV('Court number and judge', [n, bench].filter(Boolean).join(' · ')))));
+          })); }));
+  }
+
+  /* ---------- orders by date / by notification, display board ---------- */
+  const orderRow = (app, o) => { const c = caseOf(app.db, o.caseId); return h('div', { key: o.id, style: { padding: '14px 22px', borderTop: '1px solid ' + K.line, display: 'flex', gap: 12, justifyContent: 'space-between', flexWrap: 'wrap', alignItems: 'center' } },
+    h('div', { style: { minWidth: 0, flex: '1 1 320px' } }, h('div', { style: { fontSize: 12.5, color: K.mut } }, c.no), h('div', { style: { fontSize: 15, fontWeight: 600, overflowWrap: 'anywhere' } }, c.title, c.id && labelChips(app.db, c, true) ? h('span', { style: { marginLeft: 8 } }, labelChips(app.db, c, true)) : null), h('div', { style: { fontSize: 13, color: K.txt, marginTop: 4, lineHeight: 1.5 } }, o.summary || 'No summary'), h('div', { style: { fontSize: 12, color: K.mut, marginTop: 2 } }, o.source)),
+    h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }, h(Chip, { tone: o.confirmed || !o.nextDate ? '' : 'red' }, o.nextDate ? (o.confirmed ? 'Next date ' + L.dmy(o.nextDate) : 'Confirm ' + L.dmy(o.nextDate)) : 'No next date'), h(Btn, { small: true, onClick: () => app.go('order', o.id) }, 'Open order'))); };
+  function OrdersByDate({ app }) {
+    const d = app.db, T = L.today(), [date, setDate] = useState(T), [q, setQ] = useState(''), [all, setAll] = useState(false), s = q.trim().toLowerCase(), week = weekOf(date);
+    const text = o => { const c = caseOf(d, o.caseId); return (c.title + ' ' + c.no + ' ' + (o.summary || '') + ' ' + (o.source || '')).toLowerCase(); };
+    const rows = d.orders.filter(o => (all || o.date === date) && (!s || text(o).includes(s))).sort((a, b) => b.date.localeCompare(a.date));
+    const dates = [...new Set(rows.map(o => o.date))], cnt = x => d.orders.filter(o => o.date === x).length;
+    const dayBtn = x => { const on = !all && x === date, dt = new Date(x + 'T00:00:00'); return h('button', { key: x, type: 'button', 'aria-pressed': on, onClick: () => { setAll(false); setDate(x); }, className: 'ls-btn', style: { flex: '1 1 0', minWidth: 62, border: 0, borderRadius: 8, padding: '10px 4px', background: on ? '#1D5FD0' : 'transparent', color: on ? '#fff' : K.ink, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 } }, h('span', { style: { fontSize: 15, fontWeight: 600 } }, dt.getDate() + ' ' + dt.toLocaleDateString('en-IN', { month: 'short' })), h('span', { style: { fontSize: 11, opacity: .75 } }, dt.toLocaleDateString('en-IN', { weekday: 'short' }).toUpperCase() + (cnt(x) ? ' · ' + cnt(x) : ''))); };
+    return h(Page, { art: 'order', kicker: 'Practice', title: 'Orders by Date', sub: all ? `All dates · ${plural(rows.length, 'order')}` : `${L.longDate(date)} · ${plural(rows.length, 'order')}`,
+      actions: [h(Btn, { key: 1, onClick: () => { setAll(false); setDate(T); } }, 'Today'), h(Btn, { key: 2, primary: all, onClick: () => setAll(!all) }, all ? 'Showing all dates' : 'Show all dates'), h(Btn, Object.assign({ key: 3, primary: true, onClick: () => addOrder(app) }, gate(app, 'order.create')), '+ Add court order')] },
+      h('section', { style: Object.assign({}, X.card, { padding: 8, display: 'flex', alignItems: 'center', gap: 4 }) }, h(IconBtn, { label: 'Previous week', onClick: () => setDate(L.addDays(date, -7)) }, '‹'), h('div', { style: { display: 'flex', flex: 1, gap: 2, overflowX: 'auto', minWidth: 0 } }, week.map(dayBtn)), h(IconBtn, { label: 'Next week', onClick: () => setDate(L.addDays(date, 7)) }, '›')),
+      h(Search, { value: q, onChange: setQ, placeholder: 'Search by case, party or order text', width: 320 }),
+      !rows.length ? h(Card, null, h(Empty, { title: 'No orders for this selection', text: 'Orders dated on this day appear here. Add one from a case or use Add court order.', art: 'order' })) :
+      dates.map(x => h('section', { key: x, style: Object.assign({}, X.card, { overflow: 'hidden' }) }, h('div', { style: { background: K.soft, padding: '12px 22px', fontSize: 13, fontWeight: 600 } }, L.longDate(x) + ' · ' + plural(rows.filter(o => o.date === x).length, 'order')), rows.filter(o => o.date === x).map(o => orderRow(app, o)))));
+  }
+  const NOTIF = [['new', 'New · confirm next date', o => !o.confirmed && !!o.nextDate], ['confirmed', 'Confirmed · reminders set', o => !!o.confirmed], ['none', 'No next date found', o => !o.nextDate && !o.confirmed]];
+  function OrdersByNotification({ app }) {
+    const d = app.db, [tab, setTab] = useState('new'), [q, setQ] = useState(''), s = q.trim().toLowerCase(), cur = NOTIF.find(n => n[0] === tab);
+    const rows = d.orders.filter(o => cur[2](o) && (!s || (caseOf(d, o.caseId).title + ' ' + caseOf(d, o.caseId).no + ' ' + (o.summary || '')).toLowerCase().includes(s))).sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
+    return h(Page, { art: 'order', kicker: 'Practice', title: 'Orders by Notification', sub: `${plural(d.orders.filter(NOTIF[0][2]).length, 'new order')} waiting for you · each order is sorted by what it asks of you`,
+      actions: [h(Btn, Object.assign({ key: 1, primary: true, onClick: () => addOrder(app) }, gate(app, 'order.create')), '+ Add court order')] },
+      h('div', { style: { display: 'inline-flex', border: '1px solid ' + K.line, borderRadius: 8, overflow: 'hidden', alignSelf: 'flex-start', flexWrap: 'wrap' } }, NOTIF.map(n => h('button', { key: n[0], type: 'button', 'aria-pressed': tab === n[0], onClick: () => setTab(n[0]), style: { border: 0, padding: '8px 18px', fontSize: 13.5, fontWeight: 500, background: tab === n[0] ? '#1D5FD0' : '#fff', color: tab === n[0] ? '#fff' : K.ink } }, n[1] + ' (' + d.orders.filter(n[2]).length + ')'))),
+      h(Search, { value: q, onChange: setQ, placeholder: 'Search by case, party or order text', width: 320 }),
+      h('section', { style: Object.assign({}, X.card, { overflow: 'hidden' }) }, rows.length ? rows.map(o => orderRow(app, o)) : h(Empty, { title: 'Nothing in this list', text: tab === 'new' ? 'You are up to date: every order with a next date is confirmed.' : 'No orders here yet.', art: 'order' })));
+  }
+  function DisplayBoard({ app }) {
+    const d = app.db, T = L.today(), [date, setDate] = useState(T), [, tick] = useState(0);
+    React.useEffect(() => { const t = setInterval(() => tick(n => n + 1), 30000); return () => clearInterval(t); }, []);
+    const hs = d.hearings.filter(x => x.date === date), by = {}; hs.forEach(x => { const k = x.court || caseOf(d, x.caseId).court || 'Court not set'; (by[k] = by[k] || []).push(x); });
+    const names = Object.keys(by).sort((a, b) => a.localeCompare(b)), done = x => !!x.outcome;
+    return h(Page, { art: 'court', kicker: 'Practice', title: 'Display Board', sub: `${L.longDate(date)} · ${plural(hs.length, 'matter')} · ${hs.filter(done).length} done · refreshes every 30 seconds`,
+      actions: [h(Btn, { key: 1, onClick: () => setDate(L.addDays(date, -1)) }, '‹ Prev'), h(Btn, { key: 2, onClick: () => setDate(T) }, 'Today'), h(Btn, { key: 3, onClick: () => setDate(L.addDays(date, 1)) }, 'Next ›')] },
+      !names.length ? h(Card, null, h(Empty, { title: 'Nothing on the board', text: 'Hearings listed for this day appear here, court by court, with the item now running.', art: 'court' })) :
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,320px),1fr))', gap: 16 } }, names.map(n => { const g = by[n].slice().sort((a, b) => itemNo(a) - itemNo(b) || a.time.localeCompare(b.time)), now = g.find(x => !done(x));
+        return h('section', { key: n, style: Object.assign({}, X.card, { padding: '18px 20px' }) }, h('div', { style: { fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, n),
+          h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 10, margin: '8px 0 12px' } }, h('span', { style: { fontSize: 13, color: K.mut } }, now ? 'Now / next item' : 'Board'), h('span', { style: { fontSize: 34, fontWeight: 600, letterSpacing: '-.02em', color: now ? '#1D5FD0' : K.mut } }, now ? (now.item ? String(now.item).replace(/^item\s*/i, '') : L.t12(now.time)) : 'Done')),
+          g.map(x => h('button', { key: x.id, type: 'button', onClick: () => app.go('case', x.caseId), style: { display: 'flex', gap: 10, alignItems: 'center', width: '100%', textAlign: 'left', border: 0, borderTop: '1px solid ' + K.line, background: 'transparent', padding: '9px 0', fontSize: 13.5, opacity: done(x) ? .55 : 1 } },
+            h('b', { style: { minWidth: 34, fontVariantNumeric: 'tabular-nums' } }, x.item ? String(x.item).replace(/^item\s*/i, '') : '—'), h('span', { style: { flex: 1, minWidth: 0, overflowWrap: 'anywhere' } }, caseOf(d, x.caseId).title), outcomeChip(x) || h(Chip, { tone: x === now ? '' : 'grey' }, x === now ? 'Next' : L.t12ap(x.time))))); })));
+  }
+
+  const MODULES = { ordersdate: OrdersByDate, ordersnotif: OrdersByNotification, board: DisplayBoard, labels: Labels, causelist: Causelist, workspace: Workspace, courts: Courts, clients: Clients, documents: p => h(Docs, { app: p.app, kind: 'document' }), evidence: p => h(Docs, { app: p.app, kind: 'evidence' }), research: Research, agents: Agents, team: Team, billing: Billing, portal: Portal, reports: Reports, settings: Settings, orders: Orders };
 
   /* Server mode: a banner while the firm has no active plan (grace period), and a red one once it is read-only. */
   function planBanner(app) {
@@ -1098,5 +1222,5 @@
   }
 
   window.LSV = { h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
-    can, why, gate, allowed, roleKey, roleName, plan, limitWhy, withinLimit, planBanner, invoiceDoc, invoiceView, newInvoice, invCalc, ACCESS, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
+    can, why, gate, allowed, roleKey, roleName, plan, limitWhy, withinLimit, planBanner, invoiceDoc, invoiceView, newInvoice, invCalc, ACCESS, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, labelsOf, labelChips, LabelChip, delLabel, caseDetails, detailsView, draftSummary, NEED };
 })();

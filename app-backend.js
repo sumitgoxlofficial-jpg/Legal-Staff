@@ -25,7 +25,7 @@
   const meKey = u => JSON.stringify([u.name, u.title, u.phone]);
   /* Invoice details of the firm (legal name, GST state, PAN, registration, invoice prefix, default SAC) live in firms.state.profile. */
   const PROFILE = ['legalName', 'stateCode', 'pan', 'gstReg', 'prefix', 'sac'];
-  const firmRow = d => ({ name: d.firm.name, city: d.firm.city, address: d.firm.address, gstin: d.firm.gstin, state: { lim: d.lim, agents: d.agents, profile: Object.fromEntries(PROFILE.map(k => [k, d.firm[k] || ''])) } });
+  const firmRow = d => ({ name: d.firm.name, city: d.firm.city, address: d.firm.address, gstin: d.firm.gstin, state: { lim: d.lim, agents: d.agents, labels: d.labels || [], profile: Object.fromEntries(PROFILE.map(k => [k, d.firm[k] || ''])) } });
   const userRow = d => Object.fromEntries(USER_KEYS.map(k => [k, d[k]]));
   function take(d) {
     snap = {}; Object.keys(KIND).forEach(c => (d[c] || []).forEach(r => { snap[KIND[c] + '|' + r.id] = JSON.stringify(r); }));
@@ -59,7 +59,7 @@
       firmId = id; const d = window.LS.seed(); d.firmId = id; d.session = { email: session.user.email, provider: (session.user.app_metadata || {}).provider || 'google' };
       const [firm, recs, us] = await Promise.all([sb.from('firms').select('*').eq('id', id).single(), pages(() => sb.from('records').select('kind,id,data').eq('firm_id', id).order('kind').order('id')), sb.from('user_state').select('data').eq('firm_id', id).eq('user_id', uid).maybeSingle()]);
       const f = ok(firm); d.firm = Object.assign({ name: f.name, city: f.city, address: f.address, gstin: f.gstin }, Object.fromEntries(PROFILE.map(k => [k, ((f.state || {}).profile || {})[k] || '']))); d.firmCreated = String(f.created_at || '').slice(0, 10);
-      if (f.state && f.state.lim) d.lim = f.state.lim; if (f.state && Array.isArray(f.state.agents) && f.state.agents.length) d.agents = f.state.agents;
+      if (f.state && Array.isArray(f.state.labels)) d.labels = f.state.labels; if (f.state && f.state.lim) d.lim = f.state.lim; if (f.state && Array.isArray(f.state.agents) && f.state.agents.length) d.agents = f.state.agents;
       const by = {}; Object.keys(KIND).forEach(c => { by[KIND[c]] = d[c] = []; });
       recs.forEach(r => { if (by[r.kind]) by[r.kind].push(Object.assign({}, r.data, { id: r.id })); });
       order(d);

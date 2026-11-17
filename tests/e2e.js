@@ -165,6 +165,23 @@ async function core(o) {
     await o.go('#/cases'); await o.notSee('Temp v. Case'); await o.see('Mehta Traders v. Orion Logistics');
   });
 
+  await step('labels, daily causelist, orders by date / notification, display board', async () => {
+    await o.go('#/labels'); await o.click('+ Add label', 'main');
+    await o.fill([['Code', 'sbi'], ['Full name', 'State Bank of India']]); await o.dclick('Add label'); await o.toast('Label added');
+    await o.see('State Bank of India');
+    await o.go('#/case/' + ctx.caseId); await o.click('Edit case');
+    await page.getByRole('button', { name: 'SBI', exact: true }).click(); await o.fill([['File number (optional)', 'PV_1'], ['Court district (optional)', 'Patna']]);
+    await o.dclick('Save changes'); await o.toast('Case updated');
+    await o.see('File PV_1'); await o.see('Patna');
+    await o.go('#/cases'); await o.see('SBI');
+    await o.go('#/causelist'); await page.locator('input[aria-label="Go to date"]').fill(ctx.hd); await sleep(150);
+    await o.see('Mehta Traders v. Orion Logistics'); await o.see('PV_1');
+    await o.go('#/ordersdate'); await o.see('Orders by Date');
+    await o.go('#/ordersnotif'); await o.see('Orders by Notification');
+    await o.go('#/board'); await o.see('Display Board');
+    await o.go('#/case/' + ctx.caseId); await o.click('Mark as application'); await o.toast('Marked as an application'); await o.click('Mark as case'); await o.toast('Marked as a case');
+  });
+
   await step('hearing: add with a clash (asks first), edit, delete', async () => {
     await o.go('#/case/' + ctx.caseId);
     await o.click('+ Hearing');
