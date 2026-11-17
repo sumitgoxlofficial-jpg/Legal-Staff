@@ -1,5 +1,7 @@
 // Unit tests for supabase/functions/_shared/court-logic.js (pure logic, no network). Run: node tests/court-logic.test.mjs
 import * as L from '../supabase/functions/_shared/court-logic.js';
+import { readFileSync } from 'node:fs';
+const fx = n => JSON.parse(readFileSync(new URL('./fixtures/' + n, import.meta.url), 'utf8'));
 
 let pass = 0, fail = 0;
 const t = (name, fn) => { try { fn(); pass++; console.log('  ok   ' + name); } catch (e) { fail++; console.log('  FAIL ' + name + '\n       ' + e.message); } };
@@ -27,15 +29,22 @@ t('status: matched and recent is VERIFIED; partial is PARTIAL; old is STALE; fai
   eq(L.verificationStatus({ checkedAt: new Date(NOW - 80 * 3600e3).toISOString(), matched: true, now: NOW }), 'STALE'); eq(L.verificationStatus({ failed: true, checkedAt: at, matched: true }), 'FAILED'); eq(L.verificationStatus({ manual: true }), 'MANUAL REVIEW'); });
 t('freshness label', () => { eq(L.freshnessLabel(new Date(NOW - 3600e3).toISOString(), NOW, 24), 'fresh'); eq(L.freshnessLabel(new Date(NOW - 30 * 3600e3).toISOString(), NOW, 24), 'ageing'); eq(L.freshnessLabel(new Date(NOW - 99 * 3600e3).toISOString(), NOW, 24), 'stale'); eq(L.freshnessLabel(null, NOW), 'never checked'); });
 
-const RAW = { data: { courtCaseData: { cnr: 'DLHC010001232024', title: 'A v. B', caseNumber: 'CS(COMM) 12/2024', courtName: 'Delhi High Court', caseType: 'CS(COMM)', status: 'PENDING', filingDate: '2024-01-05', registrationDate: '05-01-2024',
-  nextHearingDate: '2026-12-01', petitioners: ['A Ltd'], respondents: ['B Ltd'], petitionerAdvocates: ['Adv. X'], respondentAdvocates: [], hearings: [{ hearingDate: '2026-10-01', purpose: 'Arguments', judge: 'J. Y' }],
-  judgmentOrders: [{ orderDate: '2026-10-01', orderType: 'Order', orderUrl: 'order-1.pdf' }] } }, meta: { request_id: 'r' } };
-t('normalise: reads the provider shape into ours', () => { const n = L.normalizeCase(RAW); eq([n.cnr, n.title, n.court, n.status, n.nextHearing, n.filingDate, n.registrationDate], ['DLHC010001232024', 'A v. B', 'Delhi High Court', 'PENDING', '2026-12-01', '2024-01-05', '2024-01-05']); eq(n.petitioners, ['A Ltd']); eq(n.orders.length, 1); eq(n.lastOrder, '2026-10-01'); ok(!n.partial); ok(!n.empty); });
+// Real eCourtsIndia answers captured 17 Nov 2026 (parties anonymised): a pending district-court case and a disposed High Court case.
+const RAW = fx('ecourtsindia-case-pending-district.json'), DISPOSED = fx('ecourtsindia-case-disposed-highcourt.json');
+t('normalise: reads a real pending district-court record completely', () => { const n = L.normalizeCase(RAW);
+  eq([n.cnr, n.title, n.court, n.status, n.nextHearing, n.filingDate, n.registrationDate, n.caseNumber], ['DLSW020154072023', 'PETITIONER BANK LTD. vs RESPONDENT C', 'Chief Metropolitan Magistrate, South-West, DWK', 'PENDING', '2026-12-09', '2023-03-16', '2023-03-31', 'CC 12606/2023']);
+  eq(n.petitioners, ['PETITIONER BANK LTD.']); eq(n.petitionerAdvocates, ['ADVOCATE TWO']); eq(n.hearings.length, 11); eq(n.orders.length, 11); eq(n.hearings[0], { date: '2023-05-09', purpose: 'Pre-Summning Argument', judge: n.hearings[0].judge }); eq(n.lastHearing, '2025-09-19'); eq(n.orderCount, 11); ok(!n.partial && !n.empty); });
+t('normalise: reads a real disposed High Court record (orders under judgmentOrders, number from registrationNumber)', () => { const n = L.normalizeCase(DISPOSED);
+  eq([n.status, n.decisionDate, n.caseNumber, n.regNumber, n.title, n.nextHearing], ['DISPOSED', '2024-01-05', 'WP_C 138/2024', '138/2024', 'Petitioner A vs Respondent B & ORS', '']); eq(n.orders, [{ date: '2024-01-05', type: 'Final Order', file: 'order-1.pdf', url: '' }]); eq(n.lastOrder, '2024-01-05'); ok(!n.partial); });
+t('normalise: tribunal records arrive under tribunalCaseData', () => { const n = L.normalizeCase({ data: { tribunalCaseData: { cnr: 'NCLTDL0000012024', caseStatus: 'PENDING', courtName: 'NCLT New Delhi', petitioners: ['X'], respondents: ['Y'] } } }); eq([n.cnr, n.status, n.title], ['NCLTDL0000012024', 'PENDING', 'X vs Y']); });
+t('normalise: the hearing history means business on businessOnDate, next date hearingDate', () => eq(L.normalizeCase(RAW).hearings.slice(0, 2).map(h => h.date), ['2023-05-09', '2023-09-27']));
+t('caseKey: the usual ways of writing a case number agree', () => { eq(L.caseKey('WP(C) 138/2024'), '138/2024'); eq(L.caseKey('Case No. 138 of 2024'), '138/2024'); eq(L.caseKey('CS(COMM) 0012 / 2024'), '12/2024'); eq(L.caseKey('nothing'), ''); });
 t('normalise: missing fields make the result PARTIAL; no data is empty', () => { const n = L.normalizeCase({ data: { courtCaseData: { cnr: 'DLHC010001232024', status: 'PENDING' } } }); ok(n.partial); ok(n.missing.includes('title')); ok(L.normalizeCase({}).empty); ok(L.normalizeCase(null).empty); });
 t('match: same CNR attaches; different CNR is refused; different case number is refused', () => {
-  const n = L.normalizeCase(RAW); ok(L.matchesIdentifiers({ cnr: 'DLHC010001232024' }, n).ok); ok(!L.matchesIdentifiers({ cnr: 'DLHC010009992024' }, n).ok);
-  ok(L.matchesIdentifiers({ cnr: 'DLHC010001232024', case_number: 'CS(COMM) 12/2024' }, n).ok); ok(!L.matchesIdentifiers({ cnr: 'DLHC010001232024', case_number: 'CS(COMM) 99/2024' }, n).ok); ok(!L.matchesIdentifiers({}, L.normalizeCase({})).ok); });
+  const n = L.normalizeCase(RAW); ok(L.matchesIdentifiers({ cnr: 'DLSW020154072023' }, n).ok); ok(!L.matchesIdentifiers({ cnr: 'DLHC010009992024' }, n).ok);
+  ok(L.matchesIdentifiers({ cnr: 'DLSW020154072023', case_number: 'CC 12606/2023' }, n).ok); ok(L.matchesIdentifiers({ cnr: 'DLSW020154072023', case_number: 'Cr. Case Complaint (P) 12606 of 2023' }, n).ok); ok(!L.matchesIdentifiers({ cnr: 'DLSW020154072023', case_number: 'CC 99/2023' }, n).ok); ok(!L.matchesIdentifiers({}, L.normalizeCase({})).ok); });
 t('diff: first record is not a "change"', () => eq(L.diffSnapshots(null, L.normalizeCase(RAW)).map(e => e.kind), ['first_snapshot']));
+t('diff: more orders on the count but none listed is still a new order', () => { const a = L.normalizeCase(RAW); eq(L.diffSnapshots(a, { ...a, orderCount: a.orderCount + 1 })[0].kind, 'new_order'); });
 t('diff: no change means no events', () => eq(L.diffSnapshots(L.normalizeCase(RAW), L.normalizeCase(RAW)), []));
 t('diff: hearing date moved later is an adjournment', () => { const a = L.normalizeCase(RAW), b = { ...a, nextHearing: '2027-01-15' }; eq(L.diffSnapshots(a, b).map(e => e.kind), ['hearing_adjourned']); });
 t('diff: hearing moved earlier, set for the first time', () => { const a = L.normalizeCase(RAW); eq(L.diffSnapshots(a, { ...a, nextHearing: '2026-11-25' })[0].kind, 'hearing_changed'); eq(L.diffSnapshots({ ...a, nextHearing: '' }, a)[0].kind, 'hearing_set'); });

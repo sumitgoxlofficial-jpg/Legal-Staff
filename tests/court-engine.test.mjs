@@ -27,8 +27,9 @@ const idx = join(out, 'js/index.js'); writeFileSync(idx, readFileSync(idx, 'utf8
 
 // ---- mock provider ----
 const mock = { calls: [], key: 'eci_live_GOODKEY', mode: 'ok', delayMs: 0, body: null, hits: {} };
-const CASE = (o = {}) => ({ data: { courtCaseData: { cnr: 'DLHC010001232024', title: 'A v. B', caseNumber: 'CS(COMM) 12/2024', courtName: 'Delhi High Court', caseType: 'CS(COMM)', status: 'PENDING', nextHearingDate: '2099-12-01',
-  petitioners: ['A Ltd'], respondents: ['B Ltd'], hearings: [], judgmentOrders: [{ orderDate: '2026-10-01', orderType: 'Order', orderUrl: 'order-1.pdf' }], ...o } }, meta: { request_id: 'r1' } });
+// Shaped like a real eCourtsIndia case-detail answer (see tests/fixtures): data.courtCaseData with caseStatus, registrationNumber, historyOfCaseHearings, judgmentOrders.
+const CASE = (o = {}) => ({ data: { courtCaseData: { cnr: 'DLHC010001232024', caseNumber: '213400000122024', registrationNumber: '12/2024', caseType: 'CS(COMM)', courtName: 'Delhi High Court', caseStatus: 'PENDING', nextHearingDate: '2099-12-01',
+  petitioners: ['A Ltd'], respondents: ['B Ltd'], petitionerAdvocates: [], respondentAdvocates: [], historyOfCaseHearings: [], interimOrders: [], orderCount: 1, judgmentOrders: [{ orderDate: '2026-10-01', orderType: 'Order', orderUrl: 'order-1.pdf' }], ...o } }, meta: { request_id: 'r1' } });
 const server = http.createServer((req, res) => {
   const reply = (s, b, h = {}) => { res.writeHead(s, { 'content-type': 'application/json', ...h }); res.end(JSON.stringify(b)); };
   const auth = req.headers.authorization || '';
@@ -100,7 +101,11 @@ await t('out of provider credits: reported, not retried, not charged', async () 
 await t('provider down (500): retried a bounded number of times, then FAILED; the app does not crash', async () => { fresh(); addCase('c1'); mock.mode = '500'; const r = await verify(); eq(r.status, 200); eq(r.body.status, 'FAILED'); ok(paid() <= 3, 'bounded retries: ' + paid()); eq(db.spent, 0); eq(lc().attempts, 1); });
 await t('rate limit (429) is waited out and retried once, then succeeds', async () => { fresh(); addCase('c1'); mock.mode = '429once'; const r = await verify(); eq(r.body.status, 'VERIFIED'); eq(paid(), 2); });
 await t('provider timeout does not hang the request', async () => { fresh(); setEnv({ ...base, COURT_API_TIMEOUT_MS: '3000' }); addCase('c1'); mock.delayMs = 3500; const t0 = Date.now(); const r = await verify(); ok(Date.now() - t0 < 20000, 'returned'); eq(r.body.status, 'FAILED'); });
-await t('CASE_NOT_FOUND is MANUAL REVIEW with official links, not FAILED', async () => { fresh(); addCase('c1'); mock.mode = '404'; const r = await verify(); eq(r.body.status, 'MANUAL REVIEW'); ok(r.body.links.length > 0); });
+await t('a CNR the provider does not hold yet: it is asked to fetch it (cheap refresh), the case is PENDING and checked again in minutes', async () => {
+  fresh(); addCase('c1'); mock.mode = '404'; const r = await verify(); eq(r.body.status, 'PENDING'); ok(/fetch the case from the official source/.test(r.body.note)); ok(mock.calls.some(c => c.method === 'POST' && c.path.endsWith('/refresh')), 'refresh sent'); eq(db.spent, 15, 'only the refresh is charged'); eq(lc().attempts, 1);
+  const due = Date.parse(lc().next_check_at) - Date.now(); ok(due > 5 * 60e3 && due < 15 * 60e3, 'recheck in about 10 minutes: ' + due); });
+await t('a CNR still unknown after three tries goes to MANUAL REVIEW with official links', async () => { fresh(); addCase('c1'); mock.mode = '404'; await verify(); lc().attempts = 3; lc().refresh_requested_at = null; age(); const r = await verify('c1', { fresh: true }); eq(r.body.status, 'MANUAL REVIEW'); ok(r.body.links.length > 0); });
+await t('a second refresh is not sent while the first may still be running', async () => { fresh(); addCase('c1'); await verify(); age(); await verify('c1', { fresh: true }); const posts = () => mock.calls.filter(c => c.method === 'POST').length; eq(posts(), 1); ok(/refresh was requested/.test(lc().verification_note)); age(); await verify('c1', { fresh: true }); eq(posts(), 1, 'no duplicate'); });
 await t('unsupported jurisdictions and identifiers are identified, not guessed', async () => {
   fresh(); addCase('c1', { cnr: 'ZZZZZZ' }); let r = await verify(); eq(r.body.status, 'MANUAL REVIEW'); ok(/CNR is not valid/.test(r.body.note));
   addCase('c2', { cnr: '', idKind: 'diary_number', diaryNo: '123/2024' }); r = await verify('c2'); eq(r.body.status, 'MANUAL REVIEW'); ok(/diary number/.test(r.body.note)); eq(paid(), 0); });
@@ -110,12 +115,12 @@ await t('change detection: a hearing moved to a new date raises one notification
   const r = await verify('c1', { fresh: true }); eq(r.body.changed, true); eq(db.tables.notification_events.length, 1); eq(db.tables.notification_events[0].kind, 'hearing_adjourned'); eq(db.tables.case_snapshots.length, 2, 'old snapshot preserved'); });
 await t('no notification when nothing changed', async () => { fresh(); addCase('c1'); await verify(); age(); await verify('c1', { fresh: true }); eq(db.tables.notification_events?.length ?? 0, 0); });
 await t('new order and disposal are recorded and written into the firm\'s own records', async () => {
-  fresh(); addCase('c1'); await verify(); mock.body = CASE({ status: 'DISPOSED', judgmentOrders: [{ orderDate: '2026-10-01', orderType: 'Order', orderUrl: 'order-1.pdf' }, { orderDate: '2026-11-10', orderType: 'Judgment', orderUrl: 'j.pdf' }] });
+  fresh(); addCase('c1'); await verify(); mock.body = CASE({ caseStatus: 'DISPOSED', judgmentOrders: [{ orderDate: '2026-10-01', orderType: 'Order', orderUrl: 'order-1.pdf' }, { orderDate: '2026-11-10', orderType: 'Judgment', orderUrl: 'j.pdf' }] });
   age(); await verify('c1', { fresh: true });
   const kinds = db.tables.notification_events.map(e => e.kind).sort(); ok(kinds.includes('new_judgment') && kinds.includes('case_disposed'), kinds.join());
   ok(db.tables.records.some(r => r.kind === 'order' && r.data.date === '2026-11-10'), 'order record'); eq(db.tables.records.find(r => r.kind === 'case').data.status, 'disposed'); eq(lc().state, 'closed'); });
 await t('a future hearing from the provider is added to the calendar once', async () => { fresh(); addCase('c1'); await verify(); const h = () => db.tables.records.filter(r => r.kind === 'hearing' && r.data.date === '2099-12-01').length; eq(h(), 1); age(); await verify('c1', { fresh: true }); eq(h(), 1, 'not duplicated'); });
-await t('partial data is PARTIAL, not VERIFIED', async () => { fresh(); addCase('c1'); mock.body = CASE({ title: '', courtName: '' }); const r = await verify(); eq(r.body.status, 'PARTIAL'); ok(/Missing/.test(r.body.note)); });
+await t('partial data is PARTIAL, not VERIFIED', async () => { fresh(); addCase('c1'); mock.body = CASE({ petitioners: [], respondents: [], courtName: '' }); const r = await verify(); eq(r.body.status, 'PARTIAL'); ok(/Missing/.test(r.body.note)); });
 await t('verification log is written for every outcome', async () => { fresh(); addCase('c1'); await verify(); await verify(); const o = db.tables.verification_logs.map(l => l.outcome); ok(o.includes('ok') && o.includes('cached'), o.join()); });
 await t('usage log records paid requests, cached reads and cost', async () => { fresh(); addCase('c1'); await verify(); await verify(); const u = db.tables.api_usage_logs; ok(u.some(x => x.billable && x.cost_paise === 150), 'billable'); ok(u.some(x => x.cached), 'cached'); });
 await t('scheduler: syncs only due cases, hearings soonest first, skips firms without a plan, respects the batch size', async () => {

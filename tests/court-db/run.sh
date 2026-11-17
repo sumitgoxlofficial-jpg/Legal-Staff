@@ -12,4 +12,6 @@ $P -v ON_ERROR_STOP=1 -f "$HERE/supabase-stub.sql"
 sed 's/^create extension if not exists pg_cron;//' "$ROOT/supabase/migrations/0022_court_intelligence.sql" > "$D/mig.sql"
 $P -v ON_ERROR_STOP=1 -f "$D/mig.sql" >/dev/null && echo "migration applies"
 $P -v ON_ERROR_STOP=1 -f "$D/mig.sql" >/dev/null && echo "migration re-applies"
+$P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0023_court_refresh.sql" >/dev/null && $P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0023_court_refresh.sql" >/dev/null && echo "migration 0023 applies and re-applies"
+$P -c "select category, operation, verified_at is not null as tested from provider_capabilities where provider_key = 'ecourtsindia' and court_code = '' order by 1, 2"
 $P -f "$HERE/court-db.test.sql" 2>&1 | grep -v '^$'

@@ -163,20 +163,20 @@ async function verify(admin: any, firmId: string, rec: any, o: { fresh?: boolean
   if (!key) return manual("No court-data provider key is configured. Verify on the official portal, or ask the administrator to connect a provider.");
 
   const rk = requestKey(PROVIDER, "case_detail", lc.cnr);
-  let payload: any = null, fromCache = false;
+  let payload: any = null, fromCache = false, refreshSent = false;
   if (E.cache && !o.fresh) { const { data: c } = await admin.from("api_response_cache").select("payload,fetched_at").eq("request_key", rk).gt("expires_at", nowIso()).maybeSingle(); if (c) { payload = c.payload; fromCache = true; } }
   if (!payload) {
     if (E.dedupe) { const { data: got } = await admin.rpc("court_claim", { p_key: rk, p_ttl: 90 }); if (got !== true) { await vlog(admin, { firm_id: firmId, case_id: lc.id, operation: "verify", outcome: "deduped", status: lc.verification_status, message: "An identical request is already running", actor: o.actor ?? null });
       return { status: lc.verification_status, source: lc.source_provider, note: "A check for this case is already running. Try again in a minute.", cached: true, checkedAt: lc.last_checked_at, links }; } }
     try {
       const staleHearing = lc.next_hearing_date && lc.next_hearing_date < today() && lc.state === "active";
-      const wantRefresh = E.smart && (o.fresh || staleHearing), plan = b.plan ?? "payg";
+      const recentRefresh = !!lc.refresh_requested_at && hoursSince(lc.refresh_requested_at) < 0.25, wantRefresh = E.smart && !recentRefresh && (o.fresh || staleHearing), plan = b.plan ?? "payg"; // a refresh is queued and billed on its own, so never send a second one while the first may still be running
       const need = costPaise(plan, "case_detail") + (wantRefresh ? costPaise(plan, "refresh") : 0);
       const { data: res } = await admin.rpc("court_budget_reserve", { p_provider: PROVIDER, p_endpoint: "case_detail", p_cost: need, p_limit_override: E.budgetRs != null ? Math.round(E.budgetRs * 100) : null });
       if (!res?.allow) { const note = "The monthly court-data budget is used up. An administrator can raise it or authorise an override.";
         return await done({ verification_status: ready ? STATUS.STALE : lc.verification_status, verification_note: note, next_check_at: addHours(6) }, { status: ready ? STATUS.STALE : STATUS.PENDING, note, blocked: true }, { outcome: "blocked", status: STATUS.PENDING, message: "budget" }); }
       let spentRefresh = false;
-      if (wantRefresh) { const rr = await callRetry(admin, "POST", `/api/partner/case/${encodeURIComponent(lc.cnr)}/refresh`, key); spentRefresh = rr.status >= 200 && rr.status < 300;
+      if (wantRefresh) { const rr = await callRetry(admin, "POST", `/api/partner/case/${encodeURIComponent(lc.cnr)}/refresh`, key); spentRefresh = rr.status >= 200 && rr.status < 300; refreshSent = spentRefresh;
         await usage(admin, { endpoint: "refresh", request_key: rk + "|refresh", firm_id: firmId, case_id: lc.id, http_status: rr.status, billable: spentRefresh, cost_paise: spentRefresh ? costPaise(plan, "refresh") : 0, latency_ms: rr.ms });
         if (!spentRefresh) await admin.rpc("court_budget_refund", { p_provider: PROVIDER, p_endpoint: "case_detail", p_cost: costPaise(plan, "refresh") }); }
       const r = await callRetry(admin, "GET", `/api/partner/case/${encodeURIComponent(lc.cnr)}`, key);
@@ -185,6 +185,15 @@ async function verify(admin: any, firmId: string, rec: any, o: { fresh?: boolean
       await health(admin, r);
       if (!good) { await admin.rpc("court_budget_refund", { p_provider: PROVIDER, p_endpoint: "case_detail", p_cost: costPaise(plan, "case_detail") });
         const c = classifyHttp(r.status, r.code), attempts = (lc.attempts ?? 0) + 1;
+        if (c.kind === "not_found" && (lc.attempts ?? 0) < 3 && E.smart && !(lc.refresh_requested_at && hoursSince(lc.refresh_requested_at) < 0.25)) {
+          // The provider documents that a refresh on a valid CNR it does not hold yet fetches it from the official source. The refresh is queued (typically 2 to 10 minutes), so look again later.
+          const rc = costPaise(plan, "refresh"), { data: rs } = await admin.rpc("court_budget_reserve", { p_provider: PROVIDER, p_endpoint: "refresh", p_cost: rc, p_limit_override: E.budgetRs != null ? Math.round(E.budgetRs * 100) : null });
+          if (rs?.allow) { const rr = await callRetry(admin, "POST", `/api/partner/case/${encodeURIComponent(lc.cnr)}/refresh`, key), good2 = rr.status >= 200 && rr.status < 300;
+            await usage(admin, { endpoint: "refresh", request_key: rk + "|refresh", firm_id: firmId, case_id: lc.id, http_status: rr.status, billable: good2, cost_paise: good2 ? rc : 0, latency_ms: rr.ms });
+            if (good2) { const note = "Not held by the provider yet: it was asked to fetch the case from the official source. Checking again in about 10 minutes.";
+              return await done({ verification_status: STATUS.PENDING, verification_note: note, attempts, last_checked_at: nowIso(), refresh_requested_at: nowIso(), next_check_at: addHours(0.17) }, { status: STATUS.PENDING, note }, { outcome: "ok", status: STATUS.PENDING, message: "refresh requested for an unknown CNR" }); }
+            await admin.rpc("court_budget_refund", { p_provider: PROVIDER, p_endpoint: "refresh", p_cost: rc }); }
+        }
         if (c.manual) return await manual(c.message, "failed");
         await admin.from("court_jobs").insert({ case_id: lc.id, firm_id: firmId, reason: "retry", status: attempts >= 5 ? "dead" : "queued", attempts, run_after: addHours(Math.min(24, 2 ** attempts / 2)), last_error: scrub(c.message) }).then(() => {}, () => {}); // one open job per case (unique index): a second insert is ignored
         return await done({ verification_status: ready ? STATUS.STALE : STATUS.FAILED, verification_note: c.message, attempts, last_checked_at: nowIso(), next_check_at: addHours(Math.min(24, 2 ** attempts / 2)) },
@@ -207,13 +216,13 @@ async function verify(admin: any, firmId: string, rec: any, o: { fresh?: boolean
   const status = verificationStatus({ checkedAt: nowIso(), matched: true, partial: n.partial, maxAgeHours: maxAge }), next = new Date(Date.now() + intervalHours({ state: lc.state, next_hearing_date: n.nextHearing }, cfg) * 36e5).toISOString();
   await admin.from("legal_cases").update({ title: n.title || lc.title, court_name: n.court || lc.court_name, case_type: n.caseType, case_number: n.caseNumber || lc.case_number, filing_date: n.filingDate || null, registration_date: n.registrationDate || null,
     status: n.status, next_hearing_date: n.nextHearing || null, last_hearing_date: n.lastHearing || null, source_provider: PROVIDER, source_url: `${E.base}/api/partner/case/${lc.cnr}`, verification_status: status,
-    verification_note: n.partial ? "Missing from the provider: " + n.missing.join(", ") : "", last_checked_at: nowIso(), last_verified_at: nowIso(), last_changed_at: meaningful.length ? nowIso() : lc.last_changed_at, next_check_at: next, attempts: 0,
+    verification_note: n.partial ? "Missing from the provider: " + n.missing.join(", ") : refreshSent ? "A refresh was requested from the court source; newer data may appear in a few minutes" : "", last_checked_at: nowIso(), last_verified_at: nowIso(), last_changed_at: meaningful.length ? nowIso() : lc.last_changed_at, next_check_at: refreshSent ? addHours(0.17) : next, attempts: 0, ...(refreshSent ? { refresh_requested_at: nowIso() } : {}),
     state: /dispos|decided|closed|dismiss|withdrawn/i.test(n.status) ? "closed" : lc.state === "closed" ? "active" : lc.state }).eq("id", lc.id);
   await upsertDetail(admin, lc.id, n);
   if (meaningful.length) await admin.from("notification_events").insert(meaningful.map((e: any) => ({ firm_id: firmId, case_id: lc.id, kind: e.kind, title: e.title, detail: e.detail })));
   const rec2 = await caseRecord(admin, firmId, rec.id); if (rec2) await applyToRecords(admin, firmId, rec2, n, meaningful, { ...lc, source_provider: PROVIDER });
   await vlog(admin, { firm_id: firmId, case_id: lc.id, operation: "verify", outcome: "ok", status, message: (fromCache ? "From shared cache. " : "") + (meaningful.length ? meaningful.map((e: any) => e.title).join("; ") : "No change"), actor: o.actor ?? null });
-  return { status, source: PROVIDER, note: n.partial ? "Missing from the provider: " + n.missing.join(", ") : meaningful.length ? meaningful.map((e: any) => e.title).join("; ") : "No change since the last check", normalized: { title: n.title, caseNo: n.caseNumber, court: n.court, status: n.status, nextDate: n.nextHearing, lastOrderDate: n.lastOrder }, events: meaningful, checkedAt: nowIso(), freshness: "fresh", changed: meaningful.length > 0, cached: fromCache, links };
+  return { status, source: PROVIDER, note: n.partial ? "Missing from the provider: " + n.missing.join(", ") : refreshSent ? "A refresh was requested from the court source; newer data may appear in about 10 minutes" : meaningful.length ? meaningful.map((e: any) => e.title).join("; ") : "No change since the last check", normalized: { title: n.title, caseNo: n.caseNumber, court: n.court, status: n.status, nextDate: n.nextHearing, lastOrderDate: n.lastOrder }, events: meaningful, checkedAt: nowIso(), freshness: "fresh", changed: meaningful.length > 0, cached: fromCache, links };
 }
 async function sha(s: string) { const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, "0")).join(""); }
 async function lastHash(admin: any, id: string) { const { data } = await admin.from("case_snapshots").select("payload_hash").eq("case_id", id).order("taken_at", { ascending: false }).limit(1).maybeSingle(); return data?.payload_hash; }

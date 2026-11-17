@@ -1,0 +1,189 @@
+{
+ "data": {
+  "courtCaseData": {
+   "caseNumber": "207700126062023",
+   "district": "South West",
+   "state": "DL",
+   "stateCode": "26",
+   "districtCode": "6",
+   "courtCode": 2,
+   "caseTypeSub": "NEGOTIABLE INSTRUMENTS ACT - 138",
+   "courtName": "Chief Metropolitan Magistrate, South-West, DWK",
+   "courtNo": 2,
+   "historyOfCaseHearings": [
+    {
+     "judge": "Metropolitan Magistrate",
+     "businessOnDate": "2023-05-09",
+     "hearingDate": "2023-09-27",
+     "purposeOfListing": "Pre-Summning Argument"
+    },
+    {
+     "judge": "Metropolitan Magistrate",
+     "businessOnDate": "2023-09-27",
+     "hearingDate": "2024-02-15",
+     "purposeOfListing": "Pre-Summning Argument"
+    },
+    {
+     "judge": "Judicial Magistrate First Class",
+     "businessOnDate": "2024-02-15",
+     "hearingDate": "2024-08-23",
+     "purposeOfListing": "Pre-Summning Argument"
+    },
+    {
+     "judge": "Judicial Magistrate First Class",
+     "businessOnDate": "2024-08-23",
+     "hearingDate": "2025-01-16",
+     "purposeOfListing": "Pre-Summning Argument"
+    },
+    {
+     "judge": "Judicial Magistrate First Class",
+     "businessOnDate": "2025-01-16",
+     "hearingDate": "2025-02-15",
+     "purposeOfListing": "Pre-Summning Argument"
+    },
+    {
+     "judge": "Judicial Magistrate First Class",
+     "businessOnDate": "2025-02-15",
+     "hearingDate": "2025-03-07",
+     "purposeOfListing": "Pre-Summning Argument"
+    },
+    {
+     "judge": "Judicial Magistrate First Class",
+     "businessOnDate": "2025-03-07",
+     "hearingDate": "2025-03-24",
+     "purposeOfListing": "Pre-Summning Argument"
+    },
+    {
+     "judge": "Judicial Magistrate First Class",
+     "businessOnDate": "2025-03-24",
+     "hearingDate": "2025-05-02",
+     "purposeOfListing": "Pre-Summning Argument"
+    },
+    {
+     "judge": "Judicial Magistrate First Class",
+     "businessOnDate": "2025-05-02",
+     "hearingDate": "2025-07-24",
+     "purposeOfListing": "Pre-Summning Argument"
+    },
+    {
+     "judge": "Judicial Magistrate First Class",
+     "businessOnDate": "2025-07-24",
+     "hearingDate": "2025-09-19",
+     "purposeOfListing": "Pre-Summning Argument"
+    },
+    {
+     "judge": "Judicial Magistrate First Class",
+     "businessOnDate": "2025-09-19",
+     "hearingDate": "2026-12-09",
+     "purposeOfListing": "Pre-Summning Argument"
+    }
+   ],
+   "judgeCode": [
+    "904"
+   ],
+   "purpose": "Pre-Summning Argument",
+   "stageOfCase": "ARGUMENTS",
+   "stageOfCaseRaw": "Pre-Summning Argument",
+   "lastHearingDate": "2025-09-19",
+   "interimOrders": [
+    {
+     "orderDate": "2023-05-09",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-1.pdf"
+    },
+    {
+     "orderDate": "2023-09-27",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-2.pdf"
+    },
+    {
+     "orderDate": "2024-02-15",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-3.pdf"
+    },
+    {
+     "orderDate": "2024-08-23",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-4.pdf"
+    },
+    {
+     "orderDate": "2025-01-16",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-5.pdf"
+    },
+    {
+     "orderDate": "2025-02-15",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-6.pdf"
+    },
+    {
+     "orderDate": "2025-03-07",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-7.pdf"
+    },
+    {
+     "orderDate": "2025-03-24",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-8.pdf"
+    },
+    {
+     "orderDate": "2025-05-02",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-9.pdf"
+    },
+    {
+     "orderDate": "2025-07-24",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-10.pdf"
+    },
+    {
+     "orderDate": "2025-09-19",
+     "description": "COPY OF JUDICIAL PROCEEDINGS",
+     "orderUrl": "order-11.pdf"
+    }
+   ],
+   "processes": [],
+   "cnr": "DLSW020154072023",
+   "cnrCourtCode": "DLSW02",
+   "courtComplexCode": "DLSW02",
+   "cnrCaseNumber": "0154072023",
+   "cnrYear": "2023",
+   "caseType": "CC",
+   "caseTypeRaw": "CC NI ACT",
+   "caseStatus": "PENDING",
+   "filingNumber": "15407/2023",
+   "filingDate": "2023-03-16",
+   "registrationNumber": "12606/2023",
+   "registrationDate": "2023-03-31",
+   "firstHearingDate": "2023-05-09",
+   "nextHearingDate": "2026-12-09",
+   "filingToFirstHearingDays": 54,
+   "judges": [
+    "Judge A"
+   ],
+   "petitioners": [
+    "PETITIONER BANK LTD."
+   ],
+   "petitionerAdvocates": [
+    "ADVOCATE TWO"
+   ],
+   "respondents": [
+    "RESPONDENT C"
+   ],
+   "respondentAdvocates": [],
+   "caseCategoryFacetPath": "Administrative/Not Specified",
+   "hasOrders": true,
+   "hasJudgments": false,
+   "orderCount": 11,
+   "interimOrderCount": 11,
+   "judgmentCount": 0,
+   "hearingCount": 11,
+   "iaCount": 0,
+   "listingDates": [],
+   "judgmentOrders": []
+  }
+ },
+ "meta": {
+  "request_id": "fixture"
+ }
+}
