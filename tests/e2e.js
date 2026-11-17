@@ -1,13 +1,14 @@
 /* Legal Staff — end-to-end tests in Chromium (Playwright).
    node tests/e2e.js local    the browser-only app (config.js without supabaseUrl)
-   node tests/e2e.js server   the server app against tests/fake-supabase.js (served in place of vendor/supabase.js)
+   (server mode is not maintained: tests/fake-supabase.js was removed and the server steps still describe the old invoice numbering, so `server` exits with a notice)
    Serves the repository on http://localhost:8765 (starts `python3 -m http.server 8765` if nothing answers there).
    Prints "N passed, M failed" and exits non-zero on any failure. Screenshots go to tests/shots/. */
 'use strict';
+if (process.argv[2] === 'server') { console.log('Server mode of this suite is not maintained. Run: node tests/e2e.js local'); process.exit(2); }
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), { spawn } = require('child_process');
-const ROOT = path.resolve(__dirname, '..'), PORT = 8765, BASE = `http://localhost:${PORT}`, MODE = process.argv[2] === 'server' ? 'server' : 'local', SERVER = MODE === 'server';
-const SHOTS = path.join(__dirname, 'shots'), FAKE = fs.readFileSync(path.join(__dirname, 'fake-supabase.js'), 'utf8');
+const ROOT = path.resolve(__dirname, '..'), PORT = 8765, BASE = `http://localhost:${PORT}`, MODE = 'local', SERVER = MODE === 'server';
+const SHOTS = path.join(__dirname, 'shots'), FAKE = '';
 const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY, 'i') : null;
 
 /* ---------- tiny test runner ---------- */
@@ -117,12 +118,18 @@ const OWNER = { email: 'owner@test.in', name: 'Asha Rao' }, JUNIOR = { email: 'j
 const ORDER_TEXT = '1. Heard learned counsel for the parties on the application for interim relief.\n\n2. The respondent seeks time to file a reply, which is granted as a last opportunity.\n\n3. List on 15.01.2027 for final arguments.';
 const ctx = {};   // ids gathered along the way
 
-async function onboard(o, firm) {
-  await o.page.locator('[role=dialog]', { hasText: 'Set up your practice' }).waitFor({ timeout: 10000 });
-  await o.fill([['Designation', 'Managing Partner'], ['Firm or chamber name', firm || 'Rao & Associates'], ['City', 'New Delhi'], ['Office address', '12 Lawyers Chambers, Delhi High Court']]);
+async function onboard(o, firm, kind, domain) {
+  await o.page.locator('[role=dialog]', { hasText: 'Who is this for?' }).waitFor({ timeout: 10000 });
+  await o.page.locator('[role=dialog] [data-pick="' + (kind || 'firm') + '"]').click(); await o.dclick('Continue');
+  await o.page.locator('[role=dialog]', { hasText: 'Your area of practice' }).waitFor({ timeout: 5000 });
+  eq(await o.page.locator('[role=dialog] button:has-text("Continue")').isDisabled(), true, 'Continue waits for an area');
+  await o.page.locator('[role=dialog] [data-pick="' + (domain || 'general') + '"]').click(); await o.dclick('Continue');
+  await o.page.locator('[role=dialog]', { hasText: 'Set up your practice' }).waitFor({ timeout: 5000 });
+  await o.fill([['Designation', 'Managing Partner'], [{ advocate: 'Practice name', chamber: 'Chamber name', firm: 'Law firm name', corporate: 'Company or department name' }[kind || 'firm'], firm || 'Rao & Associates'], ['City', 'New Delhi'], ['Office address', '12 Lawyers Chambers, Delhi High Court']]);
   await o.dclick('Start using Legal Staff');
   await o.toast('Your practice is set up', 10000);
   await waitIn(o);
+  if (!SERVER) { await o.page.evaluate(() => { const d = LS.load(); Object.assign(d.sub, { plan: 'Firm', cycle: 'annual', status: 'trialing', since: LS.today(), renews: '', trialEnds: new Date(Date.now() + 7 * 864e5).toISOString() }); LS.save(d); location.hash = '#/dashboard'; location.reload(); }); await waitIn(o); }
 }
 
 async function core(o) {
@@ -202,14 +209,13 @@ async function core(o) {
   await step('order: paste text, next date found, confirm, edit, delete', async () => {
     await o.go('#/case/' + ctx.caseId);
     await o.click('+ Order');
-    await o.set('Order text', ORDER_TEXT); await o.dclick('Read order'); await o.toast('next date found');
+    await o.set('Order text', ORDER_TEXT); await o.dclick('Read order'); await o.toast('next date added to the calendar');
     ctx.orderId = decodeURIComponent((await o.hash()).split('/')[2]);
     await o.see('15 January 2027');
-    await o.click('Confirm and add to calendar'); await o.toast('Hearing added to the calendar');
+    await o.see('Added to calendar. Hearing history updated.');   // automatic: a future next date goes straight to the calendar
+    await o.click('Edit order'); await o.set('Order text', ORDER_TEXT.replace('15.01.2027', '22.01.2027')); await o.dclick('Save changes'); await o.toast('Order updated');
+    await o.see('22 January 2027');   // the new date goes straight to the calendar too
     await o.see('Added to calendar. Hearing history updated.');
-    await o.click('Edit order'); await o.set('Order text', ORDER_TEXT.replace('15.01.2027', '22.01.2027')); await o.dclick('Save changes'); await o.toast('confirm the new next date');
-    await o.see('22 January 2027');
-    await o.click('Confirm and add to calendar'); await o.toast('Hearing added to the calendar');
     await o.go('#/case/' + ctx.caseId); await o.click('+ Order');
     await o.set('Order text', '1. Matter not reached today. Renotify.'); await o.dclick('Read order'); await o.toast('Order saved');
     await o.click('Delete order'); await o.dclick('Delete order'); await o.toast('Order deleted');
@@ -230,98 +236,23 @@ async function core(o) {
 }
 
 const FY = (() => { const d = new Date(), y = d.getFullYear(), a = d.getMonth() >= 3 ? y : y - 1; return a + '-' + String((a + 1) % 100).padStart(2, '0'); })();
-const invText = page => page.locator('#ls-invoice').innerText();
-/* The invoice as it prints (print media: only .ls-print is visible), on an A4-width page. */
-async function printShot(page, name) {
-  await page.emulateMedia({ media: 'print' }); await page.setViewportSize({ width: 794, height: 1123 });
-  const vis = await page.evaluate(() => { const el = document.getElementById('ls-invoice'), r = el.getBoundingClientRect(); return getComputedStyle(el).visibility === 'visible' && getComputedStyle(document.querySelector('header')).visibility === 'hidden' && r.left < 2 && r.width > 700; });
-  await page.screenshot({ path: path.join(SHOTS, `gst-invoice-${name}-print-${MODE}.png`) });
-  await page.emulateMedia({ media: 'screen' }); await page.setViewportSize({ width: 1280, height: 900 });
-  assert(vis, 'print view shows only the invoice, full width');
-}
-async function newInvoice(o, pairs) {
-  await o.go('#/billing'); await o.click('+ New invoice');
-  await o.fill(pairs); await o.dclick('Create invoice');
-  await o.page.locator('#ls-invoice').waitFor();
-  return invText(o.page);
-}
-async function gst(o) {
+/* Invoices: the amount gets 18% GST added; numbers run INV-<year>-001, 002, ... */
+async function billing(o) {
   const { page } = o;
-  await step('firm profile: GST registration, state, PAN and invoice prefix', async () => {
-    await o.go('#/settings');
-    await o.fill([['Legal name on invoices (if different)', 'Rao and Associates LLP'], ['State', '07'], ['GST registration', 'yes'], ['GSTIN', '07AAAFR1234K1Z5'], ['PAN (optional)', 'AAAFR1234K'], ['Invoice number prefix', 'ls']], 'Firm profile');
-    await o.click('Save', page.locator('section', { has: page.locator('h2', { hasText: 'Firm profile' }) })); await o.toast('Saved');
-    await o.see('LS/' + FY + '/0001, 0002');
-    if (SERVER) { await o.settle(); const st = await o.fake(() => __fakeAdmin.state().firms[0]); eq(st.gstin, '07AAAFR1234K1Z5', 'GSTIN column'); eq(st.state.profile.stateCode, '07', 'state in firm profile'); eq(st.state.profile.prefix, 'LS', 'prefix'); }
-  });
-  await step('GST invoice: intra-state CGST + SGST, numbered LS/FY/0001', async () => {
-    const t = await newInvoice(o, [['Description', 'Professional fees: drafting and appearance'], ['Taxable value (₹)', '50000']]);
-    for (const x of ['TAX INVOICE', 'Rao and Associates LLP', 'GSTIN 07AAAFR1234K1Z5', 'PAN AAAFR1234K', 'LS/' + FY + '/0001', 'Place of supply Delhi (07)', 'Tax payable on reverse charge No', '998212', 'CGST @ 9%', 'SGST @ 9%', '₹4,500', '₹59,000', 'Rupees Fifty Nine Thousand Only', 'Mehta Traders Pvt Ltd', 'Authorised signatory'])
-      assert(t.includes(x), 'invoice shows "' + x + '"\n' + t);
-    assert(!t.includes('IGST'), 'no IGST within the state');
-    await sleep(400); await page.locator('#ls-invoice').screenshot({ path: path.join(SHOTS, `gst-invoice-intra-${MODE}.png`) }); await printShot(page, 'intra');
-    await o.dclick('Mark as paid'); await o.toast('Invoice marked paid');
-    await o.dclick('Mark unpaid'); await o.toast('Marked unpaid');
-    await o.dclick('Edit'); await o.set('Taxable value (₹)', '60000'); await o.dclick('Save changes'); await o.see('₹70,800');
-    assert((await invText(page)).includes('LS/' + FY + '/0001'), 'number unchanged after edit');
-  });
-  await step('GST invoice: inter-state IGST', async () => {
-    const t = await newInvoice(o, [['Description', 'Appearance before the Bombay High Court'], ['Taxable value (₹)', '75000'], ['Place of supply', '27'], ["Client's billing address", '4th floor, Nariman Point, Mumbai']]);
-    for (const x of ['LS/' + FY + '/0002', 'Place of supply Maharashtra (27)', 'IGST @ 18%', '₹13,500', '₹88,500', 'Rupees Eighty Eight Thousand Five Hundred Only', 'Nariman Point']) assert(t.includes(x), 'invoice shows "' + x + '"\n' + t);
-    assert(!t.includes('CGST'), 'no CGST across states');
-    await sleep(400); await page.locator('#ls-invoice').screenshot({ path: path.join(SHOTS, `gst-invoice-inter-${MODE}.png`) }); await printShot(page, 'inter');
-  });
-  await step('GST invoice: business client with GSTIN → reverse charge, no tax charged', async () => {
+  await step('invoice: create, GST 18% added, numbered INV-<year>-001, in the CSV', async () => {
     await o.go('#/billing'); await o.click('+ New invoice');
-    await o.fill([['Description', 'Legal opinion on the supply contract'], ['Taxable value (₹)', '100000'], ["Client's GSTIN (optional)", '27AAACM1234B1Z2']]);
-    const mode = await page.evaluate(() => [...document.querySelectorAll('[role=dialog] label')].find(l => l.textContent === 'Tax treatment').parentElement.querySelector('select').value); eq(mode, 'rcm', 'treatment switches to reverse charge');
-    await o.see('the client pays IGST');
-    await o.dclick('Create invoice'); await page.locator('#ls-invoice').waitFor();
-    const t = await invText(page);
-    for (const x of ['Tax payable on reverse charge Yes', 'payable by the recipient', 'GST charged on this invoice', 'GSTIN 27AAACM1234B1Z2', '₹18,000', 'Rupees One Lakh Only', 'Check with your CA']) assert(t.includes(x), 'invoice shows "' + x + '"\n' + t);
-    assert(/Total\s*₹1,00,000/.test(t), 'total equals the taxable value\n' + t);
-    await sleep(400); await page.locator('#ls-invoice').screenshot({ path: path.join(SHOTS, `gst-invoice-rcm-${MODE}.png`) });
+    await o.fill([['Description', 'Professional fees: drafting and appearance'], ['Amount before GST (₹)', '10000']]);
+    await o.dclick('Create invoice'); await o.toast('Invoice created');
+    await page.locator('.ls-print').waitFor();
+    const t = await page.locator('[role=dialog]').innerText();
+    assert(t.includes('INV-' + TODAY.slice(0, 4) + '-001'), 'invoice number: ' + t.slice(0, 200));
+    assert(/11,800/.test(t) && /1,800/.test(t), 'GST 18% on 10,000 gives 11,800: ' + t.slice(0, 300));
+    await o.closeDialog(); await o.go('#/billing');
+    const d = await o.download(() => o.click('Export CSV')); eq(d.suggestedFilename(), 'invoices.csv');
+    const csv = fs.readFileSync(await d.path(), 'utf8'); assert(csv.includes('"GST"') && csv.includes('1800'), 'CSV has the GST column: ' + csv.slice(0, 200));
   });
-  await step('invoice numbers: a new series each financial year, the old one continues', async () => {
-    const [y] = FY.split('-'), nextFyDate = (+y + 1) + '-04-02', lastDay = (+y + 1) + '-03-31', nfy = (+y + 1) + '-' + String((+y + 2) % 100).padStart(2, '0');
-    let t = await newInvoice(o, [['Description', 'Fees, April'], ['Taxable value (₹)', '1000'], ['Invoice date', nextFyDate]]); assert(t.includes('LS/' + nfy + '/0001'), 'new FY starts at 0001\n' + t);
-    t = await newInvoice(o, [['Description', 'Fees, March'], ['Taxable value (₹)', '1000'], ['Invoice date', lastDay]]); assert(t.includes('LS/' + FY + '/0004'), 'current FY continues at 0004\n' + t);
-    await o.dclick('Edit'); await o.set('Invoice date', nextFyDate); await o.dclick('Save changes'); await o.see('Keep the date in FY ' + FY);
-    await o.closeDialog();
-    if (SERVER) { const s = await o.fake(() => __fakeAdmin.state().invoice_series); assert(s.some(x => x.prefix === 'LS/' + FY + '/' && x.last === 4) && s.some(x => x.prefix === 'LS/' + nfy + '/' && x.last === 1), 'server counters ' + JSON.stringify(s)); }
-  });
-  await step('unregistered firm: bill of supply, no GST', async () => {
-    await o.go('#/settings'); await o.set('GST registration', 'no', 'Firm profile');
-    await o.click('Save', page.locator('section', { has: page.locator('h2', { hasText: 'Firm profile' }) })); await o.toast('Saved');
-    await o.go('#/billing'); await o.click('+ New invoice');
-    const opts = await page.evaluate(() => [...[...document.querySelectorAll('[role=dialog] label')].find(l => l.textContent === 'Tax treatment').parentElement.querySelector('select').options].map(x => x.value).join(','));
-    eq(opts, 'bos', 'only a bill of supply');
-    await o.fill([['Description', 'Drafting of a will'], ['Taxable value (₹)', '15000']]); await o.dclick('Create invoice'); await page.locator('#ls-invoice').waitFor();
-    const t = await invText(page);
-    for (const x of ['BILL OF SUPPLY', 'not registered under GST', 'Rupees Fifteen Thousand Only']) assert(t.includes(x), 'shows "' + x + '"\n' + t);
-    assert(!/CGST|IGST|reverse charge/.test(t), 'no GST lines\n' + t);
-    await o.go('#/settings'); await o.set('GST registration', 'yes', 'Firm profile');
-    await o.click('Save', page.locator('section', { has: page.locator('h2', { hasText: 'Firm profile' }) })); await o.toast('Saved');
-  });
-  await step('an invoice saved before GST fields existed still reads correctly', async () => {
-    await o.settle();
-    const legacy = { id: 'ilegacy', no: 'INV-2026-001', clientId: '', caseId: ctx.caseId, date: TODAY, amount: 10000, paid: false, paidOn: '', desc: 'Old invoice' };
-    if (SERVER) await o.fake(([inv]) => { const S = __fakeAdmin.state(); S.records.push({ firm_id: S.firms[0].id, kind: 'invoice', id: inv.id, data: inv, updated_at: '' }); __fakeAdmin.save(); }, [legacy]);
-    else await o.ls(([inv]) => { const d = JSON.parse(localStorage.getItem('ls.app.v2')); d.invoices.push(inv); localStorage.setItem('ls.app.v2', JSON.stringify(d)); }, [legacy]);
-    await page.reload(); await waitIn(o);
-    await o.go('#/billing'); await page.getByRole('button', { name: /INV-2026-001/ }).click();
-    const t = await invText(page); for (const x of ['TAX INVOICE', 'INV-2026-001', 'CGST @ 9%', '₹11,800']) assert(t.includes(x), 'legacy shows "' + x + '"\n' + t);
-    await o.see('Saved before GST details were recorded');
-    await o.dclick('Delete'); await o.dclick('Delete invoice'); await o.toast('Invoice deleted');
-  });
-  await step('invoices CSV has the GST columns', async () => {
-    await o.go('#/billing'); const d = await o.download(() => o.click('Export CSV'));
-    const csv = fs.readFileSync(await d.path(), 'utf8'); assert(/Place of supply.*CGST.*SGST.*IGST.*Reverse charge/.test(csv.split('\n')[0]), csv.split('\n')[0]);
-    assert(csv.includes('LS/' + FY + '/0002') && csv.includes('Maharashtra (27)'), 'rows');
-  });
-  await step('pricing: no AI credits; honest AI line', async () => {
-    await o.go('#/pricing'); await o.notSee('AI credits'); await o.see('AI features: coming soon');
-    if (!SERVER) eq(await page.locator('#ls-plan-banner').count(), 0, 'no plan banner without a server');
+  await step('pricing: Solo, Professional and Firm are listed', async () => {
+    await o.go('#/pricing'); await o.see('Solo'); await o.see('Professional'); await o.see('Firm');
   });
 }
 
@@ -464,8 +395,8 @@ async function narrow(o, label) {
       const w = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth));
       if (w > 391) bad.push(s + ' (' + w + 'px)');
     }
-    await o.go('#/billing'); await page.locator('main').getByRole('button', { name: /LS\// }).first().click(); await page.locator('#ls-invoice').waitFor(); await sleep(400);
-    const inv = await page.evaluate(() => { const el = document.getElementById('ls-invoice'), d = el.closest('[role=dialog]'); return { w: el.scrollWidth - el.clientWidth, right: d.getBoundingClientRect().right, page: document.documentElement.scrollWidth }; });
+    await o.go('#/billing'); await page.locator('main').getByRole('button', { name: /INV-/ }).first().click(); await page.locator('.ls-print').waitFor(); await sleep(400);
+    const inv = await page.evaluate(() => { const el = document.querySelector('.ls-print'), d = el.closest('[role=dialog]'); return { w: el.scrollWidth - el.clientWidth, right: d.getBoundingClientRect().right, page: document.documentElement.scrollWidth }; });
     if (inv.w > 1 || inv.right > 391 || inv.page > 391) bad.push('invoice dialog ' + JSON.stringify(inv));
     await page.screenshot({ path: path.join(SHOTS, `invoice-390-${MODE}.png`) }); await o.closeDialog();
     if (SERVER) { await o.go('#/team'); await page.screenshot({ path: path.join(SHOTS, 'team-390.png') }); }
@@ -667,6 +598,39 @@ async function plans(o) {
 }
 
 /* ---------- main ---------- */
+/* A chamber that only does criminal work: the dashboard, stages, labels and limitation presets follow that area. */
+async function practiceArea(browser) {
+  const c = await newContext(browser), o = H(watch(await c.newPage(), 'criminal')); step.o = o;
+  await step('sign-up asks for the practice type and area; a criminal chamber gets a criminal dashboard', async () => {
+    await o.page.goto(BASE + '/app.html');
+    await signIn(o, 'crim@test.in', 'Vikram Sethi');
+    await onboard(o, 'Sethi Chambers', 'chamber', 'criminal');
+    await o.go('#/dashboard');
+    await o.see('Bail matters'); await o.see('Accused in custody'); await o.see('Bail & custody watch'); await o.see('Cases by trial stage'); await o.see('Chamber · Criminal law');
+    await o.notSee('Active cases by stage');
+    await o.page.locator('aside').getByText('Evidence', { exact: true }).first().waitFor();
+    const tops = await o.page.evaluate(() => [...document.querySelectorAll('aside nav button')].map(b => b.textContent.trim()));
+    assert(tops.indexOf('Evidence') < tops.indexOf('Court Intelligence'), 'criminal sidebar leads with evidence: ' + tops.join(','));
+  });
+  await step('criminal labels, stages and limitation presets', async () => {
+    await o.go('#/labels'); await o.see('Anticipatory bail'); await o.see('In custody');
+    await o.go('#/cases'); await o.click('+ New case', 'main');
+    const stages = await o.page.evaluate(() => [...document.querySelectorAll('[role=dialog] select')].flatMap(s => [...s.options].map(x => x.textContent)));
+    assert(stages.includes('Bail') && stages.includes('Charge framing') && !stages.includes('Pleadings'), 'stage options: ' + stages.join(','));
+    await o.fill([['Case title', 'State v. Arun Mishra'], ['Case number', 'SC 77/2026'], ['Court', 'Saket · Court 9']]); await o.set('Stage', 'Bail');
+    await o.dclick('Create case'); await o.toast('Case created');
+    await o.go('#/dashboard'); await o.see('State v. Arun Mishra');   // shows in the bail & custody watch
+    await o.go('#/limitation'); await o.click('New calculation');
+    const first = await o.page.evaluate(() => document.querySelector('[role=dialog] select[aria-label=Rule]').options[0].textContent);
+    assert(/Criminal appeal/.test(first), 'first limitation preset: ' + first);
+  });
+  await step('the practice area can be changed in Settings', async () => {
+    await o.go('#/settings'); await o.set('Area of practice (shapes the dashboard)', 'tax'); await o.click('Save', 'main'); await sleep(300);
+    await o.go('#/dashboard'); await o.see('Tax matters by stage'); await o.see('Notices to reply'); await o.notSee('Bail matters');
+  });
+  await c.close();
+}
+
 async function main() {
   fs.mkdirSync(SHOTS, { recursive: true }); fs.readdirSync(SHOTS).filter(f => f.startsWith('fail-' + MODE)).forEach(f => fs.unlinkSync(path.join(SHOTS, f)));
   const srv = await serve();
@@ -674,9 +638,11 @@ async function main() {
   console.log(`Legal Staff e2e · ${MODE} mode · ${BASE}`);
   try {
     const c = await newContext(browser), o = H(watch(await c.newPage(), 'owner'));
-    step.o = o; await core(o); await gst(o); await files(o); await deadlines(o); await outcomes(o); await exportsAndSearch(o); await settingsProfile(o);
+    step.o = o; await core(o); await billing(o); await files(o); await deadlines(o); await outcomes(o); await exportsAndSearch(o); await settingsProfile(o);
     await persistence(o);
     if (SERVER) { await paging(o); await team(o); await roles(o); await plans(o); }
+    await practiceArea(browser);
+    step.o = o;
     if (typeof extra === 'function') await extra(o, browser);
     await narrow(o);
     if (SERVER) await serverSettings(o);

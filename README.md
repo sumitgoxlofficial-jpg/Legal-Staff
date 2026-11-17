@@ -26,8 +26,9 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 ## Accounts and data
 
 - The app starts empty. On first sign-in you set up your firm, then add your own clients, cases, hearings, orders and invoices.
-- Sign-in is with Google only. Set the Client ID below before anyone can sign in.
-- All data is kept in the browser. Export a backup, restore one, or erase everything from Settings.
+- Sign-up asks who you are (advocate, chamber, law firm, corporate legal team) and the one area of law you work in (criminal, banking and recovery, family, tax and 10 more, or general practice). The dashboard figures, quick actions, watch panel, case stages, starter labels, limitation presets and sidebar order follow that area; it can be changed in Settings. The definitions are in `app-practice.js`.
+- Sign-in is with Google or a one-time email code.
+- Data is kept on the server (Supabase) when it is configured, otherwise in the browser. Export a backup, restore one, or erase everything from Settings.
 
 ## Google sign-in
 
@@ -37,6 +38,13 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 
 The Client ID is public and safe to commit. No client secret is needed. Until it is set, the **Continue with Google** button explains that it is not switched on.
 
-## Not available without a backend
+## What needs outside accounts
 
-These are labelled in the UI: the Razorpay checkout takes no money, AI answers are rule-based search over the case file, there is no live court-data sync, and WhatsApp or email messages are not sent. Because Google sign-in is checked only in the browser, it identifies the user but does not protect data on a shared device.
+The app runs on Supabase (see `supabase/README.md`): sign-in, firm data, Google Drive backup, AI (Groq), UPI payments
+confirmed from bank alert emails, invoices, morning briefings, trial and plan-ending reminders, and team invitations are live.
+Two features wait for an outside account:
+
+- **WhatsApp reminders** need a WhatsApp Business (Meta Cloud API) account: set `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` and an
+  approved `WHATSAPP_TEMPLATE` for `functions/notify`.
+- **Live court data by CNR** needs a court-data provider account (eCourts has no open API): set `COURT_API_URL` and
+  `COURT_API_KEY` for `functions/court-status`.

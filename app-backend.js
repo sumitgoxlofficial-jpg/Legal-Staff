@@ -9,11 +9,12 @@
   const kfetch = (u, o) => fetch(u, hiding && o && (!o.body || (typeof o.body === 'string' && o.body.length < 60000)) ? Object.assign({}, o, { keepalive: true }) : o);
   const sb = on ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { global: { fetch: kfetch } }) : null;
   const KIND = { cases: 'case', clients: 'client', hearings: 'hearing', orders: 'order', tasks: 'task', docs: 'doc', invoices: 'invoice', deadlines: 'deadline', lims: 'limitation', watch: 'watch', log: 'log' };
-  const USER_KEYS = ['settings', 'notes', 'chats', 'copilot', 'research', 'drafts'];
+  const USER_KEYS = ['settings', 'notes', 'chats', 'copilot', 'research', 'drafts', 'photo'];
   const PAGE = 1000, LOG_MAX = 300, NEWEST_FIRST = { cases: 1, clients: 1, docs: 1, orders: 1, invoices: 1, lims: 1 };
   let snap = {}, firmSnap = '', userSnap = '', teamSnap = '', meSnap = '', firmId = '', uid = '', busy = null, again = false;
-  /* Keeps the Postgres error code (42501 = refused by a permission rule) so the app can tell a refusal from a network error. */
-  const fail = (e, what) => { const m = (e && (e.message || e.error_description || e.error)) || String(e), x = new Error(what ? what + ': ' + m : m); x.code = e && e.code; throw x; };
+  /* Profile photo: photoCol is true once the members table has the photo column (migration 0020); mePhoto is the caller's photo as stored there. */
+  let photoCol = false, mePhoto = '';
+  const fail = (e, what) => { const m = (e && (e.message || e.error_description || e.error)) || String(e); throw new Error(what ? what + ': ' + m : m); };
   const ok = r => { if (r.error) fail(r.error); return r.data; };
   /* PostgREST returns at most 1,000 rows per request, so read in pages until a page comes back empty. q() must be stably ordered. */
   async function pages(q) { const out = []; for (let from = 0; ; ) { const rows = ok(await q().range(from, from + PAGE - 1)) || []; if (!rows.length) return out; out.push(...rows); from += rows.length; } }
@@ -23,9 +24,7 @@
   function order(d) { Object.keys(KIND).forEach(c => { if (c === 'log') return d.log.sort((a, b) => String(b.ts).localeCompare(String(a.ts)) || String(b.id).localeCompare(String(a.id))); const s = NEWEST_FIRST[c] ? -1 : 1; d[c].sort((a, b) => s * (String(a.created || '').localeCompare(String(b.created || '')) || String(a.id).localeCompare(String(b.id)))); }); }
   const teamKey = t => JSON.stringify(t.map(u => [u.id, u.email, u.name, u.title, u.role, u.status]));
   const meKey = u => JSON.stringify([u.name, u.title, u.phone]);
-  /* Invoice details of the firm (legal name, GST state, PAN, registration, invoice prefix, default SAC) live in firms.state.profile. */
-  const PROFILE = ['legalName', 'stateCode', 'pan', 'gstReg', 'prefix', 'sac'];
-  const firmRow = d => ({ name: d.firm.name, city: d.firm.city, address: d.firm.address, gstin: d.firm.gstin, state: { lim: d.lim, agents: d.agents, labels: d.labels || [], profile: Object.fromEntries(PROFILE.map(k => [k, d.firm[k] || ''])) } });
+  const firmRow = d => ({ name: d.firm.name, city: d.firm.city, address: d.firm.address, gstin: d.firm.gstin, state: { lim: d.lim, agents: d.agents, labels: d.labels || [], court: d.firm.court || '', photo: d.firm.photo || '', groupPhoto: d.firm.groupPhoto || '', kind: d.firm.kind || '', domain: d.firm.domain || '' } });
   const userRow = d => Object.fromEntries(USER_KEYS.map(k => [k, d[k]]));
   function take(d) {
     snap = {}; Object.keys(KIND).forEach(c => (d[c] || []).forEach(r => { snap[KIND[c] + '|' + r.id] = JSON.stringify(r); }));
@@ -33,15 +32,21 @@
   }
   async function members(d) {
     const rows = ok(await sb.from('members').select('*').eq('firm_id', firmId).order('created_at'));
-    d.team = rows.map(m => ({ id: m.id, name: m.name || m.email.split('@')[0], title: m.title || m.name || m.email, role: m.role, email: m.email, status: m.status, owner: m.is_owner, userId: m.user_id }));
+    d.team = rows.map(m => ({ id: m.id, name: m.name || m.email.split('@')[0], title: m.title || m.name || m.email, role: m.role, email: m.email, status: m.status, owner: m.is_owner, userId: m.user_id, photo: m.photo || '' }));
+    if (rows.length) photoCol = 'photo' in rows[0];
     const me = rows.find(m => m.user_id === uid);
-    if (me) { d.user = { name: me.name, title: me.title, role: me.role, email: me.email, phone: me.phone }; d.isOwner = me.is_owner; }
-    d.uid = uid;
+    if (me) { d.user = { name: me.name, title: me.title, role: me.role, email: me.email, phone: me.phone }; d.isOwner = me.is_owner; mePhoto = me.photo || ''; }
+  }
+  async function pushPhoto(d) {
+    const p = d.photo || ''; ok(await sb.rpc('set_my_photo', { f: firmId, p_photo: p })); mePhoto = p;
+    const row = d.team.find(x => x.userId === uid); if (row) row.photo = p;
   }
   async function subscription(d) {
     const s = ok(await sb.from('subscriptions').select('*').eq('firm_id', firmId).maybeSingle());
     const pays = ok(await sb.from('payments').select('plan,cycle,amount_paise,paid_at').eq('firm_id', firmId).eq('status', 'paid').order('paid_at', { ascending: false }));
-    d.sub = { plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', since: s ? s.since : '', renews: s ? s.renews : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
+    const month = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 7);
+    const au = (await sb.from('ai_usage').select('used').eq('firm_id', firmId).eq('month', month).maybeSingle()).data;
+    d.sub = { aiUsed: au ? au.used : 0, plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', seats: s ? s.seats || null : null, since: s ? s.since : '', renews: s ? s.renews : '', trialEnds: s && s.trial_ends ? s.trial_ends : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
   }
 
   const B = {
@@ -58,7 +63,7 @@
     async load(id, session) {
       firmId = id; const d = window.LS.seed(); d.firmId = id; d.session = { email: session.user.email, provider: (session.user.app_metadata || {}).provider || 'google' };
       const [firm, recs, us] = await Promise.all([sb.from('firms').select('*').eq('id', id).single(), pages(() => sb.from('records').select('kind,id,data').eq('firm_id', id).order('kind').order('id')), sb.from('user_state').select('data').eq('firm_id', id).eq('user_id', uid).maybeSingle()]);
-      const f = ok(firm); d.firm = Object.assign({ name: f.name, city: f.city, address: f.address, gstin: f.gstin }, Object.fromEntries(PROFILE.map(k => [k, ((f.state || {}).profile || {})[k] || '']))); d.firmCreated = String(f.created_at || '').slice(0, 10);
+      const f = ok(firm); d.firm = { name: f.name, city: f.city, address: f.address, gstin: f.gstin, court: (f.state && f.state.court) || '', photo: (f.state && f.state.photo) || '', groupPhoto: (f.state && f.state.groupPhoto) || '', kind: (f.state && f.state.kind) || '', domain: (f.state && f.state.domain) || '' };
       if (f.state && Array.isArray(f.state.labels)) d.labels = f.state.labels; if (f.state && f.state.lim) d.lim = f.state.lim; if (f.state && Array.isArray(f.state.agents) && f.state.agents.length) d.agents = f.state.agents;
       const by = {}; Object.keys(KIND).forEach(c => { by[KIND[c]] = d[c] = []; });
       recs.forEach(r => { if (by[r.kind]) by[r.kind].push(Object.assign({}, r.data, { id: r.id })); });
@@ -66,7 +71,10 @@
       const u = ok(us); if (u && u.data) USER_KEYS.forEach(k => { if (u.data[k] != null) d[k] = k === 'settings' ? Object.assign(d.settings, u.data[k]) : u.data[k]; });
       /* A calculation kept in the older firm state (one object in firms.state.lim) becomes a 'limitation' record; the next sync stores it and clears the old key. */
       const legacy = !!(d.lim && d.lim.judgment); window.LS.migrate(d);
-      await members(d); await subscription(d); take(d);
+      await members(d); await subscription(d);
+      /* The member row is what the team sees. A device that has no photo of its own yet takes it from there; a photo saved before the column existed is sent up now. */
+      if (photoCol) { if (!(u && u.data && 'photo' in u.data)) d.photo = mePhoto; else if ((d.photo || '') !== mePhoto) await pushPhoto(d).catch(() => {}); }
+      take(d);
       if (legacy) { delete snap['limitation|llegacy']; delete snap['deadline|dlllegacy']; firmSnap = ''; d.migrated = true; }
       /* Keep only the newest activity entries so the log cannot crowd out practice records. */
       const old = d.log.slice(LOG_MAX); d.log = d.log.slice(0, LOG_MAX);
@@ -91,11 +99,13 @@
           snap = now;
           const fr = firmRow(d), fs = JSON.stringify(fr); if (fs !== firmSnap) { changed(ok(await sb.from('firms').update(fr).eq('id', firmId).select('id')), 'The firm profile'); firmSnap = fs; }
           const ur = userRow(d), us = JSON.stringify(ur); if (us !== userSnap) { ok(await sb.from('user_state').upsert({ user_id: uid, firm_id: firmId, data: ur, updated_at: new Date().toISOString() })); userSnap = us; }
+          if (photoCol && (d.photo || '') !== mePhoto) await pushPhoto(d);
           if (teamKey(d.team) !== teamSnap) {
             const before = JSON.parse(teamSnap || '[]'), ids = new Set(d.team.map(u => u.id));
             try {
               for (const u of d.team) { const was = before.find(x => x[0] === u.id);
-                if (!was) ok(await sb.from('members').insert({ firm_id: firmId, email: String(u.email).trim().toLowerCase(), name: u.name, title: u.title, role: u.role }));
+                if (!was) { const em = String(u.email).trim().toLowerCase(); ok(await sb.from('members').insert({ firm_id: firmId, email: em, name: u.name, title: u.title, role: u.role }));
+                  B.fn('notify', { action: 'invite', firm_id: firmId, email: em }).catch(() => {}); }   // invitation email; never blocks saving
                 else if (was[4] !== u.role || was[5] !== u.status) changed(ok(await sb.from('members').update({ role: u.role, status: u.status, title: u.title }).eq('id', u.id).select('id')), 'The change to ' + (u.name || u.email)); }
               for (const x of before) if (!ids.has(x[0])) ok(await sb.from('members').delete().eq('id', x[0]));
             } finally { await members(d); teamSnap = teamKey(d.team); meSnap = meKey(d.user); refreshed = true; }
@@ -122,6 +132,8 @@
       const list = async pre => { const out = []; for (let off = 0; ; off += 1000) { const r = ok(await st.list(pre, { limit: 1000, offset: off })) || []; out.push(...r); if (r.length < 1000) return out; } };
       for (const f of await list(firmId)) { if (f.id) paths.add(firmId + '/' + f.name); else for (const g of await list(firmId + '/' + f.name)) if (g.id) paths.add(firmId + '/' + f.name + '/' + g.name); }
       const all = [...paths]; for (let i = 0; i < all.length; i += 100) ok(await st.remove(all.slice(i, i + 100)));
+      /* Files kept in members' Google Drives (encrypted, hidden folder) are deleted too, where that Drive is still connected. */
+      for (const x of d.docs || []) if (x.drive) await B.drive.remove(x.drive);
       const r = await sb.rpc('erase_firm_data', { f: firmId });
       if (r.error) {
         if (!(r.error.code === 'PGRST202' || /could not find the function/i.test(r.error.message || ''))) fail(r.error);
@@ -131,15 +143,10 @@
       snap = {}; return all.length;
     },
     /* Enterprise enquiries go to the same table as the website's contact form. */
-    async contact(row) { ok(await sb.from('contact_requests').insert(row)); },
+    async contact(row) { ok(await sb.from('contact_requests').insert(Object.assign(row.source === 'app' ? { firm_id: firmId || null, user_id: uid || null } : {}, row))); },
     async refreshSub(d) { await subscription(d); },
-    /* Next number in an invoice series (e.g. 'RA/2026-27/'), counted on the server so two people never get the same number.
-       Returns null on a database without migration 0006; the app then counts the invoices it has. */
-    async nextInvoiceNo(prefix) {
-      const r = await sb.rpc('next_invoice_no', { f: firmId, p_prefix: prefix });
-      if (r.error) { if (r.error.code === 'PGRST202' || /could not find the function/i.test(r.error.message || '')) return null; fail(r.error); }
-      return r.data;
-    },
+    /* Owner only: starts (or, while it runs, switches) the firm's 7-day free trial. No payment is taken. */
+    async startTrial(d, plan, cycle) { ok(await sb.rpc('start_trial', { f: firmId, p_plan: plan, p_cycle: cycle })); await subscription(d); },
     /* ---- documents ---- */
     path: (docId, name) => firmId + '/' + docId + '/' + String(name).replace(/[^\w.\- ]+/g, '_'),
     async upload(docId, file) { ok(await sb.storage.from('documents').upload(B.path(docId, file.name), file, { upsert: false, contentType: file.type || 'application/octet-stream' })); },
@@ -151,14 +158,72 @@
       if (r.error) { let msg = r.error.message; try { const j = await r.error.context.json(); if (j && j.error) msg = j.error; } catch (e) {} throw new Error(msg); }
       return r.data;
     },
-    /* Opens Razorpay Checkout for a plan and resolves once the server has verified the payment. */
-    async checkout(d, plan, cycle, gstin) {
-      const o = await B.fn('razorpay-order', { firm_id: firmId, plan, cycle, gstin });
-      if (!window.Razorpay) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay Checkout.')); document.head.appendChild(s); });
-      const paid = await new Promise((res, rej) => { const rz = new window.Razorpay({ key: o.key_id, order_id: o.order_id, amount: o.amount, currency: o.currency, name: 'Legal Staff', description: plan + ' plan · ' + (cycle === 'annual' ? 'Annual' : 'Monthly'), prefill: { email: o.email, name: d.user.name, contact: d.user.phone || '' }, notes: { firm: d.firm.name }, theme: { color: '#0A0A0A' }, handler: res, modal: { ondismiss: () => rej(new Error('Payment was cancelled.')) } }); rz.on('payment.failed', e => rej(new Error((e.error && e.error.description) || 'The payment failed.'))); rz.open(); });
-      await B.fn('razorpay-verify', paid); await subscription(d);
+    /* ---- encrypted storage in the user's own Google Drive (hidden app folder; see supabase/functions/drive) ---- */
+    drive: {
+      status: () => B.fn('drive', { action: 'status' }),
+      connect: code => B.fn('drive', { action: 'connect', code }),
+      disconnect: () => B.fn('drive', { action: 'disconnect' }),
+      backupNow: () => B.fn('drive', { action: 'backup_now' }),
+      backups: () => B.fn('drive', { action: 'backups', firm_id: firmId }).then(r => r.backups || []),
+      restore: fileId => B.fn('drive', { action: 'restore', firm_id: firmId, file_id: fileId }),
+      /* Sends the file to the server, which encrypts it and stores it in the caller's Drive. Returns { id, user, email }. */
+      async upload(docId, file) { const r = await B.fn('drive?action=upload&firm_id=' + encodeURIComponent(firmId) + '&doc_id=' + encodeURIComponent(docId), file); return r.drive; },
+      download: drive => B.fn('drive', { action: 'download', firm_id: firmId, drive }),
+      remove: drive => B.fn('drive', { action: 'delete', firm_id: firmId, drive }).catch(() => {})
     },
+    /* Direct UPI to the operator's account (server function 'upi-pay'), confirmed automatically by Paytm status or bank SMS. */
+    upi: {
+      config: () => B.fn('upi-pay', { action: 'config' }),
+      create: (plan, cycle, gstin, promo, users) => B.fn('upi-pay', { action: 'create', firm_id: firmId, plan, cycle, gstin, promo: promo || '', users }),
+      promo: (plan, cycle, promo, users) => B.fn('upi-pay', { action: 'promo', firm_id: firmId, plan, cycle, promo, users }),
+      status: orderNo => B.fn('upi-pay', { action: 'status', firm_id: firmId, order_no: orderNo })
+    },
+    /* Team chat: the firm's group chat ('team') and one-to-one chats ('dm:<uid>:<uid>'), live through Supabase Realtime. */
+    chat: {
+      me: () => uid,
+      dm: other => 'dm:' + [uid, other].sort().join(':'),
+      async list(channel, before) {
+        let q = sb.from('chat_messages').select('id,channel,sender,body,kind,data,created_at').eq('firm_id', firmId).eq('channel', channel).order('created_at', { ascending: false }).limit(150);
+        if (before) q = q.lt('created_at', before);
+        return ok(await q).reverse();
+      },
+      async send(channel, body, kind, data) { return ok(await sb.from('chat_messages').insert({ firm_id: firmId, channel, body: body || '', kind: kind || 'text', data: data || {} }).select('id,channel,sender,body,kind,data,created_at').single()); },
+      /* Files go to the private 'chat' bucket: <firm>/<conversation>/<random>/<name>; only that conversation's people can open them. */
+      async upload(channel, file) {
+        const safe = String(file.name || 'file').replace(/[^\w.\- ()]+/g, '_').slice(-120), path = firmId + '/' + channel.replace(/:/g, '_') + '/' + Math.random().toString(36).slice(2, 12) + '/' + safe;
+        ok(await sb.storage.from('chat').upload(path, file, { upsert: false, contentType: file.type || 'application/octet-stream' }));
+        return { path, name: file.name || safe, size: file.size, type: file.type || '' };
+      },
+      async url(path, download) { return ok(await sb.storage.from('chat').createSignedUrl(path, 600, download ? { download: true } : undefined)).signedUrl; },
+      async reactions(channel) { return ok(await sb.from('chat_reactions').select('message_id,user_id,emoji').eq('firm_id', firmId).eq('channel', channel)) || []; },
+      async react(m, emoji, on) {
+        if (on) { const r = await sb.from('chat_reactions').insert({ message_id: m.id, firm_id: firmId, channel: m.channel, user_id: uid, emoji }); if (r.error && r.error.code !== '23505') ok(r); }
+        else ok(await sb.from('chat_reactions').delete().eq('message_id', m.id).eq('user_id', uid).eq('emoji', emoji));
+      },
+      async remove(id) { ok(await sb.from('chat_messages').delete().eq('id', id)); },
+      async unread() { const rows = ok(await sb.rpc('chat_unread', { f: firmId })) || []; const out = {}; rows.forEach(r => out[r.channel] = Number(r.unread)); return out; },
+      async read(channel) { ok(await sb.from('chat_reads').upsert({ firm_id: firmId, user_id: uid, channel, read_at: new Date().toISOString() })); },
+      /* Calls back with every new or deleted message in this firm the user may see; returns a function that stops listening. */
+      watch(onNew, onDelete, onReact) {
+        const f = firmId, ch = sb.channel('chat-' + f + '-' + Math.random().toString(36).slice(2))
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: 'firm_id=eq.' + f }, p => onNew(p.new))
+          .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, p => onDelete && onDelete(p.old))
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_reactions', filter: 'firm_id=eq.' + f }, p => onReact && onReact(p.new, true))
+          .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_reactions' }, p => onReact && onReact(p.old, false))
+          .subscribe();
+        return { firm: f, stop: () => { try { sb.removeChannel(ch); } catch (e) {} } };
+      }
+    },
+    /* GST invoices for plan payments (server function 'billing'). */
+    billing: {
+      list: () => B.fn('billing', { action: 'list', firm_id: firmId }),
+      pdf: id => B.fn('billing', { action: 'pdf', firm_id: firmId, invoice_id: id }),
+      email: id => B.fn('billing', { action: 'email', firm_id: firmId, invoice_id: id })
+    },
+    /* Real AI (server function 'ai', Groq): mode 'brain' | 'research' | 'draft'. Resolves to { text, used, limit }. */
+    ai: body => B.fn('ai', Object.assign({ firm_id: firmId }, body)),
     notify: () => B.fn('notify', { firm_id: firmId }),
+    invite: email => B.fn('notify', { action: 'invite', firm_id: firmId, email: String(email).trim().toLowerCase() }),
     court: cnr => B.fn('court-status', { cnr }),
     /* ---- directory moderation ---- */
     async isAdmin() { return !!ok(await sb.rpc('is_platform_admin')); },

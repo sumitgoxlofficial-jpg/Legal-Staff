@@ -34,7 +34,7 @@ export const ld = {
   softwareApplication: ({ name = SITE.name, description, path = '/', featureList = [] } = {}) => ({
     '@context': 'https://schema.org', '@type': 'SoftwareApplication', '@id': abs('/#app'), name, description: description || 'Practice and case management for Indian advocates and law firms: reads court orders, picks out the next hearing date, sends WhatsApp reminders and keeps cases, documents and research in one workspace.',
     url: abs(path), applicationCategory: 'BusinessApplication', applicationSubCategory: 'Legal practice management', operatingSystem: 'Web',
-    offers: { '@type': 'AggregateOffer', priceCurrency: 'INR', lowPrice: '6999', highPrice: '39999', offerCount: '3' }, publisher: { '@id': abs('/#org') },
+    offers: { '@type': 'AggregateOffer', priceCurrency: 'INR', lowPrice: '2999', highPrice: '39999', offerCount: '3' }, publisher: { '@id': abs('/#org') },
     ...(featureList.length ? { featureList } : {})
   }),
   article: ({ title, description, path, published, modified, section, keywords = [] }) => ({
@@ -106,6 +106,7 @@ const ICON = {
   close: 'M6 6l12 12 M18 6L6 18',
   spark: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
   order: 'M14 3H6v18h12V7z M14 3v4h4 M9 13h6 M9 17h4',
+  chat: 'M4 5h16v11H9l-5 4z M8 9h8 M8 12.5h5',
   whatsapp: 'M4 20l1.3-3.9A8 8 0 1 1 8 19.2z M9 9.5c.3 1.6 1.9 3.6 4 4.5l1.2-1.1 1.8.9-.4 1.6c-3.3.2-7-3.3-7.1-6.6L10 8.5l.8 1.8z',
   folder: 'M3 6h6l2 2h10v12H3z',
   gavel: 'M14 4l6 6 M12 6l6 6 M13 5l-6 6 3 3 6-6 M9 14l-6 6 M4 21h8',

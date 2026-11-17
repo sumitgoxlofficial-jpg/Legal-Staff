@@ -1,7 +1,7 @@
 // Product feature pages at /features/<slug>, rendered by seo/pages/feature.mjs.
 // Shape: { slug, icon, navLabel, navHint, title (H1), metaTitle, metaDescription, kicker, lead, chips: [string],
 //   problem: { heading, points: [{ title, text }] }, solution: { heading, points: [{ title, text }] },
-//   preview: { kind: 'order'|'whatsapp'|'diary'|'research'|'vault'|'board', caption } (the interactive UI preview card),
+//   preview: { kind: 'order'|'whatsapp'|'diary'|'research'|'vault'|'board'|'chat', caption } (the interactive UI preview card),
 //   howItWorks: [{ title, text }] (4–6), useCases: [{ who, text }] (3), faqs: [{ q, a }] (6–8),
 //   related: { features: [slug], courts: [slug], tools: [slug], compare: [slug], blogs: [slug] } }
 // Keep claims inside what the product does today (see the SEO brief): orders are pasted or uploaded and the advocate
@@ -304,7 +304,7 @@ export const features = [
     },
     preview: { kind: 'board', caption: 'Tick tasks on today’s hearing board to see the chamber’s progress update.' },
     howItWorks: [
-      { title: 'Invite your team', text: 'Add juniors, associates and clerks with roles that fit what they do.' },
+      { title: 'Invite your team', text: 'Add juniors, associates and clerks by email, with roles that fit what they do. They join the first time they sign in, and can add a profile photo the team sees.' },
       { title: 'Assign tasks to matters', text: 'Create tasks such as filing, inspection or drafting with a due date and an owner.' },
       { title: 'Run the day from the board', text: 'The hearing board shows today’s matters, who is appearing and which tasks are still open.' },
       { title: 'Keep clients informed', text: 'Store client details and share selected updates and documents through the client portal.' },
@@ -321,14 +321,72 @@ export const features = [
       { q: 'Can juniors use it on their phones?', a: 'Yes, in a mobile browser. Legal Staff is a web app and has no native iOS or Android apps.' },
       { q: 'Does it handle GST invoices?', a: 'Yes. You can raise per-matter invoices with GST. Check the GST treatment that applies to your practice with your tax adviser.' },
       { q: 'Can clients log in?', a: 'You can share selected updates and documents with clients through the client portal. They see only what you share about their matters.' },
+      { q: 'Can the team talk to each other in Legal Staff?', a: 'Yes. Team chat gives the firm a private group chat and one-to-one chats between members, with files, Google Meet links and emoji reactions.' },
       { q: 'Which plan do I need for a team?', a: 'Legal Staff has Solo, Professional, Firm and Enterprise plans. See the pricing section for what each plan includes, or book a demo to talk it through.' }
     ],
     related: {
-      features: ['digital-advocate-diary', 'whatsapp-hearing-reminders', 'case-document-management'],
+      features: ['chamber-team-chat', 'digital-advocate-diary', 'whatsapp-hearing-reminders', 'case-document-management'],
       courts: ['delhi-high-court', 'bombay-high-court', 'patna-high-court', 'jharkhand-high-court'],
       tools: ['limitation-period-calculator', 'section-138-ni-act-timeline-calculator'],
       compare: ['legacy-legal-erp-vs-legal-staff', 'physical-advocate-diary-vs-legal-staff'],
       blogs: ['managing-junior-advocates-court-clerks-daily-board-task-software', 'per-hearing-appearance-billing-retainer-invoicing-indian-advocates', 'best-practice-management-software-indian-advocates-comparison']
+    }
+  },
+  {
+    slug: 'chamber-team-chat',
+    icon: 'chat',
+    navLabel: 'Team chat for chambers',
+    navHint: 'Firm group chat and one-to-one chats, with files and meeting links',
+    title: 'Team chat for advocates, juniors and clerks, inside your practice workspace',
+    metaTitle: 'Team Chat for Law Chambers and Advocates',
+    metaDescription: 'A private group chat for your firm and one-to-one chats between members, next to your cases: share PDFs and files, post Google Meet links and react with emoji.',
+    kicker: 'Team chat',
+    lead: 'Talk to the whole chamber or to one colleague without leaving your cases. Share PDFs and files, post a Google Meet link as a meeting card and react with emoji. Messages are private to your firm.',
+    chips: ['Firm group chat and one-to-one chats', 'PDFs, files and meeting links', 'Private to your firm'],
+    problem: {
+      heading: 'Chamber talk scattered across personal apps',
+      points: [
+        { title: 'Work mixed with personal chats', text: 'Instructions about a matter sit between family messages on a personal phone, and are hard to find a week later.' },
+        { title: 'Files sent to the wrong group', text: 'A draft or an order forwarded in a hurry can land in a group that includes people outside the chamber.' },
+        { title: 'People who leave keep the history', text: 'When a junior or clerk moves on, the chamber’s conversations stay on their phone.' }
+      ]
+    },
+    solution: {
+      heading: 'One private chat for the chamber',
+      points: [
+        { title: 'A group chat for the firm', text: 'Every active member of the firm is in the team chat. There is nothing to set up and no numbers to add.' },
+        { title: 'One-to-one chats', text: 'Message one colleague directly. Only the two of you can read that conversation.' },
+        { title: 'Files, meetings and reactions', text: 'Send PDFs and other files, post a Google Meet link as a card that opens the meeting, and react to a message with emoji.' }
+      ]
+    },
+    preview: { kind: 'chat', caption: 'Switch between the team chat and a one-to-one chat, and react to a message.' },
+    howItWorks: [
+      { title: 'Invite your team', text: 'Add members with their work email. They receive an invitation and join the firm the first time they sign in.' },
+      { title: 'Open Team chat', text: 'Team chat is in the sidebar under Firm. The team conversation is there for every active member.' },
+      { title: 'Message everyone or one person', text: 'Write in the team chat, or pick a colleague to start a one-to-one chat. New messages appear live.' },
+      { title: 'Share files and meeting links', text: 'Attach a PDF or another file, or paste a Google Meet link to post it as a meeting card.' },
+      { title: 'React and move on', text: 'Acknowledge a message with an emoji reaction instead of another reply.' }
+    ],
+    useCases: [
+      { who: 'Senior advocates with juniors in different courts', text: 'Send one instruction to everyone in the morning and follow up with the junior concerned in a one-to-one chat.' },
+      { who: 'Chambers that want work kept off personal phones', text: 'Chamber conversations and files stay in the firm’s workspace, with the people who are members today.' },
+      { who: 'Firms with partners and associates', text: 'Call a quick meeting by posting a Google Meet link where the whole team will see it.' }
+    ],
+    faqs: [
+      { q: 'Who can read the team chat?', a: 'Every active member of your firm. People outside the firm cannot see it.' },
+      { q: 'Are one-to-one chats private?', a: 'Yes. A one-to-one chat can be read only by the two members in it.' },
+      { q: 'Can I send files?', a: 'Yes. You can attach PDFs and other files to a message. There is a size limit for each file, shown in the app when you attach one.' },
+      { q: 'Does it make video calls?', a: 'No. You paste a Google Meet link and Legal Staff shows it as a meeting card that opens the meeting in Google Meet.' },
+      { q: 'Is it the same as WhatsApp reminders?', a: 'No. Team chat is for conversations inside your firm. WhatsApp reminders are hearing reminders sent to your phone through the WhatsApp Business API once connected.' },
+      { q: 'Can clients join the chat?', a: 'No. Team chat is for members of the firm. Clients see only what you share with them through the client portal.' },
+      { q: 'Is there a mobile app?', a: 'Legal Staff is a web app. Team chat works in a mobile browser; there are no native iOS or Android apps.' }
+    ],
+    related: {
+      features: ['chamber-team-collaboration', 'digital-advocate-diary', 'case-document-management'],
+      courts: ['delhi-high-court', 'bombay-high-court', 'patna-high-court', 'jharkhand-high-court'],
+      tools: ['limitation-period-calculator'],
+      compare: ['legacy-legal-erp-vs-legal-staff', 'physical-advocate-diary-vs-legal-staff'],
+      blogs: ['managing-junior-advocates-court-clerks-daily-board-task-software', 'best-practice-management-software-indian-advocates-comparison']
     }
   }
 ];
