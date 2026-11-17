@@ -38,7 +38,7 @@
         { id: 'client', name: 'Client update drafter', what: 'Drafts a plain-language update for the client after each new order.', when: 'When you press Run now', on: false, runs: [] },
         { id: 'causelist', name: 'Cause-list watcher', what: 'Lists your matters for the next working day, court by court.', when: 'When you press Run now', on: true, runs: [] }
       ],
-      settings: { whatsapp: true, email: true, inapp: true, briefingTime: '07:30', remindDays: 2, sidebar: 'Light', backdrop: 'Wallpaper', density: 'Comfortable', collapsed: false },
+      settings: { autoOrders: true, autoCheck: true, lastCheck: '', whatsapp: true, email: true, inapp: true, briefingTime: '07:30', remindDays: 2, sidebar: 'Light', backdrop: 'Wallpaper', density: 'Comfortable', collapsed: false },
       adminStatus: {}, adminNotes: {}
     };
   }
