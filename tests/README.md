@@ -8,6 +8,7 @@ Nothing here is deployed.
 | --- | --- |
 | `node tests/court-logic.test.mjs` | Pure logic: CNR checks, capability registry, costs, schedule and priority, verification statuses, reading a provider answer, identifier matching, change detection, budget, error classes, circuit breaker, secret scrubbing. |
 | `node tests/court-engine.test.mjs` | The real `supabase/functions/court-sync` code, run against an in-memory database and a **local mock** of the eCourtsIndia API that fails in every way: caching, shared cache, duplicate-request block, budget and override, wrong-CNR rejection, bad key, no credits, 429, 500, timeout, change detection, scheduler, permissions, admin actions, key rotation, secrets never in output. Needs `tsc` on the PATH. |
+| `node tests/notify-court-alerts.test.mjs` | The real `notify` function for court-record alerts, against an in-memory database and a fake WhatsApp (Meta) and email (Resend) endpoint: who is told, one batched message per person, once per change, waking hours only, settings honoured, bounded retries, no secrets stored or sent in messages. It does not prove Meta accepts the template. Needs `tsc` on the PATH. |
 | `bash tests/court-db/run.sh` | Migration `0022_court_intelligence.sql` on a real PostgreSQL 16 (Supabase pieces stubbed): re-runnable, atomic budget reserve, duplicate-claim lock, append-only audit, Vault key rotation, row level security. Needs PostgreSQL 16 binaries. |
 
 ## WhatsApp Cloud API

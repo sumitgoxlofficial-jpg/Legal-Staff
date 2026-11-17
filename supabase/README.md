@@ -9,7 +9,7 @@
 | `migrations/0003_schedule.sql` | Daily 7:30 AM IST briefing job |
 | `migrations/0007_drive.sql` | Encrypted Google Drive storage: connected accounts, the master key in Vault, the nightly 2:30 AM IST backup job |
 | `migrations/0006_trial.sql` | 7-day free trial, read-only workspace once the trial or paid period ends, members capped by plan |
-| `functions/notify` | Email (Resend) and WhatsApp (Meta Cloud API) briefings and reminders, and free-trial reminder emails to firm owners 3 days and 1 day before the trial ends and when it has ended (deploy with JWT verification off; it checks the caller itself) |
+| `functions/notify` | Email (Resend) and WhatsApp (Meta Cloud API) briefings, court-record alerts and reminders, and free-trial reminder emails to firm owners 3 days and 1 day before the trial ends and when it has ended (deploy with JWT verification off; it checks the caller itself) |
 | `migrations/0022_court_intelligence.sql` | Court-record engine: provider registry and coverage, verified case records, change snapshots, append-only audit, API usage, cost and budget, job queue with dead-letter state, Vault-held provider key, the 6-hourly sync job |
 | `functions/court-sync` | The court-record engine: official-portal links, reuse of verified records and a shared cache, the paid eCourtsIndia provider as fallback, budget control, duplicate-request block, change detection, scheduler and the administrator actions. Deploy with JWT verification off; it checks every caller itself |
 | `functions/_shared/court-logic.js` | The engine's pure logic (also unit-tested). Deploy `functions/` as a whole so `court-sync` can import it |
@@ -40,6 +40,7 @@ Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0010 
 | `RESEND_API_KEY`, `EMAIL_FROM` | Email, e.g. `Legal Staff <briefing@yourdomain.in>` on a verified domain |
 | `APP_URL` (optional) | Site address used in trial reminder links; defaults to `https://legalstaff.in` |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE` | WhatsApp. The template must be approved and have one body variable |
+| `WHATSAPP_ALERT_TEMPLATE` (optional) | A second approved template (one body variable) for court-record alerts. Without it alerts use `WHATSAPP_TEMPLATE`. Also `WHATSAPP_TEMPLATE_LANG` (default `en`) |
 | `COURT_API_URL`, `COURT_API_KEY` | Court data through `court-sync`. `COURT_API_URL` is the provider's base address (default `https://webapi.ecourtsindia.com`). The key can instead be stored from the admin panel (Vault), which needs no redeploy. Full list below |
 | `SEND_EMAIL_HOOK_SECRET` | The secret Supabase generates under Authentication › Hooks › Send Email (format `v1,whsec_...`) |
 | `GROQ_API_KEY` (or Vault secret `groq_api_key`) | AI. Optional `GROQ_MODEL` picks a specific Groq model |
@@ -200,3 +201,25 @@ Rotate from the admin panel (Vault) with no code change or redeploy; if you use 
 ### What is and is not covered
 
 Coverage comes from the provider's published list (Supreme Court, High Courts, district courts, and 14 tribunal and commission types) and is recorded in `provider_capabilities`. **Tested live (17 Nov 2026): case detail for one Delhi High Court case and one Delhi district-court case, plus authentication, the free calls and the error codes** (`verified_at` is set only for those; migration 0023). Refresh, tribunals, the Supreme Court and other states are **not** tested yet: see `tests/README.md`. Cases registered only by case, filing or diary number are routed to manual review, because the provider looks cases up by CNR (tribunal CNRs are minted by the provider). Public court data is information, not a certified copy.
+
+## WhatsApp and email court-record alerts
+
+When the court check (`court-sync`) finds a change, the hourly `notify` job tells the advocates on that case. Changes it reports: a moved hearing date, a new order or judgment, a changed status or disposal, a transfer. Rules:
+
+- **Who:** the advocates assigned to the case (`case.team`); a case with nobody assigned goes to the firm owner.
+- **How many messages:** one WhatsApp and one email per person per run, covering every change since their last message (trimmed to fit, with "+N more in Legal Staff").
+- **When:** 7:00 AM to 9:59 PM IST only. Changes found overnight wait for the morning.
+- **Once:** each change is sent once per person and channel (recorded in `notifications` as `court:<event id>`). A failed send is retried on later runs, at most 3 times.
+- **Window:** changes older than 48 hours are not sent.
+- **Switches:** each person has Settings › Notifications › Court-record alerts, and the existing WhatsApp and Email switches. Default is on.
+- The email says plainly that the alert comes from the court-data check, not from the court's own notice, and points to the official portal.
+
+### Set up WhatsApp (Meta Cloud API)
+
+1. In Meta Business, create a WhatsApp Business account and a phone number; note the **phone number ID** and create a permanent **access token** (System User).
+2. Create a message template, category **Utility**, language English, one body variable. Suggested text for alerts: `Legal Staff court record update: {{1}}`. For the morning briefing: `Legal Staff morning briefing: {{1}}`. Meta reviews each template, usually within hours. Variables cannot contain line breaks, so the app joins lines with ` | ` and ` ; `.
+3. Set the function secrets `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE` (briefing) and, optionally, `WHATSAPP_ALERT_TEMPLATE`.
+4. Each person adds their mobile in Settings › Your profile.
+5. Recipients must be reachable on WhatsApp. Business-initiated messages outside a 24-hour customer window must use an approved template, which is what this does. Meta bills per conversation; check their current price list.
+
+Without the secrets nothing is sent and the app says WhatsApp is not connected; email alerts still go out if Resend is set up. The function logic is tested with a fake WhatsApp and email endpoint (`tests/notify-court-alerts.test.mjs`); a real send has **not** been tested because no Meta account is connected yet.

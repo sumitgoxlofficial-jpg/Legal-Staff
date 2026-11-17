@@ -1,4 +1,5 @@
-// Also emails firm owners before their free trial ends (trialReminders) and before a paid plan runs out (planReminders),
+// Also sends court-record alerts (courtAlerts: a moved hearing, a new order or judgment, a disposal found by functions/court-sync), batched per person
+// and sent by WhatsApp and email in Indian waking hours, once per change. Also emails firm owners before their free trial ends (trialReminders) and before a paid plan runs out (planReminders),
 // scheduled runs only. UPI plans do not renew by themselves, so the plan reminders are how a firm knows to renew.
 // Sends the morning briefing (hearings today and in N days, deadlines and approved limitation dates, overdue tasks)
 // by email (Resend) and WhatsApp (Meta Cloud API). Two callers: the hourly schedule (header x-cron-secret, pg_cron at
@@ -43,6 +44,26 @@ const trialStage = (trialEnds: string, now: number) => {
 };
 /** Trial reminders go out in Indian working hours only (9 AM to 8:59 PM IST); every window is at least 24 hours long. */
 const trialHourOk = (istHour: number) => istHour >= 9 && istHour <= 20;
+// logic:end
+// court-alerts logic:start — plain JS, unit-tested in node (tests/notify-court-alerts.test.mjs evaluates this block).
+const COURT_ALERT_HOURS = [7, 21]; // IST: alerts wait for the morning rather than waking anyone
+const alertHourOk = (istHour: number) => istHour >= COURT_ALERT_HOURS[0] && istHour <= COURT_ALERT_HOURS[1];
+/** 2026-12-01 → 01.12.2026 inside any text. */
+const dmyText = (t: string) => String(t ?? "").replace(/(\d{4})-(\d{2})-(\d{2})/g, "$3.$2.$1");
+/** Who hears about a case: its assigned advocates (case.team), else the firm owner. Names are matched against active members. */
+const alertRecipients = (members: any[], caseData: any) => {
+  const team: string[] = (caseData?.team ?? []).filter(Boolean);
+  const named = members.filter((m: any) => m.user_id && team.includes(m.name));
+  return named.length ? named : members.filter((m: any) => m.user_id && m.is_owner);
+};
+/** One line per change: "Mehta v. Orion (CS 12/2024): Next hearing moved from 01.12.2026 to 15.01.2027". */
+const alertLine = (ev: any, caseData: any) => `${caseData?.title ?? "A case"}${caseData?.no ? " (" + caseData.no + ")" : ""}: ${dmyText(ev.title)}`;
+/** The WhatsApp body: every change since the last message, trimmed to fit a template variable. */
+const alertWhatsApp = (firm: string, lines: string[]) => {
+  const head = `Court record update · ${firm}. `; let out = head; let used = 0;
+  for (const l of lines) { const add = (used ? " ; " : "") + l; if ((out + add).length > 880) break; out += add; used++; }
+  return used < lines.length ? out + ` ; +${lines.length - used} more in Legal Staff` : out;
+};
 // logic:end
 const nice = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const t12 = (t: string) => { const [h, m] = (t || "10:30").split(":").map(Number); return ((h % 12) || 12) + ":" + String(m).padStart(2, "0") + (h >= 12 ? " PM" : " AM"); };
@@ -103,8 +124,8 @@ async function sendEmail(to: string, subject: string, text: string, html?: strin
   const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [to], subject, text, ...(html ? { html } : {}) }) });
   return r.ok ? { ok: true } : { error: (await r.text()).slice(0, 300) };
 }
-async function sendWhatsApp(admin: any, to: string, text: string) {
-  const template = Deno.env.get("WHATSAPP_TEMPLATE"), lang = Deno.env.get("WHATSAPP_TEMPLATE_LANG") ?? "en";
+async function sendWhatsApp(admin: any, to: string, text: string, templateName?: string) {
+  const template = templateName || Deno.env.get("WHATSAPP_TEMPLATE"), lang = Deno.env.get("WHATSAPP_TEMPLATE_LANG") ?? "en";
   let token = Deno.env.get("WHATSAPP_TOKEN"), phoneId = Deno.env.get("WHATSAPP_PHONE_ID"), version = "v21.0";
   if (!token || !phoneId) {   // No number set through function secrets: use the connection made in Admin › Integrations once it is Connected. An existing number is never replaced.
     const { data: c } = await admin.from("whatsapp_config").select("status,phone_number_id,graph_version").eq("id", 1).maybeSingle();
@@ -290,6 +311,53 @@ async function planReminders(admin: any, now: number) {
   return results;
 }
 
+/** Court-record alerts: changes the court check found (notification_events, written by functions/court-sync) go to the advocates on the case.
+ *  One message per person per channel covering every change since their last one, between 7 AM and 9:59 PM IST; each change is sent once per
+ *  person and channel (kind 'court:<event id>'); a failed send is retried on later runs, at most 3 times. Switch off in Settings › Notifications. */
+async function courtAlerts(admin: any, now: number) {
+  const clock = istClock(now); if (!alertHourOk(clock.hour)) return { waiting: "outside 7 AM to 9:59 PM IST" };
+  const since = new Date(now - 48 * 3600e3).toISOString();
+  const { data: events, error } = await admin.from("notification_events").select("id,firm_id,case_id,kind,title,created_at").gte("created_at", since).order("created_at", { ascending: true }).limit(2000);
+  if (error) throw error; if (!events?.length) return { events: 0, sent: 0 };
+  const ids = [...new Set(events.map((e: any) => e.case_id).filter(Boolean))];
+  const { data: legal } = await admin.from("legal_cases").select("id,record_id").in("id", ids);
+  const recordOf: Record<string, string> = {}; (legal ?? []).forEach((l: any) => recordOf[l.id] = l.record_id);
+  const out = { events: events.length, sent: 0, failed: 0, skipped: 0 };
+  for (const firmId of [...new Set(events.map((e: any) => e.firm_id))] as string[]) {
+    const evs = events.filter((e: any) => e.firm_id === firmId);
+    const { data: firm } = await admin.from("firms").select("name").eq("id", firmId).single();
+    const { data: members } = await admin.from("members").select("user_id,email,name,title,phone,is_owner").eq("firm_id", firmId).eq("status", "Active");
+    const { data: states } = await admin.from("user_state").select("user_id,data").eq("firm_id", firmId);
+    const { data: recs } = await admin.from("records").select("id,data").eq("firm_id", firmId).eq("kind", "case").in("id", [...new Set(evs.map((e: any) => recordOf[e.case_id]).filter(Boolean))]);
+    const caseData: Record<string, any> = {}; (recs ?? []).forEach((r: any) => caseData[r.id] = r.data);
+    const { data: past } = await admin.from("notifications").select("user_id,channel,kind,status").eq("firm_id", firmId).like("kind", "court:%").gte("created_at", since);
+    const doneFor = (uid: string, ch: string, ev: string) => (past ?? []).some((n: any) => n.user_id === uid && n.channel === ch && n.kind === "court:" + ev && n.status === "sent");
+    const failsFor = (uid: string, ch: string, ev: string) => (past ?? []).filter((n: any) => n.user_id === uid && n.channel === ch && n.kind === "court:" + ev && n.status === "failed").length;
+    const mine: Record<string, any[]> = {};
+    for (const ev of evs) for (const m of alertRecipients(members ?? [], caseData[recordOf[ev.case_id]])) (mine[m.user_id] = mine[m.user_id] ?? []).push(ev);
+    for (const m of members ?? []) {
+      const list = mine[m.user_id]; if (!list?.length) continue;
+      const st = ((states ?? []).find((s: any) => s.user_id === m.user_id)?.data ?? {}).settings ?? {};
+      if (st.courtAlerts === false) { out.skipped++; continue; }
+      for (const [channel, on, to] of [["whatsapp", st.whatsapp !== false, m.phone], ["email", st.email !== false, m.email]] as const) {
+        if (!on || !to) continue;
+        const todo = list.filter((ev: any) => !doneFor(m.user_id, channel, ev.id) && failsFor(m.user_id, channel, ev.id) < 3); if (!todo.length) continue;
+        const lines = todo.map((ev: any) => alertLine(ev, caseData[recordOf[ev.case_id]]));
+        const fname = firm?.name ?? "your firm", subject = `Court record update: ${todo.length} change${todo.length === 1 ? "" : "s"}`;
+        const body = [`Court record update · ${fname}`, "", ...lines, "", "Open Legal Staff: " + SITE + "/app"].join("\n");
+        const html = channel === "email" ? emailHtml({ preheader: lines[0].slice(0, 110), kicker: "Court record", heading: subject, intro: [`The court record changed for ${todo.length === 1 ? "a case" : "cases"} you are on. These come from the court-data check, not from the court's own notice: confirm anything important on the official portal.`],
+          blocks: [{ title: "What changed", rows: todo.map((ev: any) => ({ lead: nice(String(ev.created_at).slice(0, 10)), main: caseData[recordOf[ev.case_id]]?.title ?? "A case", sub: dmyText(ev.title), tag: ev.kind.replace(/_/g, " "), urgent: ev.kind === "hearing_changed" })) }],
+          cta: { label: "Open Legal Staff", url: SITE + "/app" }, reason: `You receive court-record alerts as an advocate on these cases in ${fname}. Change it in Settings › Notifications.` }) : undefined;
+        const r: any = channel === "email" ? await sendEmail(to, subject, body, html) : await sendWhatsApp(admin, to, alertWhatsApp(fname, lines), Deno.env.get("WHATSAPP_ALERT_TEMPLATE") || undefined);
+        if (r.skipped) { out.skipped++; continue; }
+        await admin.from("notifications").insert(todo.map((ev: any) => ({ firm_id: firmId, user_id: m.user_id, kind: "court:" + ev.id, channel, recipient: to, subject, body, status: r.ok ? "sent" : "failed", error: r.error ?? null, sent_at: r.ok ? new Date().toISOString() : null })));
+        if (r.ok) out.sent++; else out.failed++;
+      }
+    }
+  }
+  return out;
+}
+
 /** Emails a person the firm owner has just added to the team: who invited them, to which firm, and how to join.
  *  Owner only; the member row must exist and not have signed in yet; at most 3 invitations per person per day. */
 async function sendInvite(admin: any, asUser: any, user: any, firmId: string, email: string) {
@@ -334,7 +402,8 @@ Deno.serve(async (req: Request) => {
       for (const f of firms ?? []) { const rs = await briefFirm(admin, f, { onlyUser: null, now }); sent += rs.filter((r: any) => r.ok).length; skipped += rs.filter((r: any) => r.skipped).length; }
       let trial: any[] = []; try { trial = await trialReminders(admin, now); } catch (e) { console.error("trial reminders", e); }
       let plan: any[] = []; try { plan = await planReminders(admin, now); } catch (e) { console.error("plan reminders", e); }
-      return json({ sent, skipped, trial, plan, ist: istClock(now) });
+      let court: any = {}; try { court = await courtAlerts(admin, now); } catch (e) { console.error("court alerts", e); }
+      return json({ sent, skipped, trial, plan, court, ist: istClock(now) });
     }
     const asUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
     const { data: { user } } = await asUser.auth.getUser();
