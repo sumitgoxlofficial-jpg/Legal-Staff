@@ -15,7 +15,14 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 class Fail extends Error { status: number; constructor(msg: string, status = 400) { super(msg); this.status = status; } }
 
-const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 699, annual: 6999 }, Professional: { monthly: 1499, annual: 14999 }, Firm: { monthly: 3999, annual: 39999 } };
+const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 299, annual: 2999 }, Professional: { monthly: 799, annual: 7999 }, Firm: { monthly: 3999, annual: 39999 } };
+// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with upi-pay, billing and admin.
+const PER_USER: Record<string, number> = { monthly: 249, annual: 2499 }, MAX_USERS = 15;
+/** List price in rupees for a plan and cycle; seats only counts for Professional (missing → 1). */
+const listPrice = (plan: string, cycle: string, seats?: number | null) => {
+  const p = PRICES[plan]?.[cycle]; if (!p) return 0;
+  return p + (plan === "Professional" ? (Math.max(1, Number(seats) || 1) - 1) * PER_USER[cycle] : 0);
+};
 const OPEN_MINUTES = 30;          // how long an order waits for payment in the app
 const LATE_HOURS = 24;            // a payment confirmed within this time still activates the plan
 
@@ -42,6 +49,13 @@ function emailText(subject: string, text: string, html: string) {
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#8377;|&#x20b9;/gi, "₹").replace(/&[a-z#0-9]+;/gi, " ");
   const keep = t.replace(/\s+/g, " ").split(/(?<=[.!?])\s+/).filter((x) => !/\b(OTP|never share|do not share|don't share|disclaimer|unsubscribe|if you have not|if you did not|not done by you)\b/i.test(x));
   return (String(subject ?? "") + ". " + keep.join(" ")).slice(0, 1500);
+}
+/** Users bought on Professional (1–MAX_USERS), or null for plans with a fixed user count. */
+function seatsFor(body: any): number | null {
+  if (body.plan !== "Professional") return null;
+  const n = Number(body.users ?? 1);
+  if (!Number.isInteger(n) || n < 1 || n > MAX_USERS) throw new Fail(`Choose between 1 and ${MAX_USERS} users.`);
+  return n;
 }
 /** Price in paise for a plan after a promo code (percent and/or flat rupees off, or a fixed total). No GST is added.
  *  Never below ₹1 unless the code makes it free. */
@@ -99,7 +113,7 @@ async function activate(admin: any, p: any, utr: string | null, by: string) {
   const d = new Date(start); const since = d.toISOString().slice(0, 10);
   if (p.cycle === "annual") d.setUTCFullYear(d.getUTCFullYear() + 1); else d.setUTCMonth(d.getUTCMonth() + 1);
   d.setUTCDate(d.getUTCDate() - 1);
-  await admin.from("subscriptions").upsert({ firm_id: p.firm_id, plan: p.plan, cycle: p.cycle, status: "active", since, renews: d.toISOString().slice(0, 10), trial_ends: null, updated_at: new Date().toISOString() });
+  await admin.from("subscriptions").upsert({ firm_id: p.firm_id, plan: p.plan, cycle: p.cycle, seats: p.seats ?? null, status: "active", since, renews: d.toISOString().slice(0, 10), trial_ends: null, updated_at: new Date().toISOString() });
   if (p.gstin) await admin.from("firms").update({ gstin: p.gstin }).eq("id", p.firm_id);
   if (p.promo_code) await admin.rpc("promo_use", { c: p.promo_code });
   await issueInvoice(p.id);
@@ -232,7 +246,8 @@ Deno.serve(async (req: Request) => {
     if (action === "promo") {
       const { data: member } = await asUser.rpc("is_member", { f: firmId });
       if (!member) throw new Fail("You are not a member of this firm.", 403);
-      const base = PRICES[body.plan]?.[body.cycle];
+      const seats = seatsFor(body);
+      const base = listPrice(body.plan, body.cycle, seats);
       if (!base) throw new Fail("Unknown plan.");
       const c = await loadPromo(body.plan, body.cycle);
       if (!c) throw new Fail("Enter a promo code.");
@@ -243,15 +258,18 @@ Deno.serve(async (req: Request) => {
       if (!s.upi_enabled || !s.upi_id) throw new Fail("UPI payments are not switched on yet.", 501);
       const { data: owner } = await asUser.rpc("is_owner", { f: firmId });
       if (!owner) throw new Fail("Only the firm owner can change the plan.", 403);
-      const base = PRICES[body.plan]?.[body.cycle];
+      const seats = seatsFor(body);
+      const base = listPrice(body.plan, body.cycle, seats);
       if (!base) throw new Fail("Unknown plan.");
+      const { count: used } = await admin.from("members").select("id", { count: "exact", head: true }).eq("firm_id", firmId);
+      if (seats && (used ?? 0) > seats) throw new Fail(`Your team has ${used} users. Choose at least ${used} users, or remove members first.`);
       const g = String(body.gstin ?? "").trim().toUpperCase();
       if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) throw new Fail("That GSTIN is not valid.");
       const promo = await loadPromo(body.plan, body.cycle);
       const price = priceFor(base, promo);
       if (price.total === 0) {   // a 100%-off code: nothing to pay, switch the plan on now
         const orderNo = "LS" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
-        const { data: p, error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: body.plan, cycle: body.cycle, amount_paise: 0, gstin: g, method: "promo", order_no: orderNo, status: "created", promo_code: promo.code, discount_paise: price.discount }).select("*").single();
+        const { data: p, error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: body.plan, cycle: body.cycle, seats, amount_paise: 0, gstin: g, method: "promo", order_no: orderNo, status: "created", promo_code: promo.code, discount_paise: price.discount }).select("*").single();
         if (error) throw new Fail("Could not apply the promo code.", 500);
         await activate(admin, p, null, "promo");
         return json({ free: true, order_no: orderNo, amount: 0 });
@@ -263,7 +281,7 @@ Deno.serve(async (req: Request) => {
       if (k < 0) throw new Fail("Too many UPI payments are waiting right now. Please try again in a few minutes.", 503);
       const orderNo = "LS" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
       const amount = basePaise + k;
-      const { error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: body.plan, cycle: body.cycle, amount_paise: amount, gstin: g, method: "upi", order_no: orderNo, status: "created", promo_code: promo?.code ?? null, discount_paise: price.discount });
+      const { error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: body.plan, cycle: body.cycle, seats, amount_paise: amount, gstin: g, method: "upi", order_no: orderNo, status: "created", promo_code: promo?.code ?? null, discount_paise: price.discount });
       if (error) throw new Fail("Could not create the payment.", 500);
       return json({ order_no: orderNo, amount, upi_id: s.upi_id, payee: s.payee_name, link: upiLink(s, orderNo, amount), expires_at: new Date(Date.now() + OPEN_MINUTES * 60e3).toISOString() });
     }

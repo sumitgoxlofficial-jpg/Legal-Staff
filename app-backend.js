@@ -46,7 +46,7 @@
     const pays = ok(await sb.from('payments').select('plan,cycle,amount_paise,paid_at').eq('firm_id', firmId).eq('status', 'paid').order('paid_at', { ascending: false }));
     const month = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 7);
     const au = (await sb.from('ai_usage').select('used').eq('firm_id', firmId).eq('month', month).maybeSingle()).data;
-    d.sub = { aiUsed: au ? au.used : 0, plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', since: s ? s.since : '', renews: s ? s.renews : '', trialEnds: s && s.trial_ends ? s.trial_ends : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
+    d.sub = { aiUsed: au ? au.used : 0, plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', seats: s ? s.seats || null : null, since: s ? s.since : '', renews: s ? s.renews : '', trialEnds: s && s.trial_ends ? s.trial_ends : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
   }
 
   const B = {
@@ -174,8 +174,8 @@
     /* Direct UPI to the operator's account (server function 'upi-pay'), confirmed automatically by Paytm status or bank SMS. */
     upi: {
       config: () => B.fn('upi-pay', { action: 'config' }),
-      create: (plan, cycle, gstin, promo) => B.fn('upi-pay', { action: 'create', firm_id: firmId, plan, cycle, gstin, promo: promo || '' }),
-      promo: (plan, cycle, promo) => B.fn('upi-pay', { action: 'promo', firm_id: firmId, plan, cycle, promo }),
+      create: (plan, cycle, gstin, promo, users) => B.fn('upi-pay', { action: 'create', firm_id: firmId, plan, cycle, gstin, promo: promo || '', users }),
+      promo: (plan, cycle, promo, users) => B.fn('upi-pay', { action: 'promo', firm_id: firmId, plan, cycle, promo, users }),
       status: orderNo => B.fn('upi-pay', { action: 'status', firm_id: firmId, order_no: orderNo })
     },
     /* Team chat: the firm's group chat ('team') and one-to-one chats ('dm:<uid>:<uid>'), live through Supabase Realtime. */

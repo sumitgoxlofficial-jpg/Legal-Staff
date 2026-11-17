@@ -34,7 +34,7 @@ export const ld = {
   softwareApplication: ({ name = SITE.name, description, path = '/', featureList = [] } = {}) => ({
     '@context': 'https://schema.org', '@type': 'SoftwareApplication', '@id': abs('/#app'), name, description: description || 'Practice and case management for Indian advocates and law firms: reads court orders, picks out the next hearing date, sends WhatsApp reminders and keeps cases, documents and research in one workspace.',
     url: abs(path), applicationCategory: 'BusinessApplication', applicationSubCategory: 'Legal practice management', operatingSystem: 'Web',
-    offers: { '@type': 'AggregateOffer', priceCurrency: 'INR', lowPrice: '6999', highPrice: '39999', offerCount: '3' }, publisher: { '@id': abs('/#org') },
+    offers: { '@type': 'AggregateOffer', priceCurrency: 'INR', lowPrice: '2999', highPrice: '39999', offerCount: '3' }, publisher: { '@id': abs('/#org') },
     ...(featureList.length ? { featureList } : {})
   }),
   article: ({ title, description, path, published, modified, section, keywords = [] }) => ({

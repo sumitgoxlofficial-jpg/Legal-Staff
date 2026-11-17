@@ -1415,7 +1415,7 @@
       const [st, setSt] = useState({ phase: 'creating' }), [qr, setQr] = useState(''), [left, setLeft] = useState(0);
       React.useEffect(() => {
         let dead = false, poll = null, tick = null;
-        LSB.upi.create(o.plan, o.cycle, o.gstin, o.promo).then(r => {
+        LSB.upi.create(o.plan, o.cycle, o.gstin, o.promo, o.users).then(r => {
           if (dead) return;
           if (r.free) { setSt({ phase: 'paid', r, x: { confirmed_by: 'promo' } }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); return; }
           setSt({ phase: 'waiting', r });
@@ -1492,6 +1492,7 @@
     const d = app.db, acc = L.access(d.sub), lim = acc.limits, have = what === 'users' ? d.team.length : liveCases(d), cap = lim[what];
     if (have < cap) return false;
     const next = PLAN_ORDER.find(p => L.PLANS[p][what] > cap);
+    if (what === 'users' && acc.plan === 'Professional' && cap < 15) { app.toast(`Your Professional plan has ${n0(cap)} ${cap === 1 ? 'user' : 'users'}. Add users from Pricing (₹249 a month each).`); return true; }
     app.toast(`The ${acc.plan || 'current'} plan allows ${n0(cap)} ${what === 'users' ? (cap === 1 ? 'user' : 'users') : 'active cases'}.` + (next ? ` Upgrade to ${next} for ${n0(L.PLANS[next][what])}.` : ''));
     return true;
   }
