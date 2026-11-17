@@ -24,7 +24,7 @@
   const teamKey = t => JSON.stringify(t.map(u => [u.id, u.email, u.name, u.title, u.role, u.status]));
   const meKey = u => JSON.stringify([u.name, u.title, u.phone]);
   /* Invoice details of the firm (legal name, GST state, PAN, registration, invoice prefix, default SAC) live in firms.state.profile. */
-  const PROFILE = ['legalName', 'stateCode', 'pan', 'gstReg', 'prefix', 'sac'];
+  const PROFILE = ['legalName', 'stateCode', 'pan', 'gstReg', 'prefix', 'sac', 'kind', 'domain'];
   const firmRow = d => ({ name: d.firm.name, city: d.firm.city, address: d.firm.address, gstin: d.firm.gstin, state: { lim: d.lim, agents: d.agents, labels: d.labels || [], profile: Object.fromEntries(PROFILE.map(k => [k, d.firm[k] || ''])) } });
   const userRow = d => Object.fromEntries(USER_KEYS.map(k => [k, d[k]]));
   function take(d) {

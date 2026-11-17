@@ -117,9 +117,14 @@ const OWNER = { email: 'owner@test.in', name: 'Asha Rao' }, JUNIOR = { email: 'j
 const ORDER_TEXT = '1. Heard learned counsel for the parties on the application for interim relief.\n\n2. The respondent seeks time to file a reply, which is granted as a last opportunity.\n\n3. List on 15.01.2027 for final arguments.';
 const ctx = {};   // ids gathered along the way
 
-async function onboard(o, firm) {
-  await o.page.locator('[role=dialog]', { hasText: 'Set up your practice' }).waitFor({ timeout: 10000 });
-  await o.fill([['Designation', 'Managing Partner'], ['Firm or chamber name', firm || 'Rao & Associates'], ['City', 'New Delhi'], ['Office address', '12 Lawyers Chambers, Delhi High Court']]);
+async function onboard(o, firm, kind, domain) {
+  await o.page.locator('[role=dialog]', { hasText: 'Who is this for?' }).waitFor({ timeout: 10000 });
+  await o.page.locator('[role=dialog] [data-pick="' + (kind || 'firm') + '"]').click(); await o.dclick('Continue');
+  await o.page.locator('[role=dialog]', { hasText: 'Your area of practice' }).waitFor({ timeout: 5000 });
+  eq(await o.page.locator('[role=dialog] button:has-text("Continue")').isDisabled(), true, 'Continue waits for an area');
+  await o.page.locator('[role=dialog] [data-pick="' + (domain || 'general') + '"]').click(); await o.dclick('Continue');
+  await o.page.locator('[role=dialog]', { hasText: 'Set up your practice' }).waitFor({ timeout: 5000 });
+  await o.fill([['Designation', 'Managing Partner'], [{ advocate: 'Practice name', chamber: 'Chamber name', firm: 'Law firm name', corporate: 'Company or department name' }[kind || 'firm'], firm || 'Rao & Associates'], ['City', 'New Delhi'], ['Office address', '12 Lawyers Chambers, Delhi High Court']]);
   await o.dclick('Start using Legal Staff');
   await o.toast('Your practice is set up', 10000);
   await waitIn(o);
@@ -667,6 +672,39 @@ async function plans(o) {
 }
 
 /* ---------- main ---------- */
+/* A chamber that only does criminal work: the dashboard, stages, labels and limitation presets follow that area. */
+async function practiceArea(browser) {
+  const c = await newContext(browser), o = H(watch(await c.newPage(), 'criminal')); step.o = o;
+  await step('sign-up asks for the practice type and area; a criminal chamber gets a criminal dashboard', async () => {
+    await o.page.goto(BASE + '/app.html');
+    await signIn(o, 'crim@test.in', 'Vikram Sethi');
+    await onboard(o, 'Sethi Chambers', 'chamber', 'criminal');
+    await o.go('#/dashboard');
+    await o.see('Bail matters'); await o.see('Accused in custody'); await o.see('Bail & custody watch'); await o.see('Cases by trial stage'); await o.see('Chamber · Criminal law');
+    await o.notSee('Active cases by stage');
+    await o.page.locator('aside').getByText('Evidence', { exact: true }).first().waitFor();
+    const tops = await o.page.evaluate(() => [...document.querySelectorAll('aside nav button')].map(b => b.textContent.trim()));
+    assert(tops.indexOf('Evidence') < tops.indexOf('Court Intelligence'), 'criminal sidebar leads with evidence: ' + tops.join(','));
+  });
+  await step('criminal labels, stages and limitation presets', async () => {
+    await o.go('#/labels'); await o.see('Anticipatory bail'); await o.see('In custody');
+    await o.go('#/cases'); await o.click('+ New case', 'main');
+    const stages = await o.page.evaluate(() => [...document.querySelectorAll('[role=dialog] select')].flatMap(s => [...s.options].map(x => x.textContent)));
+    assert(stages.includes('Bail') && stages.includes('Charge framing') && !stages.includes('Pleadings'), 'stage options: ' + stages.join(','));
+    await o.fill([['Case title', 'State v. Arun Mishra'], ['Case number', 'SC 77/2026'], ['Court', 'Saket · Court 9']]); await o.set('Stage', 'Bail');
+    await o.dclick('Create case'); await o.toast('Case created');
+    await o.go('#/dashboard'); await o.see('State v. Arun Mishra');   // shows in the bail & custody watch
+    await o.go('#/limitation'); await o.click('New calculation');
+    const first = await o.page.evaluate(() => document.querySelector('[role=dialog] select[aria-label=Rule]').options[0].textContent);
+    assert(/Criminal appeal/.test(first), 'first limitation preset: ' + first);
+  });
+  await step('the practice area can be changed in Settings', async () => {
+    await o.go('#/settings'); await o.set('Area of practice (shapes the dashboard)', 'tax'); await o.click('Save', 'main'); await sleep(300);
+    await o.go('#/dashboard'); await o.see('Tax matters by stage'); await o.see('Notices to reply'); await o.notSee('Bail matters');
+  });
+  await c.close();
+}
+
 async function main() {
   fs.mkdirSync(SHOTS, { recursive: true }); fs.readdirSync(SHOTS).filter(f => f.startsWith('fail-' + MODE)).forEach(f => fs.unlinkSync(path.join(SHOTS, f)));
   const srv = await serve();
@@ -677,6 +715,8 @@ async function main() {
     step.o = o; await core(o); await gst(o); await files(o); await deadlines(o); await outcomes(o); await exportsAndSearch(o); await settingsProfile(o);
     await persistence(o);
     if (SERVER) { await paging(o); await team(o); await roles(o); await plans(o); }
+    await practiceArea(browser);
+    step.o = o;
     if (typeof extra === 'function') await extra(o, browser);
     await narrow(o);
     if (SERVER) await serverSettings(o);

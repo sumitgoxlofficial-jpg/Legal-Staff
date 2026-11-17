@@ -28,7 +28,7 @@
   function seed() {
     return {
       v: 2, anchor: today(), session: null, labels: [], cases: [], hearings: [], orders: [], tasks: [], docs: [], clients: [], team: [], invoices: [], log: [],
-      firm: { name: '', city: '', address: '', gstin: '', legalName: '', stateCode: '', pan: '', gstReg: '', prefix: '', sac: '' },
+      firm: { name: '', city: '', address: '', gstin: '', legalName: '', stateCode: '', pan: '', gstReg: '', prefix: '', sac: '', kind: '', domain: '' },
       user: { name: '', title: '', role: 'Advocate', email: '', phone: '' },
       sub: { plan: '', cycle: 'annual', since: '', renews: '', history: [] },
       lim: null, lims: [], deadlines: [], chats: {}, copilot: [], drafts: {}, notes: '', research: [], watch: [],

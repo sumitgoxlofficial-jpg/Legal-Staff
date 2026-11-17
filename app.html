@@ -8,6 +8,7 @@
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="app-store.js"></script>
+<script src="app-practice.js"></script>
 <script src="app-backend.js"></script>
 <script src="app-views.js"></script>
 <script src="support.js"></script>
@@ -251,6 +252,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:4px">
           <div>
             <div class="ls-greet-date" style="font-size:13px;color:#5E5E5E;letter-spacing:.02em">{{ todayLong }}</div>
+            <div style="margin-top:6px"><span class="ls-practice" style="display:inline-block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#363636;background:#F0F0EF;border-radius:6px;padding:3px 9px">{{ practiceLine }}</span></div>
             <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.02em;font-size:24px;line-height:1.15;margin:6px 0 0;">{{ greetingEl }}</h1>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -324,6 +326,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           </sc-for>
         </div>
         {{ needOutcome }}
+        {{ watchEl }}
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:20px">
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;display:flex;flex-direction:column;gap:18px">
@@ -349,7 +352,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:24px 26px;display:flex;flex-direction:column;gap:18px">
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
-              <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">Active cases by stage</h2>
+              <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;font-weight:600;margin:0">{{ stageTitle }}</h2>
               <span style="font-size:13px;color:#5E5E5E">{{ stageCount }}</span>
             </div>
             <div style="display:flex;height:14px;border-radius:4px;overflow:hidden;gap:2px;background:#FFFFFF">
@@ -1092,7 +1095,7 @@ class Component extends DCLogic {
     if (i >= 0) { this.setState({ plan: i, paid: false, cycle: q.get('cycle') === 'monthly' ? 'monthly' : 'annual' }); history.replaceState(null, '', location.pathname + '#/pricing'); this.applyRoute(); } }
   async googleSignIn(token, nonce) { const s = await LSB.signInGoogle(token, nonce); await this.enter(s); }
   async emailSignIn(email, code) { const s = await LSB.verifyOtp(email, code); await this.enter(s); }
-  async createFirm(v) { this.setState({ auth: 'boot' }); try { const id = await LSB.createFirm(v); await this.reload(id); this.toast('Your practice is set up'); this.afterEnter(); } catch (e) { Object.assign(this.db.user, { name: v.name, role: v.role }); Object.assign(this.db.firm, { name: '', city: v.city, address: v.address || '' }); this.pendingFirm = v.firm; this.setState({ auth: 'in' }); this.toast('Could not create the firm: ' + e.message); LSV.onboard(this); } }
+  async createFirm(v) { this.setState({ auth: 'boot' }); try { const id = await LSB.createFirm(v); await this.reload(id); this.mut(db => { db.firm.kind = v.kind || 'advocate'; db.firm.domain = v.domain || 'general'; LSP.addLabels(db, v.labels); }); this.toast('Your practice is set up'); this.afterEnter(); } catch (e) { Object.assign(this.db.user, { name: v.name, role: v.role }); Object.assign(this.db.firm, { name: '', city: v.city, address: v.address || '' }); this.pendingFirm = v.firm; this.setState({ auth: 'in' }); this.toast('Could not create the firm: ' + e.message); LSV.onboard(this); } }
   loadQueue() { if (!LSB.on) return; LSB.isAdmin().then(a => { this.isAdmin = a; return a ? LSB.queue() : []; }).then(q => { this.dirList = q; this.setState(s => ({ rev: s.rev + 1 })); }).catch(() => {}); }
   queueSync() { if (!LSB.on || !this.db.firmId) return; clearTimeout(this.syncT); this.syncT = setTimeout(() => this.flush().catch(e => this.toast('Not saved to the server: ' + e.message)), 500); }
   /* Sends pending changes now. Rejects if the server refused them; the view is then redrawn from what the server holds. */
@@ -1248,7 +1251,10 @@ class Component extends DCLogic {
       ['AI', [['AI Case Brain', 'brain', 'spark'], ['AI Drafting Studio', 'drafting', 'pen'], ['AI Legal Research', 'research', 'search'], ['AI Agents', 'agents', 'cpu']]],
       ['Firm', [['Team', 'team', 'team'], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Directory Admin', 'admin', 'shield'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
     ];
-    const nav = navDef.map(([title, items]) => ({ title, items: items.map(([label, key, ic, badge]) => {
+    /* The practice area leads the Practice group with its own modules and renames what its work calls them. */
+    const PA = LSP.domain(D.firm), isCorp = D.firm.kind === 'corporate', renameNav = Object.assign({}, isCorp ? { clients: 'Business units', portal: 'Business portal' } : {}, PA.rename);
+    navDef[1][1].sort((a, b) => { const i = PA.lead.indexOf(a[1]), j = PA.lead.indexOf(b[1]); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
+    const nav = navDef.map(([title, items]) => ({ title, items: items.map(([label0, key, ic, badge]) => { const label = renameNav[key] || label0;
       const active = S.screen === key || (key === 'cases' && S.screen === 'case') || (key === 'orders' && S.screen === 'order');
       return { label, active, go: () => this.go(key), icon: icon(ic, 16), hasBadge: !!badge && exp, badge,
         badgeStyle: { fontSize: 11, fontWeight: 600, minWidth: 18, height: 18, borderRadius: 9, padding: '0 5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums', background: '#0A0A0A', color: '#fff' },
@@ -1453,6 +1459,16 @@ class Component extends DCLogic {
     const months = Array.from({ length: 6 }, (_, i) => { const dt = new Date(); dt.setDate(1); dt.setMonth(dt.getMonth() - (5 - i)); return LS.iso(dt).slice(0, 7); });
     const fee = months.map(m => [LS.fmt(m + '-01', { month: 'short' }), D.invoices.filter(x => x.paid && x.date.slice(0, 7) === m).reduce((a, x) => a + x.amount, 0), D.invoices.filter(x => !x.paid && x.date.slice(0, 7) === m).reduce((a, x) => a + x.amount, 0)]), feeMax = Math.max(1, ...fee.map(x => x[1] + x[2])) * 1.1;
     const unpaid = D.invoices.filter(x => !x.paid), hour = new Date().getHours();
+    const STATS = {
+      today: { label: "Today's hearings", value: String(todayH.length), note: tClash.length ? `${tClash.length} time conflict${tClash.length > 1 ? 's' : ''}` : 'No clashes', noteStyle: { fontSize: 13, color: tClash.length ? '#B42318' : '#5E5E5E', marginTop: 6 }, sp: Array(7).fill(todayH.length) },
+      active: { label: 'Active cases', value: String(D.cases.filter(x => x.status === 'active').length), note: `${D.cases.filter(x => x.status === 'pending').length} pending filing`, noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: Array(7).fill(D.cases.filter(x => x.status === 'active').length) },
+      dl7: { label: 'Deadlines in 7 days', value: String(dl7.length), note: `${dl.filter(x => x.status !== 'Approved').length} awaiting approval`, noteStyle: { fontSize: 13, color: '#0A0A0A', marginTop: 6 }, sp: Array(7).fill(dl7.length) },
+      overdue: { label: 'Overdue tasks', value: String(odT.length), note: odT.length ? `across ${new Set(odT.map(t => t.who)).size} team members` : 'All tasks on time', noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: Array(7).fill(odT.length) }
+    };
+    const liveCount = re => live.filter(x => LSP.matches(x, D.labels || [], re)).length;
+    const statDefs = PA.stats.map(x => { if (typeof x === 'string') return STATS[x] || STATS.today; const n = liveCount(x.re); return { label: x.label, value: String(n), note: x.note || '', noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: Array(7).fill(n) }; });
+    const watchRows = PA.watch ? live.filter(x => LSP.matches(x, D.labels || [], PA.watch.re)).slice(0, 6) : [];
+
     const needO = V.needsOutcome(D).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
     const needOutcome = needO.length ? h(V.Card, { title: 'Needs outcome', right: h('span', { style: { fontSize: 13, color: '#5E5E5E' } }, `${needO.length} past hearing${needO.length > 1 ? 's' : ''} without a recorded outcome`) },
       needO.slice(0, 6).map(x => h(V.Line, { key: x.id }, h('div', { style: { width: 64, flexShrink: 0, fontSize: 13, color: '#5E5E5E', fontVariantNumeric: 'tabular-nums' } }, LS.dayMon(x.date), h('div', null, LS.t12ap(x.time))), h('div', { style: { flex: 1, minWidth: 0, overflowWrap: 'anywhere' } }, caseOf(x.caseId).title, h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, [x.court, x.purpose, x.assignee].filter(Boolean).join(' · '))), h(V.Btn, B({ small: true, primary: true, onClick: () => V.recordOutcome(this, x.id) }, 'hearing.outcome', x), 'Record outcome'))),
@@ -1481,7 +1497,7 @@ class Component extends DCLogic {
       toast: S.toast, hasToast: !!S.toast, goCases: () => this.go('cases'), planBanner: S.auth === 'in' ? V.planBanner(this) : null,
       gates: { caseNew: G('case.create'), orderEdit: G('order.edit', O) },
       hasCrumbs: false, crumb: '', crumbBar: {},
-      quick: [['New case', 'Manual entry or CNR import', 'case', () => V.newCase(this)], ['Upload court order', 'Next date and key points', 'upload', () => V.addOrder(this)], ['Calculate limitation', 'Rule-based, with review', 'clock', () => this.go('limitation')], ['Draft a document', 'Templates and dictation', 'pen', () => this.go('drafting')]].map(([label, sub, ic, go]) => ({ label, sub, icon: icon(ic, 20), go })),
+      quick: PA.quick.map(k => { const [label, sub, ic] = LSP.QUICK[k], go = { newcase: () => V.newCase(this), upload: () => V.addOrder(this), limit: () => this.go('limitation'), draft: () => this.go('drafting'), cnr: () => V.importCnr(this), evidence: () => this.go('evidence'), causelist: () => this.go('causelist'), research: () => this.go('research'), board: () => this.go('board'), clients: () => this.go('clients') }[k]; return { label: renameNav[k === 'clients' ? 'clients' : ''] || label, sub, icon: icon(ic, 20), go }; }),
       caseFilters: [['all', 'All'], ['active', 'Active'], ['pending', 'Pending'], ['disposed', 'Disposed'], ['archived', 'Archived']].map(([k, label]) => ({ label, count: k === 'all' ? D.cases.length : D.cases.filter(x => x.status === k).length, go: () => this.setState({ caseFilter: k }),
         style: { height: 36, padding: '0 14px', borderRadius: 8, fontSize: 13, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8, border: S.caseFilter === k ? '1px solid #0A0A0A' : '1px solid #E5E5E5', background: S.caseFilter === k ? '#0A0A0A' : '#FFFFFF', color: S.caseFilter === k ? '#fff' : '#363636' },
         countStyle: { fontSize: 12, opacity: .7 } })),
@@ -1501,17 +1517,16 @@ class Component extends DCLogic {
       dashEmpty: { hearings: todayH.length ? null : h(V.Empty, { small: true, art: 'calendar', title: 'No hearings today', text: 'Hearings you add to a case appear here on the day.' }), orders: D.orders.length ? null : h(V.Empty, { small: true, art: 'order', title: 'No court orders yet', text: 'Upload an order to pull out the next date and key points.' }), deadlines: dl.length ? null : h(V.Empty, { small: true, art: 'deadline', title: 'No deadlines tracked', text: 'Run a limitation calculation and it is tracked here.' }), stages: live.length ? null : h(V.Empty, { small: true, art: 'cases', title: 'No active cases', text: 'Cases you add are grouped here by stage.' }) },
       waHello: `Good morning, Adv. ${D.user.name.split(' ').pop()}.`, waLine1: `${todayH.length} hearing${todayH.length === 1 ? '' : 's'} today.` + (tClash.length ? ` ${LS.t12ap(tClash[0][0].time)} clash: ${tClash[0].map(x => shortCourt(x.court).replace('HC ', 'Delhi HC Court ').replace('Saket ', 'Saket Court ')).join(' and ')}.` : ''), waLine2: dl[0] ? `Deadline: ${dl[0].title.split(',')[0]} due ${LS.dayMon(LS.addDays(T, dl[0].days))}.` : 'No limitation deadlines this week.', waTime: LS.t12ap(st.briefingTime),
       briefLines: todayHearings.map(x => ({ time: x.time, title: x.title, meta: `${x.court} · ${x.item}` })), noHearingsToday: todayH.length === 0 ? h('div', { style: { padding: '20px 0', fontSize: 14, color: '#5E5E5E' } }, 'No hearings are listed for today.') : null,
-      stats: [
-        { label: "Today's hearings", value: String(todayH.length), note: tClash.length ? `${tClash.length} time conflict${tClash.length > 1 ? 's' : ''}` : 'No clashes', noteStyle: { fontSize: 13, color: tClash.length ? '#B42318' : '#5E5E5E', marginTop: 6 }, sp: Array(7).fill(todayH.length) },
-        { label: 'Active cases', value: String(D.cases.filter(x => x.status === 'active').length), note: `${D.cases.filter(x => x.status === 'pending').length} pending filing`, noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: Array(7).fill(D.cases.filter(x => x.status === 'active').length) },
-        { label: 'Deadlines in 7 days', value: String(dl7.length), note: `${dl.filter(x => x.status !== 'Approved').length} awaiting approval`, noteStyle: { fontSize: 13, color: '#0A0A0A', marginTop: 6 }, sp: Array(7).fill(dl7.length) },
-        { label: 'Overdue tasks', value: String(odT.length), note: odT.length ? `across ${new Set(odT.map(t => t.who)).size} team members` : 'All tasks on time', noteStyle: { fontSize: 13, color: '#5E5E5E', marginTop: 6 }, sp: Array(7).fill(odT.length) }
-      ].map(x => { const mx = Math.max(...x.sp), mn = Math.min(...x.sp) * 0.6; return { ...x, spark: x.sp.map((v, i) => ({ style: { width: 5, borderRadius: 1.5, background: i === 6 ? '#0A0A0A' : '#D4D4D4', height: grown ? Math.max(3, Math.round(((v - mn) / (mx - mn || 1)) * 28)) : 0, transition: `height .6s cubic-bezier(.2,.7,.2,1) ${i * 40}ms` } })) }; }),
+      stats: statDefs.map(x => { const mx = Math.max(...x.sp), mn = Math.min(...x.sp) * 0.6; return { ...x, spark: x.sp.map((v, i) => ({ style: { width: 5, borderRadius: 1.5, background: i === 6 ? '#0A0A0A' : '#D4D4D4', height: grown ? Math.max(3, Math.round(((v - mn) / (mx - mn || 1)) * 28)) : 0, transition: `height .6s cubic-bezier(.2,.7,.2,1) ${i * 40}ms` } })) }; }),
       hearChart: hc.map((x, i) => { const dt = LS.parse(x.ds), wk = dt.getDay() === 0 || dt.getDay() === 6; return { label: x.n || '', dow: 'SMTWTFS'[dt.getDay()], date: dt.getDate(),
         bar: { width: '100%', maxWidth: 22, borderRadius: '3px 3px 0 0', background: x.clash ? '#B42318' : (i === 0 ? '#0A0A0A' : '#2B2B2B'), opacity: x.n ? 1 : 0, height: grown ? Math.max(x.n ? 8 : 0, Math.round(x.n / hcMax * 100)) : 0, transition: `height .7s cubic-bezier(.2,.7,.2,1) ${i * 35}ms` },
         dayStyle: { display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 11, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums', color: i === 0 ? '#0A0A0A' : (wk ? '#B5B5B5' : '#5E5E5E'), fontWeight: i === 0 ? 700 : 400 } }; }),
       hearNote: `${hc.reduce((a, x) => a + x.n, 0)} hearings scheduled` + (hc.some(x => x.clash) ? ' · clash on ' + hc.filter(x => x.clash).map(x => LS.dayMon(x.ds)).join(' and ') : ' · no clashes'),
       stageCount: live.length + ' cases',
+      stageTitle: PA.stageTitle, practiceLine: LSP.kind(D.firm).label + ' · ' + PA.label,
+      watchEl: PA.watch ? h(V.Card, { title: PA.watch.title, right: h('span', { style: { fontSize: 13, color: '#5E5E5E' } }, watchRows.length + (watchRows.length === 1 ? ' matter' : ' matters')) },
+        watchRows.length ? watchRows.map(x => { const n = nextOf(x); return h(V.Line, { key: x.id }, h('div', { style: { flex: 1, minWidth: 0, overflowWrap: 'anywhere' } }, x.title, h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, [x.no, x.court, x.stage].filter(Boolean).join(' · '))), h('div', { style: { fontSize: 13, whiteSpace: 'nowrap', color: n.today ? '#B42318' : '#363636', fontWeight: n.today ? 600 : 400 } }, n.label), h(V.Btn, { small: true, onClick: () => this.go('case', x.id) }, 'Open')); })
+          : h('div', { style: { fontSize: 14, color: '#5E5E5E' } }, PA.watch.empty)) : null,
       stages: stgRows.map(([name, n], i) => ({ name, n,
         seg: { flex: grown ? n : 0.0001, background: SH[i], transition: `flex .8s cubic-bezier(.2,.7,.2,1) ${i * 60}ms` },
         dot: { width: 10, height: 10, borderRadius: 2, background: SH[i], display: 'block' },
