@@ -11,7 +11,7 @@ async function activate(admin: any, orderId: string, paymentId: string) {
   const renews = d.toISOString().slice(0, 10);
   if (p.status !== "paid") {
     await admin.from("payments").update({ status: "paid", razorpay_payment_id: paymentId, paid_at: new Date().toISOString() }).eq("id", p.id);
-    await admin.from("subscriptions").upsert({ firm_id: p.firm_id, plan: p.plan, cycle: p.cycle, status: "active", since, renews, updated_at: new Date().toISOString() });
+    await admin.from("subscriptions").upsert({ firm_id: p.firm_id, plan: p.plan, cycle: p.cycle, seats: p.seats ?? null, status: "active", since, renews, updated_at: new Date().toISOString() });
     if (p.gstin) await admin.from("firms").update({ gstin: p.gstin }).eq("id", p.firm_id);
   }
   const { data: sub } = await admin.from("subscriptions").select("*").eq("firm_id", p.firm_id).maybeSingle();

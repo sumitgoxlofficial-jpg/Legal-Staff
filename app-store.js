@@ -269,6 +269,7 @@
      What the pricing cards promise and the app can enforce. cases: open (active or pending) cases, 0 = unlimited. gb: stored files.
      Without an active plan the firm keeps working for GRACE days (from the day the plan expired, or from when the firm was created,
      but not before PLAN_FROM, the day these rules started) and is then read-only until a plan is chosen. Server mode only. */
+  /* Professional seats: the number of users bought (sub.seats); 3 for subscriptions bought before per-user pricing. */
   const PLANS = { Solo: { seats: 1, cases: 150, gb: 10 }, Professional: { seats: 3, cases: 600, gb: 50 }, Firm: { seats: 15, cases: 0, gb: 250 } };
   const TRIAL = { seats: 3, cases: 600, gb: 50 }, GRACE = 7, PLAN_FROM = '2026-11-16';
   function planState(d, T) {
@@ -276,7 +277,7 @@
     const expired = !!p && valid(s.renews) && s.renews < T, active = !!p && !expired && (s.status || 'active') === 'active';
     const from = p ? (valid(s.renews) ? s.renews : T) : [d && d.firmCreated, PLAN_FROM].filter(valid).sort().pop();
     const graceEnds = addDays(from, GRACE), readOnly = !active && T > graceEnds;
-    return { plan: s.plan || '', active, expired, trial: !p, renews: s.renews || '', graceEnds, daysLeft: active ? null : Math.max(0, diffDays(graceEnds, T)), readOnly, limits: p || TRIAL };
+    return { plan: s.plan || '', active, expired, trial: !p, renews: s.renews || '', graceEnds, daysLeft: active ? null : Math.max(0, diffDays(graceEnds, T)), readOnly, limits: p ? (s.plan === 'Professional' && s.seats ? Object.assign({}, p, { seats: s.seats }) : p) : TRIAL };
   }
   const docBytes = x => { if (!x || !x.file) return 0; if (x.bytes) return +x.bytes; const m = /([\d.]+)\s*(KB|MB|GB)\b/.exec(x.meta || ''); return m ? Math.round(+m[1] * { KB: 1024, MB: 1048576, GB: 1073741824 }[m[2]]) : 0; };
   const usage = d => ({ seats: (d.team || []).filter(u => u.status === 'Active' || u.status === 'Invited').length, cases: (d.cases || []).filter(c => c.status === 'active' || c.status === 'pending').length, bytes: (d.docs || []).reduce((a, x) => a + docBytes(x), 0) });

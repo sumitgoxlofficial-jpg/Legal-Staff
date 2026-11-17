@@ -31,7 +31,7 @@
   const isAdmin = () => S.platform_admins.some(a => a.user_id === uid());
   const v6 = () => S.schema >= 6;
   const PLAN_SEATS = { Solo: 1, Professional: 3, Firm: 15 };
-  function seats(f) { const s = S.subscriptions.find(x => x.firm_id === f && x.status === 'active'); return s ? (PLAN_SEATS[s.plan] || 1) : 3; }
+  function seats(f) { const s = S.subscriptions.find(x => x.firm_id === f && x.status === 'active'); return s ? (s.plan === 'Professional' && s.seats ? s.seats : PLAN_SEATS[s.plan] || 1) : 3; }
 
   /* ---------- tables: primary keys, defaults and policies ---------- */
   const PK = { firms: ['id'], members: ['id'], records: ['firm_id', 'kind', 'id'], user_state: ['user_id', 'firm_id'], subscriptions: ['firm_id'], payments: ['id'], notifications: ['id'], platform_admins: ['user_id'], directory_applications: ['id'], contact_requests: ['id'], invoice_series: ['firm_id', 'prefix'] };

@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" href="/assets/ls-favicon.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","@id":"https://legalstaff.in/#org","name":"Legal Staff","url":"https://legalstaff.in","logo":"https://legalstaff.in/assets/ls-logo-black.png"}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","@id":"https://legalstaff.in/#website","name":"Legal Staff","url":"https://legalstaff.in","inLanguage":"en-IN","publisher":{"@id":"https://legalstaff.in/#org"}}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","@id":"https://legalstaff.in/#app","name":"Legal Staff","description":"Legal Staff is practice and case management for Indian advocates and law firms: it reads court orders, picks out the next hearing date and sends WhatsApp reminders.","applicationCategory":"BusinessApplication","applicationSubCategory":"Legal practice management","operatingSystem":"Web","url":"https://legalstaff.in/","offers":{"@type":"AggregateOffer","priceCurrency":"INR","lowPrice":"6999","highPrice":"39999","offerCount":"3"},"featureList":["AI court order reader","WhatsApp hearing reminders","Digital advocate diary","AI legal research workspace","Case document management","Chamber team collaboration"],"publisher":{"@id":"https://legalstaff.in/#org"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","@id":"https://legalstaff.in/#app","name":"Legal Staff","description":"Legal Staff is practice and case management for Indian advocates and law firms: it reads court orders, picks out the next hearing date and sends WhatsApp reminders.","applicationCategory":"BusinessApplication","applicationSubCategory":"Legal practice management","operatingSystem":"Web","url":"https://legalstaff.in/","offers":{"@type":"AggregateOffer","priceCurrency":"INR","lowPrice":"2999","highPrice":"39999","offerCount":"3"},"featureList":["AI court order reader","WhatsApp hearing reminders","Digital advocate diary","AI legal research workspace","Case document management","Chamber team collaboration"],"publisher":{"@id":"https://legalstaff.in/#org"}}</script>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
 <script src="config.js"></script>
@@ -905,8 +905,8 @@ class Component extends DCLogic {
     const A = AUD[S.aud];
     const audCta = S.aud === 2 ? { href: '#contact', onCta: open('contact', 'Enterprise') } : { href: '#pricing', onCta: () => {} };
     const P = [
-      ['Solo', 'For an advocate practising alone', 699, 6999, ['1 user', '150 active cases', '10 GB storage', '200 AI credits / month', 'WhatsApp and email reminders', 'Limitation tracker']],
-      ['Professional', 'For advocates with juniors or a small chamber', 1499, 14999, ['Up to 3 users', '600 active cases', '50 GB storage', '1,000 AI credits / month', 'AI Case Brain and Drafting Studio', 'Client portal']],
+      ['Solo', 'For an advocate practising alone', 299, 2999, ['1 user', '150 active cases', '10 GB storage', '200 AI credits / month', 'WhatsApp and email reminders', 'Limitation tracker']],
+      ['Professional', 'For advocates with juniors or a small chamber', 799, 7999, ['1 user included, up to 15', '600 active cases', '50 GB storage', '1,000 AI credits / month', 'AI Case Brain and Drafting Studio', 'Client portal']],
       ['Firm', 'For law firms with teams and partners', 3999, 39999, ['Up to 15 users', 'Unlimited cases', '250 GB storage', '5,000 AI credits / month', 'Roles, permissions and AI agents', 'Reports and analytics']],
       ['Enterprise', 'For corporate legal departments and large firms', null, null, ['Custom users and storage', 'SSO and audit exports', 'Dedicated onboarding', 'Custom court-data providers']]
     ];
@@ -991,8 +991,8 @@ class Component extends DCLogic {
       ].map((x, i) => ({ ...x, delay: (i % 3) * 110, icon: icon(['shield', 'lock', 'team', 'log', 'consent', 'eyeoff'][i], 22, 250 + (i % 3) * 110) })),
       cycles: [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, pressed: S.cycle === k ? 'true' : 'false', go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: narrow ? '9px 14px' : '9px 18px', fontSize: narrow ? 14 : 15, background: 'transparent', color: S.cycle === k ? '#0A0A0A' : '#5E5E5E', fontWeight: S.cycle === k ? 600 : 400 } })),
       plans: P.map(([name, who, m, a, feats], i) => {
-        const feat = i === 1;
-        return { name, who, feats, feat, delay: i * 110, price: h('span', { key: S.cycle, className: 'lp-price' }, m ? inr(ann ? a : m) : 'Custom'), per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '', cta: m ? `Choose ${name}` : 'Contact sales',
+        const feat = i === 1, extra = name === 'Professional' ? [`+ ${inr(ann ? 2499 : 249)} ${ann ? '/ year' : '/ month'} per additional user`] : [];
+        return { name, who, feats: extra.concat(feats), feat, delay: i * 110, price: h('span', { key: S.cycle, className: 'lp-price' }, m ? inr(ann ? a : m) : 'Custom'), per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '', cta: m ? `Choose ${name}` : 'Contact sales',
           href: m ? `app.html?plan=${name.toLowerCase()}&cycle=${S.cycle}` : '#contact', go: m ? () => {} : open('contact', 'Enterprise'),
           card: { flex: 1, transition: 'transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s', background: '#FFFFFF', border: feat ? '2px solid #0A0A0A' : '1px solid #E5E5E5', boxShadow: feat ? '0 8px 24px rgba(0,0,0,.08)' : 'none', borderRadius: 16, padding: 30, display: 'flex', flexDirection: 'column', gap: 10 },
           btn: { height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', border: feat ? 0 : '1px solid #0A0A0A', borderRadius: 8, fontSize: 16, fontWeight: 600, background: feat ? '#0A0A0A' : 'transparent', color: feat ? '#fff' : '#0A0A0A', margin: '8px 0' } };

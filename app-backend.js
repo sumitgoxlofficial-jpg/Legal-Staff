@@ -41,7 +41,7 @@
   async function subscription(d) {
     const s = ok(await sb.from('subscriptions').select('*').eq('firm_id', firmId).maybeSingle());
     const pays = ok(await sb.from('payments').select('plan,cycle,amount_paise,paid_at').eq('firm_id', firmId).eq('status', 'paid').order('paid_at', { ascending: false }));
-    d.sub = { plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', since: s ? s.since : '', renews: s ? s.renews : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
+    d.sub = { plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', seats: s ? s.seats || null : null, since: s ? s.since : '', renews: s ? s.renews : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
   }
 
   const B = {
@@ -152,10 +152,10 @@
       return r.data;
     },
     /* Opens Razorpay Checkout for a plan and resolves once the server has verified the payment. */
-    async checkout(d, plan, cycle, gstin) {
-      const o = await B.fn('razorpay-order', { firm_id: firmId, plan, cycle, gstin });
+    async checkout(d, plan, cycle, gstin, users) {
+      const o = await B.fn('razorpay-order', { firm_id: firmId, plan, cycle, gstin, users });
       if (!window.Razorpay) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay Checkout.')); document.head.appendChild(s); });
-      const paid = await new Promise((res, rej) => { const rz = new window.Razorpay({ key: o.key_id, order_id: o.order_id, amount: o.amount, currency: o.currency, name: 'Legal Staff', description: plan + ' plan · ' + (cycle === 'annual' ? 'Annual' : 'Monthly'), prefill: { email: o.email, name: d.user.name, contact: d.user.phone || '' }, notes: { firm: d.firm.name }, theme: { color: '#0A0A0A' }, handler: res, modal: { ondismiss: () => rej(new Error('Payment was cancelled.')) } }); rz.on('payment.failed', e => rej(new Error((e.error && e.error.description) || 'The payment failed.'))); rz.open(); });
+      const paid = await new Promise((res, rej) => { const rz = new window.Razorpay({ key: o.key_id, order_id: o.order_id, amount: o.amount, currency: o.currency, name: 'Legal Staff', description: plan + ' plan · ' + (cycle === 'annual' ? 'Annual' : 'Monthly') + (plan === 'Professional' ? ' · ' + users + (users === 1 ? ' user' : ' users') : ''), prefill: { email: o.email, name: d.user.name, contact: d.user.phone || '' }, notes: { firm: d.firm.name }, theme: { color: '#0A0A0A' }, handler: res, modal: { ondismiss: () => rej(new Error('Payment was cancelled.')) } }); rz.on('payment.failed', e => rej(new Error((e.error && e.error.description) || 'The payment failed.'))); rz.open(); });
       await B.fn('razorpay-verify', paid); await subscription(d);
     },
     notify: () => B.fn('notify', { firm_id: firmId }),
