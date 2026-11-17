@@ -10,7 +10,10 @@
 | `migrations/0007_drive.sql` | Encrypted Google Drive storage: connected accounts, the master key in Vault, the nightly 2:30 AM IST backup job |
 | `migrations/0006_trial.sql` | 7-day free trial, read-only workspace once the trial or paid period ends, members capped by plan |
 | `functions/notify` | Email (Resend) and WhatsApp (Meta Cloud API) briefings and reminders, and free-trial reminder emails to firm owners 3 days and 1 day before the trial ends and when it has ended (deploy with JWT verification off; it checks the caller itself) |
-| `functions/court-status` | CNR lookup through a court-data provider |
+| `migrations/0022_court_intelligence.sql` | Court-record engine: provider registry and coverage, verified case records, change snapshots, append-only audit, API usage, cost and budget, job queue with dead-letter state, Vault-held provider key, the 6-hourly sync job |
+| `functions/court-sync` | The court-record engine: official-portal links, reuse of verified records and a shared cache, the paid eCourtsIndia provider as fallback, budget control, duplicate-request block, change detection, scheduler and the administrator actions. Deploy with JWT verification off; it checks every caller itself |
+| `functions/_shared/court-logic.js` | The engine's pure logic (also unit-tested). Deploy `functions/` as a whole so `court-sync` can import it |
+| `functions/court-status` | Older single-CNR lookup. The app no longer calls it (everything goes through `court-sync`); it can be removed |
 | `functions/auth-email` | Supabase Auth "Send Email" hook: sign-in codes, sign-up confirmations, invites, email changes and security notices in the Legal Staff design, sent through Resend (deploy with JWT verification off; it checks the hook signature) |
 | `functions/ai` | Real AI for AI Case Brain, AI Legal Research and AI Drafting Studio through Groq; picks the best model from Groq's live list; counts AI credits per firm per month by plan (deploy with JWT verification off; it checks the caller itself) |
 | `functions/upi-pay` | Pay by UPI straight to the operator's UPI ID, no gateway: creates orders with a unique amount, confirms them automatically by Paytm for Business order status, bank 'credited' SMS from an SMS-forwarder phone, or forwarded bank alert emails, applies promo codes, then activates the plan (deploy with JWT verification off; it checks every caller itself) |
@@ -34,7 +37,7 @@ Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0010 
 | `RESEND_API_KEY`, `EMAIL_FROM` | Email, e.g. `Legal Staff <briefing@yourdomain.in>` on a verified domain |
 | `APP_URL` (optional) | Site address used in trial reminder links; defaults to `https://legalstaff.in` |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE` | WhatsApp. The template must be approved and have one body variable |
-| `COURT_API_URL`, `COURT_API_KEY`, `COURT_API_HEADER` | Court data. The URL contains `{cnr}` |
+| `COURT_API_URL`, `COURT_API_KEY` | Court data through `court-sync`. `COURT_API_URL` is the provider's base address (default `https://webapi.ecourtsindia.com`). The key can instead be stored from the admin panel (Vault), which needs no redeploy. Full list below |
 | `SEND_EMAIL_HOOK_SECRET` | The secret Supabase generates under Authentication › Hooks › Send Email (format `v1,whsec_...`) |
 | `GROQ_API_KEY` (or Vault secret `groq_api_key`) | AI. Optional `GROQ_MODEL` picks a specific Groq model |
 | `CRON_SECRET` | Lets the daily job call `notify` |
@@ -99,3 +102,53 @@ insert into public.promo_codes (code, percent_off) values ('LAUNCH20', 20);
 insert into public.promo_codes (code, fixed_total, max_uses) values ('NEW100', 100, 50);
 update public.promo_codes set active = false where code = 'NEW100';
 ```
+
+## Court records (court-sync)
+
+### What it does, in the order it works
+
+1. **Official free sources.** No automated official source is used: the eCourts portals sit behind CAPTCHA, which is never bypassed. This step gives the user official portal links for manual verification (`official_manual`).
+2. **What we already hold.** A matching record verified within the freshness window (default 24 hours), then a response cache shared by CNR (public records), cost nothing.
+3. **The paid provider (eCourtsIndia).** Only when the data is missing or stale, a user asked for a fresh check, the provider's registered coverage includes the court, the circuit breaker is closed and the monthly budget allows it.
+4. **Manual review.** The case is flagged and official links shown. Nothing is made up.
+
+Schedule (admin-configurable): hearing within 3 days every 12 h, active cases every 24 h, inactive weekly, closed monthly, hearings soonest first. This is a schedule, not a guarantee that a newly published record is available straight away.
+
+### Verification statuses
+
+`VERIFIED` matched the registered identifiers and is fresh · `PENDING` not checked yet · `STALE` verified before, needs a fresh check · `FAILED` the provider or source failed · `MANUAL REVIEW` needs a person (no provider, unsupported court or identifier, no record found, or a record that did not match) · `PARTIAL` some requested fields were missing. An HTTP 200 alone is never "verified".
+
+### Environment variables (function secrets)
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `COURT_API_PROVIDER` | `ecourtsindia` | Provider key (only `ecourtsindia` is implemented) |
+| `COURT_API_URL` | `https://webapi.ecourtsindia.com` | Provider base address |
+| `COURT_API_KEY` | none | Provider key. Alternatively stored in Vault from the admin panel; the environment variable wins if both exist |
+| `ENABLE_OFFICIAL_SOURCES` | `true` | Return official portal links |
+| `ENABLE_PAID_FALLBACK` | `true` | Allow paid provider calls at all |
+| `ENABLE_RESPONSE_CACHE` | `true` | Shared response cache |
+| `ENABLE_DUPLICATE_REQUEST_BLOCK` | `true` | One identical request at a time |
+| `ENABLE_SMART_REFRESH` | `true` | Send the cheap refresh call before reading when a hearing date has passed or a fresh check was requested |
+| `MONTHLY_COURT_API_BUDGET` | admin panel value (₹1,000) | Rupees per IST month; overrides the panel when set |
+| `STOP_API_ON_BUDGET_LIMIT` | `true` | Refuse paid calls once the budget is used (an administrator can authorise a time-limited override) |
+| `COURT_API_TIMEOUT_MS` | `15000` | Per-request timeout (3,000 to 30,000) |
+| `COURT_SYNC_BATCH` | `40` | Cases checked per scheduled run |
+
+`functions/court-sync/.env.example` lists them. Never put the key in `config.js`, the browser, GitHub or a log: the function strips keys and bearer tokens from everything it logs or returns, and `tests/court-engine.test.mjs` checks this.
+
+### Deploy
+
+1. Apply `migrations/0022_court_intelligence.sql` (needs the `pg_cron`, `pg_net` and Vault set-up from migrations 0003 and 0007). Check the project address in the last statement matches your project.
+2. Deploy the `functions/` folder, then `court-sync` with JWT verification off.
+3. Set the secrets above. Either set `COURT_API_KEY`, or sign in as a platform administrator, open **Court Intelligence → Provider administration → Replace API key**: the key is checked with the provider before it is stored.
+4. In the same panel set the monthly budget and the provider rate plan (pay-as-you-go ₹1.50, enterprise ₹0.50 per case-detail call as of October 2026: check the provider's price list) and press **Check provider**.
+5. The 6-hourly job (`legal-staff-court-sync`) then checks due cases. A firm's members can also press **Check due cases** or **Verify now**.
+
+### Key rotation
+
+Rotate from the admin panel (Vault) with no code change or redeploy; if you use the environment variable instead, change the secret and the next call uses it. A wrong key is rejected and the old one is kept.
+
+### What is and is not covered
+
+Coverage comes from the provider's published list (Supreme Court, High Courts, district courts, and 14 tribunal and commission types) and is recorded in `provider_capabilities` with `verified_at` empty. **Nothing has been integration-tested against the live provider yet**: see `tests/README.md` for the one-command check to run once you have a key, and record the result there. Cases registered only by case, filing or diary number are routed to manual review, because the provider looks cases up by CNR (tribunal CNRs are minted by the provider). Public court data is information, not a certified copy.
