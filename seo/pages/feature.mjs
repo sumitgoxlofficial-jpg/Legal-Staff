@@ -95,7 +95,27 @@ const PREVIEW = {
   }
 };
 
-const PILL = { order: 'Next date confirmed', whatsapp: 'Reminder sent', diary: 'Clash resolved', research: 'Answer with citations', vault: 'Filed in the case', board: 'Task done' };
+PREVIEW.chat = () => {
+  const react = (e, n, on) => `<button type="button" class="fp-react${on ? ' is-on' : ''}" aria-pressed="${!!on}" data-n="${n}"><span aria-hidden="true">${e}</span><b>${n}</b></button>`;
+  const msg = (who, ini, text, time, o = {}) => `<div class="fp-msg${o.me ? ' is-me' : ''}">${o.me ? '' : `<span class="fp-msg-av" aria-hidden="true">${ini}</span>`}<div class="fp-msg-b">${o.me ? '' : `<p class="fp-msg-who">${who}</p>`}${text}${o.extra || ''}<div class="fp-msg-f">${o.reacts || ''}<time>${time}</time></div></div></div>`;
+  const file = `<span class="fp-file">${icon('doc', 16)}<span><b>Rejoinder — draft v2.pdf</b><small>PDF · sample file</small></span></span>`;
+  const meet = `<span class="fp-meet"><span><b>Chamber meeting</b><small>Today, 5:30 PM · Google Meet</small></span><em>Join</em></span>`;
+  const panels = {
+    team: [msg('Senior', 'S', '<p>Three matters tomorrow. Court 4 and Court 12 are both at 10:30 — who is free for Court 12?</p>', '6:02 PM', { reacts: react('👍', 2) }),
+      msg('Junior', 'J', '<p>I can take Court 12. Draft rejoinder is attached for your review.</p>', '6:05 PM', { extra: file, reacts: react('🙏', 1) }),
+      msg('You', '', '<p>Thanks. Let us go through it on a call.</p>', '6:07 PM', { me: true, extra: meet })],
+    one: [msg('Clerk', 'C', '<p>Certified copy of the order dated __.11.2026 is ready for collection.</p>', '4:40 PM', { reacts: react('👍', 0) }),
+      msg('You', '', '<p>Please collect it tomorrow before 11 and file it in the case.</p>', '4:42 PM', { me: true }),
+      msg('Clerk', 'C', '<p>Will do.</p>', '4:43 PM', { reacts: react('✅', 1, true) })]
+  };
+  const tabs = [['team', 'Whole team'], ['one', 'One colleague']];
+  return shell('chat', 'Team chat · Your chamber', `
+    <div class="fp-tabs" role="tablist" aria-label="Conversation">${tabs.map(([k, l], i) => `<button type="button" role="tab" id="fp-ctab-${k}" aria-controls="fp-cpanel-${k}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}" data-tab="${k}">${l}</button>`).join('')}</div>
+    ${tabs.map(([k, l], i) => `<div class="fp-chat" role="tabpanel" id="fp-cpanel-${k}" aria-labelledby="fp-ctab-${k}" data-panel="${k}"${i ? ' hidden' : ''}><span class="fp-wa-day fp-chat-day">Sample messages</span>${panels[k].join('')}</div>`).join('')}
+    <p class="fp-note">${icon('shield', 14)}Only members of your firm can read these conversations.</p>`);
+};
+
+const PILL = { chat: 'Message delivered', order: 'Next date confirmed', whatsapp: 'Reminder sent', diary: 'Clash resolved', research: 'Answer with citations', vault: 'Filed in the case', board: 'Task done' };
 const heroArt = f => `<div class="fh-art"><div class="fh-ring"></div><div class="fh-card ls-float"><span class="fh-ic">${icon(f.icon, 30)}</span><span class="fh-l"></span><span class="fh-l s"></span><span class="fh-l"></span></div>
   <div class="fh-pill ls-float" style="animation-delay:-2s">${icon('check', 14)}${PILL[f.preview.kind]}</div></div>`;
 
@@ -147,14 +167,15 @@ function hubPage() {
     ['You confirm the date', 'Nothing reaches the diary until an advocate confirms it.'],
     ['The diary and board update', 'The hearing appears in the court diary and on the day’s hearing board, with clashes flagged.'],
     ['Reminders go out', 'Two days before and on the morning of the hearing, on WhatsApp once connected, and by email.'],
-    ['The file stays together', 'The order is filed in the case vault, where the AI Case Brain can answer questions from it with citations.']
+    ['The file stays together', 'The order is filed in the case vault, where the AI Case Brain can answer questions from it with citations.'],
+    ['The chamber talks it through', 'Juniors and clerks pick up what is needed in the team chat, with files and meeting links, private to the firm.']
   ].map(([t, d]) => `<li><h3>${esc(t)}</h3><p>${esc(d)}</p></li>`).join('')}</ol>`;
-  const body = `${hero({ kicker: 'Features', title: 'Practice and case management features for Indian advocates', lead: 'Order reading, a shared court diary, WhatsApp reminders, document vaults, AI answers from your own case files and a hearing board for the chamber — in one web workspace.', crumbs, source: 'Features hub', chips: ['Web app, works in mobile browsers', 'Each firm’s data isolated', 'AI output reviewed by an advocate'] })}
+  const body = `${hero({ kicker: 'Features', title: 'Practice and case management features for Indian advocates', lead: 'Order reading, a shared court diary, WhatsApp reminders, document vaults, AI answers from your own case files, a hearing board and a private team chat for the chamber — in one web workspace.', crumbs, source: 'Features hub', chips: ['Web app, works in mobile browsers', 'Each firm’s data isolated', 'AI output reviewed by an advocate'] })}
 ${section({ title: 'All features', inner: cards })}
 ${section({ tone: 'tone-soft', kicker: 'How they fit together', title: 'From order to reminder', inner: flow })}
 ${ctaBand({ source: 'Features hub CTA' })}`;
   const jsonld = [ld.breadcrumb(crumbs), ld.itemList('Legal Staff features', features.map(f => ({ name: f.navLabel, path: `/features/${f.slug}` }))), ld.softwareApplication({ path, featureList: features.map(f => f.navLabel) })];
-  return { path, priority: 0.8, changefreq: 'monthly', html: page({ head: seoHead({ title: 'Features for Advocates and Law Chambers', description: 'Legal Staff features for Indian advocates: AI court order reader, digital court diary, WhatsApp hearing reminders, case documents, AI Case Brain and team tools.', path, jsonld }), body, active: 'features' }) };
+  return { path, priority: 0.8, changefreq: 'monthly', html: page({ head: seoHead({ title: 'Features for Advocates and Law Chambers', description: 'Legal Staff features for Indian advocates: AI court order reader, digital court diary, WhatsApp hearing reminders, case documents, AI Case Brain, team tools and team chat.', path, jsonld }), body, active: 'features' }) };
 }
 
 export function pages() {

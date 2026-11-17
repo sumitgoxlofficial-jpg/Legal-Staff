@@ -208,7 +208,7 @@
         h('button', { onClick: onClose, 'aria-label': 'Close', style: { border: 0, background: 'none', fontSize: 22, lineHeight: 1, color: K.mut } }, '×')), children));
   const Field = ({ label, error, children, half }) => h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, flex: half ? '1 1 180px' : '1 1 100%', minWidth: 0 } }, label && h('label', { style: { fontSize: 13, color: K.txt } }, label), children, error && h('div', { style: { fontSize: 12.5, color: K.red } }, error));
   /* fields: [{ k, label, type, options, req, ph, check(v, all), half, ro (read-only) }] */
-  const Form = ({ fields, init, submit, onSubmit, onCancel, note, readOnly }) => {
+  const Form = ({ fields, init, submit, onSubmit, onCancel, note }) => {
     const [v, setV] = useState(() => Object.assign({}, ...fields.map(f => ({ [f.k]: f.type === 'labels' ? [] : f.type === 'select' && !f.blank ? ((f.options[0] || [''])[0] !== undefined && Array.isArray(f.options[0]) ? f.options[0][0] : f.options[0]) || '' : '' })), init || {}));
     const [err, setErr] = useState({});
     const go = e => { e && e.preventDefault(); const er = {};
@@ -221,18 +221,18 @@
       setErr(er); if (!Object.keys(er).length) onSubmit(v); };
     return h('form', { onSubmit: go, noValidate: true, style: { display: 'flex', flexDirection: 'column', gap: 16 } },
       h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 14 } }, fields.map(f => h(Field, { key: f.k, label: f.label, error: err[f.k], half: f.half },
-        f.ro || readOnly ? h('input', { value: (f.type === 'select' && (f.options.find(o => Array.isArray(o) && o[0] === v[f.k]) || [])[1]) || (v[f.k] == null ? '' : v[f.k]), readOnly: true, 'aria-readonly': true, title: f.roNote || 'Cannot be changed here', style: Object.assign({}, X.input, { background: K.soft, color: K.mut }) })
+        f.ro ? h('input', { value: v[f.k] == null ? '' : v[f.k], readOnly: true, 'aria-readonly': true, title: f.roNote || 'Cannot be changed here', style: Object.assign({}, X.input, { background: K.soft, color: K.mut }) })
         : f.type === 'labels' ? (f.options.length ? h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, f.options.map(l => { const on = (v[f.k] || []).includes(l.id); return h('button', { key: l.id, type: 'button', 'aria-pressed': on, title: l.name, onClick: () => setV(Object.assign({}, v, { [f.k]: on ? v[f.k].filter(x => x !== l.id) : [...(v[f.k] || []), l.id] })), style: { border: '1.5px solid ' + l.color, background: on ? l.color : '#fff', color: on ? '#fff' : l.color, fontSize: 12, fontWeight: 600, borderRadius: 999, padding: '3px 11px' } }, l.code); })) : h('div', { style: { fontSize: 13, color: K.mut } }, 'No labels yet. Add them under Labels in the sidebar.'))
         : f.type === 'select' ? h('select', { value: v[f.k], onChange: e => setV(Object.assign({}, v, { [f.k]: e.target.value })), style: X.input }, f.blank && h('option', { value: '' }, f.blank), f.options.map(o => Array.isArray(o) ? h('option', { key: o[0], value: o[0] }, o[1]) : h('option', { key: o, value: o }, o)))
           : f.type === 'textarea' ? h('textarea', { value: v[f.k], placeholder: f.ph, rows: f.rows || 4, onChange: e => setV(Object.assign({}, v, { [f.k]: e.target.value })), style: Object.assign({}, X.input, { height: 'auto', padding: '10px 12px', resize: 'vertical', lineHeight: 1.5 }) })
             : h('input', { type: f.type === 'number' ? 'text' : (f.type || 'text'), inputMode: f.type === 'number' ? 'decimal' : undefined, value: v[f.k], placeholder: f.ph, onChange: e => setV(Object.assign({}, v, { [f.k]: e.target.value })), style: X.input })))),
       note && h('div', { style: { fontSize: 12.5, color: K.mut } }, note),
-      !readOnly && h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, onCancel && h(Btn, { onClick: onCancel }, 'Cancel'), h('button', { type: 'submit', className: 'ls-btn', style: { height: 36, padding: '0 16px', borderRadius: 8, fontSize: 13.5, fontWeight: 500, border: 0, background: K.ink, color: '#fff' } }, submit || 'Save')));
+      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, onCancel && h(Btn, { onClick: onCancel }, 'Cancel'), h('button', { type: 'submit', className: 'ls-btn', style: { height: 36, padding: '0 16px', borderRadius: 8, fontSize: 13.5, fontWeight: 500, border: 0, background: K.ink, color: '#fff' } }, submit || 'Save')));
   };
   const Toggle = ({ on, onChange, label }) => h('button', { type: 'button', role: 'switch', 'aria-checked': !!on, 'aria-label': label, onClick: () => onChange(!on), style: { width: 40, height: 22, borderRadius: 11, border: 0, padding: 2, background: on ? K.ink : '#C4C4C4', display: 'flex', justifyContent: 'flex-start', flexShrink: 0, transition: 'background .2s ease' } }, h('span', { style: { width: 18, height: 18, borderRadius: 9, background: '#fff', display: 'block', transform: on ? 'translateX(18px)' : 'none', transition: 'transform .22s var(--ls-ease-out)', boxShadow: '0 1px 2px rgba(0,0,0,.2)' } }));
   const Stat = ({ label, value, note, red }) => h('div', { className: 'ls-lift', style: Object.assign({}, X.card, { padding: '18px 20px', flex: '1 1 180px' }) }, h('div', { style: { fontSize: 13, color: K.mut } }, label), h('div', { style: { fontSize: 26, fontWeight: 600, letterSpacing: '-.02em', marginTop: 4, fontVariantNumeric: 'tabular-nums' } }, typeof value === 'string' || typeof value === 'number' ? h(CountUp, { value }) : value), note && h('div', { style: { fontSize: 13, color: red ? K.red : K.mut, marginTop: 4 } }, note));
   const Search = ({ value, onChange, placeholder, width }) => h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, background: '#FFFFFF', border: '1px solid ' + K.line, borderRadius: 8, padding: '0 12px', height: 38, minWidth: width || 240 } }, h('span', { style: { color: '#7A7A7A' } }, '⌕'), h('input', { value, onChange: e => onChange(e.target.value), placeholder, style: { border: 0, outline: 'none', flex: 1, fontSize: 14, background: 'transparent', minWidth: 0 } }));
-  const Select = ({ value, onChange, options, style, disabled, title }) => h('select', { value, disabled, title, onChange: e => onChange(e.target.value), style: Object.assign({}, X.input, { width: 'auto', minWidth: 160 }, disabled ? { opacity: .55, cursor: 'not-allowed' } : null, style) }, options.map(o => h('option', { key: o[0], value: o[0] }, o[1])));
+  const Select = ({ value, onChange, options, style }) => h('select', { value, onChange: e => onChange(e.target.value), style: Object.assign({}, X.input, { width: 'auto', minWidth: 160 }, style) }, options.map(o => h('option', { key: o[0], value: o[0] }, o[1])));
   const Line = ({ children, last }) => h('div', { style: { display: 'flex', gap: 12, alignItems: 'center', padding: '12px 0', borderTop: '1px solid ' + K.line, fontSize: 14 } }, children);
   const Bars = ({ rows, fmt }) => { const mx = Math.max(1, ...rows.map(r => r[1])); return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } }, rows.map(([k, n]) => h('div', { key: k, style: { display: 'grid', gridTemplateColumns: 'minmax(110px,1.2fr) 2fr auto', gap: 12, alignItems: 'center', fontSize: 13.5 } }, h('span', { style: { color: K.txt, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, k), h('span', { style: { height: 8, background: K.soft2, borderRadius: 4, overflow: 'hidden' } }, h('span', { className: 'ls-grow-x', style: { display: 'block', height: '100%', width: (n / mx * 100) + '%', background: K.ink } })), h('span', { style: { fontVariantNumeric: 'tabular-nums', fontWeight: 500 } }, fmt ? fmt(n) : n))), !rows.length && h('div', { style: { color: K.mut, fontSize: 14 } }, 'No data yet.')); };
 
@@ -245,9 +245,6 @@
   const openTasks = d => d.tasks.filter(t => !t.done);
   const overdue = t => !t.done && t.due < L.today();
   const gstOf = a => Math.round(a * 18) / 100;
-  /* GST figures of an invoice (see LS.invoiceTax): tax charged, total, CGST/SGST/IGST, reverse charge. */
-  const invCalc = (d, i) => L.invoiceTax(i, d.firm, d.clients.find(c => c.id === i.clientId));
-  const STATE_OPTS = () => L.STATES.map(([c, n]) => [c, n + ' (' + c + ')']);
   function clashes(d) { const m = {}; d.hearings.filter(x => x.date >= L.today()).forEach(x => { const k = x.date + '|' + x.time + '|' + x.assignee; (m[k] = m[k] || []).push(x); }); return Object.values(m).filter(g => g.length > 1); }
   function nextHearing(d, caseId) { return d.hearings.filter(x => x.caseId === caseId && x.date >= L.today()).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))[0]; }
   function alerts(d, app) {
@@ -265,64 +262,16 @@
   const logIt = (d, x, caseId, extra) => { d.log.unshift(Object.assign({ ts: L.today() + ' ' + L.nowHM(), caseId: caseId || '', x }, extra)); if (d.log.length > L.LOG_MAX) d.log.length = L.LOG_MAX; };
 
   /* ---------- permissions, outcomes and shared edit helpers ---------- */
-  /* Roles and permissions (server mode; in the browser-only app the one person on the device is the owner).
-     PERM[action] = [partner, associate, clerk, viewer]: 1 allowed, 'own' only records that person created, 0 not allowed. The owner may do everything.
-     The server enforces the parts that matter most (migration 0006): invoices, team members, deleting stored files, read-only viewers. */
-  const PERM = {
-    'label.edit': [1, 1, 0, 0], 'label.delete': [1, 1, 0, 0], 'case.create': [1, 1, 0, 0], 'case.edit': [1, 1, 0, 0], 'case.delete': [1, 'own', 'own', 0],
-    'client.create': [1, 1, 0, 0], 'client.edit': [1, 1, 0, 0], 'client.delete': [1, 'own', 'own', 0],
-    'hearing.create': [1, 1, 1, 0], 'hearing.edit': [1, 1, 1, 0], 'hearing.outcome': [1, 1, 1, 0], 'hearing.delete': [1, 'own', 'own', 0],
-    'order.create': [1, 1, 0, 0], 'order.edit': [1, 1, 0, 0], 'order.delete': [1, 'own', 'own', 0],
-    'task.create': [1, 1, 1, 0], 'task.edit': [1, 1, 1, 0], 'task.delete': [1, 'own', 'own', 0],
-    'doc.create': [1, 1, 1, 0], 'doc.edit': [1, 1, 1, 0], 'doc.delete': [1, 'own', 'own', 0], 'file.delete': [1, 0, 0, 0],
-    'deadline.create': [1, 1, 1, 0], 'deadline.edit': [1, 1, 1, 0], 'deadline.delete': [1, 'own', 'own', 0], 'lim.approve': [1, 1, 0, 0],
-    'invoice.create': [1, 1, 0, 0], 'invoice.edit': [1, 1, 0, 0], 'invoice.paid': [1, 0, 0, 0], 'invoice.delete': [1, 0, 0, 0],
-    'draft.edit': [1, 1, 1, 0], 'draft.delete': [1, 1, 1, 0], 'portal.edit': [1, 1, 0, 0], 'watch.edit': [1, 1, 1, 0], 'agents.edit': [1, 0, 0, 0], 'agents.run': [1, 1, 1, 0],
-    'firm.edit': [1, 0, 0, 0], 'team.manage': [0, 0, 0, 0], 'plan.buy': [0, 0, 0, 0], 'firm.restore': [0, 0, 0, 0], 'firm.erase': [0, 0, 0, 0]
-  };
-  const LEVELS = ['partner', 'associate', 'clerk', 'viewer'];
-  /* Allowed while the firm is read-only (no active plan after the grace period): choosing a plan and deleting the firm's data. */
-  const RO_OK = { 'plan.buy': 1, 'firm.erase': 1 };
-  const server = () => !!(window.LSB && LSB.on);
-  const roleKey = app => server() ? L.roleOf(app.db.user.role, app.db.isOwner) : 'owner';
-  const roleName = app => L.ROLES[roleKey(app)];
-  const plan = app => server() ? L.planState(app.db) : null;
-  const ASK = { 'team.manage': 'Only the firm owner can invite or change members.', 'plan.buy': 'Only the firm owner can choose or change the plan.', 'firm.restore': 'Only the firm owner can restore a backup.', 'firm.erase': 'Only the firm owner can delete the firm\'s data.', 'file.delete': 'Only the firm owner or a partner can delete uploaded files.', 'invoice.paid': 'Only the firm owner or a partner can mark invoices paid or unpaid.', 'invoice.delete': 'Only the firm owner or a partner can delete invoices.', 'firm.edit': 'Only the firm owner or a partner can change the firm profile.', 'agents.edit': 'Only the firm owner or a partner can switch agents on or off.', 'lim.approve': 'Only an advocate (owner, partner or associate) can approve a limitation date.' };
-  /* Why an action is not allowed ('' when it is). rec: the record acted on, for "own" rules and record-specific limits. */
-  function why(app, action, rec) {
-    if (!server()) return '';
-    const d = app.db, r = roleKey(app), ps = plan(app);
-    if (ps.readOnly && !RO_OK[action]) return 'Read-only: ' + (ps.trial ? 'the firm has no plan yet' : 'the ' + ps.plan + ' plan ' + (ps.expired ? 'expired on ' + L.fmt(ps.renews) : 'is not active')) + '. Choose a plan to make changes; everything stays viewable and exportable.';
-    if (action === 'doc.delete' && rec && rec.file && r !== 'owner' && r !== 'partner') return ASK['file.delete'];
-    if (action === 'invoice.edit' && rec && rec.paid && r !== 'owner' && r !== 'partner') return 'This invoice is marked paid. Only the firm owner or a partner can change it.';
-    if (r === 'owner') return '';
-    const v = (PERM[action] || [0, 0, 0, 0])[LEVELS.indexOf(r)];
-    if (v === 1) return '';
-    if (v === 'own' && rec && rec.createdBy && rec.createdBy === d.uid) return '';
-    if (ASK[action]) return ASK[action];
-    if (r === 'viewer') return 'Your role (Viewer) is read-only. Ask the firm owner to change your role.';
-    return `Your role (${L.ROLES[r]}) cannot ${v === 'own' ? 'delete items other people added' : 'do this'}. Ask the firm owner or a partner.`;
-  }
-  const can = (app, action, rec) => !why(app, action, rec);
-  const allowed = (app, action, rec) => { const w = why(app, action, rec); if (!w) return true; app.toast(w); return false; };
-  /* Props for a button: disabled with the reason as its tooltip. */
-  const gate = (app, action, rec) => { const w = why(app, action, rec); return w ? { disabled: true, title: w } : {}; };
-  /* Plan limits (server mode only): open cases, users, stored files. */
-  function limitWhy(app, what, add) {
-    const ps = plan(app); if (!ps) return ''; const u = L.usage(app.db), l = ps.limits, nm = ps.trial ? 'Until you choose a plan, the firm' : 'The ' + ps.plan + ' plan';
-    if (what === 'cases' && l.cases && u.cases + (add || 1) > l.cases) return `${nm} allows ${l.cases} open cases and ${u.cases} are open. Mark finished cases Disposed or Archived, or choose a bigger plan.`;
-    if (what === 'seats' && u.seats + 1 > l.seats) return `${nm} allows ${l.seats} user${l.seats === 1 ? '' : 's'} (active and invited) and ${u.seats} ${u.seats === 1 ? 'is' : 'are'} on the team. Remove a member or choose a bigger plan.`;
-    if (what === 'bytes' && u.bytes + (add || 0) > l.gb * 1073741824) return `${nm} includes ${l.gb} GB of files and ${L.size(u.bytes)} is used. Delete files you no longer need, or choose a bigger plan.`;
-    return '';
-  }
-  const withinLimit = (app, what, add) => { const w = limitWhy(app, what, add); if (!w) return true; app.toast(w); return false; };
+  /* Single permission check for edit/delete. Everything is allowed for now; roles fill this in later. */
+  const can = (app, action) => true;
+  const allowed = (app, action) => { if (can(app, action)) return true; app.toast('You do not have permission to do that.'); return false; };
   const OUTCOMES = ['Heard', 'Adjourned', 'Part-heard', 'Reserved for orders', 'Disposed', 'Not reached', 'Other'];
   const STAGES = ['Pleadings', 'Evidence', 'Arguments', 'Pending filing', 'Execution', 'Reserved for orders', 'Mediation'];
   const DOC_TYPES = ['Pleading', 'Court order', 'Draft', 'Correspondence', 'Other'];
   const isAdj = o => o === 'Adjourned' || (!!o && !OUTCOMES.includes(o) && /adjourn|time sought|time to|given \d|weeks/i.test(o));
   const needsOutcome = d => d.hearings.filter(x => x.date < L.today() && !x.outcome);
   const outcomeChip = x => x.outcome ? h(Chip, { tone: x.outcome === 'Not reached' || isAdj(x.outcome) ? 'grey' : '' }, x.outcome) : (x.date < L.today() ? h(Chip, { tone: 'red' }, 'Needs outcome') : null);
-  const IconBtn = ({ label, onClick, children, danger, disabled, title }) => h('button', { type: 'button', onClick, disabled, title: title || label, 'aria-label': label, className: 'ls-btn', style: { width: 30, height: 30, flexShrink: 0, borderRadius: 8, border: '1px solid ' + (danger ? '#F4B8B1' : K.line), background: '#FFFFFF', color: danger ? K.red : K.ink, fontSize: 15, lineHeight: 1, padding: 0, opacity: disabled ? .4 : 1, cursor: disabled ? 'not-allowed' : 'pointer' } }, children);
+  const IconBtn = ({ label, onClick, children, danger }) => h('button', { type: 'button', onClick, title: label, 'aria-label': label, className: 'ls-btn', style: { width: 30, height: 30, flexShrink: 0, borderRadius: 8, border: '1px solid ' + (danger ? '#F4B8B1' : K.line), background: '#FFFFFF', color: danger ? K.red : K.ink, fontSize: 15, lineHeight: 1, padding: 0 } }, children);
   const acts = (...k) => h('span', { style: { display: 'inline-flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' } }, ...k.filter(Boolean));
   const plural = (n, w, ws) => n + ' ' + (n === 1 ? w : (ws || w + 's'));
   /* The server sends briefings hourly on the half hour IST (pg_cron at minute 0 UTC), so a time is stored as HH:30. */
@@ -340,7 +289,8 @@
   /* editId: edit that case instead (same form, prefilled, without the first-hearing fields). */
   function newCase(app, init, editId) {
     const d = app.db, c0 = editId && d.cases.find(c => c.id === editId);
-    if (editId ? (!c0 || !allowed(app, 'case.edit', c0)) : !(allowed(app, 'case.create') && withinLimit(app, 'cases'))) return;
+    if (editId && (!c0 || !allowed(app, 'case.edit'))) return;
+    if (!editId && overLimit(app, 'cases')) return;
     const lead = c0 ? (c0.team || [])[0] : '', stages = LSP.stages(d.firm, c0 && c0.stage);
     app.modal(() => h(Modal, { title: c0 ? 'Edit case' : 'New case', sub: c0 ? c0.no : 'Add the matter manually. You can upload orders and documents afterwards.', onClose: () => app.modal(null), width: 600 },
       h(Form, { init: c0 ? { title: c0.title, full: c0.full || c0.title, no: c0.no, cnr: c0.cnr || '', court: c0.court, stage: c0.stage || stages[0], clientId: c0.clientId || '', team: lead || d.user.name, fileNo: c0.fileNo || '', state: c0.state || '', district: c0.district || '', bench: c0.bench || '', oppAdv: c0.oppAdv || '', labels: (c0.labels || []).slice() } : Object.assign({ team: d.user.name, stage: stages[0] }, init), submit: c0 ? 'Save changes' : 'Create case', onCancel: () => app.modal(null),
@@ -370,10 +320,13 @@
           app.modal(null); app.go('case', id); } })));
   }
   /* Removes a stored file (server storage or this browser's IndexedDB). */
-  const dropFile = x => { if (window.LSB && LSB.on) { if (x.file) LSB.removeFile(x.id, x.file); } else L.files.del(x.id); };
+  const dropFile = x => { if (window.LSB && LSB.on) { if (x.drive) LSB.drive.remove(x.drive); else if (x.file) LSB.removeFile(x.id, x.file); } else L.files.del(x.id); };
+  /* Where a new upload goes: the uploader's Google Drive (encrypted, hidden folder) once they have connected it, otherwise the firm's private storage. */
+  const driveOn = app => !!(window.LSB && LSB.on && app.driveSt && app.driveSt.configured && app.driveSt.connected);
+  const storeFile = (app, id, f) => !(window.LSB && LSB.on) ? L.files.put(id, f).catch(() => {}).then(() => null) : driveOn(app) ? LSB.drive.upload(id, f) : LSB.upload(id, f).then(() => null);
   /* Blocked while the case has invoices. Hearings and orders go with the case; tasks and documents can be kept, unlinked. */
   function delCase(app, id) {
-    const d = app.db, c = d.cases.find(x => x.id === id); if (!c || !allowed(app, 'case.delete', c)) return;
+    const d = app.db, c = d.cases.find(x => x.id === id); if (!c || !allowed(app, 'case.delete')) return;
     const inv = d.invoices.filter(i => i.caseId === id);
     if (inv.length) return infoBox(app, 'This case cannot be deleted', `${c.title} has ${plural(inv.length, 'invoice')} (${inv.map(i => i.no).join(', ')}). Invoices are financial records, so the case they belong to is kept with them. Mark the case Disposed or Archived instead, or delete the invoice${inv.length > 1 ? 's' : ''} in Billing & Finance first.`);
     const n = { h: d.hearings.filter(x => x.caseId === id).length, o: d.orders.filter(x => x.caseId === id).length, t: d.tasks.filter(x => x.caseId === id).length, dc: d.docs.filter(x => x.caseId === id).length };
@@ -384,17 +337,13 @@
         logIt(db, `Case ${c.title} (${c.no}) deleted by ${db.user.name}` + (n.h + n.o ? ` with ${plural(n.h, 'hearing')} and ${plural(n.o, 'order')}` : '') + (keep && n.t + n.dc ? '; its tasks and documents were kept, not linked to a case' : (n.t + n.dc ? `, ${plural(n.t, 'task')} and ${plural(n.dc, 'document')}` : ''))); }, 'Case deleted');
       app.modal(null); app.go('cases'); };
     const linked = [n.h && plural(n.h, 'hearing'), n.o && plural(n.o, 'court order'), n.t && plural(n.t, 'task'), n.dc && plural(n.dc, 'document')].filter(Boolean);
-    /* Uploaded files can be deleted only by the owner or a partner (storage rule in migration 0006), so others keep the documents. */
-    const keepOnly = !can(app, 'file.delete') && d.docs.some(x => x.caseId === id && x.file);
     app.modal(() => h(Modal, { title: 'Delete this case?', onClose: () => app.modal(null), width: 480 },
       h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `${c.title} (${c.no}) will be deleted.`, linked.length ? ` It has ${linked.join(', ')}.` : ' Nothing else is linked to it.', n.h + n.o ? ' Its hearings and orders are deleted with it.' : '', n.t + n.dc ? ' Do you also want to delete its tasks and documents (uploaded files included), or keep them without a case?' : '', ' This cannot be undone.'),
       h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'),
         n.t + n.dc ? h(Btn, { danger: true, onClick: () => run(true) }, 'Delete case, keep tasks and documents') : null,
-        keepOnly && n.t + n.dc ? null : h(Btn, { primary: true, onClick: () => run(false) }, linked.length ? 'Delete case and everything linked' : 'Delete case')),
-      keepOnly && n.t + n.dc ? h('div', { style: { fontSize: 12.5, color: K.mut } }, 'Uploaded files can be deleted only by the firm owner or a partner, so the documents are kept.') : null));
+        h(Btn, { primary: true, onClick: () => run(false) }, linked.length ? 'Delete case and everything linked' : 'Delete case'))));
   }
   function importCnr(app) {
-    if (!(allowed(app, 'case.create') && withinLimit(app, 'cases'))) return;
     app.modal(() => h(Modal, { title: 'Import by CNR', sub: 'Enter the 16-character CNR printed on the case status page.', onClose: () => app.modal(null) },
       h(Form, { submit: 'Continue', onCancel: () => app.modal(null), note: window.LSB && LSB.on ? 'The case details are fetched from your court-data provider. If none is connected, the CNR is carried into the new-case form for you to complete.' : 'Fetching case details needs the server and a court-data provider. The CNR is checked and carried into the new-case form.',
         fields: [{ k: 'cnr', label: 'CNR number', req: true, ph: '4 letters and 12 digits', check: v => { const c = v.replace(/[\s-]/g, ''); if (!/^[A-Za-z]{4}\d{12}$/.test(c)) return 'A CNR has 4 letters followed by 12 digits'; if (app.db.cases.some(x => x.cnr === c.toUpperCase())) return 'This CNR is already in your cases'; return ''; } }],
@@ -404,21 +353,21 @@
   const withName = (opts, n) => n && !opts.includes(n) ? [n, ...opts] : opts;
   function addTask(app, caseId, editId) {
     const d = app.db, t0 = editId && d.tasks.find(t => t.id === editId);
-    if (editId ? (!t0 || !allowed(app, 'task.edit', t0)) : !allowed(app, 'task.create')) return;
+    if (editId && (!t0 || !allowed(app, 'task.edit'))) return;
     app.modal(() => h(Modal, { title: t0 ? 'Edit task' : 'New task', onClose: () => app.modal(null) }, h(Form, { init: t0 ? { t: t0.t, caseId: t0.caseId || '', who: t0.who, due: t0.due } : { caseId: caseId || '', who: d.user.name, due: L.addDays(L.today(), 3) }, submit: t0 ? 'Save changes' : 'Add task', onCancel: () => app.modal(null),
       fields: [{ k: 't', label: 'Task', req: true, ph: 'What needs to be done?' }, { k: 'caseId', label: 'Case', type: 'select', blank: 'No case', options: caseOpts(d, t0 && t0.caseId) }, { k: 'who', label: 'Assigned to', type: 'select', options: withName(teamOpts(d), t0 && t0.who), half: true }, { k: 'due', label: 'Due date', type: 'date', req: true, half: true }],
       onSubmit: v => { if (t0) app.mut(db => { const t = db.tasks.find(x => x.id === editId); if (!t) return; Object.assign(t, { t: v.t.trim(), caseId: v.caseId || '', who: v.who, due: v.due }); logIt(db, `Task "${t.t}" edited by ${db.user.name}`, t.caseId); }, 'Task updated');
         else app.mut(db => { db.tasks.push({ id: L.uid('t'), caseId: v.caseId, t: v.t.trim(), who: v.who, due: v.due, done: false }); }, 'Task added'); app.modal(null); } })));
   }
   function delTask(app, id) {
-    const t = app.db.tasks.find(x => x.id === id); if (!t || !allowed(app, 'task.delete', t)) return;
+    const t = app.db.tasks.find(x => x.id === id); if (!t || !allowed(app, 'task.delete')) return;
     confirmBox(app, 'Delete this task?', `"${t.t}" (${t.who}, due ${L.dayMon(t.due)}) will be deleted.`, 'Delete task', () => app.mut(db => { db.tasks = db.tasks.filter(x => x.id !== id); logIt(db, `Task "${t.t}" deleted by ${db.user.name}`, t.caseId); }, 'Task deleted'));
   }
   /* editId: edit that hearing (same form, plus the court). */
   function addHearing(app, caseId, date, editId) {
     if (needCase(app)) return;
     const d = app.db, x0 = editId && d.hearings.find(x => x.id === editId);
-    if (editId ? (!x0 || !allowed(app, 'hearing.edit', x0)) : !allowed(app, 'hearing.create')) return;
+    if (editId && (!x0 || !allowed(app, 'hearing.edit'))) return;
     app.modal(() => h(Modal, { title: x0 ? 'Edit hearing' : 'Add hearing', sub: x0 ? caseOf(d, x0.caseId).title : null, onClose: () => app.modal(null) }, h(Form, { init: x0 ? { caseId: x0.caseId, date: x0.date, time: x0.time, purpose: x0.purpose || '', item: x0.item || '', listNo: x0.listNo || '', bench: x0.bench || '', assignee: x0.assignee, court: x0.court || '' } : { caseId: caseId || (caseOpts(d)[0] || [''])[0], date: date || L.today(), time: '10:30', assignee: d.user.name }, submit: x0 ? 'Save changes' : 'Add to calendar', onCancel: () => app.modal(null),
       fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d, x0 && x0.caseId) }, { k: 'date', label: 'Date', type: 'date', req: true, half: true }, { k: 'time', label: 'Time', type: 'time', req: true, half: true }, { k: 'purpose', label: 'Purpose', ph: 'Arguments', half: true }, { k: 'item', label: 'Item no. (optional)', ph: 'Item 12', half: true }, { k: 'listNo', label: 'List no. (optional)', ph: 'Supplementary list', half: true }, { k: 'bench', label: 'Bench for this listing (optional)', ph: 'Defaults to the case bench', half: true }, { k: 'assignee', label: 'Appearing', type: 'select', options: withName(teamOpts(d), x0 && x0.assignee), half: !!x0 }, ...(x0 ? [{ k: 'court', label: 'Court', req: true, half: true }] : [])],
       onSubmit: v => clashGate(app, v, x0 ? [x0.id] : [], () => { if (x0) app.mut(db => { const x = db.hearings.find(y => y.id === editId); if (!x) return; const was = x.date;
@@ -427,14 +376,14 @@
         else app.mut(db => { const c = caseOf(db, v.caseId); db.hearings.push({ id: L.uid('h'), caseId: v.caseId, date: v.date, time: v.time, court: c.court, item: v.item || '', listNo: (v.listNo || '').trim(), bench: (v.bench || '').trim(), purpose: v.purpose || c.purpose || 'Hearing', assignee: v.assignee, outcome: '', brief: false }); logIt(db, `Hearing added for ${L.dmy(v.date)}`, v.caseId); }, 'Hearing added to calendar'); app.modal(null); }) })));
   }
   function delHearing(app, id) {
-    const d = app.db, x = d.hearings.find(y => y.id === id); if (!x || !allowed(app, 'hearing.delete', x)) return;
+    const d = app.db, x = d.hearings.find(y => y.id === id); if (!x || !allowed(app, 'hearing.delete')) return;
     const o = x.fromOrder && d.orders.find(y => y.id === x.fromOrder && y.confirmed);
     confirmBox(app, 'Delete this hearing?', `The hearing of ${L.dmy(x.date)}, ${L.t12ap(x.time)} in ${caseOf(d, x.caseId).title} is removed from the calendar.` + (x.outcome ? ' Its recorded outcome goes with it.' : '') + (o ? ` The next date in the order of ${L.dmy(o.date)} will show as not confirmed again.` : ''), 'Delete hearing',
       () => app.mut(db => { db.hearings = db.hearings.filter(y => y.id !== id); db.hearings.forEach(y => { if (y.nextHearingId === id) y.nextHearingId = ''; }); const oo = o && db.orders.find(y => y.id === o.id); if (oo) oo.confirmed = false; logIt(db, `Hearing of ${L.dmy(x.date)} deleted by ${db.user.name}`, x.caseId); }, 'Hearing deleted'));
   }
   /* On or after the hearing date: outcome, a short note, and an optional next date that adds (or moves) the linked next hearing. */
   function recordOutcome(app, id) {
-    const d = app.db, x = d.hearings.find(y => y.id === id); if (!x || !allowed(app, 'hearing.outcome', x)) return;
+    const d = app.db, x = d.hearings.find(y => y.id === id); if (!x || !allowed(app, 'hearing.outcome')) return;
     if (x.date > L.today()) return app.toast('An outcome can be recorded on or after the day of the hearing.');
     const nx = x.nextHearingId && d.hearings.find(y => y.id === x.nextHearingId), legacy = x.outcome && !OUTCOMES.includes(x.outcome);
     app.modal(() => h(Modal, { title: x.outcome ? 'Edit outcome' : 'Record outcome', sub: `${caseOf(d, x.caseId).title} · ${L.dmy(x.date)}, ${L.t12ap(x.time)} · ${x.court}`, onClose: () => app.modal(null) },
@@ -454,20 +403,20 @@
           if (v.next && !same && (!nx || nx.date !== v.next || nx.time !== v.time)) clashGate(app, { date: v.next, time: v.time, assignee: x.assignee }, [x.id, nx && nx.id], save); else save(); } })));
   }
   /* Small action buttons for a hearing row. */
-  const hearingActs = (app, x) => acts(x.date <= L.today() && h(Btn, Object.assign({ small: true, primary: x.date < L.today() && !x.outcome, onClick: () => recordOutcome(app, x.id) }, gate(app, 'hearing.outcome', x)), x.outcome ? 'Edit outcome' : 'Record outcome'), h(IconBtn, Object.assign({ label: 'Edit hearing', onClick: () => addHearing(app, '', '', x.id) }, gate(app, 'hearing.edit', x)), '✎'), h(IconBtn, Object.assign({ label: 'Delete hearing', danger: true, onClick: () => delHearing(app, x.id) }, gate(app, 'hearing.delete', x)), '×'));
+  const hearingActs = (app, x) => acts(x.date <= L.today() && h(Btn, { small: true, primary: x.date < L.today() && !x.outcome, onClick: () => recordOutcome(app, x.id) }, x.outcome ? 'Edit outcome' : 'Record outcome'), h(IconBtn, { label: 'Edit hearing', onClick: () => addHearing(app, '', '', x.id) }, '✎'), h(IconBtn, { label: 'Delete hearing', danger: true, onClick: () => delHearing(app, x.id) }, '×'));
   function uploadDoc(app, kind, caseId) {
-    if (!allowed(app, 'doc.create') || needCase(app)) return;
+    if (needCase(app)) return;
     const d = app.db, ev = kind === 'evidence';
-    app.modal(() => h(Modal, { title: ev ? 'Add evidence' : 'Upload document', sub: window.LSB && LSB.on ? 'The file is stored privately for your firm.' : 'The file stays in this browser. Nothing is uploaded to a server.', onClose: () => app.modal(null) }, h(Form, { init: { caseId: caseId || (caseOpts(d)[0] || [''])[0], type: ev ? 'Evidence' : 'Pleading' }, submit: 'Choose file…', onCancel: () => app.modal(null),
+    app.modal(() => h(Modal, { title: ev ? 'Add evidence' : 'Upload document', sub: driveOn(app) ? `The file is encrypted and saved to the hidden Legal Staff folder in your Google Drive (${app.driveSt.email || 'connected'}).` : window.LSB && LSB.on ? 'The file is stored privately for your firm.' : 'The file stays in this browser. Nothing is uploaded to a server.', onClose: () => app.modal(null) }, h(Form, { init: { caseId: caseId || (caseOpts(d)[0] || [''])[0], type: ev ? 'Evidence' : 'Pleading' }, submit: 'Choose file…', onCancel: () => app.modal(null),
       fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d) }, ev ? { k: 'exhibit', label: 'Exhibit mark', ph: 'Ex. P-1', half: true } : { k: 'type', label: 'Type', type: 'select', options: ['Pleading', 'Court order', 'Draft', 'Correspondence', 'Other'], half: true }, ev ? { k: 'custody', label: 'Source / chain of custody', ph: 'Received from client on…', half: true } : { k: 'label', label: 'Title (optional)', ph: 'Defaults to the file name', half: true }],
-      onSubmit: v => L.pickFile().then(fs => { if (!fs.length) return; const f = fs[0], id = L.uid('d'), ext = (f.name.split('.').pop() || 'FILE').toUpperCase().slice(0, 4); if (!withinLimit(app, 'bytes', f.size)) return;
-        (window.LSB && LSB.on ? LSB.upload(id, f) : L.files.put(id, f).catch(() => {})).then(() => { app.mut(db => { db.docs.unshift({ id, caseId: v.caseId, kind, ext, name: (v.label || '').trim() || f.name.replace(/\.[^.]+$/, ''), meta: `${ev ? 'Evidence' : v.type} · ${L.size(f.size)} · uploaded by ${db.user.name}`, v: 'v1', added: L.today(), file: f.name, bytes: f.size, exhibit: v.exhibit || '', custody: v.custody || '' }); logIt(db, `${ev ? 'Evidence' : 'Document'} "${f.name}" added by ${db.user.name}`, v.caseId); }, ev ? 'Evidence added' : 'Document uploaded'); app.modal(null); }).catch(e => app.toast('Upload failed: ' + e.message)); }) })));
+      onSubmit: v => L.pickFile().then(fs => { if (!fs.length) return; const f = fs[0], id = L.uid('d'), ext = (f.name.split('.').pop() || 'FILE').toUpperCase().slice(0, 4);
+        storeFile(app, id, f).then(drive => { app.mut(db => { db.docs.unshift({ id, caseId: v.caseId, kind, ext, ...(drive ? { drive } : {}), name: (v.label || '').trim() || f.name.replace(/\.[^.]+$/, ''), meta: `${ev ? 'Evidence' : v.type} · ${L.size(f.size)} · uploaded by ${db.user.name}`, v: 'v1', added: L.today(), file: f.name, exhibit: v.exhibit || '', custody: v.custody || '' }); logIt(db, `${ev ? 'Evidence' : 'Document'} "${f.name}" added by ${db.user.name}`, v.caseId); }, ev ? 'Evidence added' : 'Document uploaded'); app.modal(null); }).catch(e => app.toast('Upload failed: ' + e.message)); }) })));
   }
   const docType = x => x.kind === 'evidence' ? 'Evidence' : (x.type || (DOC_TYPES.includes((x.meta || '').split(' · ')[0]) ? x.meta.split(' · ')[0] : 'Other'));
   const tagLine = x => (x.tags || []).length ? ' · Tags: ' + x.tags.join(', ') : '';
   /* Rename, re-type or re-tag a document or evidence record, or move it to another case. */
   function editDoc(app, id) {
-    const d = app.db, x = d.docs.find(y => y.id === id); if (!x || !allowed(app, 'doc.edit', x)) return; const ev = x.kind === 'evidence';
+    const d = app.db, x = d.docs.find(y => y.id === id); if (!x || !allowed(app, 'doc.edit')) return; const ev = x.kind === 'evidence';
     app.modal(() => h(Modal, { title: ev ? 'Edit evidence record' : 'Edit document', sub: x.file ? 'File: ' + x.file : null, onClose: () => app.modal(null) }, h(Form, { init: { name: x.name, type: docType(x), caseId: x.caseId || '', exhibit: x.exhibit || '', custody: x.custody || '', tags: (x.tags || []).join(', ') }, submit: 'Save changes', onCancel: () => app.modal(null),
       fields: [{ k: 'name', label: 'Title', req: true }, ev ? { k: 'exhibit', label: 'Exhibit mark', ph: 'Ex. P-1', half: true } : { k: 'type', label: 'Type', type: 'select', options: DOC_TYPES, half: true }, ev ? { k: 'custody', label: 'Source / chain of custody', half: true } : { k: 'caseId', label: 'Case', type: 'select', blank: 'Not linked to a case', options: caseOpts(d, x.caseId), half: true }, ...(ev ? [{ k: 'caseId', label: 'Case', type: 'select', blank: 'Not linked to a case', options: caseOpts(d, x.caseId) }] : []), { k: 'tags', label: 'Tags (optional)', ph: 'Comma separated, e.g. annexure, original' }],
       onSubmit: v => { app.mut(db => { const y = db.docs.find(z => z.id === id); if (!y) return; const was = y.name, seg = (y.meta || '').split(' · ');
@@ -476,26 +425,60 @@
         logIt(db, `${ev ? 'Evidence' : 'Document'} "${was}" edited by ${db.user.name}` + (was !== y.name ? ', renamed to "' + y.name + '"' : ''), y.caseId); }, 'Saved'); app.modal(null); } })));
   }
   function delDoc(app, id) {
-    const x = app.db.docs.find(y => y.id === id); if (!x || !allowed(app, 'doc.delete', x)) return; const ev = x.kind === 'evidence';
+    const x = app.db.docs.find(y => y.id === id); if (!x || !allowed(app, 'doc.delete')) return; const ev = x.kind === 'evidence';
     confirmBox(app, 'Delete this ' + (ev ? 'evidence record' : 'document') + '?', `"${x.name}" will be removed from the case file` + (x.file ? ', with its uploaded file.' : '.'), 'Delete', () => { dropFile(x); app.mut(db => { db.docs = db.docs.filter(y => y.id !== id); logIt(db, `${ev ? 'Evidence' : 'Document'} "${x.name}" deleted by ${db.user.name}`, x.caseId); }, 'Deleted'); });
   }
-  const docActs = (app, x) => acts(h(Btn, { small: true, onClick: () => openDoc(app, x) }, 'Download'), h(IconBtn, Object.assign({ label: 'Edit ' + x.name, onClick: () => editDoc(app, x.id) }, gate(app, 'doc.edit', x)), '✎'), h(IconBtn, Object.assign({ label: 'Delete ' + x.name, danger: true, onClick: () => delDoc(app, x.id) }, gate(app, 'doc.delete', x)), '×'));
-  function openDoc(app, doc) { if (!doc.file) return app.toast('No file is attached to this record.'); (window.LSB && LSB.on ? LSB.download(doc.id, doc.file) : L.files.get(doc.id)).then(f => f ? L.download(doc.file, f) : app.toast('The file is no longer in this browser.')).catch(() => app.toast('Could not read the file.')); }
+  const docActs = (app, x) => acts(h(Btn, { small: true, onClick: () => openDoc(app, x) }, 'Download'), h(IconBtn, { label: 'Edit ' + x.name, onClick: () => editDoc(app, x.id) }, '✎'), h(IconBtn, { label: 'Delete ' + x.name, danger: true, onClick: () => delDoc(app, x.id) }, '×'));
+  function openDoc(app, doc) { if (!doc.file) return app.toast('No file is attached to this record.'); (window.LSB && LSB.on ? (doc.drive ? LSB.drive.download(doc.drive) : LSB.download(doc.id, doc.file)) : L.files.get(doc.id)).then(f => f ? L.download(doc.file, f) : app.toast('The file is no longer in this browser.')).catch(() => app.toast('Could not read the file.')); }
   function addOrder(app, caseId) {
-    if (!allowed(app, 'order.create') || needCase(app)) return;
+    if (needCase(app)) return;
     const d = app.db;
-    app.modal(() => h(Modal, { title: 'Add court order', sub: 'Paste the text of the order. The next date and key points are picked out by rules, and nothing reaches the calendar until you confirm.', onClose: () => app.modal(null), width: 620 }, h(Form, { init: { caseId: caseId || (caseOpts(d)[0] || [''])[0], date: L.today() }, submit: 'Read order', onCancel: () => app.modal(null),
+    app.modal(() => h(Modal, { title: 'Add court order', sub: autoOn(d) ? 'Paste the text of the order. The next date and key points are picked out by rules, and a future next date goes straight to the calendar (change this in Settings).' : 'Paste the text of the order. The next date and key points are picked out by rules, and nothing reaches the calendar until you confirm.', onClose: () => app.modal(null), width: 620 }, h(Form, { init: { caseId: caseId || (caseOpts(d)[0] || [''])[0], date: L.today() }, submit: 'Read order', onCancel: () => app.modal(null),
       fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d), half: true }, { k: 'date', label: 'Date of order', type: 'date', req: true, half: true }, { k: 'text', label: 'Order text', type: 'textarea', rows: 8, req: true, ph: 'Paste the numbered paragraphs of the order here', check: v => v.length < 20 ? 'Paste the operative part of the order' : '' }],
       onSubmit: v => { const r = L.readOrder(v.text), id = L.uid('o'), c = caseOf(d, v.caseId);
         app.mut(db => { db.orders.unshift({ id, caseId: v.caseId, date: v.date, source: 'Manual entry · ' + L.dayMon(L.today()) + ', ' + L.nowHM(), official: false, file: 'Pasted text · ' + r.paras.length + ' paragraph' + (r.paras.length === 1 ? '' : 's'), cause: c.no, paras: r.paras, points: r.points, summary: r.points.slice(0, 2).join(' ') + (r.nextDate ? ' Next date: ' + L.dmy(r.nextDate) + '.' : ''), nextDate: r.nextDate, nextFrom: r.nextFrom, confirmed: false });
-          db.docs.unshift({ id: L.uid('d'), caseId: v.caseId, kind: 'document', ext: 'TXT', name: 'Order dated ' + L.dmy(v.date), meta: 'Court order · manual entry', v: 'v1', added: L.today(), orderId: id }); logIt(db, `Order of ${L.dmy(v.date)} added by ${db.user.name}.` + (r.nextDate ? ' Next date extracted.' : ''), v.caseId); }, r.nextDate ? 'Order read · next date found' : 'Order saved · no next date found');
+          db.docs.unshift({ id: L.uid('d'), caseId: v.caseId, kind: 'document', ext: 'TXT', name: 'Order dated ' + L.dmy(v.date), meta: 'Court order · manual entry', v: 'v1', added: L.today(), orderId: id }); logIt(db, `Order of ${L.dmy(v.date)} added by ${db.user.name}.` + (r.nextDate ? ' Next date extracted.' : ''), v.caseId); if (autoOn(db) && r.nextDate && r.nextDate >= L.today()) applyNext(db, db.orders[0], 'added by ' + db.user.name); }, r.nextDate ? (autoOn(app.db) && r.nextDate >= L.today() ? 'Order read · next date added to the calendar' : 'Order read · next date found') : 'Order saved · no next date found');
         app.modal(null); app.go('order', id); } })));
+  }
+  /* ---------- automatic court-order updates ---------- */
+  const autoOn = d => (d.settings || {}).autoOrders !== false;
+  /* Confirms an order's next date and puts the hearing on the calendar, as the Confirm button does. */
+  function applyNext(db, o, who) {
+    const cs = db.cases.find(x => x.id === o.caseId) || {}; o.confirmed = true;
+    if (!db.hearings.some(x => x.caseId === o.caseId && x.date === o.nextDate)) db.hearings.push({ id: L.uid('h'), caseId: o.caseId, date: o.nextDate, time: '10:30', court: cs.court || '', item: '', purpose: cs.purpose || 'Hearing', assignee: (cs.team || [])[0] || db.user.name, outcome: '', brief: false, fromOrder: o.id });
+    logIt(db, `Next date ${L.dmy(o.nextDate)} added automatically from the order` + (who ? ' (' + who + ')' : ''), o.caseId);
+  }
+  /* Asks the court-data provider about every open case that has a CNR: new next dates and new orders are added. Server mode with a provider only. */
+  let checking = false;
+  async function autoCheck(app, force) {
+    const d = app.db, st = d.settings || {};
+    if (checking || !(window.LSB && LSB.on) || !d.session) return;
+    if (!force && (st.autoCheck === false || (st.lastCheck && Date.now() - Date.parse(st.lastCheck) < 6 * 36e5))) return;
+    const cs = d.cases.filter(c => c.cnr && (c.status === 'active' || c.status === 'pending')).slice(0, 30);
+    if (!cs.length) { if (force) app.toast('No open case has a CNR to check.'); return; }
+    checking = true; const got = []; let none = false, bad = 0;
+    if (force) app.toast('Checking ' + plural(cs.length, 'case') + ' with the court-data provider…');
+    for (const c of cs) { try { got.push([c.id, await LSB.court(c.cnr)]); } catch (e) { if (/No court-data provider/i.test(e.message)) { none = true; break; } bad++; } }
+    checking = false; let upd = 0;
+    app.mut(db => { const T = L.today(); db.settings.lastCheck = new Date().toISOString();
+      got.forEach(([id, r]) => { const c = db.cases.find(x => x.id === id); if (!c || !r) return; let ch = false;
+        const nd = L.valid(r.nextDate) && r.nextDate >= T ? r.nextDate : '', od = L.valid(r.lastOrderDate) ? r.lastOrderDate : '';
+        if (nd && !db.hearings.some(x => x.caseId === id && x.date === nd)) { db.hearings.push({ id: L.uid('h'), caseId: id, date: nd, time: '10:30', court: c.court || '', item: '', purpose: c.purpose || 'Hearing', assignee: (c.team || [])[0] || db.user.name, outcome: '', brief: false, fromCourt: true }); logIt(db, `Court data: next date ${L.dmy(nd)} added`, id); ch = true; }
+        if (od && !db.orders.some(x => x.caseId === id && x.date === od)) { const txt = r.status ? 'Case status: ' + r.status + '.' : 'An order is listed on the court record.';
+          db.orders.unshift({ id: L.uid('o'), caseId: id, date: od, source: 'Court-data provider · ' + L.dayMon(T), official: true, file: 'From court data', cause: c.no, paras: [], points: [txt], summary: txt + (nd ? ' Next date: ' + L.dmy(nd) + '.' : ''), nextDate: nd, nextFrom: 'court data', confirmed: !!nd });
+          logIt(db, `Court data: order of ${L.dmy(od)} added`, id); ch = true; }
+        if (/dispos|decided|closed|dismiss|withdrawn|judg?ment/i.test(r.status || '') && (c.status === 'active' || c.status === 'pending')) { c.status = 'disposed'; logIt(db, 'Court data: case marked Disposed (' + r.status + ')', id); ch = true; }
+        if (ch) upd++; }); },
+      null);
+    if (none) { if (force) app.toast('No court-data provider is connected yet.'); }
+    else if (upd) app.toast(`Court check: ${plural(upd, 'case')} updated`);
+    else if (force) app.toast(bad ? `Checked, but ${plural(bad, 'case')} could not be read.` : 'Checked: nothing new.');
   }
   /* The text record kept for an order (older ones are matched by name). */
   const orderDocs = (d, o) => d.docs.filter(x => x.orderId === o.id || (!x.orderId && !x.file && x.caseId === o.caseId && x.name === 'Order dated ' + L.dmy(o.date) && /Court order · manual entry/.test(x.meta || '')));
   /* Edit the date, case or text. The text is read again; a changed next date has to be confirmed again. */
   function editOrder(app, id) {
-    const d = app.db, o = d.orders.find(x => x.id === id); if (!o || !allowed(app, 'order.edit', o)) return;
+    const d = app.db, o = d.orders.find(x => x.id === id); if (!o || !allowed(app, 'order.edit')) return;
     app.modal(() => h(Modal, { title: 'Edit court order', sub: 'The text is read again for the next date and key points.' + (o.confirmed ? ' If the next date changes, confirm it again.' : ''), onClose: () => app.modal(null), width: 620 }, h(Form, { init: { caseId: o.caseId, date: o.date, text: (o.paras || []).map((p, i) => (i + 1) + '. ' + p).join('\n\n') }, submit: 'Save changes', onCancel: () => app.modal(null),
       fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d, o.caseId), half: true }, { k: 'date', label: 'Date of order', type: 'date', req: true, half: true }, { k: 'text', label: 'Order text', type: 'textarea', rows: 8, req: true, check: v => v.length < 20 ? 'Paste the operative part of the order' : '' }],
       onSubmit: v => { const r = L.readOrder(v.text); let moved = false;
@@ -504,11 +487,12 @@
           if (v.caseId !== x.caseId) db.hearings.forEach(hh => { if (hh.fromOrder === x.id) hh.caseId = v.caseId; });
           Object.assign(x, { caseId: v.caseId, date: v.date, paras: r.paras, points: r.points, summary: r.points.slice(0, 2).join(' ') + (next ? ' Next date: ' + L.dmy(next) + '.' : ''), nextDate: next, nextFrom: keepManual ? x.nextFrom : r.nextFrom, cause: caseOf(db, v.caseId).no, file: 'Pasted text · ' + plural(r.paras.length, 'paragraph'), edited: L.today() });
           docs.forEach(y => { y.caseId = v.caseId; y.name = 'Order dated ' + L.dmy(v.date); y.orderId = x.id; });
-          logIt(db, `Order of ${L.dmy(v.date)} edited by ${db.user.name}` + (moved ? '; its next date changed and needs confirming again' : ''), v.caseId); });
-        app.toast(moved ? 'Order updated · confirm the new next date' : 'Order updated'); app.modal(null); } })));
+          if (autoOn(db) && !x.confirmed && x.nextDate && x.nextDate >= L.today()) { applyNext(db, x, 'order edited'); moved = false; }
+          logIt(db, `Order of ${L.dmy(v.date)} edited by ${db.user.name}` + (moved ? '; its next date changed and needs confirming again' : ''), v.caseId); }, moved ? 'Order updated · confirm the new next date' : 'Order updated');
+        app.modal(null); } })));
   }
   function delOrder(app, id) {
-    const d = app.db, o = d.orders.find(x => x.id === id); if (!o || !allowed(app, 'order.delete', o)) return;
+    const d = app.db, o = d.orders.find(x => x.id === id); if (!o || !allowed(app, 'order.delete')) return;
     const hs = d.hearings.filter(x => x.fromOrder === id), drop = hs.filter(x => !x.outcome);
     confirmBox(app, 'Delete this order?', `The order of ${L.dmy(o.date)} in ${caseOf(d, o.caseId).title} and its text record will be deleted.` + (drop.length ? ` The hearing it added on ${drop.map(x => L.dmy(x.date)).join(', ')} is removed from the calendar too.` : '') + (hs.length > drop.length ? ' Hearings that already have an outcome are kept.' : ''), 'Delete order',
       () => { app.mut(db => { const docs = orderDocs(db, o).map(x => x.id); db.orders = db.orders.filter(x => x.id !== id); db.docs = db.docs.filter(x => !docs.includes(x.id)); db.hearings = db.hearings.filter(x => x.fromOrder !== id || x.outcome); db.hearings.forEach(x => { if (x.fromOrder === id) x.fromOrder = ''; }); logIt(db, `Order of ${L.dmy(o.date)} deleted by ${db.user.name}`, o.caseId); }, 'Order deleted'); app.go('orders'); });
@@ -534,7 +518,7 @@
       app.mut(db => { const name = v.name.trim(), old = db.user.name; db.user.name = name; db.user.role = v.role; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + name;
         db.firm.name = v.firm.trim(); db.firm.city = v.city.trim(); db.firm.address = (v.address || '').trim() || v.city.trim(); db.firm.kind = pick.kind; db.firm.domain = pick.domain; LSP.addLabels(db, pick.labels);
         const u = db.team.find(x => x.email === db.user.email) || db.team[0]; if (u) Object.assign(u, { name, title: db.user.title, role: v.role }); else db.team.push({ id: 'u1', name, title: db.user.title, role: v.role, email: db.user.email, status: 'Active' });
-        if (old && old !== name) { db.tasks.forEach(t => { if (t.who === old) t.who = name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? name : n); }); } }, 'Your practice is set up'); app.modal(null); };
+        if (old && old !== name) { db.tasks.forEach(t => { if (t.who === old) t.who = name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? name : n); }); } }, 'Your practice is set up', true); app.modal(null); if (!L.access(app.db.sub).ok && L.access(app.db.sub).state === 'none') app.go('pricing'); };
     const nav = (back, next, nextLabel, disabled) => h('div', { style: { display: 'flex', gap: 10, justifyContent: 'space-between' } }, back ? h(Btn, { onClick: back }, 'Back') : h('span'), h(Btn, { primary: true, disabled, onClick: next }, nextLabel || 'Continue'));
     return h(Modal, { art: 'setup', width: step === 1 ? 760 : 560, title: titles[step], sub: subs[step], onClose: () => must ? app.toast('Set up your practice to continue, or sign out from the account menu.') : app.modal(null) },
       h('div', { style: { fontSize: 12, color: K.mut, letterSpacing: '.04em', textTransform: 'uppercase', fontWeight: 600 } }, 'Step ' + (step + 1) + ' of 3'),
@@ -593,7 +577,7 @@
       h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'), h('button', { type: 'submit', className: 'ls-btn', style: { height: 36, padding: '0 16px', borderRadius: 8, fontSize: 13.5, fontWeight: 500, border: 0, background: K.ink, color: '#fff' } }, l0 ? 'Save changes' : 'Start calculation')));
   }
   function newLim(app, editId) {
-    const l0 = editId && limOf(app.db, editId); if (editId ? (!l0 || !allowed(app, 'deadline.edit', l0)) : !allowed(app, 'deadline.create')) return;
+    const l0 = editId && limOf(app.db, editId); if (editId && (!l0 || !allowed(app, 'deadline.edit'))) return;
     app.modal(() => h(Modal, { title: l0 ? 'Edit calculation' : 'New limitation calculation', sub: l0 ? l0.title : 'Pick a rule. Each preset shows its period, start event and source; check the statute / rules before relying on it.', onClose: () => app.modal(null), width: 580 }, h(LimForm, { app, l0 })));
   }
   /* The approved date of a calculation lives in a 'deadline' record (source: 'limitation') so alerts, the Deadlines list and the briefing see it. */
@@ -606,19 +590,19 @@
   }
   function unapprove(db, l) { l.approved = false; l.approvedAt = ''; syncDeadline(db, l); }
   function approveLim(app, id) {
-    const l = limOf(app.db, id); if (!l || !allowed(app, 'lim.approve', l)) return; const c = L.limitation(l);
+    const l = limOf(app.db, id); if (!l) return; const c = L.limitation(l);
     if (!c.due) return app.toast(c.none && L.rule(l.rule).none ? 'A writ petition has no fixed period, so there is no date to approve.' : 'Enter the missing facts first.');
     if (c.needsReady) return app.toast('Enter the date the certified copy was ready first.');
     app.mut(db => { const x = limOf(db, id); x.approved = true; x.approvedAt = L.fmt(L.today()) + ' at ' + L.nowHM() + ' IST'; x.approvedBy = db.user.name; syncDeadline(db, x); logIt(db, 'Limitation date ' + L.dmy(c.due) + ' for "' + x.title + '" approved by ' + db.user.name, x.caseId); }, window.LSB && LSB.on ? 'Approved. The date is in Deadlines, in-app alerts and the morning briefing email.' : 'Approved. The date is in Deadlines and in-app alerts on this device.');
   }
-  function withdrawLim(app, id) { if (!allowed(app, 'lim.approve')) return; app.mut(db => { const x = limOf(db, id); if (!x) return; unapprove(db, x); logIt(db, `Approval of the limitation date for "${x.title}" withdrawn by ${db.user.name}`, x.caseId); }, 'Approval withdrawn. The date is no longer in alerts or the briefing.'); }
+  function withdrawLim(app, id) { app.mut(db => { const x = limOf(db, id); if (!x) return; unapprove(db, x); logIt(db, `Approval of the limitation date for "${x.title}" withdrawn by ${db.user.name}`, x.caseId); }, 'Approval withdrawn. The date is no longer in alerts or the briefing.'); }
   function markDone(app, id, done) {
-    const x = app.db.deadlines.find(y => y.id === id); if (!x || !allowed(app, 'deadline.edit', x)) return;
+    const x = app.db.deadlines.find(y => y.id === id); if (!x || !allowed(app, 'deadline.edit')) return;
     app.mut(db => { const y = db.deadlines.find(z => z.id === id); y.done = !!done; y.doneAt = done ? L.today() : ''; y.doneBy = done ? db.user.name : ''; logIt(db, `Deadline "${y.title}" ${done ? 'marked done' : 'reopened'} by ${db.user.name}`, y.caseId); }, done ? 'Marked done. It no longer appears in alerts or reminders.' : 'Reopened');
   }
   function addDeadline(app, editId) {
     const d = app.db, x0 = editId && d.deadlines.find(x => x.id === editId);
-    if (editId ? (!x0 || !allowed(app, 'deadline.edit', x0)) : !allowed(app, 'deadline.create')) return;
+    if (editId && (!x0 || !allowed(app, 'deadline.edit'))) return;
     app.modal(() => h(Modal, { title: x0 ? 'Edit deadline' : 'Add a deadline', onClose: () => app.modal(null) }, h(Form, { init: x0 ? { title: x0.title, rule: x0.rule === 'Entered manually' ? '' : x0.rule, due: x0.due, caseId: x0.caseId || '' } : null, submit: x0 ? 'Save changes' : 'Add deadline', onCancel: () => app.modal(null),
       fields: [{ k: 'title', label: 'What is due', req: true, ph: 'Written statement, reply, filing…' }, { k: 'rule', label: 'Provision or basis', ph: 'Order VIII r.1 CPC', half: true }, { k: 'due', label: 'Last date', type: 'date', req: true, half: true }, { k: 'caseId', label: 'Linked case (optional)', type: 'select', blank: 'Not linked', options: caseOpts(d, x0 && x0.caseId) }],
       onSubmit: v => { const row = { caseId: v.caseId || '', title: v.title.trim(), rule: (v.rule || '').trim() || 'Entered manually', due: v.due };
@@ -626,31 +610,31 @@
         else app.mut(db => { db.deadlines.push(Object.assign({ id: L.uid('dl'), approved: true, done: false }, row)); }, 'Deadline added'); app.modal(null); } })));
   }
   function delDeadline(app, id) {
-    const x = app.db.deadlines.find(y => y.id === id); if (!x || !allowed(app, 'deadline.delete', x)) return;
+    const x = app.db.deadlines.find(y => y.id === id); if (!x || !allowed(app, 'deadline.delete')) return;
     confirmBox(app, 'Delete this deadline?', `"${x.title}", due ${L.fmt(x.due)}, will no longer be tracked or shown in alerts.`, 'Delete deadline', () => app.mut(db => { db.deadlines = db.deadlines.filter(y => y.id !== id); logIt(db, `Deadline "${x.title}" deleted by ${db.user.name}`, x.caseId); }, 'Deadline deleted'));
   }
   function delLim(app, id) {
-    const l = limOf(app.db, id); if (!l || !allowed(app, 'deadline.delete', l)) return;
+    const l = limOf(app.db, id); if (!l || !allowed(app, 'deadline.delete')) return;
     confirmBox(app, 'Delete this limitation calculation?', `The calculation for "${l.title}", its approval and its entry in Deadlines will be deleted. Deadlines you added yourself are kept.`, 'Delete calculation', () => { app.mut(db => { db.lims = db.lims.filter(x => x.id !== id); db.deadlines = db.deadlines.filter(x => x.limId !== id); logIt(db, `Limitation calculation "${l.title}" deleted by ${db.user.name}`, l.caseId); }, 'Calculation deleted'); app.go('limitation'); });
   }
   /* Saved calculations, newest first. sel: the one open on the page. */
   function limList(app, sel) {
     const d = app.db, T = L.today();
-    return h(Card, { title: `Calculations (${d.lims.length})`, right: h(Btn, Object.assign({ small: true, onClick: () => newLim(app) }, gate(app, 'deadline.create')), 'New calculation') }, d.lims.map(l => { const c = L.limitation(l), on = l.id === sel;
+    return h(Card, { title: `Calculations (${d.lims.length})`, right: h(Btn, { small: true, onClick: () => newLim(app) }, 'New calculation') }, d.lims.map(l => { const c = L.limitation(l), on = l.id === sel;
       const st = c.none ? (L.rule(l.rule).none ? 'No fixed period' : 'Facts missing') : c.needsReady ? 'Copy date needed' : l.approved ? (d.deadlines.some(x => x.limId === l.id && x.done) ? 'Approved · done' : 'Approved') : 'Needs approval';
       return h(Line, { key: l.id }, h('button', { type: 'button', onClick: () => app.go('limitation', l.id), 'aria-current': on ? 'true' : undefined, style: { flex: 1, minWidth: 0, textAlign: 'left', border: 0, background: 'none', padding: 0, color: K.ink, fontSize: 14, fontWeight: on ? 600 : 400 } }, (on ? '▸ ' : '') + l.title,
           h('div', { style: { fontSize: 12, color: K.mut, fontWeight: 400 } }, [L.rule(l.rule).custom ? 'Custom · ' + L.period(+l.n || 1, l.unit) : L.rule(l.rule).label, c.due && !c.needsReady ? 'last date ' + L.fmt(c.due) + (c.daysLeft >= 0 ? ' · ' + plural(c.daysLeft, 'day') + ' left' : ' · passed') : '', l.caseId && caseOf(d, l.caseId).title].filter(Boolean).join(' · '))),
         h(Chip, { tone: st === 'Needs approval' || st === 'Copy date needed' ? 'red' : (st === 'Approved' ? '' : 'grey') }, st),
-        h(IconBtn, Object.assign({ label: 'Edit calculation ' + l.title, onClick: () => newLim(app, l.id) }, gate(app, 'deadline.edit', l)), '✎'), h(IconBtn, Object.assign({ label: 'Delete calculation ' + l.title, danger: true, onClick: () => delLim(app, l.id) }, gate(app, 'deadline.delete', l)), '×')); }));
+        h(IconBtn, { label: 'Edit calculation ' + l.title, onClick: () => newLim(app, l.id) }, '✎'), h(IconBtn, { label: 'Delete calculation ' + l.title, danger: true, onClick: () => delLim(app, l.id) }, '×')); }));
   }
   function deadlinesCard(app) {
     const d = app.db, T = L.today(), sorted = d.deadlines.slice().sort((a, b) => (!!a.done - !!b.done) || a.due.localeCompare(b.due));
-    return h(Card, { title: 'Deadlines', right: h(Btn, Object.assign({ small: true, onClick: () => addDeadline(app) }, gate(app, 'deadline.create')), '+ Add a deadline') }, sorted.map(x => { const n = L.diffDays(x.due, T), lim = x.source === 'limitation';
+    return h(Card, { title: 'Deadlines', right: h(Btn, { small: true, onClick: () => addDeadline(app) }, '+ Add a deadline') }, sorted.map(x => { const n = L.diffDays(x.due, T), lim = x.source === 'limitation';
       return h(Line, { key: x.id }, h('div', { style: { flex: 1, minWidth: 0, color: x.done ? K.mut : K.ink, textDecoration: x.done ? 'line-through' : 'none' } }, x.title,
           h('div', { style: { fontSize: 12, color: !x.done && n >= 0 && n <= 3 ? K.red : K.mut, textDecoration: 'none' } }, [lim ? 'Limitation (approved)' : '', x.rule, 'due ' + L.fmt(x.due), x.done ? 'done' + (x.doneAt ? ' ' + L.dayMon(x.doneAt) : '') : (n === 0 ? 'due today' : n === 1 ? 'due tomorrow' : n > 0 ? plural(n, 'day') + ' left' : plural(-n, 'day') + ' ago'), x.caseId && caseOf(d, x.caseId).title].filter(Boolean).join(' · '))),
-        h(Btn, Object.assign({ small: true, onClick: () => markDone(app, x.id, !x.done) }, gate(app, 'deadline.edit', x)), x.done ? 'Undo' : 'Mark done'),
-        lim ? h(IconBtn, { label: 'Open calculation', onClick: () => app.go('limitation', x.limId) }, '↗') : h(IconBtn, Object.assign({ label: 'Edit deadline', onClick: () => addDeadline(app, x.id) }, gate(app, 'deadline.edit', x)), '✎'),
-        !lim && h(IconBtn, Object.assign({ label: 'Delete deadline', danger: true, onClick: () => delDeadline(app, x.id) }, gate(app, 'deadline.delete', x)), '×')); }),
+        h(Btn, { small: true, onClick: () => markDone(app, x.id, !x.done) }, x.done ? 'Undo' : 'Mark done'),
+        lim ? h(IconBtn, { label: 'Open calculation', onClick: () => app.go('limitation', x.limId) }, '↗') : h(IconBtn, { label: 'Edit deadline', onClick: () => addDeadline(app, x.id) }, '✎'),
+        !lim && h(IconBtn, { label: 'Delete deadline', danger: true, onClick: () => delDeadline(app, x.id) }, '×')); }),
       !d.deadlines.length && h(Empty, { small: true, title: 'No deadlines yet', text: 'Add a deadline with a known last date, or approve a limitation calculation and its date appears here.' }),
       d.deadlines.length > 0 && h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 10, lineHeight: 1.5 } }, window.LSB && LSB.on ? 'Open deadlines due within 7 days (approved limitation dates within 30) are in the morning briefing email, flagged when due today, tomorrow or in 3 days. Done deadlines drop out.' : 'Deadlines due within 7 days show in the Alerts menu on this device. Briefing emails need the server.'));
   }
@@ -708,7 +692,7 @@
       h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'), h(Btn, { primary: true, onClick: save }, 'Save case details')));
   }
   /* focus: 'pet' | 'res' | 'stage' | 'issues' | 'ours' | 'opp' | 'missing' | 'summary'. auto: start with the summary drafted from orders. */
-  function caseDetails(app, id, focus, auto) { const c = app.db.cases.find(x => x.id === id); if (!c || !allowed(app, 'case.edit', c)) return; app.modal(() => h(CaseDetailsForm, { app, id, focus, auto })); }
+  function caseDetails(app, id, focus, auto) { if (!app.db.cases.some(x => x.id === id) || !allowed(app, 'case.edit')) return; app.modal(() => h(CaseDetailsForm, { app, id, focus, auto })); }
   const NEED = { parties: ['pet', 'Add parties in Case details'], issues: ['issues', 'Add issues in Case details'], ourArgs: ['ours', 'Add arguments in Case details'], oppArgs: ['opp', 'Add opponent\'s arguments'], missing: ['missing', 'Add missing documents'], summary: ['summary', 'Write summary in Case details'], details: ['pet', 'Open Case details'] };
   /* The read-only "Case details" section on the case page. */
   function detailsView(app, c) {
@@ -717,7 +701,7 @@
     const ol = (a, k, what) => a.length ? h('ol', { style: { margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, color: K.txt, lineHeight: 1.5, overflowWrap: 'anywhere' } }, a.map((s, i) => h('li', { key: i }, s))) : none(k, what);
     const side = (s, k) => { const a = ps.filter(p => sideOf(p) === s); return a.length ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } }, a.map((p, i) => h('div', { key: i, style: { overflowWrap: 'anywhere' } }, h('div', { style: { fontWeight: 500, fontSize: 14 } }, p.name), p.note && h('div', { style: { fontSize: 13, color: K.mut } }, p.note)))) : none(k, 'parties'); };
     return h('div', { id: 'ls-case-details', style: { display: 'flex', flexDirection: 'column', gap: 18 } },
-      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' } }, h('div', null, h('h2', { style: X.h2 }, 'Case details'), h('div', { style: { fontSize: 13, color: K.mut, marginTop: 4 } }, 'Client: ' + clientOf(d, c.clientId).name + ' · Stage: ' + (c.stage || '—'))), h(Btn, Object.assign({ small: true, onClick: () => caseDetails(app, c.id) }, gate(app, 'case.edit', c)), 'Edit case details')),
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' } }, h('div', null, h('h2', { style: X.h2 }, 'Case details'), h('div', { style: { fontSize: 13, color: K.mut, marginTop: 4 } }, 'Client: ' + clientOf(d, c.clientId).name + ' · Stage: ' + (c.stage || '—'))), h(Btn, { small: true, onClick: () => caseDetails(app, c.id) }, 'Edit case details')),
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,240px),1fr))', gap: 22 } },
         block(PET, side('petitioner', 'pet')), block(RES, side('respondent', 'res')), block('Issues', ol(c.issues || [], 'issues', 'issues')), block('Missing documents', ol(c.missing || [], 'missing', 'missing documents')),
         block('Our arguments', ol(ourArgs(c), 'ours', 'arguments')), block('Opponent\'s arguments', ol(c.oppArgs || [], 'opp', 'arguments for the other side'))));
@@ -727,7 +711,22 @@
     app.modal(() => h(Modal, { title: 'Help and shortcuts', onClose: () => app.modal(null) },
       h('div', null, rows.map(([k, v]) => h(Line, { key: k }, h('span', { style: { minWidth: 120, fontVariantNumeric: 'tabular-nums', fontSize: 12.5, border: '1px solid ' + K.line, borderRadius: 6, padding: '2px 8px', textAlign: 'center' } }, k), h('span', null, v)))),
       h('div', { style: { fontSize: 13, color: K.mut, lineHeight: 1.6 } }, window.LSB && LSB.on ? 'Your data is saved to your firm\'s account and is available to your team on any device. Case Brain answers come from search and rules over your own case file. Export a backup from Settings.' : 'No server is connected, so your data is saved on this device only. Export a backup from Settings.'),
+      window.LSB && LSB.on && h(SupportForm, { app }),
       h('div', { style: { display: 'flex', justifyContent: 'flex-end' } }, h(Btn, { primary: true, onClick: () => app.modal(null) }, 'Done'))));
+  }
+  /* Help → Contact support: goes to the Legal Staff team (admin console → Support); the reply comes by email. */
+  function SupportForm({ app }) {
+    const d = app.db, [v, setV] = useState({ topic: 'Question', message: '' }), [st, setSt] = useState('');
+    if (st === 'sent') return h('div', { style: { padding: '12px 14px', borderRadius: 10, background: '#E7F6EC', color: '#137333', fontSize: 13.5 } }, 'Message sent. We will reply to ' + (d.user.email || 'your email') + ', usually within a working day.');
+    const send = () => { if (!v.message.trim()) return setSt('Write your message first.'); setSt('sending');
+      LSB.contact({ name: d.user.name || '', email: d.user.email || '', phone: d.user.phone || '', firm: d.firm.name || '', topic: v.topic, message: v.message.trim().slice(0, 4000), source: 'app' })
+        .then(() => setSt('sent')).catch(e => setSt(e.message)); };
+    return h('div', { style: { borderTop: '1px solid ' + K.line, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 } },
+      h('div', { style: { fontSize: 14, fontWeight: 600 } }, 'Contact support'),
+      h(Select, { value: v.topic, onChange: x => setV(Object.assign({}, v, { topic: x })), options: ['Question', 'Problem or bug', 'Billing and payments', 'Feature request'].map(x => [x, x]), style: { width: '100%' } }),
+      h('textarea', { value: v.message, rows: 4, onChange: e => setV(Object.assign({}, v, { message: e.target.value })), placeholder: 'How can we help?', style: { width: '100%', boxSizing: 'border-box', border: '1px solid ' + K.line, borderRadius: 8, padding: 10, font: 'inherit', fontSize: 14, resize: 'vertical' } }),
+      st && st !== 'sending' && h('div', { style: { fontSize: 12.5, color: K.red } }, st),
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 } }, h('span', { style: { fontSize: 12.5, color: K.mut } }, 'We reply by email to ' + (d.user.email || 'you') + '.'), h(Btn, { onClick: send, disabled: st === 'sending' }, st === 'sending' ? 'Sending…' : 'Send message')));
   }
   function confirmBox(app, title, text, label, fn) { app.modal(() => h(Modal, { title, onClose: () => app.modal(null), width: 440 }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, text), h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'), h(Btn, { primary: true, onClick: () => { app.modal(null); fn(); } }, label)))); }
 
@@ -791,22 +790,22 @@
   /* ---------- module screens ---------- */
   function TaskRow({ app, t, showCase }) {
     const d = app.db, od = overdue(t);
-    return h(Line, null, h('button', { onClick: () => allowed(app, 'task.edit', t) && app.mut(db => { const x = db.tasks.find(y => y.id === t.id); x.done = !x.done; }, t.done ? 'Task reopened' : 'Task completed'), 'aria-label': t.done ? 'Reopen task' : 'Complete task', title: why(app, 'task.edit', t) || undefined, style: { width: 18, height: 18, border: '1.5px solid ' + (t.done ? K.ink : '#9E9E9E'), borderRadius: 9, flexShrink: 0, background: t.done ? K.ink : 'transparent', color: '#fff', fontSize: 11, lineHeight: 1, padding: 0 } }, t.done ? '✓' : ''),
+    return h(Line, null, h('button', { onClick: () => app.mut(db => { const x = db.tasks.find(y => y.id === t.id); x.done = !x.done; }, t.done ? 'Task reopened' : 'Task completed'), 'aria-label': t.done ? 'Reopen task' : 'Complete task', style: { width: 18, height: 18, border: '1.5px solid ' + (t.done ? K.ink : '#9E9E9E'), borderRadius: 9, flexShrink: 0, background: t.done ? K.ink : 'transparent', color: '#fff', fontSize: 11, lineHeight: 1, padding: 0 } }, t.done ? '✓' : ''),
       h('div', { style: { flex: 1, minWidth: 0, textDecoration: t.done ? 'line-through' : 'none', color: t.done ? K.mut : K.ink } }, t.t, h('div', { style: { fontSize: 12, color: od ? K.red : K.mut } }, [showCase && t.caseId && caseOf(d, t.caseId).title, t.who, (od ? 'Overdue · ' : 'Due ') + L.dayMon(t.due)].filter(Boolean).join(' · '))),
-      t.caseId && showCase && h(Btn, { small: true, onClick: () => app.go('case', t.caseId) }, 'Open case'), h(IconBtn, Object.assign({ label: 'Edit task', onClick: () => addTask(app, '', t.id) }, gate(app, 'task.edit', t)), '✎'), h(IconBtn, Object.assign({ label: 'Delete task', danger: true, onClick: () => delTask(app, t.id) }, gate(app, 'task.delete', t)), '×'));
+      t.caseId && showCase && h(Btn, { small: true, onClick: () => app.go('case', t.caseId) }, 'Open case'), h(IconBtn, { label: 'Edit task', onClick: () => addTask(app, '', t.id) }, '✎'), h(IconBtn, { label: 'Delete task', danger: true, onClick: () => delTask(app, t.id) }, '×'));
   }
   function Workspace({ app }) {
     const d = app.db, me = d.user.name, [all, setAll] = useState(false);
     const mine = d.tasks.filter(t => t.who === me && (all || !t.done)).sort((a, b) => a.due.localeCompare(b.due));
     const hs = d.hearings.filter(x => x.assignee === me && x.date >= L.today() && L.diffDays(x.date, L.today()) <= 7).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     const drafts = Object.keys(d.drafts || {});
-    return h(Page, { art: 'tasks', kicker: 'Overview', title: 'My Workspace', sub: `${mine.filter(t => !t.done).length} open tasks · ${hs.length} hearings in the next 7 days`, actions: [h(Btn, Object.assign({ key: 1, primary: true, onClick: () => addTask(app) }, gate(app, 'task.create')), '+ New task')] },
+    return h(Page, { art: 'tasks', kicker: 'Overview', title: 'My Workspace', sub: `${mine.filter(t => !t.done).length} open tasks · ${hs.length} hearings in the next 7 days`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addTask(app) }, '+ New task')] },
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 20 } },
         h(Card, { title: 'My tasks', right: h(Btn, { small: true, onClick: () => setAll(!all) }, all ? 'Hide completed' : 'Show completed') }, mine.map(t => h(TaskRow, { key: t.id, app, t, showCase: true })), !mine.length && h(Empty, { title: 'No open tasks', text: 'Tasks assigned to you appear here.' })),
         h('div', { style: { display: 'flex', flexDirection: 'column', gap: 20 } },
           h(Card, { title: 'My hearings · next 7 days', right: h(Btn, { small: true, onClick: () => app.go('calendar') }, 'Calendar') }, hs.map(x => h(Line, { key: x.id }, h('div', { style: { width: 86, fontSize: 13, color: K.mut, fontVariantNumeric: 'tabular-nums' } }, L.dayMon(x.date), h('div', null, L.t12ap(x.time))), h('div', { style: { flex: 1, minWidth: 0 } }, caseOf(d, x.caseId).title, h('div', { style: { fontSize: 12, color: K.mut } }, [x.court, x.item, x.purpose].filter(Boolean).join(' · ')), x.outcome && h('div', { style: { marginTop: 4 } }, outcomeChip(x))), h(Btn, { small: true, onClick: () => app.go('case', x.caseId) }, 'Open'))), !hs.length && h(Empty, { title: 'No hearings this week' })),
           h(Card, { title: 'Private notes' }, h('textarea', { defaultValue: d.notes, onBlur: e => { const v = e.target.value; if (v !== app.db.notes) app.mut(db => { db.notes = v; }, 'Notes saved'); }, placeholder: 'Jot down anything. Saved on this device when you click away.', rows: 6, style: Object.assign({}, X.input, { height: 'auto', padding: '10px 12px', lineHeight: 1.55, resize: 'vertical' }) })),
-          h(Card, { title: 'My drafts', right: h(Btn, { small: true, onClick: () => app.go('drafting') }, 'Drafting Studio') }, drafts.map(k => h(Line, { key: k }, h('div', { style: { flex: 1 } }, app.tplNames[+k] || 'Draft', h('div', { style: { fontSize: 12, color: K.mut } }, d.drafts[k].length + ' saved version' + (d.drafts[k].length === 1 ? '' : 's'))), h(Btn, { small: true, onClick: () => app.openDraft(+k) }, 'Open'), h(IconBtn, Object.assign({ label: 'Delete draft', danger: true, onClick: () => delDraft(app, +k) }, gate(app, 'draft.delete')), '×'))), !drafts.length && h('div', { style: { fontSize: 14, color: K.mut } }, 'Versions you save in the Drafting Studio are listed here.')))));
+          h(Card, { title: 'My drafts', right: h(Btn, { small: true, onClick: () => app.go('drafting') }, 'Drafting Studio') }, drafts.map(k => h(Line, { key: k }, h('div', { style: { flex: 1 } }, app.tplNames[+k] || 'Draft', h('div', { style: { fontSize: 12, color: K.mut } }, d.drafts[k].length + ' saved version' + (d.drafts[k].length === 1 ? '' : 's'))), h(Btn, { small: true, onClick: () => app.openDraft(+k) }, 'Open'), h(IconBtn, { label: 'Delete draft', danger: true, onClick: () => delDraft(app, +k) }, '×'))), !drafts.length && h('div', { style: { fontSize: 14, color: K.mut } }, 'Versions you save in the Drafting Studio are listed here.')))));
   }
   function Courts({ app }) {
     const d = app.db, by = {}, T = L.today(), row = k => by[k] = by[k] || { court: k, id: k, n: 0, up: 0, next: '', held: 0, adj: 0, nr: 0, wait: 0 }, tally = {};
@@ -824,37 +823,34 @@
       h(Card, { title: 'Recorded outcomes' }, h(Bars, { rows: OUTCOMES.filter(o => tally[o]).map(o => [o, tally[o]]) }), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 12 } }, 'Record the outcome of each hearing from the case, the calendar or the dashboard. Hearings without one are not counted.')),
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 20 } },
         h(Card, { title: 'Your list for ' + L.fmt(nw, { weekday: 'long', day: 'numeric', month: 'short' }) }, list.map(x => h(Line, { key: x.id }, h('div', { style: { width: 70, fontVariantNumeric: 'tabular-nums', color: K.mut, fontSize: 13 } }, L.t12ap(x.time)), h('div', { style: { flex: 1, minWidth: 0 } }, caseOf(d, x.caseId).title, h('div', { style: { fontSize: 12, color: K.mut } }, [x.court, x.item, x.assignee].filter(Boolean).join(' · '))), h(Btn, { small: true, onClick: () => app.go('case', x.caseId) }, 'Open'))), !list.length && h(Empty, { title: 'Nothing listed', text: 'No hearings are recorded for the next working day.' })),
-        h(Card, { title: 'CNR watchlist', right: h(Btn, { small: true, disabled: !can(app, 'watch.edit'), title: why(app, 'watch.edit') || undefined, onClick: () => app.modal(() => h(Modal, { title: 'Watch a CNR', onClose: () => app.modal(null) }, h(Form, { submit: 'Add to watchlist', onCancel: () => app.modal(null), fields: [{ k: 'cnr', label: 'CNR number', req: true, ph: '4 letters and 12 digits', check: v => !/^[A-Za-z]{4}\d{12}$/.test(v.replace(/[\s-]/g, '')) ? 'A CNR has 4 letters followed by 12 digits' : (app.db.watch.some(w => w.cnr === v.replace(/[\s-]/g, '').toUpperCase()) ? 'Already on the watchlist' : '') }, { k: 'label', label: 'Label', ph: 'Connected matter, opposite party’s suit…' }], onSubmit: v => { app.mut(db => { db.watch.push({ id: L.uid('w'), cnr: v.cnr.replace(/[\s-]/g, '').toUpperCase(), label: v.label.trim(), added: L.today() }); }, 'CNR added to watchlist'); app.modal(null); } }))) }, '+ Watch a CNR') },
+        h(Card, { title: 'CNR watchlist', right: h(Btn, { small: true, onClick: () => app.modal(() => h(Modal, { title: 'Watch a CNR', onClose: () => app.modal(null) }, h(Form, { submit: 'Add to watchlist', onCancel: () => app.modal(null), fields: [{ k: 'cnr', label: 'CNR number', req: true, ph: '4 letters and 12 digits', check: v => !/^[A-Za-z]{4}\d{12}$/.test(v.replace(/[\s-]/g, '')) ? 'A CNR has 4 letters followed by 12 digits' : (app.db.watch.some(w => w.cnr === v.replace(/[\s-]/g, '').toUpperCase()) ? 'Already on the watchlist' : '') }, { k: 'label', label: 'Label', ph: 'Connected matter, opposite party’s suit…' }], onSubmit: v => { app.mut(db => { db.watch.push({ id: L.uid('w'), cnr: v.cnr.replace(/[\s-]/g, '').toUpperCase(), label: v.label.trim(), added: L.today() }); }, 'CNR added to watchlist'); app.modal(null); } }))) }, '+ Watch a CNR') },
           d.cases.filter(c => c.cnr).map(c => h(Line, { key: c.id }, h('div', { style: { flex: 1, minWidth: 0 } }, h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, c.cnr), h('div', { style: { fontSize: 12, color: K.mut } }, c.title + ' · your case')), h(Btn, { small: true, onClick: () => app.go('case', c.id) }, 'Open'))),
-          d.watch.map(w => h(Line, { key: w.id }, h('div', { style: { flex: 1, minWidth: 0 } }, h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, w.cnr), h('div', { style: { fontSize: 12, color: K.mut } }, (w.label || 'No label') + ' · added ' + L.dayMon(w.added) + (w.checked ? ` · ${w.status}${w.nextDate ? ', next ' + L.fmt(w.nextDate) : ''} (checked ${L.dayMon(w.checked)})` : ''))), window.LSB && LSB.on && h(Btn, { small: true, onClick: () => { app.toast('Checking…'); LSB.court(w.cnr).then(r => app.mut(db => { const x = db.watch.find(y => y.id === w.id); if (x) { x.status = r.status || 'No status returned'; x.nextDate = r.nextDate || ''; x.checked = L.today(); if (!x.label && r.title) x.label = r.title; } }, r.nextDate ? 'Next date: ' + L.fmt(r.nextDate) : (r.status || 'Checked'))).catch(e => app.toast(e.message)); } }, 'Check status'), h(Btn, Object.assign({ small: true, danger: true, onClick: () => app.mut(db => { db.watch = db.watch.filter(x => x.id !== w.id); }, 'Removed from watchlist') }, gate(app, 'watch.edit')), 'Remove'))),
+          d.watch.map(w => h(Line, { key: w.id }, h('div', { style: { flex: 1, minWidth: 0 } }, h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, w.cnr), h('div', { style: { fontSize: 12, color: K.mut } }, (w.label || 'No label') + ' · added ' + L.dayMon(w.added) + (w.checked ? ` · ${w.status}${w.nextDate ? ', next ' + L.fmt(w.nextDate) : ''} (checked ${L.dayMon(w.checked)})` : ''))), window.LSB && LSB.on && h(Btn, { small: true, onClick: () => { app.toast('Checking…'); LSB.court(w.cnr).then(r => app.mut(db => { const x = db.watch.find(y => y.id === w.id); if (x) { x.status = r.status || 'No status returned'; x.nextDate = r.nextDate || ''; x.checked = L.today(); if (!x.label && r.title) x.label = r.title; } }, r.nextDate ? 'Next date: ' + L.fmt(r.nextDate) : (r.status || 'Checked'))).catch(e => app.toast(e.message)); } }, 'Check status'), h(Btn, { small: true, danger: true, onClick: () => app.mut(db => { db.watch = db.watch.filter(x => x.id !== w.id); }, 'Removed from watchlist') }, 'Remove'))),
           h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 12, lineHeight: 1.55 } }, window.LSB && LSB.on ? 'Check status asks your court-data provider. If none is connected, the check says so.' : 'Status checks need the server and a court-data provider. Watched CNRs are kept as a list.'))));
   }
   function Clients({ app }) {
     const d = app.db, [q, setQ] = useState('');
-    const fields = [{ k: 'name', label: 'Client name', req: true }, { k: 'type', label: 'Type', type: 'select', options: ['Individual', 'Company', 'Firm', 'Government body'], half: true }, { k: 'city', label: 'City', half: true }, { k: 'contact', label: 'Contact person', ph: 'Name, designation' }, { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true },
-      { k: 'address', label: 'Billing address', ph: 'Printed on invoices' }, { k: 'gstin', label: 'GSTIN (optional)', half: true, ph: 'For business clients', check: v => v && !L.GSTIN_RE.test(v.toUpperCase()) ? 'A GSTIN has 15 characters, e.g. 27AAAAA0000A1Z5' : '' },
-      { k: 'stateCode', label: 'State', type: 'select', blank: 'Select the state', options: STATE_OPTS(), half: true, check: (v, a) => { const g = L.gstinState(a.gstin); return g && v && v !== g ? 'The GSTIN is registered in ' + L.stateName(g) : ''; } }];
-    const norm = v => { const g = String(v.gstin || '').trim().toUpperCase(); return Object.assign({}, v, { gstin: g, stateCode: v.stateCode || L.gstinState(g) }); };
-    const edit = c => (c ? allowed(app, 'client.edit', c) : allowed(app, 'client.create')) && app.modal(() => h(Modal, { title: c ? 'Edit client' : 'New client', onClose: () => app.modal(null) }, h(Form, { fields, init: c || { type: 'Individual' }, submit: c ? 'Save changes' : 'Add client', onCancel: () => app.modal(null), onSubmit: v0 => { const v = norm(v0); app.mut(db => { if (c) { const x = db.clients.find(y => y.id === c.id); if (!x) return; Object.assign(x, v); logIt(db, `Client ${x.name} edited by ${db.user.name}`); } else db.clients.unshift(Object.assign({ id: L.uid('cl'), notes: '', portal: false, share: { dates: true, orders: true, invoices: false } }, v)); }, c ? 'Client updated' : 'Client added'); app.modal(null); } })));
-    const del = cl => { if (!allowed(app, 'client.delete', cl)) return; const cs = app.db.cases.filter(x => x.clientId === cl.id), inv = app.db.invoices.filter(i => i.clientId === cl.id);
+    const fields = [{ k: 'name', label: 'Client name', req: true }, { k: 'type', label: 'Type', type: 'select', options: ['Individual', 'Company', 'Firm', 'Government body'], half: true }, { k: 'city', label: 'City', half: true }, { k: 'contact', label: 'Contact person', ph: 'Name, designation' }, { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true }];
+    const edit = c => app.modal(() => h(Modal, { title: c ? 'Edit client' : 'New client', onClose: () => app.modal(null) }, h(Form, { fields, init: c || { type: 'Individual' }, submit: c ? 'Save changes' : 'Add client', onCancel: () => app.modal(null), onSubmit: v => { if (c && !allowed(app, 'client.edit')) return; app.mut(db => { if (c) { const x = db.clients.find(y => y.id === c.id); if (!x) return; Object.assign(x, v); logIt(db, `Client ${x.name} edited by ${db.user.name}`); } else db.clients.unshift(Object.assign({ id: L.uid('cl'), notes: '', portal: false, share: { dates: true, orders: true, invoices: false } }, v)); }, c ? 'Client updated' : 'Client added'); app.modal(null); } })));
+    const del = cl => { if (!allowed(app, 'client.delete')) return; const cs = app.db.cases.filter(x => x.clientId === cl.id), inv = app.db.invoices.filter(i => i.clientId === cl.id);
       if (cs.length) return infoBox(app, 'This client cannot be deleted', `${cl.name} has ${plural(cs.length, 'case')} (${cs.slice(0, 3).map(x => x.title).join(', ')}${cs.length > 3 ? '…' : ''}). Link those cases to another client in Edit case, or delete them, first.`);
       if (inv.length) return infoBox(app, 'This client cannot be deleted', `${cl.name} has ${plural(inv.length, 'invoice')}. Invoices are financial records, so the client they are billed to is kept.`);
       confirmBox(app, 'Delete this client?', `${cl.name} and their contact details and notes will be deleted.`, 'Delete client', () => app.mut(db => { db.clients = db.clients.filter(x => x.id !== cl.id); logIt(db, `Client ${cl.name} deleted by ${db.user.name}`); }, 'Client deleted')); };
-    const view = c => app.modal(() => { const cl = app.db.clients.find(x => x.id === c.id); if (!cl) return null; const cs = app.db.cases.filter(x => x.clientId === cl.id), due = app.db.invoices.filter(i => i.clientId === cl.id && !i.paid).reduce((a, i) => a + invCalc(app.db, i).total, 0);
+    const view = c => app.modal(() => { const cl = app.db.clients.find(x => x.id === c.id); if (!cl) return null; const cs = app.db.cases.filter(x => x.clientId === cl.id), due = app.db.invoices.filter(i => i.clientId === cl.id && !i.paid).reduce((a, i) => a + i.amount + gstOf(i.amount), 0);
       return h(Modal, { title: cl.name, sub: [cl.type, cl.city].filter(Boolean).join(' · '), onClose: () => app.modal(null), width: 560 },
-        h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: 14 } }, [['Contact', cl.contact], ['Phone', cl.phone], ['Email', cl.email], ['Outstanding', L.inr(due)], ['Billing address', cl.address], ['GSTIN', cl.gstin ? cl.gstin + ' · ' + L.stateName(L.gstinState(cl.gstin)) : (cl.stateCode ? 'None · ' + L.stateName(cl.stateCode) : '')]].map(([k, v]) => h('div', { key: k }, h('div', { style: { fontSize: 12, color: K.mut } }, k), h('div', { style: { overflowWrap: 'anywhere' } }, v || '—')))),
+        h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: 14 } }, [['Contact', cl.contact], ['Phone', cl.phone], ['Email', cl.email], ['Outstanding', L.inr(due)]].map(([k, v]) => h('div', { key: k }, h('div', { style: { fontSize: 12, color: K.mut } }, k), h('div', { style: { overflowWrap: 'anywhere' } }, v || '—')))),
         h('div', null, h('div', { style: X.kicker }, 'Cases'), cs.map(x => h(Line, { key: x.id }, h('div', { style: { flex: 1, minWidth: 0 } }, x.title, h('div', { style: { fontSize: 12, color: K.mut } }, x.no + ' · ' + x.court)), h(Btn, { small: true, onClick: () => { app.modal(null); app.go('case', x.id); } }, 'Open'))), !cs.length && h('div', { style: { fontSize: 14, color: K.mut, paddingTop: 8 } }, 'No cases linked.')),
-        h('div', null, h('div', { style: Object.assign({ marginBottom: 6 }, X.kicker) }, 'Notes'), h('textarea', { defaultValue: cl.notes, rows: 3, readOnly: !can(app, 'client.edit', cl), placeholder: 'Saved when you click away', onBlur: e => { const v = e.target.value; if (v !== cl.notes && can(app, 'client.edit', cl)) app.mut(db => { db.clients.find(x => x.id === cl.id).notes = v; }, 'Notes saved'); }, style: Object.assign({}, X.input, { height: 'auto', padding: '10px 12px', resize: 'vertical' }) })),
-        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, Object.assign({ danger: true, title: cs.length ? 'Clients with cases cannot be deleted' : '', onClick: () => del(cl) }, gate(app, 'client.delete', cl)), 'Delete'), h(Btn, Object.assign({ onClick: () => edit(cl) }, gate(app, 'client.edit', cl)), 'Edit'), h(Btn, Object.assign({ primary: true, onClick: () => newCase(app, { clientId: cl.id }) }, gate(app, 'case.create')), '+ New case'))); });
+        h('div', null, h('div', { style: Object.assign({ marginBottom: 6 }, X.kicker) }, 'Notes'), h('textarea', { defaultValue: cl.notes, rows: 3, placeholder: 'Saved when you click away', onBlur: e => { const v = e.target.value; if (v !== cl.notes) app.mut(db => { db.clients.find(x => x.id === cl.id).notes = v; }, 'Notes saved'); }, style: Object.assign({}, X.input, { height: 'auto', padding: '10px 12px', resize: 'vertical' }) })),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { danger: true, title: cs.length ? 'Clients with cases cannot be deleted' : '', onClick: () => del(cl) }, 'Delete'), h(Btn, { onClick: () => allowed(app, 'client.edit') && edit(cl) }, 'Edit'), h(Btn, { primary: true, onClick: () => newCase(app, { clientId: cl.id }) }, '+ New case'))); });
     const rows = d.clients.filter(c => !q || (c.name + c.contact + c.city + c.email).toLowerCase().includes(q.toLowerCase()));
-    return h(Page, { art: 'clients', kicker: 'Practice', title: 'Clients CRM', sub: `${d.clients.length} clients · click a row for cases, contact details and notes`, actions: [h(Search, { key: 0, value: q, onChange: setQ, placeholder: 'Search clients' }), h(Btn, Object.assign({ key: 1, primary: true, onClick: () => edit(null) }, gate(app, 'client.create')), '+ New client')] },
-      h(Table, { onRow: view, cols: [{ label: 'Client', w: 'minmax(220px,2fr)', get: c => h('span', null, c.name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, c.contact)) }, { label: 'Phone', get: c => c.phone || '—' }, { label: 'City', get: c => c.city || '—' }, { label: 'Cases', w: '80px', get: c => d.cases.filter(x => x.clientId === c.id).length }, { label: 'Outstanding', get: c => L.inr(d.invoices.filter(i => i.clientId === c.id && !i.paid).reduce((a, i) => a + invCalc(d, i).total, 0)) }, { label: 'Portal', w: '90px', get: c => h(Chip, { tone: c.portal ? '' : 'grey' }, c.portal ? 'Enabled' : 'Off') }], rows, empty: { title: 'No clients match', text: 'Try another search or add a client.' } }));
+    return h(Page, { art: 'clients', kicker: 'Practice', title: 'Clients CRM', sub: `${d.clients.length} clients · click a row for cases, contact details and notes`, actions: [h(Search, { key: 0, value: q, onChange: setQ, placeholder: 'Search clients' }), h(Btn, { key: 1, primary: true, onClick: () => edit(null) }, '+ New client')] },
+      h(Table, { onRow: view, cols: [{ label: 'Client', w: 'minmax(220px,2fr)', get: c => h('span', null, c.name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, c.contact)) }, { label: 'Phone', get: c => c.phone || '—' }, { label: 'City', get: c => c.city || '—' }, { label: 'Cases', w: '80px', get: c => d.cases.filter(x => x.clientId === c.id).length }, { label: 'Outstanding', get: c => L.inr(d.invoices.filter(i => i.clientId === c.id && !i.paid).reduce((a, i) => a + i.amount + gstOf(i.amount), 0)) }, { label: 'Portal', w: '90px', get: c => h(Chip, { tone: c.portal ? '' : 'grey' }, c.portal ? 'Enabled' : 'Off') }], rows, empty: { title: 'No clients match', text: 'Try another search or add a client.' } }));
   }
   function Docs({ app, kind }) {
     const d = app.db, ev = kind === 'evidence', [q, setQ] = useState(''), [cf, setCf] = useState('');
     const rows = d.docs.filter(x => x.kind === kind && (!cf || x.caseId === cf) && (!q || (x.name + x.meta + (x.exhibit || '') + (x.custody || '') + (x.tags || []).join(' ')).toLowerCase().includes(q.toLowerCase())));
     const cols = [{ label: ev ? 'Exhibit' : 'Type', w: '90px', get: x => h('span', { style: { fontSize: 11, fontWeight: 600, border: '1px solid ' + K.line, borderRadius: 6, padding: '3px 6px', background: K.soft } }, ev ? (x.exhibit || '—') : x.ext) }, { label: ev ? 'Item' : 'Document', w: 'minmax(220px,2.2fr)', get: x => h('span', null, x.name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, (ev ? (x.custody || x.meta) : x.meta) + tagLine(x))) }, { label: 'Case', w: '1.4fr', get: x => x.caseId ? caseOf(d, x.caseId).title : 'Not linked' }, { label: 'Added', get: x => L.dayMon(x.added || d.anchor) }, { label: '', w: '190px', get: x => h('span', { style: { display: 'flex', justifyContent: 'flex-end' } }, docActs(app, x)) }];
-    return h(Page, { art: 'documents', kicker: 'Practice', title: ev ? 'Evidence' : 'Documents', sub: `${rows.length} of ${d.docs.filter(x => x.kind === kind).length} ${ev ? 'exhibits and evidence records' : 'documents'} across your cases`, actions: [h(Select, { key: 0, value: cf, onChange: setCf, options: [['', 'All cases'], ...caseOpts(d)], style: { minWidth: 0, width: 'min(260px, 100%)', textOverflow: 'ellipsis' } }), h(Search, { key: 1, value: q, onChange: setQ, placeholder: ev ? 'Search evidence' : 'Search documents', width: 'min(240px, 100%)' }), h(Btn, Object.assign({ key: 2, primary: true, onClick: () => uploadDoc(app, kind, cf) }, gate(app, 'doc.create')), ev ? '+ Add evidence' : '+ Upload')] },
+    return h(Page, { art: 'documents', kicker: 'Practice', title: ev ? 'Evidence' : 'Documents', sub: `${rows.length} of ${d.docs.filter(x => x.kind === kind).length} ${ev ? 'exhibits and evidence records' : 'documents'} across your cases`, actions: [h(Select, { key: 0, value: cf, onChange: setCf, options: [['', 'All cases'], ...caseOpts(d)], style: { minWidth: 0, width: 'min(260px, 100%)', textOverflow: 'ellipsis' } }), h(Search, { key: 1, value: q, onChange: setQ, placeholder: ev ? 'Search evidence' : 'Search documents', width: 'min(240px, 100%)' }), h(Btn, { key: 2, primary: true, onClick: () => uploadDoc(app, kind, cf) }, ev ? '+ Add evidence' : '+ Upload')] },
       h(Table, { cols, rows, min: 860, empty: { title: ev ? 'No evidence recorded' : 'No documents', text: 'Change the filter or add a file.' } }));
   }
   const LIB = [
@@ -876,12 +872,30 @@
     ['Bharatiya Sakshya Adhiniyam, 2023 — s.63', 'Admissibility of electronic records', 'An electronic record is admissible as a document if the conditions of the section are met and it is accompanied by the prescribed certificate. It corresponds to s.65B of the Indian Evidence Act, 1872.', 'electronic record certificate 65B email printout evidence'],
     ['Hindu Marriage Act, 1955 — s.13B', 'Divorce by mutual consent', 'Both spouses may petition together for divorce after living separately for a year or more. The second motion is made between six and eighteen months after the first; the six-month period can be waived in suitable cases (Amardeep Singh v. Harveen Kaur, 2017).', 'mutual consent divorce cooling off six months']
   ].map((r, i) => ({ id: 'L' + i, ref: r[0], title: r[1], text: r[2], tags: r[3] }));
+  /* Real AI answer to a general legal question (server function 'ai', mode 'research'). */
+  function AiAsk({ app }) {
+    const [q, setQ] = useState(''), [busy, setBusy] = useState(false), [ans, setAns] = useState(null);
+    const ask = () => { const t = q.trim(); if (!t || busy) return; setBusy(true); setAns(null);
+      LSB.ai({ mode: 'research', question: t }).then(r => { setAns({ q: t, text: r.text }); app.db.sub.aiUsed = r.used; }).catch(e => setAns({ q: t, error: e.message })).finally(() => setBusy(false)); };
+    return h(Card, { title: 'Ask the AI', right: h('span', { style: { fontSize: 12.5, color: K.mut } }, '1 AI credit per question') },
+      h('div', { style: { display: 'flex', gap: 8 } },
+        h('textarea', { value: q, rows: 2, onChange: e => setQ(e.target.value), onKeyDown: e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } }, placeholder: 'e.g. What is the limitation for a first appeal from a decree, and can delay be condoned?', style: { flex: 1, border: '1px solid ' + K.line, borderRadius: 8, padding: '10px 12px', fontSize: 14.5, fontFamily: 'inherit', resize: 'vertical', minWidth: 0 } }),
+        h(Btn, { primary: true, onClick: ask, disabled: busy }, busy ? 'Thinking…' : 'Ask AI')),
+      ans && h('div', { style: { marginTop: 14, borderTop: '1px solid ' + K.line, paddingTop: 14 } },
+        h('div', { style: { fontSize: 12.5, color: K.mut, marginBottom: 6 } }, ans.q),
+        ans.error ? h('div', { style: { fontSize: 14, color: K.red } }, 'The AI could not answer: ' + ans.error)
+          : h('div', null, h('div', { style: { fontSize: 15, lineHeight: 1.65, whiteSpace: 'pre-line', color: '#1A1A1A' } }, ans.text),
+            h('div', { style: { display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' } },
+              h(Btn, { small: true, onClick: () => { try { navigator.clipboard.writeText(ans.text); app.toast('Copied to clipboard'); } catch (x) { app.toast('Copy is not available in this browser'); } } }, 'Copy'),
+              h('span', { style: { fontSize: 12.5, color: K.mut } }, 'AI answer. Check every section and judgment in the bare act or a law database before relying on it.')))));
+  }
   function Research({ app }) {
     const d = app.db, [q, setQ] = useState(''), [only, setOnly] = useState(false);
     const words = q.toLowerCase().split(/\s+/).filter(w => w.length > 1);
     const scored = LIB.map(e => { const hay = (e.ref + ' ' + e.title + ' ' + e.text + ' ' + e.tags).toLowerCase(); return [words.reduce((n, w) => n + (hay.includes(w) ? 1 : 0), 0), e]; }).filter(x => (!words.length || x[0] > 0) && (!only || d.research.includes(x[1].id))).sort((a, b) => b[0] - a[0]).map(x => x[1]);
     return h(Page, { art: 'research', kicker: 'AI', title: 'AI Legal Research', sub: 'Search the built-in reference notes on provisions used in your matters', max: 980, actions: [h(Btn, { key: 1, onClick: () => setOnly(!only), style: only ? { background: K.soft2, borderColor: K.ink } : null }, only ? 'Showing saved' : `Saved (${d.research.length})`)] },
-      h('div', { style: { display: 'flex', gap: 8, background: '#FFFFFF', border: '1px solid ' + K.line, borderRadius: 10, padding: '6px 6px 6px 14px' } }, h('input', { value: q, onChange: e => setQ(e.target.value), placeholder: 'e.g. condonation of delay, cheque notice, certified copy…', autoFocus: true, style: { flex: 1, border: 0, outline: 'none', fontSize: 15, background: 'transparent', minWidth: 0 } }), q && h(Btn, { onClick: () => setQ('') }, 'Clear')),
+      window.LSB && LSB.on && LSB.ai && h(AiAsk, { app }),
+      h('div', { style: { display: 'flex', gap: 8, background: '#FFFFFF', border: '1px solid ' + K.line, borderRadius: 10, padding: '6px 6px 6px 14px' } }, h('input', { value: q, onChange: e => setQ(e.target.value), placeholder: 'Search the reference notes: condonation of delay, cheque notice, certified copy…', style: { flex: 1, border: 0, outline: 'none', fontSize: 15, background: 'transparent', minWidth: 0 } }), q && h(Btn, { onClick: () => setQ('') }, 'Clear')),
       h('div', { style: { fontSize: 13, color: K.mut } }, `${scored.length} of ${LIB.length} notes${words.length ? ' match' : ''}. These are short reference notes, not a case-law database. Check the bare act and current authorities before relying on them.`),
       scored.map(e => { const saved = d.research.includes(e.id); return h(Card, { key: e.id }, h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' } }, h('div', null, h('div', { style: { fontSize: 12.5, color: K.mut } }, e.ref), h('div', { style: { fontSize: 16, fontWeight: 600, marginTop: 2 } }, e.title)), h('div', { style: X.row }, h(Btn, { small: true, onClick: () => { try { navigator.clipboard.writeText(`${e.ref} — ${e.title}. ${e.text}`); app.toast('Copied to clipboard'); } catch (x) { app.toast('Copy is not available in this browser'); } } }, 'Copy'), h(Btn, { small: true, onClick: () => app.mut(db => { db.research = saved ? db.research.filter(x => x !== e.id) : [...db.research, e.id]; }, saved ? 'Removed from saved' : 'Saved') }, saved ? 'Saved ✓' : 'Save'))), h('p', { style: { fontSize: 14.5, lineHeight: 1.65, color: K.txt, margin: '10px 0 0', maxWidth: 820 } }, e.text)); }),
       !scored.length && h(Card, null, h(Empty, { title: 'No notes match', text: 'Try fewer or different words, for example "limitation" or "bail".' })));
@@ -899,142 +913,63 @@
     return h(Page, { art: 'agents', kicker: 'AI', title: 'AI Agents', sub: `${d.agents.filter(a => a.on).length} of ${d.agents.length} agents enabled`, max: 1100 },
       h('div', { style: { fontSize: 13, color: K.mut, background: K.soft2, borderRadius: 8, padding: '10px 14px', lineHeight: 1.55 } }, 'Agents run in this browser when you open this page and press Run now. They are not scheduled and do not run while the app is closed. ' + (window.LSB && LSB.on ? `Separately, the server sends each member the morning briefing email at their chosen time (yours: ${L.t12ap(briefAt(d.settings))} IST) with hearings, deadlines, limitation dates and overdue tasks; set it in Settings › Notifications.` : 'Scheduled briefing emails need the server to be connected.')),
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,440px),1fr))', gap: 20 } }, d.agents.map(a => h(Card, { key: a.id },
-        h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' } }, h('div', null, h('div', { style: { fontSize: 16, fontWeight: 600 } }, a.name), h('div', { style: { fontSize: 14, color: K.txt, marginTop: 4, lineHeight: 1.5 } }, a.what), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 6 } }, 'Runs when you press Run now' + (a.id === 'briefing' && window.LSB && LSB.on ? ' · the email briefing is sent by the server at ' + L.t12ap(briefAt(d.settings)) + ' IST' : ''))), h(Toggle, { on: a.on, label: 'Enable ' + a.name, onChange: v => allowed(app, 'agents.edit') && app.mut(db => { db.agents.find(x => x.id === a.id).on = v; }, a.name + (v ? ' enabled' : ' paused')) })),
-        h('div', { style: Object.assign({ marginTop: 14 }, X.row) }, h(Btn, { small: true, primary: true, disabled: !a.on || !can(app, 'agents.run'), title: why(app, 'agents.run') || undefined, onClick: () => app.mut(db => { const x = db.agents.find(y => y.id === a.id); x.runs.unshift({ at: L.today() + ' ' + L.nowHM(), out: runAgent(db, a.id) }); x.runs = x.runs.slice(0, 5); }, a.name + ' finished') }, 'Run now'), h('span', { style: { fontSize: 12.5, color: K.mut } }, a.runs.length ? 'Last run ' + L.dayMon(a.runs[0].at.slice(0, 10)) + ', ' + a.runs[0].at.slice(11) : 'Not run yet')),
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' } }, h('div', null, h('div', { style: { fontSize: 16, fontWeight: 600 } }, a.name), h('div', { style: { fontSize: 14, color: K.txt, marginTop: 4, lineHeight: 1.5 } }, a.what), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 6 } }, 'Runs when you press Run now' + (a.id === 'briefing' && window.LSB && LSB.on ? ' · the email briefing is sent by the server at ' + L.t12ap(briefAt(d.settings)) + ' IST' : ''))), h(Toggle, { on: a.on, label: 'Enable ' + a.name, onChange: v => app.mut(db => { db.agents.find(x => x.id === a.id).on = v; }, a.name + (v ? ' enabled' : ' paused')) })),
+        h('div', { style: Object.assign({ marginTop: 14 }, X.row) }, h(Btn, { small: true, primary: true, disabled: !a.on, onClick: () => app.mut(db => { const x = db.agents.find(y => y.id === a.id); x.runs.unshift({ at: L.today() + ' ' + L.nowHM(), out: runAgent(db, a.id) }); x.runs = x.runs.slice(0, 5); }, a.name + ' finished') }, 'Run now'), h('span', { style: { fontSize: 12.5, color: K.mut } }, a.runs.length ? 'Last run ' + L.dayMon(a.runs[0].at.slice(0, 10)) + ', ' + a.runs[0].at.slice(11) : 'Not run yet')),
         a.runs[0] && h('div', { style: { marginTop: 12, background: K.soft, border: '1px solid ' + K.line, borderRadius: 8, padding: '12px 14px', fontSize: 13.5, lineHeight: 1.6, whiteSpace: 'pre-line', color: K.txt, maxHeight: 240, overflow: 'auto' } }, a.runs[0].out)))));
   }
-  const ROLE_LIST = ['Managing Partner', 'Partner', 'Associate', 'Junior Advocate', 'Paralegal', 'Office Manager', 'Clerk', 'Intern', 'Viewer'];
-  const ACCESS = [['owner', 'Everything, including the plan, team members, restoring a backup and deleting the firm\'s data.'], ['partner', 'Everything else: invoices (mark paid, delete), the firm profile, agents, and deleting anyone\'s records and files.'], ['associate', 'Adds and edits cases, clients, hearings, orders, tasks, documents, evidence, deadlines and invoices (not marking them paid). Deletes only what they added, but not uploaded files.'], ['clerk', 'Sees everything. Adds and edits hearings, tasks, documents, evidence and deadlines. Deletes only what they added. No invoices, cases or team.'], ['viewer', 'Sees and exports everything; changes nothing.']];
   function Team({ app }) {
-    const d = app.db, ps = plan(app), use = L.usage(d), who = u => u.owner || (!server() && u.email === d.user.email) ? 'owner' : L.roleOf(u.role);
-    const roleOpts = r => (r && !ROLE_LIST.includes(r) ? [r, ...ROLE_LIST] : ROLE_LIST).map(x => [x, x + ' · ' + L.ROLES[L.roleOf(x)]]);
-    const invite = () => allowed(app, 'team.manage') && withinLimit(app, 'seats') && app.modal(() => h(Modal, { title: 'Invite a team member', onClose: () => app.modal(null) }, h(Form, { init: { role: 'Associate' }, submit: 'Add to team', onCancel: () => app.modal(null), note: server() ? 'They join your firm the first time they sign in with this Google account or email. Tell them the site address; no invitation email is sent.' : 'No invitation email is sent in this browser-only version. The member is added with the status "Invited".', fields: [{ k: 'name', label: 'Full name', req: true }, { k: 'email', label: 'Work email', type: 'email', req: true, check: v => d.team.some(u => u.email.toLowerCase() === v.toLowerCase()) ? 'This email is already on the team' : '' }, { k: 'role', label: 'Role', type: 'select', options: roleOpts() }], onSubmit: v => { app.mut(db => { db.team.push({ id: L.uid('u'), name: v.name.trim(), title: (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + v.name.trim(), role: v.role, email: v.email.trim(), status: 'Invited' }); }, 'Team member added'); app.modal(null); } })));
-    const edit = u => allowed(app, 'team.manage') && app.modal(() => h(Modal, { title: u.title, sub: u.email + (u.owner ? ' · firm owner' : ''), onClose: () => app.modal(null) }, h(Form, { init: { role: u.role, status: u.status }, submit: 'Save', onCancel: () => app.modal(null), fields: [{ k: 'role', label: 'Role', type: 'select', options: roleOpts(u.role), half: true }, u.owner ? { k: 'status', label: 'Status', ro: true, roNote: 'The firm owner stays active', half: true } : { k: 'status', label: 'Status', type: 'select', options: ['Active', 'Invited', 'Suspended'], half: true, check: v => u.status === 'Suspended' && v !== 'Suspended' ? limitWhy(app, 'seats') : '' }],
-      onSubmit: v => { app.mut(db => { Object.assign(db.team.find(x => x.id === u.id), u.owner ? { role: v.role } : v); logIt(db, `${u.name}: role ${v.role}, ${u.owner ? 'Active' : v.status} (changed by ${db.user.name})`); }, 'Team member updated'); app.modal(null); } }),
-      !u.owner && u.name !== d.user.name && h('div', { style: { borderTop: '1px solid ' + K.line, paddingTop: 14, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' } }, h('span', { style: { fontSize: 13, color: K.mut } }, 'Their tasks and hearings stay assigned by name.'), h(Btn, { danger: true, onClick: () => { app.mut(db => { db.team = db.team.filter(x => x.id !== u.id); }, 'Removed from team'); app.modal(null); } }, 'Remove from team'))));
-    const seatLine = ps ? ` · ${use.seats} of ${ps.limits.seats} seat${ps.limits.seats === 1 ? '' : 's'} used (${ps.trial ? 'no plan yet' : ps.plan + ' plan'})` : '';
-    return h(Page, { art: 'team', kicker: 'Firm', title: 'Team', sub: `${d.team.length} members${seatLine} · ${can(app, 'team.manage') ? 'click a row to change role or status' : 'only the firm owner can change members'}`, actions: [h(Btn, Object.assign({ key: 1, primary: true, onClick: invite }, gate(app, 'team.manage')), '+ Invite member')] },
-      h(Table, { onRow: edit, cols: [{ label: 'Member', w: 'minmax(220px,2fr)', get: u => h('span', null, u.title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, u.email)) }, { label: 'Role', w: '1.2fr', get: u => u.role }, { label: 'Access', w: '1fr', get: u => h(Chip, { tone: who(u) === 'viewer' ? 'grey' : '' }, L.ROLES[who(u)]) }, { label: 'Cases', w: '70px', get: u => d.cases.filter(c => c.team.includes(u.name) && c.status !== 'archived' && c.status !== 'disposed').length }, { label: 'Open tasks', get: u => { const n = openTasks(d).filter(t => t.who === u.name), o = n.filter(overdue).length; return n.length + (o ? ` (${o} overdue)` : ''); } }, { label: 'Status', w: '100px', get: u => h(Chip, { tone: u.status === 'Active' ? '' : (u.status === 'Suspended' ? 'red' : 'grey') }, u.status) }], rows: d.team }),
-      h(Card, { title: 'Roles and permissions', right: h('span', { style: { fontSize: 13, color: K.mut } }, server() ? 'You: ' + roleName(app) : 'Browser-only: you are the owner') },
-        ACCESS.map(([k, t]) => h(Line, { key: k }, h('span', { style: { width: 130, flexShrink: 0, fontWeight: 600 } }, L.ROLES[k]), h('span', { style: { color: K.txt, fontSize: 13.5, lineHeight: 1.5, minWidth: 0 } }, t))),
-        h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 10, lineHeight: 1.55 } }, 'Designations map to access: Managing Partner and Partner → Partner; Advocate, Associate and Junior Advocate → Associate; Paralegal, Office Manager, Clerk and Intern → Clerk / staff; Viewer → Viewer. The person who set up the firm is the owner.')));
-  }
-  /* The printable GST invoice (tax invoice, reverse charge, or bill of supply). */
-  function invoiceDoc(d, i) {
-    const f = d.firm, cl = clientOf(d, i.clientId), t = invCalc(d, i), cs = caseOf(d, i.caseId), sup = f.legalName || f.name, fs = f.stateCode || L.gstinState(f.gstin);
-    const muted = { color: K.mut }, cell = { padding: '8px 6px', borderBottom: '1px solid #D9D9D9', verticalAlign: 'top', textAlign: 'left' }, num = Object.assign({}, cell, { textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' });
-    const line = (k, v) => v ? h('div', null, h('span', { style: muted }, k + ' '), v) : null;
-    const sum = (k, v, bold, note) => h('tr', { key: k }, h('td', { colSpan: 3, style: Object.assign({}, num, { fontWeight: bold ? 600 : 400, whiteSpace: 'normal' }) }, k, note && h('div', { style: { fontSize: 11.5, color: K.mut, fontWeight: 400 } }, note)), h('td', { style: Object.assign({}, num, { fontWeight: bold ? 600 : 400 }) }, L.inr(v)));
-    const taxRows = t.mode === 'bos' ? [] : t.intra ? [['CGST @ ' + t.rate / 2 + '%', t.cgst], ['SGST @ ' + t.rate / 2 + '%', t.sgst]] : [['IGST @ ' + t.rate + '%', t.igst]];
-    return h('div', { className: 'ls-print ls-invoice', id: 'ls-invoice', style: { border: '1px solid ' + K.line, borderRadius: 10, padding: 'clamp(14px,4vw,28px)', fontSize: 13.5, lineHeight: 1.5, background: '#fff', color: '#111', overflowWrap: 'anywhere' } },
-      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', paddingBottom: 12, borderBottom: '2px solid #111' } },
-        h('div', { style: { minWidth: 0, flex: '1 1 220px' } }, h('div', { style: { fontWeight: 700, fontSize: 17 } }, sup || 'Your firm'), sup !== f.name && f.name && h('div', { style: muted }, f.name), h('div', null, f.address), line('GSTIN', f.gstin), line('PAN', f.pan), line('State', fs ? L.stateName(fs) + ' (' + fs + ')' : '')),
-        h('div', { style: { textAlign: 'right', flex: '0 0 auto' } }, h('div', { style: { fontWeight: 700, fontSize: 18, letterSpacing: '.06em', textTransform: 'uppercase' } }, t.title), h('div', { style: Object.assign({ fontSize: 12 }, muted) }, 'Original for recipient'))),
-      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,200px),1fr))', gap: '6px 18px', padding: '12px 0', borderBottom: '1px solid #D9D9D9' } },
-        line('Invoice no.', h('b', null, i.no)), line('Invoice date', L.dmy(i.date)), line('Place of supply', t.pos ? t.posName + ' (' + t.pos + ')' : 'Not set'), t.mode !== 'bos' && line('Tax payable on reverse charge', h('b', null, t.rcm ? 'Yes' : 'No'))),
-      h('div', { style: { padding: '12px 0', borderBottom: '1px solid #D9D9D9' } }, h('div', { style: Object.assign({ fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', fontWeight: 600 }, muted) }, 'Bill to'),
-        h('div', { style: { fontWeight: 600, fontSize: 15 } }, cl.name), t.clientAddress && h('div', null, t.clientAddress), line('GSTIN', t.clientGstin || (t.mode === 'bos' ? '' : 'Not registered')), line('State', t.pos && t.posName ? t.posName + ' (' + t.pos + ')' : ''), cs.title !== '—' && line('Matter', cs.title + (cs.no ? ' · ' + cs.no : ''))),
-      h('table', { style: { width: '100%', borderCollapse: 'collapse', marginTop: 12, fontSize: 13 } },
-        h('thead', null, h('tr', null, ...[['#', 24], ['Description of service', null], ['SAC', 64], ['Taxable value', 96]].map(([x, w], k) => h('th', { key: k, style: Object.assign({}, k === 3 ? num : cell, { width: w || 'auto', fontSize: 11.5, color: K.mut, fontWeight: 600, borderBottom: '1.5px solid #111' }) }, x)))),
-        h('tbody', null, h('tr', null, h('td', { style: cell }, '1'), h('td', { style: cell }, i.desc || 'Professional fees', h('div', { style: { fontSize: 11.5, color: K.mut } }, t.sacName)), h('td', { style: cell }, t.sac), h('td', { style: num }, L.inr(t.amount))),
-          sum('Taxable value', t.amount),
-          ...taxRows.map(([k, v]) => sum(k + (t.rcm ? ' · payable by the recipient' : ''), v)),
-          t.rcm && sum('GST charged on this invoice', 0, false, 'Reverse charge applies: the recipient pays the GST shown above directly to the government.'),
-          t.mode === 'bos' && sum('GST', 0, false, 'Not charged'),
-          sum('Total', t.total, true))),
-      h('div', { style: { padding: '10px 0', borderBottom: '1px solid #D9D9D9' } }, h('span', { style: muted }, 'Amount in words: '), h('b', null, t.words)),
-      t.notes.length ? h('div', { style: { fontSize: 12, color: '#333', padding: '10px 0', display: 'flex', flexDirection: 'column', gap: 4 } }, t.notes.map((n, k) => h('div', { key: k }, n))) : null,
-      h('div', { style: { display: 'flex', justifyContent: 'flex-end', paddingTop: 22 } }, h('div', { style: { textAlign: 'center', minWidth: 180 } }, h('div', { style: { fontWeight: 600 } }, 'For ' + (sup || 'the firm')), h('div', { style: { height: 40 } }), h('div', { style: { borderTop: '1px solid #111', paddingTop: 4, fontSize: 12 } }, 'Authorised signatory'))));
+    const d = app.db, roles = ['Managing Partner', 'Partner', 'Associate', 'Junior Advocate', 'Paralegal', 'Office Manager', 'Intern'];
+    const invite = () => (window.LSB && LSB.on && !d.isOwner) ? app.toast('Only the firm owner can invite or change members.') : overLimit(app, 'users') ? null : app.modal(() => h(Modal, { title: 'Invite a team member', onClose: () => app.modal(null) }, h(Form, { submit: 'Add to team', onCancel: () => app.modal(null), note: window.LSB && LSB.on ? 'We email them an invitation. They join your firm the first time they sign in with this email address.' : 'No invitation email is sent in this browser-only version. The member is added with the status "Invited".', fields: [{ k: 'name', label: 'Full name', req: true }, { k: 'email', label: 'Work email', type: 'email', req: true, check: v => d.team.some(u => u.email.toLowerCase() === v.toLowerCase()) ? 'This email is already on the team' : '' }, { k: 'role', label: 'Role', type: 'select', options: roles }], onSubmit: v => { app.mut(db => { db.team.push({ id: L.uid('u'), name: v.name.trim(), title: (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + v.name.trim(), role: v.role, email: v.email.trim(), status: 'Invited' }); }, 'Team member added'); app.modal(null); } })));
+    const edit = u => (window.LSB && LSB.on && !d.isOwner) ? app.toast('Only the firm owner can invite or change members.') : app.modal(() => h(Modal, { title: u.title, sub: u.email, onClose: () => app.modal(null) }, h(Form, { init: { role: u.role, status: u.status }, submit: 'Save', onCancel: () => app.modal(null), fields: [{ k: 'role', label: 'Role', type: 'select', options: roles, half: true }, { k: 'status', label: 'Status', type: 'select', options: ['Active', 'Invited', 'Suspended'], half: true }], onSubmit: v => { app.mut(db => { Object.assign(db.team.find(x => x.id === u.id), v); }, 'Team member updated'); app.modal(null); } }),
+      window.LSB && LSB.on && u.status === 'Invited' && u.email && h('div', { style: { borderTop: '1px solid ' + K.line, paddingTop: 14, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' } }, h('span', { style: { fontSize: 13, color: K.mut } }, 'Not joined yet. Send the invitation email again.'),
+        h(Btn, { small: true, onClick: () => LSB.invite(u.email).then(r => app.toast(r.sent ? 'Invitation sent to ' + r.sent : r.skipped === 'invited recently' ? 'Already invited 3 times today. Try again tomorrow.' : r.skipped === 'already joined' ? 'They have already joined.' : r.error || 'The invitation was not sent.')).catch(e => app.toast(e.message)) }, 'Resend invitation')),
+      u.name !== d.user.name && h('div', { style: { borderTop: '1px solid ' + K.line, paddingTop: 14, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' } }, h('span', { style: { fontSize: 13, color: K.mut } }, 'Their tasks and hearings stay assigned by name.'), h(Btn, { danger: true, onClick: () => { app.mut(db => { db.team = db.team.filter(x => x.id !== u.id); }, 'Removed from team'); app.modal(null); } }, 'Remove from team'))));
+    return h(Page, { art: 'team', kicker: 'Firm', title: 'Team', sub: `${d.team.length} members · click a row to change role or status`, actions: [h(Btn, { key: 1, primary: true, onClick: invite }, '+ Invite member')] },
+      h(Table, { onRow: edit, cols: [{ label: 'Member', w: 'minmax(220px,2fr)', get: u => h('span', { style: { display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 } }, h(Avatar, { app, user: u, size: 30 }), h('span', { style: { minWidth: 0 } }, u.title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, u.email))) }, { label: 'Role', w: '1.2fr', get: u => u.role }, { label: 'Cases', get: u => d.cases.filter(c => c.team.includes(u.name) && c.status !== 'archived' && c.status !== 'disposed').length }, { label: 'Open tasks', get: u => { const n = openTasks(d).filter(t => t.who === u.name), o = n.filter(overdue).length; return n.length + (o ? ` (${o} overdue)` : ''); } }, { label: 'Hearings · 7 days', get: u => d.hearings.filter(x => x.assignee === u.name && x.date >= L.today() && L.diffDays(x.date, L.today()) <= 7).length }, { label: 'Status', w: '100px', get: u => h(Chip, { tone: u.status === 'Active' ? '' : (u.status === 'Suspended' ? 'red' : 'grey') }, u.status) }], rows: d.team }));
   }
   function invoiceView(app, id) {
-    app.modal(() => { const d = app.db, i = d.invoices.find(x => x.id === id); if (!i) return null;
-      return h(Modal, { title: 'Invoice ' + i.no, onClose: () => app.modal(null), width: 720 },
-        invoiceDoc(d, i),
-        h('div', { style: { fontSize: 13, color: K.mut } }, 'Status: ' + (i.paid ? 'Paid on ' + L.fmt(i.paidOn) : 'Unpaid') + (invCalc(d, i).legacy ? ' · Saved before GST details were recorded: read as GST at 18% added. Edit it to set the place of supply and tax treatment.' : '')),
-        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, Object.assign({ danger: true, onClick: () => delInvoice(app, id) }, gate(app, 'invoice.delete', i)), 'Delete'), h(Btn, Object.assign({ onClick: () => editInvoice(app, id) }, gate(app, 'invoice.edit', i)), 'Edit'), h(Btn, { onClick: () => window.print() }, 'Print / save as PDF'),
-          i.paid ? h(Btn, Object.assign({ onClick: () => allowed(app, 'invoice.paid', i) && app.mut(db => { const x = db.invoices.find(y => y.id === id); x.paid = false; x.paidOn = ''; logIt(db, `Invoice ${x.no} marked unpaid by ${db.user.name}`, x.caseId); }, 'Marked unpaid') }, gate(app, 'invoice.paid', i)), 'Mark unpaid')
-            : h(Btn, Object.assign({ primary: true, onClick: () => allowed(app, 'invoice.paid', i) && app.mut(db => { const x = db.invoices.find(y => y.id === id); x.paid = true; x.paidOn = L.today(); logIt(db, `Invoice ${x.no} marked paid by ${db.user.name}`, x.caseId); }, 'Invoice marked paid') }, gate(app, 'invoice.paid', i)), 'Mark as paid'))); });
-  }
-  /* New or edited invoice: GST treatment, place of supply and the client's GSTIN follow the case's client until changed. */
-  function InvoiceForm({ app, i0, onSave, onCancel }) {
-    const d = app.db, f = d.firm, T = L.today(), reg = !(f.gstReg === 'no' || !(f.gstin || f.gstReg === 'yes'));
-    const fromCase = (caseId, base) => { const c = caseOf(d, caseId), cl = d.clients.find(x => x.id === c.clientId) || {}, g = String(cl.gstin || '').toUpperCase();
-      return Object.assign({}, base, { caseId, clientGstin: g, clientAddress: [cl.address, cl.city].filter(Boolean).join(', '), pos: L.gstinState(g) || cl.stateCode || f.stateCode || L.gstinState(f.gstin) || '', mode: L.invMode(f, g) }); };
-    const [v, setV] = useState(() => { if (!i0) return fromCase((caseOpts(d)[0] || [''])[0], { desc: '', sac: f.sac || '998212', amount: '', date: T, rate: '18' });
-      const t = invCalc(d, i0); return { caseId: i0.caseId, desc: i0.desc || '', sac: t.sac, amount: String(i0.amount), date: i0.date, rate: String(t.rate), mode: t.mode, pos: t.pos, clientGstin: t.clientGstin, clientAddress: t.clientAddress }; });
-    const [err, setErr] = useState({});
-    const set = (k, x) => setV(k === 'caseId' && !i0 ? fromCase(x, v) : (k === 'clientGstin' && L.gstinState(x) ? Object.assign({}, v, { clientGstin: x, pos: L.gstinState(x), mode: reg && v.mode === 'fwd' ? 'rcm' : v.mode }) : Object.assign({}, v, { [k]: x })));
-    const amt = +String(v.amount).replace(/,/g, ''), cl = d.clients.find(x => x.id === caseOf(d, v.caseId).clientId) || {}, t = L.invoiceTax({ amount: amt > 0 ? amt : 0, rate: v.rate, mode: v.mode, pos: v.pos, clientGstin: v.clientGstin }, f, cl);
-    const modes = [['fwd', 'GST charged (forward charge)'], ['rcm', 'Reverse charge: the client pays the GST'], ['bos', 'Bill of supply: no GST']].filter(m => reg || m[0] === 'bos');
-    const go = e => { e.preventDefault(); const er = {};
-      if (!v.desc.trim()) er.desc = 'Required'; if (!(amt > 0)) er.amount = 'Enter an amount above zero'; if (!L.valid(v.date)) er.date = 'Required';
-      else if (i0 && i0.fy && L.fy(v.date) !== i0.fy) er.date = 'Keep the date in FY ' + i0.fy + ', the year in the invoice number';
-      if (v.mode !== 'bos' && !v.pos) er.pos = 'Choose the place of supply';
-      if (v.mode !== 'bos' && !(+v.rate >= 0 && +v.rate <= 28)) er.rate = 'Enter a rate between 0 and 28';
-      if (v.clientGstin && !L.GSTIN_RE.test(String(v.clientGstin).trim().toUpperCase())) er.clientGstin = 'A GSTIN has 15 characters, e.g. 27AAAAA0000A1Z5';
-      setErr(er); if (Object.keys(er).length) return;
-      onSave({ caseId: v.caseId, clientId: caseOf(d, v.caseId).clientId || (i0 && i0.clientId) || '', desc: v.desc.trim(), sac: v.sac, amount: Math.round(amt * 100) / 100, date: v.date, rate: v.mode === 'bos' ? 0 : +v.rate, mode: v.mode, pos: v.pos, clientGstin: String(v.clientGstin || '').trim().toUpperCase(), clientAddress: String(v.clientAddress || '').trim() }); };
-    const F = (k, label, el, half) => h(Field, { key: k, label, error: err[k], half }, el);
-    const sel = (k, opts, blank) => h('select', { value: v[k], onChange: e => set(k, e.target.value), style: X.input }, blank && h('option', { value: '' }, blank), opts.map(o => h('option', { key: o[0], value: o[0] }, o[1])));
-    const inp = (k, ph, type) => h('input', { type: type || 'text', inputMode: k === 'amount' || k === 'rate' ? 'decimal' : undefined, value: v[k], placeholder: ph, onChange: e => set(k, e.target.value), style: X.input });
-    return h('form', { onSubmit: go, noValidate: true, style: { display: 'flex', flexDirection: 'column', gap: 16 } },
-      h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 14 } },
-        F('caseId', 'Case', sel('caseId', caseOpts(d, i0 && i0.caseId))), F('desc', 'Description', inp('desc', 'Professional fees — drafting and appearance')),
-        F('sac', 'SAC', sel('sac', L.SAC.map(([c, n]) => [c, c + ' · ' + n]))),
-        F('amount', 'Taxable value (₹)', inp('amount', '50000'), true), F('date', 'Invoice date', inp('date', '', 'date'), true),
-        F('mode', 'Tax treatment', sel('mode', modes), true), v.mode !== 'bos' && F('rate', 'GST rate (%)', inp('rate', '18'), true),
-        F('pos', 'Place of supply', sel('pos', STATE_OPTS(), 'Select the state'), true), F('clientGstin', 'Client\'s GSTIN (optional)', inp('clientGstin', 'For business clients'), true),
-        F('clientAddress', 'Client\'s billing address', inp('clientAddress', 'Printed on the invoice'))),
-      h('div', { role: 'note', style: { fontSize: 13, lineHeight: 1.55, background: K.soft2, borderRadius: 8, padding: '10px 12px', color: K.txt } },
-        t.mode === 'bos' ? `Bill of supply: no GST. Total ${L.inr(t.total)}.` + (reg ? '' : ' Your firm is set as not registered under GST (Settings › Firm profile).')
-          : t.rcm ? `Reverse charge: no GST is charged on the invoice; the client pays ${t.intra ? 'CGST ' + L.inr(t.cgst) + ' + SGST ' + L.inr(t.sgst) : 'IGST ' + L.inr(t.igst)}. Total ${L.inr(t.total)}. Check with your CA.`
-            : `${t.intra ? 'Within the state: CGST ' + L.inr(t.cgst) + ' + SGST ' + L.inr(t.sgst) : 'Across states: IGST ' + L.inr(t.igst)}. Total ${L.inr(t.total)}.` + (!v.clientGstin ? ' Legal services to an individual, or to a business below the GST threshold, may be exempt: check with your CA.' : ''),
-        reg && !v.clientGstin && v.mode === 'rcm' ? ' Reverse charge applies to business clients; add their GSTIN.' : ''),
-      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: onCancel }, 'Cancel'), h('button', { type: 'submit', className: 'ls-btn', style: { height: 36, padding: '0 16px', borderRadius: 8, fontSize: 13.5, fontWeight: 500, border: 0, background: K.ink, color: '#fff' } }, i0 ? 'Save changes' : 'Create invoice')));
+    app.modal(() => { const d = app.db, i = d.invoices.find(x => x.id === id); if (!i) return null; const g = gstOf(i.amount), cl = clientOf(d, i.clientId), row = (a, b, bold) => h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderTop: '1px solid ' + K.line, fontWeight: bold ? 600 : 400 } }, h('span', null, a), h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, b));
+      return h(Modal, { title: 'Invoice ' + i.no, onClose: () => app.modal(null), width: 560 },
+        h('div', { className: 'ls-print', style: { border: '1px solid ' + K.line, borderRadius: 10, padding: '22px 24px', fontSize: 14, background: '#fff' } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 14 } }, h('div', null, h('div', { style: { fontWeight: 600, fontSize: 16 } }, d.firm.name), h('div', { style: { color: K.mut, fontSize: 13 } }, d.firm.address), d.firm.gstin && h('div', { style: { color: K.mut, fontSize: 13 } }, 'GSTIN ' + d.firm.gstin)), h('div', { style: { textAlign: 'right' } }, h('div', { style: { fontWeight: 600 } }, 'Tax invoice'), h('div', { style: { color: K.mut, fontSize: 13 } }, i.no), h('div', { style: { color: K.mut, fontSize: 13 } }, L.fmt(i.date)))),
+          h('div', { style: { marginBottom: 12 } }, h('div', { style: { fontSize: 12, color: K.mut } }, 'Billed to'), h('div', { style: { fontWeight: 500 } }, cl.name), h('div', { style: { fontSize: 13, color: K.mut } }, caseOf(d, i.caseId).title)),
+          row(i.desc || 'Professional fees', L.inr(i.amount)), row('GST @ 18%', L.inr(g)), row('Total', L.inr(i.amount + g), true), row('Status', i.paid ? 'Paid on ' + L.fmt(i.paidOn) : 'Unpaid')),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { danger: true, onClick: () => delInvoice(app, id) }, 'Delete'), h(Btn, { onClick: () => editInvoice(app, id) }, 'Edit'), h(Btn, { onClick: () => window.print() }, 'Print / save as PDF'), i.paid ? h(Btn, { onClick: () => app.mut(db => { const x = db.invoices.find(y => y.id === id); x.paid = false; x.paidOn = ''; }, 'Marked unpaid') }, 'Mark unpaid') : h(Btn, { primary: true, onClick: () => app.mut(db => { const x = db.invoices.find(y => y.id === id); x.paid = true; x.paidOn = L.today(); logIt(db, `Invoice ${x.no} marked paid`, x.caseId); }, 'Invoice marked paid') }, 'Mark as paid'))); });
   }
   function editInvoice(app, id) {
-    const d = app.db, i = d.invoices.find(x => x.id === id); if (!i || !allowed(app, 'invoice.edit', i)) return;
-    app.modal(() => h(Modal, { title: 'Edit invoice ' + i.no, sub: (i.paid ? 'This invoice is marked paid. ' : '') + 'The invoice number stays the same.', onClose: () => invoiceView(app, id), width: 620 }, h(InvoiceForm, { app, i0: i, onCancel: () => invoiceView(app, id),
-      onSave: row => { app.mut(db => { const x = db.invoices.find(y => y.id === id); if (!x) return; const was = x.amount; Object.assign(x, row); logIt(db, `Invoice ${x.no} edited by ${db.user.name}` + (was !== row.amount ? `, taxable value ${L.inr(was)} → ${L.inr(row.amount)}` : ''), x.caseId); }, 'Invoice updated'); invoiceView(app, id); } })));
+    const d = app.db, i = d.invoices.find(x => x.id === id); if (!i || !allowed(app, 'invoice.edit')) return;
+    app.modal(() => h(Modal, { title: 'Edit invoice ' + i.no, sub: i.paid ? 'This invoice is marked paid.' : null, onClose: () => invoiceView(app, id) }, h(Form, { init: { caseId: i.caseId, desc: i.desc || '', amount: String(i.amount), date: i.date }, submit: 'Save changes', onCancel: () => invoiceView(app, id), note: 'GST at 18% is added to the amount. The invoice number stays the same.',
+      fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d, i.caseId) }, { k: 'desc', label: 'Description', req: true }, { k: 'amount', label: 'Amount before GST (₹)', type: 'number', req: true, half: true, check: v => v && isNaN(+v.replace(/,/g, '')) ? 'Enter a number' : '' }, { k: 'date', label: 'Invoice date', type: 'date', req: true, half: true }],
+      onSubmit: v => { app.mut(db => { const x = db.invoices.find(y => y.id === id); if (!x) return; const amt = Math.round(+String(v.amount).replace(/,/g, '') * 100) / 100, was = x.amount; Object.assign(x, { caseId: v.caseId, clientId: caseOf(db, v.caseId).clientId || x.clientId || '', desc: v.desc.trim(), amount: amt, date: v.date }); logIt(db, `Invoice ${x.no} edited by ${db.user.name}` + (was !== amt ? `, amount ${L.inr(was)} → ${L.inr(amt)}` : ''), x.caseId); }, 'Invoice updated'); invoiceView(app, id); } })));
   }
   function delInvoice(app, id) {
-    const i = app.db.invoices.find(x => x.id === id); if (!i || !allowed(app, 'invoice.delete', i)) return;
-    confirmBox(app, 'Delete invoice ' + i.no + '?', `${L.inr(invCalc(app.db, i).total)} billed to ${clientOf(app.db, i.clientId).name}.` + (i.paid ? ` It is marked paid on ${L.fmt(i.paidOn)}, so collections will drop by ${L.inr(i.amount)}.` : '') + ' GST rules expect invoice numbers to run without gaps, so keep a note of why it was deleted. This cannot be undone.', 'Delete invoice', () => app.mut(db => { db.invoices = db.invoices.filter(x => x.id !== id); logIt(db, `Invoice ${i.no} deleted by ${db.user.name}`, i.caseId); }, 'Invoice deleted'));
+    const i = app.db.invoices.find(x => x.id === id); if (!i || !allowed(app, 'invoice.delete')) return;
+    confirmBox(app, 'Delete invoice ' + i.no + '?', `${L.inr(i.amount + gstOf(i.amount))} billed to ${clientOf(app.db, i.clientId).name}.` + (i.paid ? ` It is marked paid on ${L.fmt(i.paidOn)}, so collections will drop by ${L.inr(i.amount)}.` : '') + ' This cannot be undone.', 'Delete invoice', () => app.mut(db => { db.invoices = db.invoices.filter(x => x.id !== id); logIt(db, `Invoice ${i.no} deleted by ${db.user.name}`, i.caseId); }, 'Invoice deleted'));
   }
   /* Deletes every saved version of a template's draft. */
   function delDraft(app, k) {
     const n = (app.db.drafts[k] || []).length; if (!n || !allowed(app, 'draft.delete')) return;
     confirmBox(app, 'Delete this draft?', `All ${plural(n, 'saved version')} of your ${app.tplNames[k] || 'draft'} will be deleted. The blank template stays.`, 'Delete draft', () => { app.buf = null; app.mut(db => { delete db.drafts[k]; logIt(db, `${app.tplNames[k] || 'Draft'} draft deleted by ${db.user.name}`); }, 'Draft deleted'); app.setState({ ver: 0 }); });
   }
-  /* Creates an invoice numbered in the firm's series for the invoice date's financial year (PREFIX/2026-27/0001). */
-  function newInvoice(app) {
-    if (!allowed(app, 'invoice.create') || needCase(app)) return;
-    app.modal(() => h(Modal, { title: 'New invoice', sub: 'Numbered in your series for the financial year of the invoice date.', onClose: () => app.modal(null), width: 620 }, h(InvoiceForm, { app, onCancel: () => app.modal(null),
-      onSave: async row => { if (app.numbering) return; app.numbering = true;
-        try { const series = L.invSeries(app.db.firm, row.date), local = L.nextInvSeq(app.db.invoices, series);
-          const n = Math.max(local, (window.LSB && LSB.on && (await LSB.nextInvoiceNo(series))) || 0), no = L.invNo(series, n), id = L.uid('i');
-          app.mut(db => { db.invoices.unshift(Object.assign({ id, no, fy: L.fy(row.date), paid: false, paidOn: '' }, row)); logIt(db, 'Invoice ' + no + ' raised by ' + db.user.name, row.caseId); }, 'Invoice ' + no + ' created');
-          invoiceView(app, id);
-        } catch (e) { app.toast('Could not number the invoice: ' + e.message); } finally { app.numbering = false; } } })));
-  }
   function Billing({ app }) {
     const d = app.db, [f, setF] = useState('all'), T = L.today(), ym = T.slice(0, 7);
-    const tot = i => invCalc(d, i).total, unpaid = d.invoices.filter(i => !i.paid), od = unpaid.filter(i => L.diffDays(T, i.date) > 30);
-    const rows = d.invoices.filter(i => f === 'all' || (f === 'paid' ? i.paid : !i.paid)).sort((a, b) => b.date.localeCompare(a.date) || String(b.no).localeCompare(String(a.no)));
-    const csvRows = () => [['Invoice', 'Type', 'Date', 'Client', 'Client GSTIN', 'Place of supply', 'SAC', 'Taxable value', 'CGST', 'SGST', 'IGST', 'Reverse charge', 'Total', 'Case', 'Status', 'Paid on'], ...d.invoices.map(i => { const t = invCalc(d, i); return [i.no, t.title, i.date, clientOf(d, i.clientId).name, t.clientGstin, t.pos ? t.posName + ' (' + t.pos + ')' : '', t.sac, t.amount, t.rcm ? 0 : t.cgst, t.rcm ? 0 : t.sgst, t.rcm ? 0 : t.igst, t.rcm ? 'Yes' : 'No', t.total, caseOf(d, i.caseId).title, i.paid ? 'Paid' : 'Unpaid', i.paidOn]; })];
-    return h(Page, { art: 'invoice', kicker: 'Firm', title: 'Billing & Finance', sub: `${d.invoices.length} invoices · ${unpaid.length} unpaid`, actions: [h(Btn, { key: 0, onClick: () => L.csv('invoices.csv', csvRows()) }, 'Export CSV'), h(Btn, Object.assign({ key: 1, primary: true, onClick: () => newInvoice(app) }, gate(app, 'invoice.create')), '+ New invoice')] },
+    const tot = i => i.amount + gstOf(i.amount), unpaid = d.invoices.filter(i => !i.paid), od = unpaid.filter(i => L.diffDays(T, i.date) > 30);
+    const rows = d.invoices.filter(i => f === 'all' || (f === 'paid' ? i.paid : !i.paid)).sort((a, b) => b.date.localeCompare(a.date));
+    const create = () => needCase(app) || app.modal(() => h(Modal, { title: 'New invoice', onClose: () => app.modal(null) }, h(Form, { init: { date: T, caseId: (caseOpts(d)[0] || [''])[0] }, submit: 'Create invoice', onCancel: () => app.modal(null), note: 'GST at 18% is added to the amount.', fields: [{ k: 'caseId', label: 'Case', type: 'select', options: caseOpts(d) }, { k: 'desc', label: 'Description', req: true, ph: 'Professional fees — drafting and appearance' }, { k: 'amount', label: 'Amount before GST (₹)', type: 'number', req: true, half: true, check: v => v && isNaN(+v.replace(/,/g, '')) ? 'Enter a number' : '' }, { k: 'date', label: 'Invoice date', type: 'date', req: true, half: true }],
+      onSubmit: v => { let id; app.mut(db => { const c = caseOf(db, v.caseId), n = Math.max(0, ...db.invoices.map(i => +String(i.no).split('-').pop() || 0)) + 1, ino = 'INV-' + L.today().slice(0, 4) + '-' + String(n).padStart(3, '0'); id = L.uid('i'); db.invoices.unshift({ id, no: ino, clientId: c.clientId || '', caseId: v.caseId, date: v.date, amount: Math.round(+String(v.amount).replace(/,/g, '') * 100) / 100, paid: false, paidOn: '', desc: v.desc.trim() }); logIt(db, 'Invoice ' + ino + ' raised', v.caseId); }, 'Invoice created'); invoiceView(app, id); } })));
+    return h(Page, { art: 'invoice', kicker: 'Firm', title: 'Billing & Finance', sub: `${d.invoices.length} invoices · ${unpaid.length} unpaid`, actions: [h(Btn, { key: 0, onClick: () => L.csv('invoices.csv', [['Invoice', 'Client', 'Case', 'Date', 'Amount', 'GST', 'Total', 'Status', 'Paid on'], ...d.invoices.map(i => [i.no, clientOf(d, i.clientId).name, caseOf(d, i.caseId).title, i.date, i.amount, gstOf(i.amount), tot(i), i.paid ? 'Paid' : 'Unpaid', i.paidOn])]) }, 'Export CSV'), h(Btn, { key: 1, primary: true, onClick: create }, '+ New invoice')] },
       h('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap' } }, h(Stat, { label: 'Collected this month', value: L.inr(d.invoices.filter(i => i.paid && i.paidOn.slice(0, 7) === ym).reduce((a, i) => a + i.amount, 0)), note: 'Fees, before GST' }), h(Stat, { label: 'Outstanding', value: L.inr(unpaid.reduce((a, i) => a + i.amount, 0)), note: unpaid.length + ' unpaid invoices' }), h(Stat, { label: 'Overdue by 30+ days', value: L.inr(od.reduce((a, i) => a + i.amount, 0)), note: od.length + ' invoices', red: od.length > 0 })),
       h('div', { style: { display: 'flex', gap: 6 } }, [['all', 'All'], ['unpaid', 'Unpaid'], ['paid', 'Paid']].map(([k, l]) => h('button', { key: k, onClick: () => setF(k), style: { height: 34, padding: '0 14px', borderRadius: 8, fontSize: 13, border: '1px solid ' + (f === k ? K.ink : K.line), background: f === k ? K.ink : '#fff', color: f === k ? '#fff' : K.txt } }, l))),
-      h(Table, { onRow: i => invoiceView(app, i.id), min: 860, cols: [{ label: 'Invoice', w: '150px', get: i => i.no }, { label: 'Client', w: 'minmax(180px,1.6fr)', get: i => h('span', null, clientOf(d, i.clientId).name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, caseOf(d, i.caseId).title)) }, { label: 'Date', get: i => L.fmt(i.date) }, { label: 'Taxable value', get: i => L.inr(i.amount) }, { label: 'GST', get: i => { const t = invCalc(d, i); return t.rcm ? 'Reverse charge' : t.mode === 'bos' ? 'No GST' : L.inr(t.tax); } }, { label: 'Total', get: i => L.inr(tot(i)) }, { label: 'Status', w: '110px', get: i => h(Chip, { tone: i.paid ? '' : (L.diffDays(T, i.date) > 30 ? 'red' : 'grey') }, i.paid ? 'Paid' : (L.diffDays(T, i.date) > 30 ? 'Overdue' : 'Unpaid')) }], rows, empty: { title: 'No invoices in this view' } }));
+      h(Table, { onRow: i => invoiceView(app, i.id), min: 860, cols: [{ label: 'Invoice', w: '130px', get: i => i.no }, { label: 'Client', w: 'minmax(180px,1.6fr)', get: i => h('span', null, clientOf(d, i.clientId).name, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, caseOf(d, i.caseId).title)) }, { label: 'Date', get: i => L.fmt(i.date) }, { label: 'Fees', get: i => L.inr(i.amount) }, { label: 'Total with GST', get: i => L.inr(tot(i)) }, { label: 'Status', w: '110px', get: i => h(Chip, { tone: i.paid ? '' : (L.diffDays(T, i.date) > 30 ? 'red' : 'grey') }, i.paid ? 'Paid' : (L.diffDays(T, i.date) > 30 ? 'Overdue' : 'Unpaid')) }], rows, empty: { title: 'No invoices in this view' } }));
   }
   function portalText(d, cl) {
     const cs = d.cases.filter(c => c.clientId === cl.id && c.status !== 'archived'), out = [`${d.firm.name} — update for ${cl.name}`, ''];
     cs.forEach(c => { const nh = nextHearing(d, c.id), o = d.orders.filter(x => x.caseId === c.id && x.confirmed).sort((a, b) => b.date.localeCompare(a.date))[0]; out.push(`${c.title} (${c.no}), ${c.court}`); if (cl.share.dates) out.push('  Next date: ' + (nh ? L.fmt(nh.date) : 'not fixed')); if (cl.share.orders && o) out.push(`  Last order (${L.dmy(o.date)}): ${o.summary}`); });
-    if (cl.share.invoices) d.invoices.filter(i => i.clientId === cl.id && !i.paid).forEach(i => out.push(`Invoice ${i.no}: ${L.inr(invCalc(d, i).total)} unpaid`));
+    if (cl.share.invoices) d.invoices.filter(i => i.clientId === cl.id && !i.paid).forEach(i => out.push(`Invoice ${i.no}: ${L.inr(i.amount + gstOf(i.amount))} unpaid`));
     return out.join('\n');
   }
   function Portal({ app }) {
-    const d = app.db, set = (id, fn, msg) => allowed(app, 'portal.edit') && app.mut(db => fn(db.clients.find(x => x.id === id)), msg);
+    const d = app.db, set = (id, fn, msg) => app.mut(db => fn(db.clients.find(x => x.id === id)), msg);
     const preview = cl => app.modal(() => { const c = app.db.clients.find(x => x.id === cl.id); return h(Modal, { title: 'What ' + c.name + ' sees', sub: 'Built from the sharing choices for this client', onClose: () => app.modal(null), width: 560 }, h('div', { style: { background: K.soft, border: '1px solid ' + K.line, borderRadius: 8, padding: '14px 16px', fontSize: 14, lineHeight: 1.65, whiteSpace: 'pre-line', color: K.txt } }, portalText(app.db, c)), h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => { try { navigator.clipboard.writeText(portalText(app.db, c)); app.toast('Update copied to clipboard'); } catch (e) { app.toast('Copy is not available in this browser'); } } }, 'Copy as text'), h(Btn, { primary: true, onClick: () => app.modal(null) }, 'Done'))); });
     const sh = (c, k, label) => h('label', { style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: c.portal ? K.txt : '#9E9E9E' } }, h('input', { type: 'checkbox', checked: !!c.share[k], disabled: !c.portal, onChange: e => set(c.id, x => { x.share[k] = e.target.checked; }) }), label);
     return h(Page, { art: 'portal', kicker: 'Firm', title: 'Client Portal', sub: `${d.clients.filter(c => c.portal).length} of ${d.clients.length} clients have portal access switched on` },
@@ -1055,33 +990,191 @@
       h('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap' } }, h(Stat, { label: 'Open cases', value: live.length, note: d.cases.length + ' in total' }), h(Stat, { label: 'Hearings · next 30 days', value: d.hearings.filter(x => x.date >= T && L.diffDays(x.date, T) <= 30).length }), h(Stat, { label: 'Tasks completed', value: tdone + ' / ' + d.tasks.length, note: d.tasks.filter(overdue).length + ' overdue', red: d.tasks.some(overdue) }), h(Stat, { label: 'Collection rate', value: Math.round(d.invoices.filter(i => i.paid).reduce((a, i) => a + i.amount, 0) / Math.max(1, d.invoices.reduce((a, i) => a + i.amount, 0)) * 100) + '%', note: 'of fees billed' })),
       h('div', { className: 'ls-print', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 20 } }, R.map(([t, rows, f]) => h(Card, { key: t, title: t }, h(Bars, { rows, fmt: f })))));
   }
+  /* ---------- Google Drive: encrypted storage in the user's own Drive (hidden app folder) ---------- */
+  const DRIVE_SCOPE = 'openid email https://www.googleapis.com/auth/drive.appdata';
+  const loadGsi = () => window.google && google.accounts && google.accounts.oauth2 ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.onload = res; sc.onerror = () => rej(new Error('Could not reach Google.')); document.head.appendChild(sc); });
+  /* Opens Google's consent pop-up for the hidden Drive folder and saves the connection. Must run from a click (pop-up blockers). */
+  const driveConnect = app => loadGsi().then(() => new Promise((res, rej) => google.accounts.oauth2.initCodeClient({ client_id: app.driveSt.clientId, scope: DRIVE_SCOPE, ux_mode: 'popup', login_hint: app.db.user.email,
+      callback: r => r.code ? LSB.drive.connect(r.code).then(res, rej) : rej(new Error('Google Drive was not turned on.')), error_callback: () => rej(new Error('Google Drive was not turned on.')) }).requestCode()))
+    .then(() => LSB.drive.status()).then(x => { app.driveSt = x; app.setState(s => ({ rev: s.rev + 1 })); return x; });
+  /* WhatsApp-style: asked once after sign-in; after that uploads and the nightly backup go to Drive with nothing to do. "Not now" asks again in 7 days. */
+  function drivePrompt(app) {
+    const later = () => { app.mut(db => { db.settings.driveAskedAt = L.today(); }, null, true); app.modal(null); };
+    const Body = () => { const [busy, setBusy] = useState(false), [err, setErr] = useState('');
+      const on = () => { if (busy) return; setBusy(true); setErr(''); driveConnect(app).then(x => { app.mut(db => { db.settings.driveAskedAt = L.today(); }, null, true); app.modal(null); app.toast('Google Drive backup is on' + (x.email ? ' for ' + x.email : '') + '. Uploads and a nightly backup are saved there automatically.'); LSB.drive.backupNow().then(() => LSB.drive.status()).then(y => { app.driveSt = y; app.setState(s => ({ rev: s.rev + 1 })); }).catch(() => {}); }).catch(e => { setBusy(false); setErr(e.message); }); };
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, 'Keep a safe copy of your work in your own Google Drive, like a WhatsApp chat backup. Turn it on once and it runs by itself:'),
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13.5, color: K.txt } }, ['Every document you upload is saved to your Drive', 'Your firm\'s data is backed up every night', 'Everything is encrypted and kept in a hidden folder. It does not show in your Drive and only Legal Staff can open it'].map((t, i) => h('div', { key: i, style: { display: 'flex', gap: 8 } }, h('span', null, '✓'), h('span', null, t)))),
+        err && h('div', { style: { fontSize: 13, color: K.red } }, err),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { onClick: later, disabled: busy }, 'Not now'), h(Btn, { primary: true, onClick: on, disabled: busy }, busy ? 'Waiting for Google…' : 'Turn on Google Drive backup')),
+        h('div', { style: { fontSize: 12, color: K.mut } }, 'Google asks you to confirm once. You can turn it off any time in Settings.')); };
+    app.modal(() => h(Modal, { title: 'Back up to Google Drive', onClose: later, width: 480 }, h(Body)));
+  }
+  /* Shows the prompt when Drive is available, this user has not connected it, and they have not said "Not now" in the last 7 days. */
+  function maybeAskDrive(app) {
+    const st = app.driveSt, d = app.db, asked = d.settings.driveAskedAt;
+    if (!st || !st.configured || st.connected || app.state.modalOn || !L.access(d.sub).ok) return;
+    if (asked && L.diffDays(L.today(), asked) < 7) return;
+    drivePrompt(app);
+  }
+  function DriveCard({ app }) {
+    const d = app.db, st = app.driveSt, owner = !!d.isOwner;
+    const [busy, setBusy] = useState(''), [list, setList] = useState(null);
+    const row = (label, sub, ctl) => h(Line, null, h('div', { style: { flex: 1, minWidth: 0 } }, label, sub && h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.5 } }, sub)), ctl);
+    const refresh = () => LSB.drive.status().then(x => { app.driveSt = x; app.setState(s => ({ rev: s.rev + 1 })); });
+    const run = (what, p, done) => { if (busy) return; setBusy(what); return p().then(done).catch(e => app.toast(e.message)).finally(() => setBusy('')); };
+    const connect = () => run('connect', () => driveConnect(app), () => app.toast('Google Drive connected. New uploads are saved there, encrypted.'));
+    const disconnect = () => confirmBox(app, 'Disconnect Google Drive?', 'New uploads will go to the firm\'s private storage again. Files already saved in your Drive stay there, hidden and encrypted, but you and your team cannot open them until you connect the same Google account again.', 'Disconnect', () => run('disconnect', () => LSB.drive.disconnect(), () => { setList(null); refresh().then(() => app.toast('Google Drive disconnected')); }));
+    const backupNow = () => run('backup', () => LSB.drive.backupNow(), r => { app.toast(`Backed up ${plural(r.firms, 'firm')} to your Google Drive`); setList(null); refresh(); });
+    const showList = () => run('list', () => LSB.drive.backups(), setList);
+    const restore = b => confirmBox(app, 'Restore this backup?', `The firm's data for everyone is replaced with the backup from ${L.fmt(b.date)}. Anything added since then is lost. Export a backup first if you may need it.`, 'Restore', () => run('restore', () => LSB.drive.restore(b.id), x => {
+      if (!x || x.v !== 2 || !Array.isArray(x.cases)) throw new Error('That file is not a Legal Staff backup.');
+      ['settings', 'chats', 'copilot', 'drafts', 'notes', 'research', 'adminStatus', 'adminNotes', 'session'].forEach(k => { x[k] = d[k]; }); app.replace(x, 'Backup restored from Google Drive'); }));
+    const head = h('div', { style: { fontSize: 13, color: K.mut, lineHeight: 1.55, paddingBottom: 10 } }, 'Keep your uploads and a daily backup in your own Google Drive. Everything is encrypted before it reaches Google and kept in a hidden folder that only Legal Staff can open, so it does not show in your Drive.');
+    if (!st) return h(Card, { title: 'Google Drive storage' }, head, row('Checking the connection…', null, null));
+    if (!st.configured) return h(Card, { title: 'Google Drive storage' }, head, row('Not available yet', 'Google Drive storage has not been switched on for Legal Staff. Uploads are kept in the firm\'s private storage.', null));
+    if (!st.connected) return h(Card, { title: 'Google Drive storage' }, head, row('Not connected', 'Uploads go to the firm\'s private storage.', h(Btn, { small: true, primary: true, onClick: connect, disabled: !!busy }, busy === 'connect' ? 'Connecting…' : 'Connect Google Drive')));
+    return h(Card, { title: 'Google Drive storage' }, head,
+      row('Connected · ' + (st.email || 'Google account'), 'Your new uploads are encrypted and saved to the hidden Legal Staff folder in this Drive. Your team opens them through Legal Staff.', h(Btn, { small: true, onClick: disconnect, disabled: !!busy }, 'Disconnect')),
+      row('Daily backup', (st.lastBackup ? 'Last backup ' + new Date(st.lastBackup).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'No backup yet') + ' · every night at 2:30 AM, newest 30 kept' + (st.lastError ? ' · Last problem: ' + st.lastError : ''), h(Btn, { small: true, onClick: backupNow, disabled: !!busy }, busy === 'backup' ? 'Backing up…' : 'Back up now')),
+      row('Backups in your Drive', list ? (list.length ? null : 'No backups of this firm yet.') : 'Encrypted copies of this firm\'s data', !list && h(Btn, { small: true, onClick: showList, disabled: !!busy }, busy === 'list' ? 'Loading…' : 'Show backups')),
+      list && list.slice(0, 10).map(b => row(L.fmt(b.date), new Date(b.created).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) + ' · ' + L.size(b.size) + ' encrypted', owner ? h(Btn, { small: true, onClick: () => restore(b), disabled: !!busy }, 'Restore') : null)),
+      list && !owner && h('div', { style: { fontSize: 12.5, color: K.mut, paddingTop: 8 } }, 'Only the firm owner can restore a backup.'));
+  }
+  /* ---- profile photo: pick an image, then drag and zoom it inside a circle; a small square JPEG is saved in db.photo ---- */
+  const PHOTO_PX = 320, PHOTO_MAX_ZOOM = 4;
+  /* A member's photo: your own is db.photo; a teammate's comes with their row in db.team. */
+  const photoOf = (db, u) => !u || (u.email && u.email === db.user.email) ? db.photo : (u.photo || '');
+  /* invert: the Ink sidebar flips every colour inside it with a CSS filter, so a photo shown there is flipped back. */
+  function Avatar({ app, size, style, user, invert }) {
+    const p = photoOf(app.db, user), n = size || 34;
+    return h('div', { style: Object.assign({ width: n, height: n, borderRadius: '50%', background: K.soft2, color: K.ink, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: Math.round(n * .38), flexShrink: 0, overflow: 'hidden' }, style) },
+      p ? h('img', { src: p, alt: '', draggable: false, style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: invert ? 'invert(1) hue-rotate(180deg)' : 'none' } }) : (L.initials((user || app.db.user).name) || '?'));
+  }
+  /* Courts a firm can pick as its main court. A court with a picture in assets/courts/ (COURT_PICS) shows it on the firm's mark in the sidebar. */
+  const COURTS = ['Supreme Court of India', 'Allahabad High Court', 'Andhra Pradesh High Court', 'Bombay High Court', 'Calcutta High Court', 'Chhattisgarh High Court', 'Delhi High Court', 'Gauhati High Court', 'Gujarat High Court', 'Himachal Pradesh High Court', 'High Court of Jammu and Kashmir and Ladakh', 'Jharkhand High Court', 'Karnataka High Court', 'Kerala High Court', 'Madhya Pradesh High Court', 'Madras High Court', 'Manipur High Court', 'Meghalaya High Court', 'Orissa High Court', 'Patna High Court', 'Punjab and Haryana High Court', 'Rajasthan High Court', 'Sikkim High Court', 'Telangana High Court', 'Tripura High Court', 'Uttarakhand High Court'];
+  /* Empty until the pictures are added: the Main court field in Settings appears once this lists at least one court. */
+  const COURT_PICS = [];
+  const courtPic = name => COURT_PICS.includes(name) ? 'assets/courts/' + name.toLowerCase().replace(/[^a-z]+/g, '-') + '.jpg' : '';
+  /* The firm's mark: its own uploaded picture, else the picture of its main court, else its initials. */
+  function FirmMark({ app, size, invert, style }) {
+    const f = app.db.firm, n = size || 32, [bad, setBad] = useState('');
+    const src = f.photo || courtPic(f.court), show = src && bad !== src;
+    return h('div', { title: !f.photo && show ? f.court : undefined, style: Object.assign({ width: n, height: n, borderRadius: Math.round(n * .22), background: K.ink, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Instrument Sans',system-ui,sans-serif", fontWeight: 600, fontSize: Math.round(n * .44), flexShrink: 0, overflow: 'hidden' }, style) },
+      show ? h('img', { src, alt: '', draggable: false, onError: () => setBad(src), style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: invert ? 'invert(1) hue-rotate(180deg)' : 'none' } }) : (L.initials((f.name || '').replace(/&/g, ' ')) || 'LS'));
+  }
+  function PhotoCrop({ img, src, onSave, onCancel, square }) {
+    const [box, setBox] = useState(() => Math.max(220, Math.min(340, window.innerWidth - 84)));
+    const [v, setV] = useState({ z: 1, x: 0, y: 0 }), [drag, setDrag] = useState(false);
+    const el = React.useRef(null), pts = React.useRef(new Map()), cur = React.useRef(v); cur.current = v;
+    const w = img.naturalWidth, ht = img.naturalHeight, s0 = box / Math.min(w, ht);
+    const fit = n => { const z = Math.max(1, Math.min(PHOTO_MAX_ZOOM, n.z)), mx = (w * s0 * z - box) / 2, my = (ht * s0 * z - box) / 2; return { z, x: Math.max(-mx, Math.min(mx, n.x)), y: Math.max(-my, Math.min(my, n.y)) }; };
+    const move = f => setV(o => fit(f(o)));
+    /* Zoom about a point of the box (px from its centre), so the spot under the cursor or between two fingers stays put. */
+    const zoomAt = (z, px, py) => move(o => { const nz = Math.max(1, Math.min(PHOTO_MAX_ZOOM, z)), k = nz / o.z; return { z: nz, x: px - (px - o.x) * k, y: py - (py - o.y) * k }; });
+    React.useEffect(() => {
+      const n = el.current, wheel = e => { e.preventDefault(); const r = n.getBoundingClientRect(); zoomAt(cur.current.z * Math.exp(-e.deltaY * .0015), e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2); };
+      const size = () => setBox(Math.max(220, Math.min(340, window.innerWidth - 84)));
+      n.addEventListener('wheel', wheel, { passive: false }); window.addEventListener('resize', size);
+      return () => { n.removeEventListener('wheel', wheel); window.removeEventListener('resize', size); };
+    }, []);
+    const down = e => { e.currentTarget.setPointerCapture(e.pointerId); pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); setDrag(true); };
+    const up = e => { pts.current.delete(e.pointerId); if (!pts.current.size) setDrag(false); };
+    const mv = e => {
+      const m = pts.current, p = m.get(e.pointerId); if (!p) return;
+      const q = { x: e.clientX, y: e.clientY };
+      if (m.size === 1) { const dx = q.x - p.x, dy = q.y - p.y; move(o => ({ z: o.z, x: o.x + dx, y: o.y + dy })); }
+      else if (m.size === 2) {
+        const o = [...m.entries()].find(a => a[0] !== e.pointerId)[1], d0 = Math.hypot(p.x - o.x, p.y - o.y), d1 = Math.hypot(q.x - o.x, q.y - o.y), r = el.current.getBoundingClientRect();
+        if (d0 > 0) zoomAt(cur.current.z * d1 / d0, (q.x + o.x) / 2 - r.left - r.width / 2, (q.y + o.y) / 2 - r.top - r.height / 2);
+      }
+      m.set(e.pointerId, q);
+    };
+    const key = e => { const st = e.shiftKey ? 40 : 10, d = { ArrowLeft: [st, 0], ArrowRight: [-st, 0], ArrowUp: [0, st], ArrowDown: [0, -st] }[e.key];
+      if (d) { e.preventDefault(); move(o => ({ z: o.z, x: o.x + d[0], y: o.y + d[1] })); } else if (e.key === '+' || e.key === '=') zoomAt(v.z * 1.1, 0, 0); else if (e.key === '-') zoomAt(v.z / 1.1, 0, 0); };
+    const save = () => {
+      const sc = s0 * v.z, side = (box - (square ? 20 : 0)) / sc, c = document.createElement('canvas'); c.width = c.height = PHOTO_PX;
+      const g = c.getContext('2d'); g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, PHOTO_PX, PHOTO_PX); g.imageSmoothingQuality = 'high';
+      g.drawImage(img, w / 2 - v.x / sc - side / 2, ht / 2 - v.y / sc - side / 2, side, side, 0, 0, PHOTO_PX, PHOTO_PX);
+      onSave(c.toDataURL('image/jpeg', .86));
+    };
+    const third = (o, i) => h('i', { key: o + i, style: Object.assign({ position: 'absolute', background: 'rgba(255,255,255,.75)' }, o === 'v' ? { top: 0, bottom: 0, width: 1, left: (i * 100 / 3) + '%' } : { left: 0, right: 0, height: 1, top: (i * 100 / 3) + '%' }) });
+    return h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 } },
+      h('div', { ref: el, tabIndex: 0, role: 'application', 'aria-label': 'Photo position. Drag or use the arrow keys to move, plus and minus to zoom.', onPointerDown: down, onPointerMove: mv, onPointerUp: up, onPointerCancel: up, onKeyDown: key, onDoubleClick: () => zoomAt(v.z > 1.01 ? 1 : 2, 0, 0),
+        className: 'ls-crop', style: { position: 'relative', width: box, height: box, overflow: 'hidden', borderRadius: 12, background: '#0A0A0A', touchAction: 'none', userSelect: 'none', cursor: drag ? 'grabbing' : 'grab' } },
+        h('img', { src, alt: '', draggable: false, style: { position: 'absolute', left: '50%', top: '50%', width: w * s0 * v.z, height: ht * s0 * v.z, maxWidth: 'none', transform: `translate(calc(-50% + ${v.x}px), calc(-50% + ${v.y}px))`, pointerEvents: 'none', transition: drag ? 'none' : 'width .12s, height .12s, transform .12s' } }),
+        h('div', { style: { position: 'absolute', inset: square ? 10 : 0, borderRadius: square ? '18%' : '50%', boxShadow: '0 0 0 9999px rgba(10,10,10,.55)', border: '1.5px solid rgba(255,255,255,.9)', pointerEvents: 'none' } }),
+        h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none', opacity: drag ? 1 : 0, transition: 'opacity .2s' } }, [1, 2].map(i => third('v', i)), [1, 2].map(i => third('h', i)))),
+      h('label', { style: { display: 'flex', alignItems: 'center', gap: 10, width: box, fontSize: 12.5, color: K.mut } },
+        h('span', { 'aria-hidden': true, style: { fontSize: 15, lineHeight: 1 } }, '−'),
+        h('input', { type: 'range', min: 1, max: PHOTO_MAX_ZOOM, step: .01, value: v.z, 'aria-label': 'Zoom', onChange: e => zoomAt(+e.target.value, 0, 0), style: { flex: 1, accentColor: K.ink } }),
+        h('span', { 'aria-hidden': true, style: { fontSize: 17, lineHeight: 1 } }, '+')),
+      h('div', { style: { fontSize: 12.5, color: K.mut, textAlign: 'center' } }, 'Drag to move. Pinch, scroll or use the slider to zoom.'),
+      h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, width: '100%' } }, h(Btn, { onClick: onCancel }, 'Cancel'), h(Btn, { primary: true, onClick: save }, square ? 'Save picture' : 'Save photo')));
+  }
+  function savePhoto(app, url, msg) {
+    const server = !!(window.LSB && LSB.on);
+    app.mut(db => { db.photo = url; }, server ? null : msg);
+    if (app.db.photo !== url) return; /* the change was refused, e.g. the plan has ended; mut() has said why */
+    if (server) app.flush().then(() => app.toast(msg), e => app.toast('Not saved: ' + e.message));
+  }
+  /* opts.firm: the picture is for the firm's mark (rounded square, saved in db.firm.photo) instead of the user's profile photo. */
+  /* key: 'photo' is the firm's mark in the sidebar; 'groupPhoto' is the picture of the firm's group chat. Both live with the firm. */
+  function saveFirmPhoto(app, url, msg, key) {
+    const server = !!(window.LSB && LSB.on), k = key || 'photo';
+    if (server && !app.db.isOwner) return app.toast(k === 'photo' ? 'Only the firm owner can change the firm picture.' : 'Only the firm owner can change the group photo.');
+    app.mut(db => { db.firm[k] = url; }, server ? null : msg);
+    if ((app.db.firm[k] || '') !== url) return;
+    if (server) app.flush().then(() => app.toast(msg), e => app.toast('Not saved: ' + e.message));
+  }
+  function editPhoto(app, opts) {
+    const firm = !!(opts && opts.firm), group = !!(opts && opts.group);
+    if ((firm || group) && window.LSB && LSB.on && !app.db.isOwner) return app.toast(group ? 'Only the firm owner can change the group photo.' : 'Only the firm owner can change the firm picture.');
+    L.pickFile('image/*').then(fs => {
+      const f = fs[0]; if (!f) return;
+      if (!/^image\//.test(f.type)) return app.toast('Choose an image file, such as a JPG or PNG');
+      if (f.size > 20 * 1024 * 1024) return app.toast('That image is over 20 MB. Choose a smaller one');
+      const src = URL.createObjectURL(f), img = new Image(), close = () => { app.modal(null); URL.revokeObjectURL(src); };
+      img.onerror = () => { URL.revokeObjectURL(src); app.toast('That image could not be opened. Try a JPG or PNG'); };
+      img.onload = () => app.modal(() => h(Modal, { title: group ? 'Edit group photo' : firm ? 'Edit firm picture' : 'Edit profile photo', onClose: close, width: 420 }, h(PhotoCrop, { img, src, square: firm, onCancel: close, onSave: url => { close(); group ? saveFirmPhoto(app, url, 'Group photo updated', 'groupPhoto') : firm ? saveFirmPhoto(app, url, 'Firm picture updated') : savePhoto(app, url, 'Profile photo updated'); } })));
+      img.src = src;
+    });
+  }
+  const removePhoto = app => savePhoto(app, '', 'Profile photo removed');
   function Settings({ app }) {
     const d = app.db, s = d.settings, set = (k, v, msg) => app.mut(db => { db.settings[k] = v; }, msg || 'Setting saved');
     const row = (label, sub, ctl) => h(Line, null, h('div', { style: { flex: 1, minWidth: 0 } }, label, sub && h('div', { style: { fontSize: 12.5, color: K.mut } }, sub)), ctl);
     const server = !!(window.LSB && LSB.on), owner = !server || !!d.isOwner;
-    const formCard = (title, obj, fields, key, ro, note) => h(Card, { title }, note && h('div', { style: { fontSize: 12.5, color: K.mut, marginBottom: 12 } }, note), h(Form, { key: key + app.state.rev0, fields, init: obj, submit: 'Save', readOnly: ro, onSubmit: v => { if (key === 'firm') { if (!allowed(app, 'firm.edit')) return; const g = String(v.gstin || '').trim().toUpperCase(); v = Object.assign({}, v, { gstin: g, pan: String(v.pan || '').trim().toUpperCase(), prefix: String(v.prefix || '').trim().toUpperCase(), stateCode: v.stateCode || L.gstinState(g) }); } app.mut(db => { Object.assign(db[key], v); if (key === 'user') { const u = db.team.find(x => x.email === obj.email) || db.team[0]; const old = u.name; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + v.name.trim(); Object.assign(u, { name: v.name.trim(), title: db.user.title, role: v.role, email: v.email }); if (old !== u.name) { db.tasks.forEach(t => { if (t.who === old) t.who = u.name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = u.name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? u.name : n); }); } } }, server ? null : 'Saved');
+    const formCard = (title, obj, fields, key) => h(Card, { title }, h(Form, { key: key + app.state.rev0, fields, init: obj, submit: 'Save', onSubmit: v => { app.mut(db => { Object.assign(db[key], Object.fromEntries(fields.map(f => [f.k, v[f.k]]))); if (key === 'user') { const u = db.team.find(x => x.email === obj.email) || db.team[0]; const old = u.name; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + v.name.trim(); Object.assign(u, { name: v.name.trim(), title: db.user.title, role: v.role, email: v.email }); if (old !== u.name) { db.tasks.forEach(t => { if (t.who === old) t.who = u.name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = u.name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? u.name : n); }); } } }, server ? null : 'Saved');
       /* On the server, say "Saved" only once the server has accepted the change. */
       if (server) app.flush().then(() => app.toast('Saved'), e => app.toast('Not saved: ' + e.message)); } }));
     const backup = row('Back up', 'Download everything as a JSON file', h(Btn, { small: true, onClick: () => L.download('legal-staff-backup-' + L.today() + '.json', new Blob([JSON.stringify(d, null, 1)], { type: 'application/json' })) }, 'Export'));
-    const restore = can(app, 'firm.restore') && row('Restore', server ? 'Replace the firm\'s data for everyone with a backup file' : 'Replace the data with a backup file', h(Btn, { small: true, onClick: () => L.pickFile('.json,application/json').then(fs => fs[0] && fs[0].text().then(t => { try { const x = JSON.parse(t); if (!x || x.v !== 2 || !Array.isArray(x.cases)) throw 0; x.session = d.session; app.replace(x, 'Backup restored'); } catch (e) { app.toast('That file is not a Legal Staff backup'); } })) }, 'Import'));
+    const restore = owner && row('Restore', server ? 'Replace the firm\'s data for everyone with a backup file' : 'Replace the data with a backup file', h(Btn, { small: true, onClick: () => L.pickFile('.json,application/json').then(fs => fs[0] && fs[0].text().then(t => { try { const x = JSON.parse(t); if (!x || x.v !== 2 || !Array.isArray(x.cases)) throw 0; x.session = d.session; app.replace(x, 'Backup restored'); } catch (e) { app.toast('That file is not a Legal Staff backup'); } })) }, 'Import'));
     const signOut = row('Sign out', d.session ? 'Signed in as ' + d.session.email : '', h(Btn, { small: true, onClick: () => app.signOut() }, 'Sign out'));
     const dataCard = server
-      ? h(Card, { title: 'Your firm\'s data' }, backup, restore,
+      ? h(React.Fragment, null, h(DriveCard, { app }), h(Card, { title: 'Your firm\'s data' }, backup, restore,
           row('Clear this device', 'Remove what this browser keeps and sign out. The firm\'s data on the server is not touched.', h(Btn, { small: true, onClick: () => confirmBox(app, 'Clear this device?', 'Everything Legal Staff keeps in this browser is removed and you are signed out. Your firm\'s data on the server stays as it is.', 'Clear and sign out', () => clearDevice(app)) }, 'Clear')),
-          owner && can(app, 'firm.erase') && row('Delete firm data', 'Permanently delete every record and file of ' + (d.firm.name || 'the firm') + ', for everyone in the firm', h(Btn, { small: true, danger: true, onClick: () => eraseFirm(app) }, 'Delete')),
-          signOut)
+          owner && row('Delete firm data', 'Permanently delete every record and file of ' + (d.firm.name || 'the firm') + ', for everyone in the firm', h(Btn, { small: true, danger: true, onClick: () => eraseFirm(app) }, 'Delete')),
+          signOut))
       : h(Card, { title: 'Data on this device' }, backup, restore, row('Erase all data', 'Delete every case, client, invoice, file and setting on this device', h(Btn, { small: true, danger: true, onClick: () => confirmBox(app, 'Erase all data?', 'Every case, client, invoice, document and setting on this device will be deleted, including uploaded files. Export a backup first if you may need it. This cannot be undone.', 'Erase everything', () => { const s0 = d.session, u0 = d.user; L.files.clear(); const x = L.reset(); x.session = s0; x.user = u0; x.team = [{ id: 'u1', name: u0.name, title: u0.title, role: u0.role, email: u0.email, status: 'Active' }]; app.replace(x, 'All data erased'); onboard(app); }) }, 'Erase')), signOut);
     return h(Page, { art: 'settings', kicker: 'Firm', title: 'Settings', sub: server ? 'Saved to your firm\'s account' : 'Everything here is saved on this device', max: 1100 },
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,440px),1fr))', gap: 20, alignItems: 'start' } },
-        formCard('Firm profile', Object.assign({}, d.firm, { kind: d.firm.kind || 'advocate', domain: LSP.norm(d.firm.domain), gstReg: d.firm.gstReg || (d.firm.gstin ? 'yes' : 'no'), sac: d.firm.sac || '998212' }), [{ k: 'name', label: 'Firm name', req: true }, { k: 'kind', label: 'Practice type', type: 'select', options: LSP.KINDS.map(x => [x.k, x.label]), half: true }, { k: 'domain', label: 'Area of practice (shapes the dashboard)', type: 'select', options: LSP.list().map(x => [x.k, x.label]), half: true }, { k: 'legalName', label: 'Legal name on invoices (if different)', ph: 'As registered under GST' }, { k: 'city', label: 'City', req: true, half: true },
-          { k: 'stateCode', label: 'State', type: 'select', blank: 'Select the state', options: STATE_OPTS(), half: true, check: (v, a) => { const g = L.gstinState(a.gstin); return g && v && v !== g ? 'The GSTIN is registered in ' + L.stateName(g) : (a.gstReg === 'yes' && !v && !g ? 'Required for GST invoices' : ''); } }, { k: 'address', label: 'Address on letterhead and invoices' },
-          { k: 'gstReg', label: 'GST registration', type: 'select', options: [['yes', 'Registered under GST'], ['no', 'Not registered (bill of supply, no GST)']], half: true }, { k: 'gstin', label: 'GSTIN', half: true, ph: '07AAAAA0000A1Z5', check: (v, a) => a.gstReg === 'yes' && !v ? 'Required when registered' : (v && !L.GSTIN_RE.test(v.toUpperCase()) ? 'A GSTIN has 15 characters, e.g. 07AAAAA0000A1Z5' : '') },
-          { k: 'pan', label: 'PAN (optional)', half: true, ph: 'AAAAA0000A', check: v => v && !L.PAN_RE.test(v.toUpperCase()) ? 'A PAN has 10 characters, e.g. AAAAA0000A' : '' }, { k: 'prefix', label: 'Invoice number prefix', half: true, ph: L.invPrefix(d.firm), check: v => v && !/^[A-Za-z0-9]{1,3}$/.test(v) ? 'Up to 3 letters or digits' : '' },
-          { k: 'sac', label: 'Default SAC on invoices', type: 'select', options: L.SAC.map(([c, n]) => [c, c + ' · ' + n]) }], 'firm', !can(app, 'firm.edit'), (can(app, 'firm.edit') ? '' : why(app, 'firm.edit') + ' ') + 'Invoices are numbered ' + L.invNo(L.invSeries(d.firm, L.today()), 1).replace(/0001$/, '0001, 0002, …') + ', a new series each financial year.'),
+        formCard('Firm profile', Object.assign({}, d.firm, { kind: d.firm.kind || 'advocate', domain: LSP.norm(d.firm.domain) }), [{ k: 'name', label: 'Firm name', req: true }, { k: 'kind', label: 'Practice type', type: 'select', options: LSP.KINDS.map(x => [x.k, x.label]), half: true }, { k: 'domain', label: 'Area of practice (shapes the dashboard)', type: 'select', options: LSP.list().map(x => [x.k, x.label]), half: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'gstin', label: 'GSTIN (optional)', half: true, check: v => v && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/i.test(v) ? 'A GSTIN has 15 characters, e.g. 07AAAAA0000A1Z5' : '' }, COURT_PICS.length ? { k: 'court', label: 'Main court', type: 'select', blank: 'Not set', options: COURTS, half: true } : null, { k: 'address', label: 'Address on letterhead and invoices' }].filter(Boolean), 'firm'),
+        h(Card, { title: 'Firm picture' }, h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
+          h('button', { type: 'button', onClick: () => editPhoto(app, { firm: true }), title: 'Upload a picture', className: 'ls-avatar-btn', style: { border: 0, padding: 0, background: 'none', borderRadius: 16, cursor: 'pointer' } }, h(FirmMark, { app, size: 72 })),
+          h('div', { style: { flex: 1, minWidth: 180 } }, h('div', { style: { fontSize: 13.5 } }, d.firm.photo ? 'Your own picture shows next to the firm name.' : courtPic(d.firm.court) ? 'The ' + d.firm.court + ' shows next to the firm name.' : 'Shows next to the firm name, for everyone in the firm.'), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 2 } }, d.firm.photo ? 'Remove it to go back to ' + (courtPic(d.firm.court) ? 'the photo of your main court.' : 'the firm initials.') : COURT_PICS.length ? 'Choose a main court in Firm profile to show its photo, or upload a logo or picture of your own.' : 'Upload a logo, or a picture such as your main court. You can move and zoom it before saving.')),
+          h('div', { style: { display: 'flex', gap: 8 } }, h(Btn, { small: true, onClick: () => editPhoto(app, { firm: true }) }, d.firm.photo ? 'Change picture' : 'Upload picture'), d.firm.photo && h(Btn, { small: true, danger: true, onClick: () => saveFirmPhoto(app, '', 'Firm picture removed') }, 'Remove')))),
+        h(Card, { title: 'Profile photo' }, h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
+          h('button', { type: 'button', onClick: () => editPhoto(app), title: d.photo ? 'Change photo' : 'Upload a photo', className: 'ls-avatar-btn', style: { border: 0, padding: 0, background: 'none', borderRadius: '50%', cursor: 'pointer' } }, h(Avatar, { app, size: 72 })),
+          h('div', { style: { flex: 1, minWidth: 180 } }, h('div', { style: { fontSize: 13.5 } }, d.photo ? 'Your team sees this photo next to your name.' : 'Add a photo for your team to see next to your name.'), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 2 } }, 'JPG or PNG. You can move and zoom it before saving.')),
+          h('div', { style: { display: 'flex', gap: 8 } }, h(Btn, { small: true, onClick: () => editPhoto(app) }, d.photo ? 'Change photo' : 'Upload photo'), d.photo && h(Btn, { small: true, danger: true, onClick: () => removePhoto(app) }, 'Remove')))),
         formCard('Your profile', d.user, [{ k: 'name', label: 'Full name', req: true, half: true }, owner ? { k: 'role', label: 'Designation', req: true, half: true } : { k: 'role', label: 'Designation (set by the firm owner)', ro: true, roNote: 'Only the firm owner can change designations', half: true }, { k: 'email', label: 'Email (from sign-in)', ro: true, roNote: 'This is the address you sign in with', half: true }, { k: 'phone', label: 'Mobile (WhatsApp)', type: 'tel', half: true }], 'user'),
-        h(Card, { title: 'Notifications' }, row('WhatsApp', 'The morning briefing on WhatsApp, to the mobile in Your profile, once WhatsApp is connected for Legal Staff', h(Toggle, { on: s.whatsapp, label: 'WhatsApp notifications', onChange: v => set('whatsapp', v) })), row('Email', 'The morning briefing email at your chosen time', h(Toggle, { on: s.email, label: 'Email notifications', onChange: v => set('email', v) })), row('In-app alerts', 'The Alerts menu in the top bar', h(Toggle, { on: s.inapp, label: 'In-app alerts', onChange: v => set('inapp', v) })), row('Morning briefing time', 'IST. Briefings go out on the half hour, once a day.', h(Select, { value: briefAt(s), onChange: v => set('briefingTime', v), options: BRIEF_TIMES.map(t => [t, L.t12ap(t)]), style: { minWidth: 130 } })), row('Hearing reminder', `The briefing lists hearings today and ${plural(+s.remindDays || 2, 'day')} ahead`, h(Select, { value: String(s.remindDays), onChange: v => set('remindDays', +v), options: [['1', '1 day'], ['2', '2 days'], ['3', '3 days'], ['7', '7 days']], style: { minWidth: 130 } })), window.LSB && LSB.on ? row('Send today\'s briefing now', 'To you only, now: hearings today and in ' + plural(+s.remindDays || 2, 'day') + ', deadlines and limitation dates, overdue tasks. Email and WhatsApp only once those services are connected.', h(Btn, { small: true, onClick: () => { app.toast('Sending…'); LSB.notify().then(r => { const rs = (r && r.results) || [], okN = rs.filter(x => x.ok).length, sk = rs.find(x => x.skipped), er = rs.find(x => x.error); app.toast(okN ? `Briefing sent (${rs.filter(x => x.ok).map(x => x.channel).join(' and ')})` : (er ? 'Sending failed: ' + er.error : (sk ? sk.skipped : 'Nothing was sent. Check your email and WhatsApp number in Your profile.'))); }).catch(e => app.toast(e.message)); } }, 'Send')) : h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 10, lineHeight: 1.5 } }, 'Preferences are saved on this device. Briefing emails and WhatsApp messages need the server to be connected; until then, alerts show in the Alerts menu when you open the app.')),
+        h(Card, { title: 'Notifications' }, row('WhatsApp', 'The morning briefing on WhatsApp, to the mobile in Your profile, once WhatsApp is connected for Legal Staff', h(Toggle, { on: s.whatsapp, label: 'WhatsApp notifications', onChange: v => set('whatsapp', v) })), row('Email', 'The morning briefing email, sent automatically every day at your chosen time', h(Toggle, { on: s.email, label: 'Email notifications', onChange: v => set('email', v) })), row('In-app alerts', 'The Alerts menu in the top bar', h(Toggle, { on: s.inapp, label: 'In-app alerts', onChange: v => set('inapp', v) })), row('Morning briefing time', 'IST. Briefings go out on the half hour, once a day.', h(Select, { value: briefAt(s), onChange: v => set('briefingTime', v), options: BRIEF_TIMES.map(t => [t, L.t12ap(t)]), style: { minWidth: 130 } })), row('Hearing reminder', `The briefing lists hearings today and ${plural(+s.remindDays || 2, 'day')} ahead`, h(Select, { value: String(s.remindDays), onChange: v => set('remindDays', +v), options: [['1', '1 day'], ['2', '2 days'], ['3', '3 days'], ['7', '7 days']], style: { minWidth: 130 } })), window.LSB && LSB.on ? row('Send today\'s briefing now', 'To you only, now: hearings today and in ' + plural(+s.remindDays || 2, 'day') + ', deadlines and limitation dates, overdue tasks. Email and WhatsApp only once those services are connected.', h(Btn, { small: true, onClick: () => { app.toast('Sending…'); LSB.notify().then(r => { const rs = (r && r.results) || [], okN = rs.filter(x => x.ok).length, sk = rs.find(x => x.skipped), er = rs.find(x => x.error); app.toast(okN ? `Briefing sent (${rs.filter(x => x.ok).map(x => x.channel).join(' and ')})` : (er ? 'Sending failed: ' + er.error : (sk ? sk.skipped : 'Nothing was sent. Check your email and WhatsApp number in Your profile.'))); }).catch(e => app.toast(e.message)); } }, 'Send')) : h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 10, lineHeight: 1.5 } }, 'Preferences are saved on this device. Briefing emails and WhatsApp messages need the server to be connected; until then, alerts show in the Alerts menu when you open the app.')),
+        h(Card, { title: 'Court orders' }, row('Add the next date automatically', 'When an order you add has a future next date, it goes straight to the calendar. Switch off to confirm each one yourself.', h(Toggle, { on: s.autoOrders !== false, label: 'Automatic next dates', onChange: v => set('autoOrders', v) })),
+          server ? row('Check the court record', 'Every few hours the app asks your court-data provider about each open case with a CNR and adds new next dates and orders.' + (s.lastCheck ? ' Last checked ' + L.fmt(s.lastCheck.slice(0, 10)) + '.' : ''), h(Toggle, { on: s.autoCheck !== false, label: 'Automatic court checks', onChange: v => set('autoCheck', v) })) : row('Check the court record', 'Needs the server and a court-data provider, so it is not available in this browser-only copy.', null),
+          server ? row('Check all cases now', null, h(Btn, { small: true, onClick: () => autoCheck(app, true) }, 'Check now')) : null),
         h(Card, { title: 'Appearance' }, row('Sidebar', null, h(Select, { value: s.sidebar, onChange: v => set('sidebar', v), options: [['Light', 'Light'], ['Ink', 'Ink (dark)']], style: { minWidth: 150 } })), row('Background', null, h(Select, { value: s.backdrop, onChange: v => set('backdrop', v), options: ['Wallpaper', 'Dots', 'Grid', 'Plain'].map(x => [x, x]), style: { minWidth: 150 } })), row('Density', null, h(Select, { value: s.density, onChange: v => set('density', v), options: [['Comfortable', 'Comfortable'], ['Compact', 'Compact']], style: { minWidth: 150 } }))),
-        h(Card, { title: 'Subscription' }, row(d.sub.plan ? d.sub.plan + ' plan · ' + (d.sub.cycle === 'annual' ? 'Annual' : 'Monthly') : 'No plan selected', d.sub.plan ? 'Renews ' + L.fmt(d.sub.renews) : 'Choose a plan to continue', h(Btn, { small: true, onClick: () => app.go('pricing') }, d.sub.plan ? 'Change plan' : 'Choose a plan')), d.sub.history.map((x, i) => row(x.plan + ' · ' + x.total, server ? 'Paid ' + L.fmt(x.date) + ' via Razorpay' : 'Recorded ' + L.fmt(x.date) + ' on this device · no payment taken (payments need the server)', null))),
+        h(Card, { title: 'Subscription' }, (acc => row(planName(acc) + (acc.state === 'active' ? ' · ' + (d.sub.cycle === 'annual' ? 'Annual' : 'Monthly') : ''), planSub(acc), h(Btn, { small: true, primary: !acc.ok, onClick: () => app.go('pricing') }, acc.state === 'none' ? 'Start free trial' : acc.ok ? 'Change plan' : 'Subscribe')))(L.access(d.sub)), server && d.sub.history.length ? row('Invoices', 'Download or email your invoices', h(Btn, { small: true, onClick: () => app.go('pricing') }, 'View invoices')) : null, d.sub.history.map((x, i) => row(x.plan + ' · ' + x.total, server ? 'Paid ' + L.fmt(x.date) + ' by UPI' : 'Recorded ' + L.fmt(x.date) + ' on this device · no payment taken (payments need the server)', null))),
         dataCard));
   }
   /* Removes what this browser keeps (saved data, file blobs) and signs out. Server data is untouched. */
@@ -1101,9 +1194,430 @@
   }
   function Orders({ app }) {
     const d = app.db, rows = d.orders.slice().sort((a, b) => b.date.localeCompare(a.date)), need = rows.filter(o => !o.confirmed && o.nextDate).length;
-    return h(Page, { art: 'order', kicker: 'Practice', title: 'Court Orders', sub: `${rows.length} orders · ${need} awaiting your confirmation`, actions: [h(Btn, Object.assign({ key: 1, primary: true, onClick: () => addOrder(app) }, gate(app, 'order.create')), '+ Add court order')] },
+    return h(Page, { art: 'order', kicker: 'Practice', title: 'Court Orders', sub: `${rows.length} orders · ${need} awaiting your confirmation`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addOrder(app) }, '+ Add court order')] },
       h(Table, { onRow: o => app.go('order', o.id), min: 860, cols: [{ label: 'Case', w: 'minmax(220px,1.6fr)', get: o => h('span', null, caseOf(d, o.caseId).title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, caseOf(d, o.caseId).no)) }, { label: 'Order dated', w: '110px', get: o => L.dmy(o.date) }, { label: 'Summary', w: 'minmax(240px,2.4fr)', get: o => h('span', null, o.summary, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, o.source)) }, { label: 'Next date', w: '110px', get: o => o.nextDate ? L.dmy(o.nextDate) : '—' }, { label: 'Status', w: '150px', get: o => h(Chip, { tone: o.confirmed || !o.nextDate ? '' : 'red' }, o.confirmed ? 'Confirmed' : (o.nextDate ? 'Needs confirmation' : 'No date found')) }], rows, empty: { title: 'No orders yet', text: 'Add an order to extract the next date.' } }));
   }
+  /* ---------- Pay by UPI: straight to the operator's UPI ID, confirmed automatically (functions/upi-pay) ---------- */
+  const loadQr = () => window.qrcode ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load the QR code.')); document.head.appendChild(s); });
+  /* ---------- Team chat extras: files, meeting cards, reactions, background ---------- */
+  const EMOJIS = ['👍', '❤️', '😂', '🙏', '✅', '👏'];
+  const fileSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  /* A soft doodle wallpaper (scales, gavel, book, page, ₹, quote marks) behind the messages, like a messenger's chat background. */
+  const CHAT_BG = (() => {
+    const g = '<g fill="none" stroke="#0A0A0A" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".06">' +
+      '<path d="M30 20v28 M18 26h24 M18 26l-6 12h12z M42 26l-6 12h12z M24 50h12"/>' +
+      '<path d="M120 30l14 14 M114 36l12-12 M128 50l8-8 M131 37l18 18"/>' +
+      '<path d="M200 22h22a4 4 0 0 1 4 4v30h-22a4 4 0 0 0-4 4z M200 22v38"/>' +
+      '<path d="M60 110h22l8 8v26H60z M82 110v8h8 M66 126h18 M66 134h14"/>' +
+      '<path d="M160 112h16 M160 120h16 M164 112c10 0 10 8 0 8 M166 120l10 14"/>' +
+      '<path d="M226 120c-6 0-8 4-8 9 0 4 3 6 6 6 M240 120c-6 0-8 4-8 9 0 4 3 6 6 6"/>' +
+      '<circle cx="110" cy="190" r="10"/><path d="M110 184v6l4 3"/>' +
+      '<path d="M20 180l10 10 18-20"/><path d="M190 186a14 14 0 1 0 28 0 14 14 0 1 0-28 0 M204 176v20 M196 186h16"/></g>';
+    return 'url("data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="260" height="230" viewBox="0 0 260 230">' + g + '</svg>') + '")';
+  })();
+  function FileMsg({ m, mine }) {
+    const f = m.data || {}, img = /^image\//.test(f.type || ''), [src, setSrc] = useState(''), [busy, setBusy] = useState(false);
+    React.useEffect(() => { if (img && f.path) LSB.chat.url(f.path).then(setSrc).catch(() => {}); }, [f.path]);
+    const open = dl => { setBusy(true); LSB.chat.url(f.path, dl).then(u => window.open(u, '_blank', 'noopener')).catch(e => alert(e.message)).finally(() => setBusy(false)); };
+    const ext = (String(f.name).split('.').pop() || 'file').slice(0, 4).toUpperCase(), pdf = ext === 'PDF';
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+      img ? h('button', { onClick: () => open(false), style: { border: 0, padding: 0, background: 'none', cursor: 'zoom-in', display: 'block' }, title: 'Open ' + f.name },
+          src ? h('img', { src, alt: f.name, style: { display: 'block', maxWidth: 260, maxHeight: 240, borderRadius: 10, objectFit: 'cover' } }) : h('div', { style: { width: 220, height: 140, borderRadius: 10, background: mine ? '#262626' : K.soft2 } }))
+        : h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 10, background: mine ? '#1F1F1F' : K.soft, minWidth: 220 } },
+          h('span', { style: { width: 38, height: 46, borderRadius: 6, background: pdf ? '#D93025' : '#5E5E5E', color: '#fff', fontSize: 10.5, fontWeight: 700, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 6, flexShrink: 0 } }, ext),
+          h('span', { style: { display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 } }, h('span', { style: { fontWeight: 600, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 } }, f.name), h('span', { style: { fontSize: 12, opacity: .7 } }, fileSize(f.size || 0) + ' · ' + (pdf ? 'PDF document' : 'File')))),
+      !img && h('div', { style: { display: 'flex', gap: 6 } },
+        h('button', { onClick: () => open(false), disabled: busy, style: { flex: 1, height: 30, borderRadius: 7, border: '1px solid ' + (mine ? '#3A3A3A' : K.line), background: 'transparent', color: 'inherit', cursor: 'pointer', font: 'inherit', fontSize: 12.5, fontWeight: 600 } }, 'Open'),
+        h('button', { onClick: () => open(true), disabled: busy, style: { flex: 1, height: 30, borderRadius: 7, border: '1px solid ' + (mine ? '#3A3A3A' : K.line), background: 'transparent', color: 'inherit', cursor: 'pointer', font: 'inherit', fontSize: 12.5, fontWeight: 600 } }, 'Download')),
+      m.body && h('div', null, m.body));
+  }
+  function MeetMsg({ m, mine }) {
+    const d = m.data || {}, start = new Date(d.start), end = new Date(start.getTime() + (d.minutes || 30) * 60e3);
+    const g = x => x.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const cal = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(d.title || 'Team meeting') + '&dates=' + g(start) + '/' + g(end) + '&details=' + encodeURIComponent('Join with Google Meet: ' + d.link + (d.note ? '\n\n' + d.note : '')) + '&location=' + encodeURIComponent(d.link);
+    const past = Date.now() > end.getTime();
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, minWidth: 240 } },
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
+        h('span', { style: { width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid ' + K.line } },
+          h('svg', { width: 24, height: 24, viewBox: '0 0 24 24', 'aria-hidden': true }, h('rect', { x: 2, y: 6, width: 13, height: 12, rx: 2.5, fill: '#00832D' }), h('path', { d: 'M15 10.5 21 7v10l-6-3.5z', fill: '#0066DA' }), h('rect', { x: 2, y: 6, width: 6, height: 6, rx: 1.5, fill: '#FFBA00' }))),
+        h('span', { style: { display: 'flex', flexDirection: 'column' } }, h('span', { style: { fontWeight: 700, fontSize: 14.5 } }, d.title || 'Team meeting'),
+          h('span', { style: { fontSize: 12.5, opacity: .75 } }, start.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + start.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) + ' – ' + end.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })))),
+      d.note && h('div', { style: { fontSize: 13.5 } }, d.note),
+      h('a', { href: d.link, target: '_blank', rel: 'noopener', style: { display: 'block', textAlign: 'center', height: 34, lineHeight: '34px', borderRadius: 8, background: past ? (mine ? '#262626' : K.soft2) : '#1A73E8', color: past ? 'inherit' : '#fff', fontWeight: 600, fontSize: 13.5, textDecoration: 'none' } }, past ? 'Meeting ended · open link' : 'Join with Google Meet'),
+      !past && h('a', { href: cal, target: '_blank', rel: 'noopener', style: { textAlign: 'center', fontSize: 12.5, color: 'inherit', opacity: .8 } }, 'Add to Google Calendar'));
+  }
+  function MeetForm({ onSend, onClose }) {
+    const now = new Date(Date.now() + 30 * 60e3); now.setMinutes(now.getMinutes() < 30 ? 30 : 60, 0, 0);
+    const [v, setV] = useState({ title: 'Team meeting', date: L.iso(now), time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'), minutes: '30', link: '', note: '' }), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
+    const set = k => e => setV(Object.assign({}, v, { [k]: e.target.value }));
+    const inp = { height: 36, border: '1px solid ' + K.line, borderRadius: 8, padding: '0 10px', font: 'inherit', fontSize: 14, width: '100%', boxSizing: 'border-box' };
+    const lab = (t, el) => h('label', { style: { display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12.5, color: K.mut, fontWeight: 500, flex: 1 } }, t, el);
+    const go = () => { const link = v.link.trim(); if (!v.title.trim()) return setErr('Give the meeting a title.');
+      if (!/^https:\/\/meet\.google\.com\/[a-z]{3,4}-[a-z]{4}-[a-z]{3,4}/i.test(link)) return setErr('Paste a Google Meet link, like https://meet.google.com/abc-defg-hij');
+      const start = new Date(v.date + 'T' + v.time); if (isNaN(start)) return setErr('Choose a date and time.');
+      setBusy(true); onSend({ title: v.title.trim(), start: start.toISOString(), minutes: +v.minutes || 30, link: link.split(/\s/)[0], note: v.note.trim() }).then(onClose).catch(e => { setErr(e.message); setBusy(false); }); };
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+      lab('Title', h('input', { value: v.title, onChange: set('title'), style: inp })),
+      h('div', { style: { display: 'flex', gap: 10 } }, lab('Date', h('input', { type: 'date', value: v.date, onChange: set('date'), style: inp })), lab('Time', h('input', { type: 'time', value: v.time, onChange: set('time'), style: inp })),
+        lab('Length', h('select', { value: v.minutes, onChange: set('minutes'), style: inp }, [15, 30, 45, 60, 90, 120].map(n => h('option', { key: n, value: n }, n < 60 ? n + ' min' : n / 60 + ' hr' + (n > 60 ? 's' : '')))))),
+      h('div', { style: { padding: 12, borderRadius: 10, background: K.soft, display: 'flex', flexDirection: 'column', gap: 8 } },
+        h('div', { style: { fontSize: 13, color: K.txt, lineHeight: 1.5 } }, '1. Create the meeting in Google Meet, then copy its link.'),
+        h('a', { href: 'https://meet.google.com/new', target: '_blank', rel: 'noopener', style: { alignSelf: 'flex-start', height: 32, lineHeight: '32px', padding: '0 14px', borderRadius: 8, background: '#1A73E8', color: '#fff', fontWeight: 600, fontSize: 13, textDecoration: 'none' } }, 'Create a Google Meet link ↗'),
+        h('div', { style: { fontSize: 13, color: K.txt } }, '2. Paste the link here.'),
+        h('input', { value: v.link, onChange: set('link'), placeholder: 'https://meet.google.com/abc-defg-hij', style: inp })),
+      lab('Agenda (optional)', h('input', { value: v.note, onChange: set('note'), placeholder: 'e.g. Prepare for Rao vs State, item 14', style: inp })),
+      err && h('div', { style: { fontSize: 13, color: K.red } }, err),
+      h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8 } }, h(Btn, { onClick: onClose }, 'Cancel'), h(Btn, { primary: true, onClick: go, disabled: busy }, busy ? 'Posting…' : 'Post meeting')));
+  }
+
+  /* ---------- Team chat: the firm's group chat and one-to-one chats with team members (live) ---------- */
+  function Chat({ app }) {
+    const d = app.db, server = window.LSB && LSB.on && LSB.chat;
+    const me = server ? LSB.chat.me() : '';
+    const people = d.team.filter(u => u.userId && u.userId !== me && u.status === 'Active');
+    const [sel, setSel] = useState('team'), [msgs, setMsgs] = useState({}), [text, setText] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState(''), [mob, setMob] = useState('list');
+    const [reacts, setReacts] = useState({}), [pick, setPick] = useState(null), [up, setUp] = useState(false), [fly, setFly] = useState(false);
+    const fresh = React.useRef(new Set());   // ids that arrived after the chat opened: these animate in
+    const scroller = React.useRef(null), box = React.useRef(null), fileIn = React.useRef(null), selRef = React.useRef(sel); selRef.current = sel;
+    const narrow = app.state.w < 760;
+    const who = id => d.team.find(u => u.userId === id);
+    const chOf = u => LSB.chat.dm(u.userId);
+    React.useEffect(() => {
+      if (!server) return;
+      app.chatEvt = m => { fresh.current.add(m.id); setMsgs(all => { const list = all[m.channel]; if (!list || list.some(x => x.id === m.id)) return all; return Object.assign({}, all, { [m.channel]: list.concat(m) }); });
+        if (m.channel === selRef.current && m.sender !== me && document.visibilityState === 'visible') LSB.chat.read(m.channel).then(() => app.refreshChat()).catch(() => {}); };
+      app.chatDel = m => setMsgs(all => { const out = {}; Object.keys(all).forEach(k => out[k] = all[k].filter(x => x.id !== m.id)); return out; });
+      app.chatReact = (r, on) => setReacts(all => { const list = (all[r.channel] || Object.values(all).find(l => l.some(x => x.message_id === r.message_id)) || []).filter(x => !(x.message_id === r.message_id && x.user_id === r.user_id && x.emoji === r.emoji));
+        const ch = r.channel || Object.keys(all).find(k => all[k].some(x => x.message_id === r.message_id)); if (!ch) return all;
+        return Object.assign({}, all, { [ch]: on ? list.concat({ message_id: r.message_id, user_id: r.user_id, emoji: r.emoji }) : list }); });
+      return () => { app.chatEvt = null; app.chatDel = null; app.chatReact = null; };
+    }, []);
+    React.useEffect(() => {
+      if (!server) return; let dead = false; setErr('');
+      LSB.chat.list(sel).then(list => { if (!dead) setMsgs(all => Object.assign({}, all, { [sel]: list })); }).catch(e => !dead && setErr(e.message));
+      LSB.chat.reactions(sel).then(list => { if (!dead) setReacts(all => Object.assign({}, all, { [sel]: list })); }).catch(() => {});
+      LSB.chat.read(sel).then(() => app.refreshChat()).catch(() => {});
+      return () => { dead = true; };
+    }, [sel]);
+    React.useEffect(() => { const el = scroller.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs[sel] && msgs[sel].length, sel]);
+    if (!server) return h(Page, { art: 'team', kicker: 'Firm', title: 'Team chat' }, h(Empty, { title: 'Team chat needs the server', text: 'Chat works when Legal Staff is connected to its server, so messages reach your team on every device.' }));
+    const unread = app.chatUnread || {};
+    const send = () => { const body = text.trim(); if (!body || busy) return; setBusy(true); setErr('');
+      setFly(true); setTimeout(() => setFly(false), 450);
+      LSB.chat.send(sel, body).then(m => { fresh.current.add(m.id); setText(''); setMsgs(all => { const list = all[sel] || []; return list.some(x => x.id === m.id) ? all : Object.assign({}, all, { [sel]: list.concat(m) }); }); if (box.current) { box.current.style.height = 'auto'; box.current.focus(); } })
+        .catch(e => setErr(e.message)).finally(() => setBusy(false)); };
+    const post = (body, kind, data) => LSB.chat.send(sel, body, kind, data).then(m => fresh.current.add(m.id) && setMsgs(all => { const list = all[sel] || []; return list.some(x => x.id === m.id) ? all : Object.assign({}, all, { [sel]: list.concat(m) }); }));
+    const attach = e => { const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return;
+      if (file.size > 20 * 1048576) return setErr('Files up to 20 MB can be sent.');
+      setUp(true); setErr(''); const caption = text.trim();
+      LSB.chat.upload(sel, file).then(f => post(caption, 'file', f)).then(() => setText('')).catch(x => setErr(x.message)).finally(() => setUp(false)); };
+    const meet = () => app.modal(() => h(Modal, { title: 'Schedule a team meeting', sub: 'Posts a Google Meet card in this chat', onClose: () => app.modal(null) }, h(MeetForm, { onSend: d => post('', 'meeting', d), onClose: () => app.modal(null) })));
+    const react = (m, emoji) => { setPick(null); const list = reacts[m.channel] || [], mineR = list.some(x => x.message_id === m.id && x.user_id === me && x.emoji === emoji);
+      setReacts(all => Object.assign({}, all, { [m.channel]: mineR ? list.filter(x => !(x.message_id === m.id && x.user_id === me && x.emoji === emoji)) : list.concat({ message_id: m.id, user_id: me, emoji }) }));
+      LSB.chat.react(m, emoji, !mineR).catch(e => setErr(e.message)); };
+    const open = ch => { setSel(ch); setMob('chat'); setPick(null); };
+    const avatar = (label, dark, size, src) => h('span', { style: { width: size || 36, height: size || 36, borderRadius: '50%', background: dark ? K.ink : K.soft2, color: dark ? '#fff' : K.ink, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: (size || 36) * .36, fontWeight: 600, flexShrink: 0, overflow: 'hidden' } },
+      src ? h('img', { src, alt: '', draggable: false, style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' } }) : label);
+    /* The group's photo: its own, else the firm picture or main court photo, else the firm's initials. Members show their profile photos. */
+    const groupSrc = d.firm.groupPhoto || d.firm.photo || courtPic(d.firm.court);
+    const groupAv = size => avatar(L.initials(d.firm.name) || 'T', true, size, groupSrc), userAv = (u, size) => avatar(L.initials(u ? u.name : '?'), false, size, u ? photoOf(d, u) : '');
+    const groupPhoto = () => { if (!d.isOwner) return app.toast('Only the firm owner can change the group photo.');
+      if (!d.firm.groupPhoto) return editPhoto(app, { group: true });
+      app.modal(() => h(Modal, { title: 'Group photo', sub: 'Everyone at the firm sees this photo on the group chat.', onClose: () => app.modal(null), width: 400 },
+        h('div', { style: { display: 'flex', justifyContent: 'center', padding: '4px 0 8px' } }, groupAv(112)),
+        h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' } }, h(Btn, { danger: true, onClick: () => { app.modal(null); saveFirmPhoto(app, '', 'Group photo removed', 'groupPhoto'); } }, 'Remove'), h(Btn, { primary: true, onClick: () => { app.modal(null); editPhoto(app, { group: true }); } }, 'Change photo')))); };
+    const badge = n => n ? h('span', { style: { marginLeft: 'auto', minWidth: 20, height: 20, borderRadius: 10, background: '#137333', color: '#fff', fontSize: 11.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' } }, n > 99 ? '99+' : n) : null;
+    const preview = m => m.kind === 'file' ? '📎 ' + ((m.data || {}).name || 'File') : m.kind === 'meeting' ? '📅 ' + ((m.data || {}).title || 'Meeting') : m.body;
+    const last = ch => { const l = msgs[ch]; return l && l.length ? l[l.length - 1] : null; };
+    const row = (ch, title, sub, av) => h('button', { key: ch, onClick: () => open(ch), style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 14px', border: 0, borderBottom: '1px solid #F0F0EF', background: sel === ch && !narrow ? K.soft : 'transparent', textAlign: 'left', cursor: 'pointer', font: 'inherit' } },
+      av, h('span', { style: { display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 } }, h('span', { style: { fontSize: 14, fontWeight: unread[ch] ? 700 : 600, color: K.ink } }, title),
+        h('span', { style: { fontSize: 12.5, color: K.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (last(ch) ? (last(ch).sender === me ? 'You: ' : '') + preview(last(ch)) : sub))), badge(unread[ch]));
+    const list = h('div', { style: { borderRight: narrow ? 0 : '1px solid ' + K.line, overflowY: 'auto', display: narrow && mob === 'chat' ? 'none' : 'block', minHeight: 0 } },
+      h('div', { style: { padding: '12px 14px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, 'Group'),
+      row('team', d.firm.name || 'Team', `Everyone at the firm · ${people.length + 1} member${people.length ? 's' : ''}`, groupAv()),
+      h('div', { style: { padding: '14px 14px 6px', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, 'Direct messages'),
+      people.length ? people.map(u => row(chOf(u), u.title || u.name, u.role, userAv(u))) :
+        h('div', { style: { padding: '8px 14px 16px', fontSize: 13, color: K.mut, lineHeight: 1.5 } }, 'Team members appear here once they join. ', h('button', { onClick: () => app.go('team'), style: { border: 0, background: 'none', padding: 0, color: K.ink, textDecoration: 'underline', cursor: 'pointer', font: 'inherit' } }, 'Invite your team')));
+    const other = sel === 'team' ? null : people.find(u => chOf(u) === sel);
+    const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid ' + K.line } },
+      narrow && h('button', { onClick: () => setMob('list'), 'aria-label': 'Back to chats', style: { border: 0, background: 'none', fontSize: 20, cursor: 'pointer', padding: '0 6px 0 0' } }, '‹'),
+      sel === 'team' ? h('button', { type: 'button', onClick: groupPhoto, title: d.isOwner ? 'Change group photo' : 'Group photo', 'aria-label': 'Group photo', className: 'ls-avatar-btn', style: { border: 0, padding: 0, background: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex' } }, groupAv(34)) : userAv(other, 34),
+      h('div', { style: { display: 'flex', flexDirection: 'column' } }, h('span', { style: { fontWeight: 600, fontSize: 15 } }, sel === 'team' ? (d.firm.name || 'Team') : other ? (other.title || other.name) : 'Chat'),
+        h('span', { style: { fontSize: 12.5, color: K.mut } }, sel === 'team' ? 'Group chat · everyone at the firm can read it' : other ? other.role + ' · only the two of you can read this' : '')));
+    const items = msgs[sel], dayLabel = iso => { const t = L.today(), dd = L.iso(new Date(iso)); return dd === t ? 'Today' : dd === L.addDays(t, -1) ? 'Yesterday' : L.fmt(dd); };
+    const time = iso => new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+    const body = h('div', { ref: scroller, className: 'ls-chatbg-pan', onClick: e => { if (e.target === e.currentTarget) setPick(null); }, style: { flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '16px 52px', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, backgroundColor: 'rgba(244,242,236,.82)', backgroundImage: CHAT_BG + ', radial-gradient(circle at 20% 10%, rgba(255,255,255,.7), transparent 60%)', backgroundSize: '260px 230px, 100% 100%', minHeight: 0 } },
+      !items ? h('div', { style: { margin: 'auto', color: K.mut, fontSize: 13 } }, 'Loading messages…')
+      : !items.length ? h('div', { style: { margin: 'auto', textAlign: 'center', color: K.mut, fontSize: 13.5, maxWidth: 300, lineHeight: 1.6 } }, sel === 'team' ? 'No messages yet. Say hello to your team.' : `No messages yet. Send ${other ? other.name : 'them'} a message.`)
+      : items.map((m, i) => { const mine = m.sender === me, prev = items[i - 1], newDay = !prev || dayLabel(prev.created_at) !== dayLabel(m.created_at), sameRun = prev && !newDay && prev.sender === m.sender && Date.parse(m.created_at) - Date.parse(prev.created_at) < 5 * 60e3, u = who(m.sender);
+          return h(React.Fragment, { key: m.id },
+            newDay && h('div', { style: { alignSelf: 'center', fontSize: 11.5, color: K.mut, background: '#fff', border: '1px solid ' + K.line, borderRadius: 999, padding: '2px 10px', margin: '10px 0 6px' } }, dayLabel(m.created_at)),
+            h('div', { className: 'ls-msg', style: { display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', marginTop: sameRun ? 0 : 6, position: 'relative' } },
+              h('button', { className: 'ls-react', onClick: () => setPick(pick === m.id ? null : m.id), 'aria-label': 'React to this message', title: 'React', style: { position: 'absolute', top: '50%', [mine ? 'left' : 'right']: -2, transform: 'translate(' + (mine ? '-100%' : '100%') + ',-50%)', width: 30, height: 30, borderRadius: 15, border: '1px solid ' + K.line, background: '#fff', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '☺'),
+              !mine && sel === 'team' && !sameRun && h('span', { style: { fontSize: 12, fontWeight: 600, color: K.txt, margin: '0 0 2px 4px' } }, u ? (u.title || u.name) : 'Former member'),
+              h('div', { className: fresh.current.has(m.id) ? (mine ? 'ls-in-me' : 'ls-in-them') : undefined, title: new Date(m.created_at).toLocaleString('en-IN'), style: { maxWidth: 'min(560px, 80%)', padding: '8px 12px', borderRadius: 14, borderTopRightRadius: mine && !sameRun ? 4 : 14, borderTopLeftRadius: !mine && !sameRun ? 4 : 14, background: mine ? K.ink : '#fff', color: mine ? '#fff' : K.ink, border: mine ? 0 : '1px solid ' + K.line, fontSize: 14, lineHeight: 1.45, whiteSpace: 'pre-wrap', wordBreak: 'break-word' } },
+                m.kind === 'file' ? h(FileMsg, { m, mine }) : m.kind === 'meeting' ? h(MeetMsg, { m, mine }) : m.body, h('span', { style: { display: 'block', fontSize: 10.5, opacity: .6, textAlign: 'right', marginTop: 2 } }, time(m.created_at))),
+              (() => { const rs = (reacts[sel] || []).filter(x => x.message_id === m.id); if (!rs.length) return null; const by = {}; rs.forEach(x => (by[x.emoji] = by[x.emoji] || []).push(x.user_id));
+                return h('div', { style: { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: -6, padding: '0 6px', position: 'relative', zIndex: 1 } }, Object.keys(by).map(e => { const meIn = by[e].includes(me);
+                  return h('button', { key: e, className: 'ls-pill', onClick: () => react(m, e), title: by[e].map(id => id === me ? 'You' : (who(id) || {}).name || 'Member').join(', '), style: { height: 24, padding: '0 7px', borderRadius: 12, border: '1px solid ' + (meIn ? '#1A73E8' : K.line), background: meIn ? '#E8F0FE' : '#fff', fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 1px 2px rgba(0,0,0,.06)' } }, e, by[e].length > 1 && h('span', { style: { fontSize: 11.5, fontWeight: 600, color: K.txt } }, by[e].length)); })); })(),
+              pick === m.id && h('div', { className: 'ls-picker', style: { display: 'flex', gap: 2, background: '#fff', border: '1px solid ' + K.line, borderRadius: 20, padding: '3px 6px', boxShadow: '0 6px 20px rgba(0,0,0,.12)', marginTop: 4 } },
+                EMOJIS.map(e => h('button', { key: e, onClick: () => react(m, e), 'aria-label': 'React ' + e, style: { border: 0, background: 'none', fontSize: 19, cursor: 'pointer', padding: '2px 4px', borderRadius: 8 } }, e)))));
+        }));
+    const tool = (label, d, onClick, disabled) => h('button', { onClick, disabled, 'aria-label': label, title: label, style: { width: 38, height: 38, flexShrink: 0, borderRadius: 10, border: '1px solid ' + K.line, background: '#fff', cursor: disabled ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: K.txt, opacity: disabled ? .5 : 1 } },
+      h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d })));
+    const composer = h('div', { style: { borderTop: '1px solid ' + K.line, padding: 12, display: 'flex', gap: 8, alignItems: 'flex-end', background: '#fff' } },
+      h('input', { ref: fileIn, type: 'file', accept: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,image/*', onChange: attach, style: { display: 'none' } }),
+      tool(up ? 'Uploading…' : 'Send a PDF or file', 'M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9', () => fileIn.current && fileIn.current.click(), up),
+      tool('Schedule a Google Meet', 'M3 7.5A1.5 1.5 0 0 1 4.5 6h9A1.5 1.5 0 0 1 15 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 3 16.5z M15 10.5l6-3.5v10l-6-3.5', meet),
+      h('textarea', { ref: box, value: text, rows: 1, placeholder: sel === 'team' ? 'Message the team' : 'Message ' + (other ? other.name : ''), 'aria-label': 'Message',
+        onChange: e => { setText(e.target.value); const el = e.target; el.style.height = 'auto'; el.style.height = Math.min(140, el.scrollHeight) + 'px'; },
+        onKeyDown: e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } },
+        style: { flex: 1, resize: 'none', border: '1px solid ' + K.line, borderRadius: 10, padding: '9px 12px', font: 'inherit', fontSize: 14, lineHeight: 1.45, maxHeight: 140, outline: 'none' } }),
+      h('button', { className: 'ls-btn ls-send' + (fly ? ' fly' : ''), onClick: send, disabled: busy || up || !text.trim(), 'aria-label': 'Send', style: { height: 38, padding: '0 16px', borderRadius: 10, border: 0, background: K.ink, color: '#fff', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', opacity: busy || up || !text.trim() ? .45 : 1, flexShrink: 0 } },
+        up ? 'Uploading…' : 'Send', h('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: 'M22 2 11 13 M22 2l-7 20-4-9-9-4z' }))));
+    const convo = h('div', { style: { display: narrow && mob === 'list' ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 } }, head, h('div', { className: 'ls-chatbg', style: { flex: 1, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }, body), err && h('div', { style: { padding: '6px 16px', fontSize: 12.5, color: K.red } }, err), composer);
+    return h(Page, { art: 'team', kicker: 'Firm', title: 'Team chat', sub: 'Talk to your whole team or to one colleague. Messages are private to your firm.' },
+      h('div', { style: { background: '#fff', border: '1px solid ' + K.line, borderRadius: 12, overflow: 'hidden', display: 'grid', gridTemplateColumns: narrow ? '1fr' : '300px 1fr', height: 'calc(100vh - 230px)', minHeight: 420 } }, list, convo));
+  }
+
+  /* ---- billing: GST invoices for plan payments (server function 'billing') ---- */
+  const rupees = paise => L.inr(paise / 100), istDay = ts => new Date(Date.parse(ts) + 5.5 * 3600e3).toISOString().slice(0, 10);
+  async function downloadInvoice(id) {
+    const r = await LSB.billing.pdf(id), bin = atob(r.pdf), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([u8], { type: 'application/pdf' })), a = document.createElement('a');
+    a.href = url; a.download = r.filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  /* Payment in flight: gold ₹ coins racing from the phone to the bank while we wait for the bank's confirmation. */
+  function coinCss() {
+    if (document.getElementById('ls-coin-css')) return;
+    const st = document.createElement('style'); st.id = 'ls-coin-css';
+    st.textContent = `
+      .ls-coinflow{position:relative;width:280px;max-width:100%;height:64px;margin:2px auto 0}
+      .ls-coinflow .lane{position:absolute;left:52px;right:52px;top:31px;height:2px;border-radius:2px;background:linear-gradient(90deg,#E5E5E5 0%,#E5E5E5 40%,#F4C542 50%,#E5E5E5 60%,#E5E5E5 100%);background-size:200% 100%;animation:lsLane 1.1s linear infinite}
+      .ls-coinflow .end{position:absolute;top:10px;width:44px;height:44px;border-radius:12px;background:#0A0A0A;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+      .ls-coinflow .end.l{left:0}.ls-coinflow .end.r{right:0;animation:lsBank 1.1s ease-in-out infinite}
+      .ls-coinflow .coin{position:absolute;left:46px;top:20px;width:22px;height:22px;border-radius:50%;font:700 12px/22px system-ui,sans-serif;text-align:center;color:#7A5200;
+        background:radial-gradient(circle at 32% 30%,#FFF6C8 0%,#FFD95A 35%,#E9A800 75%,#B97F00 100%);box-shadow:0 0 0 1.5px #C88E00 inset,0 3px 8px rgba(201,142,0,.45);
+        animation:lsCoin 1.1s cubic-bezier(.55,.05,.35,1) infinite;opacity:0}
+      .ls-coinflow .coin:nth-child(4){animation-delay:.37s}.ls-coinflow .coin:nth-child(5){animation-delay:.74s}
+      @keyframes lsCoin{0%{transform:translateX(0) translateY(6px) scale(.5) rotateY(0);opacity:0}15%{opacity:1}50%{transform:translateX(83px) translateY(-10px) scale(1.08) rotateY(360deg)}85%{opacity:1}100%{transform:translateX(166px) translateY(4px) scale(.55) rotateY(720deg);opacity:0}}
+      @keyframes lsLane{0%{background-position:100% 0}100%{background-position:-100% 0}}
+      @keyframes lsBank{0%,70%,100%{transform:scale(1)}85%{transform:scale(1.08)}}
+      @keyframes lsPop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
+      .ls-pop{animation:lsPop .5s cubic-bezier(.2,.9,.3,1.3) both}
+      @media (prefers-reduced-motion:reduce){.ls-coinflow .coin,.ls-coinflow .lane,.ls-coinflow .end.r,.ls-pop{animation:none}.ls-coinflow .coin:nth-child(3){opacity:1;left:calc(50% - 11px)}}`;
+    document.head.appendChild(st);
+  }
+  const svgIcon = d => h('svg', { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d }));
+  function CoinFlow({ label }) {
+    coinCss();
+    return h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }, role: 'status', 'aria-live': 'polite' },
+      h('div', { className: 'ls-coinflow' },
+        h('div', { className: 'end l', title: 'Your UPI app' }, svgIcon('M8 2.5h8a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 20V4A1.5 1.5 0 0 1 8 2.5z M11 18.5h2')),
+        h('div', { className: 'lane' }),
+        h('span', { className: 'coin' }, '₹'), h('span', { className: 'coin' }, '₹'), h('span', { className: 'coin' }, '₹'),
+        h('div', { className: 'end r', title: 'Legal Staff' }, svgIcon('M3 9.5 12 4l9 5.5 M5 10v8 M9.5 10v8 M14.5 10v8 M19 10v8 M3 20.5h18'))),
+      h('div', { style: { fontSize: 13.5, fontWeight: 600, color: K.ink } }, label));
+  }
+  /* On the "Payment received" screen: the invoice for this order, once the server has issued it. */
+  function PaidInvoice({ orderNo }) {
+    const [inv, setInv] = useState(null), [busy, setBusy] = useState(false), [err, setErr] = useState('');
+    React.useEffect(() => { let dead = false, n = 0;
+      const look = () => LSB.billing.list().then(x => { const i = (x.invoices || []).find(v => v.order_no === orderNo); if (dead) return; if (i) setInv(i); else if (++n < 6) setTimeout(look, 3000); }).catch(() => { if (!dead && ++n < 6) setTimeout(look, 3000); });
+      look(); return () => { dead = true; }; }, []);
+    if (!inv) return h('div', { style: { fontSize: 12.5, color: K.mut } }, 'Preparing your invoice…');
+    return h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 16px', border: '1px solid ' + K.line, borderRadius: 10, background: '#FAFAF9', width: '100%', boxSizing: 'border-box' } },
+      h('div', { style: { fontSize: 13.5, fontWeight: 600 } }, 'Invoice ' + inv.invoice_no),
+      h('div', { style: { fontSize: 12.5, color: K.mut } }, inv.emailed_to ? 'A copy has been emailed to ' + inv.emailed_to + '.' : 'A copy is being emailed to you.'),
+      h(Btn, { small: true, disabled: busy, onClick: () => { setBusy(true); setErr(''); downloadInvoice(inv.id).catch(e => setErr(e.message)).finally(() => setBusy(false)); } }, busy ? 'Preparing PDF…' : 'Download invoice (PDF)'),
+      err && h('div', { style: { fontSize: 12, color: K.red } }, err));
+  }
+  /* Pricing page, top: the current plan, its dates, the last payment and every invoice. */
+  function SubPanel({ app }) {
+    const d = app.db, acc = L.access(d.sub), [bill, setBill] = useState(null), [busy, setBusy] = useState(''), [msg, setMsg] = useState(null);
+    React.useEffect(() => { let dead = false; LSB.billing.list().then(x => !dead && setBill(x)).catch(e => !dead && setBill({ invoices: [], err: e.message })); return () => { dead = true; }; }, [app.state.rev0, d.sub.renews, d.sub.plan]);
+    if (acc.state !== 'active' && !(bill && bill.invoices.length)) return null;
+    const invs = (bill && bill.invoices) || [], last = invs[0], today = L.today(), sub = d.sub;
+    const starts = sub.since && sub.since > today, left = sub.renews ? Math.max(0, Math.round((Date.parse(sub.renews) - Date.parse(today)) / 864e5) + 1) : 0;
+    const status = acc.state !== 'active' ? ['Ended', '#B42318', '#FDECEA'] : starts ? ['Starts ' + L.fmt(sub.since), '#1D4ED8', '#E8EEFD'] : left <= 15 ? ['Ends in ' + left + ' day' + (left === 1 ? '' : 's'), '#B54708', '#FEF3E2'] : ['Active', '#137333', '#E7F6EC'];
+    const act = (key, fn, ok) => { setBusy(key); setMsg(null); fn().then(r => ok && setMsg({ ok: true, t: ok(r) })).catch(e => setMsg({ ok: false, t: e.message })).finally(() => setBusy('')); };
+    const fact = (k, v, sub2) => h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 } },
+      h('div', { style: { fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, k),
+      h('div', { style: { fontSize: 15, fontWeight: 600, color: K.ink } }, v), sub2 && h('div', { style: { fontSize: 12.5, color: K.mut } }, sub2));
+    const cycle = sub.cycle === 'annual' ? 'Annual' : 'Monthly';
+    return h('div', { style: { background: '#FFFFFF', border: '1px solid ' + K.line, borderRadius: 12, padding: 24, display: 'flex', flexDirection: 'column', gap: 20, textAlign: 'left' } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' } },
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+          h('div', { style: { fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: K.mut, fontWeight: 600 } }, 'Your subscription'),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
+            h('div', { style: { fontSize: 20, fontWeight: 600, letterSpacing: '-.02em' } }, `${sub.plan} plan · ${cycle}`),
+            h('span', { style: { fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999, color: status[1], background: status[2] } }, status[0]))),
+        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+          acc.state === 'active' && h(Btn, { small: true, primary: true, onClick: () => app.setState(x => ({ showPlans: !x.showPlans })) }, app.state.showPlans ? 'Hide plans' : 'Upgrade or renew'),
+          last && h(React.Fragment, null,
+          h(Btn, { small: true, disabled: !!busy, onClick: () => act('dl', () => downloadInvoice(last.id)) }, busy === 'dl' ? 'Preparing PDF…' : 'Download latest invoice'),
+          h(Btn, { small: true, disabled: !!busy, onClick: () => act('em', () => LSB.billing.email(last.id), r => 'Invoice ' + last.invoice_no + ' emailed to ' + r.sent_to + '.') }, busy === 'em' ? 'Sending…' : 'Email invoice')))),
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 18, padding: '16px 0', borderTop: '1px solid ' + K.line, borderBottom: '1px solid ' + K.line } },
+        fact(starts ? 'Starts on' : 'Started on', sub.since ? L.fmt(sub.since) : '—', starts ? 'After your free trial ends' : null),
+        fact(acc.state === 'active' ? 'Valid until' : 'Ended on', sub.renews ? L.fmt(sub.renews) : '—', acc.state === 'active' ? (starts ? `${cycle} plan period` : `${left} day${left === 1 ? '' : 's'} left`) : null),
+        fact('Last payment', last ? rupees(last.total) : '—', last ? L.fmt(istDay(last.issued_at)) + ' · ' + (last.method || 'UPI') + (last.promo ? ' · code ' + last.promo : '') : null),
+        fact('Payment reference', last && last.utr ? last.utr : '—', last ? 'Order ' + (last.order_no || '—') : null)),
+      msg && h('div', { style: { fontSize: 13, color: msg.ok ? '#137333' : K.red } }, msg.t),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        h('div', { style: { fontSize: 13, fontWeight: 600 } }, 'Invoices'),
+        !bill ? h('div', { style: { fontSize: 13, color: K.mut } }, 'Loading invoices…')
+          : bill.err ? h('div', { style: { fontSize: 13, color: K.red } }, 'Could not load invoices: ' + bill.err)
+          : !invs.length ? h('div', { style: { fontSize: 13, color: K.mut } }, 'No invoices yet.')
+          : h('div', { style: { display: 'flex', flexDirection: 'column' } }, invs.map(i => h('div', { key: i.id, style: { display: 'grid', gridTemplateColumns: 'minmax(130px,1fr) minmax(90px,.8fr) minmax(150px,1.4fr) minmax(80px,.7fr) auto', gap: 12, alignItems: 'center', padding: '10px 0', borderTop: '1px solid ' + K.line, fontSize: 13.5 } },
+              h('span', { style: { fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }, i.invoice_no),
+              h('span', { style: { color: K.mut } }, L.fmt(istDay(i.issued_at))),
+              h('span', null, `${i.plan} · ${i.cycle === 'annual' ? 'Annual' : 'Monthly'}`, i.period && h('span', { style: { color: K.mut } }, ' · ' + L.fmt(i.period.from) + ' – ' + L.fmt(i.period.to))),
+              h('span', { style: { fontVariantNumeric: 'tabular-nums', fontWeight: 600 } }, rupees(i.total)),
+              h('span', { style: { display: 'flex', gap: 6 } },
+                h(Btn, { small: true, disabled: !!busy, onClick: () => act('dl' + i.id, () => downloadInvoice(i.id)) }, busy === 'dl' + i.id ? '…' : 'PDF'),
+                h(Btn, { small: true, disabled: !!busy, onClick: () => act('em' + i.id, () => LSB.billing.email(i.id), r => 'Invoice ' + i.invoice_no + ' emailed to ' + r.sent_to + '.') }, busy === 'em' + i.id ? '…' : 'Email')))))),
+      h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.6 } }, 'Plans are paid by UPI in advance, with no automatic charges and no GST added. Use Upgrade or renew any time; a new payment starts after your current period ends.'));
+  }
+
+  function upiPay(app, o) {
+    const Body = () => {
+      const [st, setSt] = useState({ phase: 'creating' }), [qr, setQr] = useState(''), [left, setLeft] = useState(0);
+      React.useEffect(() => {
+        let dead = false, poll = null, tick = null;
+        LSB.upi.create(o.plan, o.cycle, o.gstin, o.promo, o.users).then(r => {
+          if (dead) return;
+          if (r.free) { setSt({ phase: 'paid', r, x: { confirmed_by: 'promo' } }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); return; }
+          setSt({ phase: 'waiting', r });
+          loadQr().then(() => { const q = window.qrcode(0, 'M'); q.addData(r.link); q.make(); if (!dead) setQr(q.createSvgTag({ cellSize: 5, margin: 2, scalable: true })); }).catch(() => {});
+          const end = Date.parse(r.expires_at);
+          setLeft(Math.max(0, Math.round((end - Date.now()) / 1000)));
+          tick = setInterval(() => setLeft(Math.max(0, Math.round((end - Date.now()) / 1000))), 1000);
+          const check = () => LSB.upi.status(r.order_no).then(x => {
+            if (dead) return;
+            if (x.status === 'paid') { clearInterval(poll); clearInterval(tick); setSt({ phase: 'paid', r, x }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); }
+            else if (Date.now() > end) { clearInterval(poll); clearInterval(tick); setSt({ phase: 'expired', r }); }
+          }).catch(() => {});
+          poll = setInterval(check, 4000);
+        }).catch(e => !dead && setSt({ phase: 'error', msg: e.message }));
+        return () => { dead = true; clearInterval(poll); clearInterval(tick); };
+      }, []);
+      const r = st.r, amt = r ? L.inr(r.amount / 100) : '', mm = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+      if (st.phase === 'creating') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Preparing your UPI payment…' }));
+      if (st.phase === 'error') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } }, h('div', { style: { color: K.red, fontSize: 14 } }, st.msg), h(Btn, { onClick: () => app.modal(null) }, 'Close'));
+      if (st.phase === 'paid') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center', padding: '10px 0' } },
+        h('div', { className: 'ls-pop', style: { width: 58, height: 58, borderRadius: 29, background: '#E7F6EC', color: '#137333', fontSize: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 8px #F3FBF5' } }, '✓'),
+        h('div', { style: { fontSize: 18, fontWeight: 600 } }, 'Payment received'),
+        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `${amt} for the ${o.name} plan (${o.cycleLabel}). Your plan is active.`),
+        st.x.utr && h('div', { style: { fontSize: 12.5, color: K.mut } }, 'UPI reference ' + st.x.utr + ' · order ' + r.order_no),
+        h(PaidInvoice, { orderNo: r.order_no }),
+        h(Btn, { primary: true, onClick: () => { app.modal(null); app.go('dashboard'); } }, 'Go to dashboard'));
+      if (st.phase === 'expired') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `This payment window has closed. If you already paid ${amt}, it is still confirmed automatically within 24 hours and your plan turns on by itself. If you have not paid, start again.`),
+        h('div', { style: { fontSize: 12.5, color: K.mut } }, 'Order ' + r.order_no),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close')));
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', textAlign: 'center' } },
+        h('div', { style: { fontSize: 13, color: K.mut } }, `${o.name} plan · ${o.cycleLabel}`),
+        h('div', null, h('div', { style: { fontSize: 12, color: K.mut, textTransform: 'uppercase', letterSpacing: '.06em' } }, 'Pay exactly'), h('div', { style: { fontSize: 30, fontWeight: 700, letterSpacing: '-.02em' } }, amt)),
+        h('div', { style: { width: 220, height: 220, border: '1px solid ' + K.line, borderRadius: 12, padding: 8, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }, dangerouslySetInnerHTML: qr ? { __html: qr.replace('<svg ', '<svg width="100%" height="100%" ') } : undefined }, qr ? undefined : h('span', { style: { fontSize: 13, color: K.mut } }, 'Loading QR…')),
+        h('div', { style: { fontSize: 13.5, color: K.txt } }, 'Scan with any UPI app: GPay, PhonePe, Paytm, BHIM'),
+        h('a', { href: r.link, style: { display: 'inline-block', background: K.ink, color: '#fff', borderRadius: 8, padding: '10px 18px', fontSize: 14, fontWeight: 600, textDecoration: 'none' } }, 'Open UPI app (on your phone)'),
+        h('div', { style: { fontSize: 12.5, color: K.mut } }, `Paying ${r.payee} · ${r.upi_id}`),
+        h(CoinFlow, { label: `Verifying your payment… ${mm}` }),
+        h('div', { style: { fontSize: 12, color: K.mut, lineHeight: 1.5 } }, 'Keep this window open. Your plan turns on by itself as soon as the payment arrives. Pay the exact amount shown, including paise, so it is matched to your order ' + r.order_no + '.'));
+    };
+    app.modal(() => h(Modal, { title: 'Pay by UPI', onClose: () => app.modal(null), width: 420 }, h(Body)));
+  }
+  /* ---------- AI drafting: writes a first draft as a new version of the open template ---------- */
+  const textToHtml = t => String(t).replace(/\*\*/g, '').split(/\n{2,}/).map(p => '<p>' + p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') + '</p>').join('');
+  function aiDraft(app, tplIndex, tplName) {
+    const d = app.db; if (needCase(app)) return;
+    const Body = () => { const [v, setV] = useState({ caseId: (d.cases[0] || {}).id || '', what: '' }), [busy, setBusy] = useState(false), [err, setErr] = useState('');
+      const go = () => { if (busy) return; if (!v.what.trim()) return setErr('Say what the draft should cover.'); setBusy(true); setErr('');
+        LSB.ai({ mode: 'draft', case_id: v.caseId, template: tplName, question: v.what.trim() }).then(r => {
+          app.buf = null; app.mut(db => { (db.drafts[tplIndex] = db.drafts[tplIndex] || []).unshift({ at: L.today() + ' ' + L.nowHM(), by: 'AI', label: 'AI draft', html: textToHtml(r.text) }); logIt(db, `AI drafted a ${tplName} for ${db.user.name}`, v.caseId); db.sub.aiUsed = r.used; }, 'AI draft saved as a new version. Check every fact and fill the [placeholders].');
+          app.setState({ tpl: tplIndex, ver: 0 }); app.modal(null);
+        }).catch(e => { setErr(e.message); setBusy(false); }); };
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+        h('label', { style: { fontSize: 13, color: K.mut } }, 'Case', h(Select, { value: v.caseId, onChange: x => setV(Object.assign({}, v, { caseId: x })), options: caseOpts(d), style: { width: '100%', marginTop: 6 } })),
+        h('label', { style: { fontSize: 13, color: K.mut } }, 'What should it cover?', h('textarea', { value: v.what, rows: 5, onChange: e => setV(Object.assign({}, v, { what: e.target.value })), placeholder: 'e.g. Legal notice to the respondent demanding ₹4,50,000 due under the invoice dated 12.08.2026, payable within 15 days.', style: { display: 'block', width: '100%', marginTop: 6, border: '1px solid ' + K.line, borderRadius: 8, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' } })),
+        err && h('div', { style: { fontSize: 13, color: K.red } }, err),
+        h('div', { style: { fontSize: 12.5, color: K.mut } }, 'The AI uses this case\'s records and your instructions, and marks anything unknown as a [placeholder]. It is saved as a new version; nothing is sent. Uses 1 AI credit.'),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null), disabled: busy }, 'Cancel'), h(Btn, { primary: true, onClick: go, disabled: busy }, busy ? 'Drafting… (up to a minute)' : 'Draft with AI'))); };
+    app.modal(() => h(Modal, { title: 'Draft a ' + tplName + ' with AI', onClose: () => app.modal(null), width: 560 }, h(Body)));
+  }
+  /* ---------- plan, free trial and access ---------- */
+  const PLAN_ORDER = ['Solo', 'Professional', 'Firm'];
+  const MOD_LABEL = { brain: 'AI Case Brain', drafting: 'AI Drafting Studio', portal: 'Client Portal', agents: 'AI Agents', reports: 'Reports and analytics' };
+  const n0 = x => x === Infinity ? 'Unlimited' : Number(x).toLocaleString('en-IN');
+  const planName = acc => acc.state === 'none' ? 'No plan yet' : acc.state === 'trial' ? acc.plan + ' · free trial' : acc.state === 'expired' ? acc.plan + ' · ' + (acc.wasTrial ? 'trial ended' : 'expired') : acc.plan + ' plan';
+  const planSub = acc => acc.state === 'none' ? 'Start a 7-day free trial' : acc.state === 'trial' ? plural(acc.daysLeft, 'day') + ' left' : acc.state === 'expired' ? 'Subscribe to continue' : 'Renews ' + L.fmt(acc.ends);
+  const endsOn = acc => String(acc.ends || '').includes('T') ? new Date(acc.ends).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : L.fmt(acc.ends);
+  const liveCases = d => d.cases.filter(c => c.status === 'active' || c.status === 'pending').length;
+  /* Opens the Subscription screen, with a plan's checkout already open when one is named. */
+  const choosePlan = (app, name) => { const i = PLAN_ORDER.indexOf(name); if (i >= 0) app.setState({ plan: i, paid: false, gstin: app.db.firm.gstin || '', gstErr: '' }); app.go('pricing'); };
+  const notOwner = app => !!(window.LSB && LSB.on && !app.db.isOwner);
+  /* Refuses to go past the plan's user or active-case limit, and says why. */
+  function overLimit(app, what) {
+    const d = app.db, acc = L.access(d.sub), lim = acc.limits, have = what === 'users' ? d.team.length : liveCases(d), cap = lim[what];
+    if (have < cap) return false;
+    const next = PLAN_ORDER.find(p => L.PLANS[p][what] > cap);
+    if (what === 'users' && acc.plan === 'Professional' && cap < 15) { app.toast(`Your Professional plan has ${n0(cap)} ${cap === 1 ? 'user' : 'users'}. Add users from Pricing (₹249 a month each).`); return true; }
+    app.toast(`The ${acc.plan || 'current'} plan allows ${n0(cap)} ${what === 'users' ? (cap === 1 ? 'user' : 'users') : 'active cases'}.` + (next ? ` Upgrade to ${next} for ${n0(L.PLANS[next][what])}.` : ''));
+    return true;
+  }
+  const Meter = ({ label, have, cap }) => { const pct = cap === Infinity ? 0 : Math.min(100, Math.round(have / Math.max(1, cap) * 100)), hot = pct >= 90;
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 } }, h('span', { style: { color: K.mut } }, label), h('span', { style: { fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: hot ? K.red : K.ink } }, n0(have) + ' / ' + n0(cap))),
+      h('div', { style: { height: 6, borderRadius: 3, background: '#EDEDED', overflow: 'hidden' } }, h('div', { style: { width: (cap === Infinity ? 4 : pct) + '%', height: '100%', background: hot ? K.red : K.ink, borderRadius: 3 } }))); };
+  /* Dashboard: the firm's plan, trial countdown, usage against the plan and what the plan includes. */
+  function PlanCard({ app, acc }) {
+    const d = app.db; if (!acc.ok) return null;
+    const lim = acc.limits, trial = acc.state === 'trial', soon = !trial && acc.daysLeft <= 7, next = PLAN_ORDER[PLAN_ORDER.indexOf(acc.plan) + 1];
+    const head = trial
+      ? h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between', background: K.ink, color: '#fff', borderRadius: 10, padding: '16px 20px' } },
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 } },
+            h('div', { style: { textAlign: 'center', flexShrink: 0, minWidth: 52 } }, h('div', { style: { fontFamily: "'Instrument Sans',system-ui,sans-serif", fontSize: 28, fontWeight: 600, lineHeight: 1 } }, acc.daysLeft), h('div', { style: { fontSize: 11, opacity: .75 } }, acc.daysLeft === 1 ? 'day left' : 'days left')),
+            h('div', { style: { minWidth: 0 } }, h('div', { style: { fontSize: 15, fontWeight: 600 } }, `Free trial of the ${acc.plan} plan`), h('div', { style: { fontSize: 13, opacity: .8, lineHeight: 1.5 } }, `Ends ${endsOn(acc)}. After that the workspace stops working until you subscribe. Your data is kept.`))),
+          notOwner(app) ? h('span', { style: { fontSize: 13, opacity: .8 } }, 'The firm owner can subscribe') : h(Btn, { onClick: () => choosePlan(app, acc.plan), style: { background: '#fff', color: K.ink, border: 0, fontWeight: 600 } }, 'Subscribe now'))
+      : h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' } },
+          h('div', null, h('div', { style: { fontSize: 15, fontWeight: 600 } }, `${acc.plan} plan · ${d.sub.cycle === 'annual' ? 'Annual' : 'Monthly'}`), h('div', { style: { fontSize: 13, color: soon ? K.red : K.mut } }, soon ? `Ends ${endsOn(acc)} (${plural(acc.daysLeft, 'day')} left). Renew to keep working.` : `Paid until ${endsOn(acc)}`)),
+          h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, !notOwner(app) && soon && h(Btn, { small: true, primary: true, onClick: () => choosePlan(app, acc.plan) }, 'Renew'), !notOwner(app) && next && h(Btn, { small: true, onClick: () => choosePlan(app, next) }, 'Upgrade to ' + next)));
+    const mods = Object.keys(MOD_LABEL).map(k => { const on = lim.mods.includes(k);
+      return h('button', { key: k, type: 'button', onClick: () => app.go(k), title: on ? 'Open' : `Included from the ${L.MOD_PLAN[k]} plan`, style: { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid ' + (on ? K.line : '#EDEDED'), background: on ? '#FFFFFF' : '#FAFAFA', color: on ? K.ink : '#8A8A8A', borderRadius: 999, padding: '5px 12px', fontSize: 12.5, whiteSpace: 'nowrap' } }, h('span', null, on ? '✓' : '🔒'), MOD_LABEL[k], !on && h('span', { style: { fontSize: 11 } }, '· ' + L.MOD_PLAN[k])); });
+    return h(Card, { title: 'Your plan', right: h('button', { type: 'button', onClick: () => app.go('pricing'), style: { border: 0, background: 'none', padding: 0, fontSize: 13, color: K.mut, textDecoration: 'underline', textUnderlineOffset: 2 } }, 'Compare plans') },
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18 } }, head,
+        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 18 } },
+          h(Meter, { label: 'Users', have: d.team.length, cap: lim.users }), h(Meter, { label: 'Active cases', have: liveCases(d), cap: lim.cases }),
+          window.LSB && LSB.on ? h(Meter, { label: 'AI credits this month', have: d.sub.aiUsed || 0, cap: lim.ai }) : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 } }, h('span', { style: { color: K.mut } }, 'Storage and AI'), h('span', { style: { fontWeight: 600 } }, `${lim.storage} GB · ${n0(lim.ai)} AI credits / month`))),
+        h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } }, mods)));
+  }
+  /* Shown instead of every screen (except Subscription and Settings) when there is no plan, or the trial or plan has ended. */
+  function PlanLock({ app, acc }) {
+    const owner = !notOwner(app), name = acc.plan;
+    const [kicker, title, text] = acc.state === 'none'
+      ? ['Welcome', 'Start your 7-day free trial', 'Choose any plan to try Legal Staff free for 7 days. No payment is needed to start. When the trial ends, subscribe to keep working.']
+      : acc.wasTrial
+        ? ['Free trial ended', 'Your free trial has ended', `Your 7-day trial of the ${name} plan ended on ${endsOn(acc)}. Your cases, documents and settings are kept safely. Subscribe to continue where you left off.`]
+        : ['Plan expired', `Your ${name} plan has expired`, `The paid period ended on ${endsOn(acc)}. Your data is kept safely. Renew to continue where you left off.`];
+    return h(Page, { kicker, title, max: 760 }, h(Card, null,
+      h(Empty, { title, text: owner ? text : text + ' Only the firm owner can choose or pay for a plan, so please ask them.', art: 'setup' }),
+      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', paddingBottom: 12 } },
+        owner && acc.state !== 'none' && h(Btn, { key: 1, primary: true, onClick: () => choosePlan(app, name) }, (acc.wasTrial ? 'Subscribe to ' : 'Renew ') + name),
+        h(Btn, { key: 2, primary: owner && acc.state === 'none', onClick: () => app.go('pricing') }, acc.state === 'none' ? 'Choose a plan' : 'Compare plans'),
+        acc.state !== 'none' && h(Btn, { key: 3, onClick: () => app.go('settings') }, 'Export a backup')),
+      acc.state !== 'none' && h('div', { style: { fontSize: 12.5, color: K.mut, textAlign: 'center', paddingBottom: 6 } }, 'Until a plan is active the workspace is read-only and closed. Settings stays open so you can export a backup.')));
+  }
+  /* Shown when a screen belongs to a higher plan than the firm's. */
+  function PlanUpgrade({ app, acc, mod }) {
+    const need = L.MOD_PLAN[mod], lim = L.PLANS[need];
+    return h(Page, { kicker: 'Upgrade', title: MOD_LABEL[mod], max: 760 }, h(Card, null,
+      h(Empty, { title: `${MOD_LABEL[mod]} is part of the ${need} plan`, text: `You are on the ${acc.plan} plan${acc.state === 'trial' ? ' (free trial)' : ''}. ${need} adds ${lim.mods.filter(k => !acc.limits.mods.includes(k)).map(k => MOD_LABEL[k]).join(', ')}, up to ${n0(lim.users)} users and ${n0(lim.cases).toLowerCase()} active cases.` }),
+      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', paddingBottom: 12 } },
+        notOwner(app) ? h('span', { style: { fontSize: 13, color: K.mut } }, 'Ask the firm owner to upgrade the plan.') : h(Btn, { primary: true, onClick: () => choosePlan(app, need) }, acc.state === 'trial' ? `Switch the trial to ${need}` : `Upgrade to ${need}`),
+        h(Btn, { onClick: () => app.go('dashboard') }, 'Back to dashboard'))));
+  }
+  const gate = () => ({});
   /* ---------- labels ---------- */
   const LABEL_COLORS = [['Orange', '#EA6A2E'], ['Blue', '#1F5FA8'], ['Purple', '#8E3FB0'], ['Teal', '#0E8A86'], ['Green', '#3F9A4B'], ['Amber', '#D98A12'], ['Red', '#C23B32'], ['Slate', '#4B5563']];
   const labelsOf = (d, c) => (c.labels || []).map(id => (d.labels || []).find(l => l.id === id)).filter(Boolean);
@@ -1131,7 +1645,7 @@
     return h(Page, { art: 'cases', kicker: 'Practice', title: 'Labels', sub: `${plural(all.length, 'label')} · tag cases by bank, client group or any grouping you use, then filter the list and the causelist by it`,
       actions: [h(Btn, Object.assign({ key: 1, primary: true, onClick: () => labelForm(app) }, gate(app, 'label.edit')), '+ Add label'), h(Btn, { key: 2, disabled: !all.length, onClick: () => L.csv('labels.csv', [['Code', 'Name', 'Colour', 'Cases'], ...all.map(l => [l.code, l.name, l.color, count(l)])]) }, 'Export CSV')] },
       h(Search, { value: q, onChange: setQ, placeholder: 'Start typing to search…', width: 300 }),
-      h(Table, { min: 640, empty: { title: all.length ? 'No label matches' : 'No labels yet', text: all.length ? 'Try a different search.' : 'Add one, then tag cases from Edit case.', art: 'cases' }, rows, cols: [
+      h(Table, { min: 640, empty: all.length ? 'No label matches your search.' : 'No labels yet. Add one, then tag cases from Edit case.', rows, cols: [
         { label: 'Label', w: '110px', get: l => h(LabelChip, { l }) }, { label: 'Code', w: '110px', get: l => h('b', null, l.code) }, { label: 'Name', w: 'minmax(200px,2fr)', get: l => l.name },
         { label: 'Cases', w: '90px', get: l => count(l) },
         { label: '', w: 'minmax(210px,1.2fr)', get: l => acts(h(Btn, { small: true, disabled: !count(l), onClick: () => { app.setState({ caseQ: l.code, caseFilter: 'all' }); app.go('cases'); } }, 'View cases'), h(IconBtn, Object.assign({ label: 'Edit label ' + l.code, onClick: () => labelForm(app, l.id) }, gate(app, 'label.edit')), '✎'), h(IconBtn, Object.assign({ label: 'Delete label ' + l.code, danger: true, onClick: () => delLabel(app, l.id) }, gate(app, 'label.delete')), '×')) }] }));
@@ -1142,7 +1656,7 @@
   const itemNo = x => { const m = /\d+/.exec(x.item || ''); return m ? +m[0] : 1e9; };
   function pastListing(d, x) { const p = d.hearings.filter(y => y.caseId === x.caseId && y.date < x.date).sort((a, b) => b.date.localeCompare(a.date))[0]; return p ? p.date : ''; }
   function Causelist({ app }) {
-    const d = app.db, T = L.today(), [date, setDate] = useState(T), [tab, setTab] = useState('cases'), [q, setQ] = useState(''), [sort, setSort] = useState('default'), [lab, setLab] = useState('');
+    const d = app.db, T = L.today(), [date, setDate] = useState(T), [tab, setTab] = useState('cases'), [q, setQ] = useState(''), [sort, setSort] = useState('default'), [lab, setLab] = useState(''), [flt, setFlt] = useState(false);
     const caseOfH = x => d.cases.find(c => c.id === x.caseId) || { title: '—', no: '', labels: [] }, s = q.trim().toLowerCase();
     const day = d.hearings.filter(x => x.date === date), isApp = x => !!caseOfH(x).isApp;
     const nCases = day.filter(x => !isApp(x)).length, nApps = day.length - nCases;
@@ -1203,7 +1717,7 @@
     const d = app.db, [tab, setTab] = useState('new'), [q, setQ] = useState(''), s = q.trim().toLowerCase(), cur = NOTIF.find(n => n[0] === tab);
     const rows = d.orders.filter(o => cur[2](o) && (!s || (caseOf(d, o.caseId).title + ' ' + caseOf(d, o.caseId).no + ' ' + (o.summary || '')).toLowerCase().includes(s))).sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
     return h(Page, { art: 'order', kicker: 'Practice', title: 'Orders by Notification', sub: `${plural(d.orders.filter(NOTIF[0][2]).length, 'new order')} waiting for you · each order is sorted by what it asks of you`,
-      actions: [h(Btn, Object.assign({ key: 1, primary: true, onClick: () => addOrder(app) }, gate(app, 'order.create')), '+ Add court order')] },
+      actions: [window.LSB && LSB.on && h(Btn, { key: 0, onClick: () => autoCheck(app, true) }, 'Check court records'), h(Btn, Object.assign({ key: 1, primary: true, onClick: () => addOrder(app) }, gate(app, 'order.create')), '+ Add court order')] },
       h('div', { style: { display: 'inline-flex', border: '1px solid ' + K.line, borderRadius: 8, overflow: 'hidden', alignSelf: 'flex-start', flexWrap: 'wrap' } }, NOTIF.map(n => h('button', { key: n[0], type: 'button', 'aria-pressed': tab === n[0], onClick: () => setTab(n[0]), style: { border: 0, padding: '8px 18px', fontSize: 13.5, fontWeight: 500, background: tab === n[0] ? '#1D5FD0' : '#fff', color: tab === n[0] ? '#fff' : K.ink } }, n[1] + ' (' + d.orders.filter(n[2]).length + ')'))),
       h(Search, { value: q, onChange: setQ, placeholder: 'Search by case, party or order text', width: 320 }),
       h('section', { style: Object.assign({}, X.card, { overflow: 'hidden' }) }, rows.length ? rows.map(o => orderRow(app, o)) : h(Empty, { title: 'Nothing in this list', text: tab === 'new' ? 'You are up to date: every order with a next date is confirmed.' : 'No orders here yet.', art: 'order' })));
@@ -1223,17 +1737,7 @@
             h('b', { style: { minWidth: 34, fontVariantNumeric: 'tabular-nums' } }, x.item ? String(x.item).replace(/^item\s*/i, '') : '—'), h('span', { style: { flex: 1, minWidth: 0, overflowWrap: 'anywhere' } }, caseOf(d, x.caseId).title), outcomeChip(x) || h(Chip, { tone: x === now ? '' : 'grey' }, x === now ? 'Next' : L.t12ap(x.time))))); })));
   }
 
-  const MODULES = { ordersdate: OrdersByDate, ordersnotif: OrdersByNotification, board: DisplayBoard, labels: Labels, causelist: Causelist, workspace: Workspace, courts: Courts, clients: Clients, documents: p => h(Docs, { app: p.app, kind: 'document' }), evidence: p => h(Docs, { app: p.app, kind: 'evidence' }), research: Research, agents: Agents, team: Team, billing: Billing, portal: Portal, reports: Reports, settings: Settings, orders: Orders };
-
-  /* Server mode: a banner while the firm has no active plan (grace period), and a red one once it is read-only. */
-  function planBanner(app) {
-    const ps = plan(app); if (!ps || ps.active) return null;
-    const what = ps.trial ? 'Your firm has no plan yet' : `Your ${ps.plan} plan ${ps.expired ? 'expired on ' + L.fmt(ps.renews) : 'is not active'}`;
-    const text = ps.readOnly ? `${what}. Everything stays viewable and exportable; choose a plan to make changes again.` : `${what}. ${ps.daysLeft ? plural(ps.daysLeft, 'day') + ' left' : 'Today is the last day'} before the firm becomes read-only on ${L.fmt(L.addDays(ps.graceEnds, 1))}.` + (ps.trial ? ` Until then up to ${ps.limits.seats} users and ${ps.limits.cases} open cases.` : '');
-    return h('div', { id: 'ls-plan-banner', 'data-readonly': ps.readOnly ? 'true' : 'false', style: { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 14, lineHeight: 1.5, maxWidth: 1240, background: ps.readOnly ? K.redBg : '#FFFFFF', color: ps.readOnly ? '#8F1D13' : K.txt, border: '1px solid ' + (ps.readOnly ? '#F4B8B1' : K.line) } },
-      h('span', { style: { flex: '1 1 240px', minWidth: 0 } }, ps.readOnly && h('b', null, 'Read-only. '), text, can(app, 'plan.buy') ? '' : ' Ask the firm owner to choose a plan.'),
-      h(Btn, { primary: ps.readOnly, small: true, onClick: () => app.go('pricing') }, 'Choose a plan'));
-  }
+  const MODULES = { ordersdate: OrdersByDate, ordersnotif: OrdersByNotification, board: DisplayBoard, labels: Labels, causelist: Causelist, workspace: Workspace, courts: Courts, clients: Clients, documents: p => h(Docs, { app: p.app, kind: 'document' }), evidence: p => h(Docs, { app: p.app, kind: 'evidence' }), research: Research, agents: Agents, team: Team, chat: Chat, billing: Billing, portal: Portal, reports: Reports, settings: Settings, orders: Orders };
 
   /* ---------- top-bar dropdowns ---------- */
   function Drop({ style, children, onClose }) { return h(React.Fragment, null, h('div', { onClick: onClose, style: { position: 'fixed', inset: 0, zIndex: 58 } }), h('div', { className: 'ls-drop', style: Object.assign({}, X.card, { position: 'absolute', zIndex: 60, boxShadow: '0 16px 48px rgba(0,0,0,.14)', padding: 6, minWidth: 260 }, style) }, children)); }
@@ -1248,6 +1752,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
-    can, why, gate, allowed, roleKey, roleName, plan, limitWhy, withinLimit, planBanner, invoiceDoc, invoiceView, newInvoice, invCalc, ACCESS, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, labelsOf, labelChips, LabelChip, delLabel, caseDetails, detailsView, draftSummary, NEED };
+  window.LSV = { autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, upiPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+    can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();

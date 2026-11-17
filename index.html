@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" href="/assets/ls-favicon.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","@id":"https://legalstaff.in/#org","name":"Legal Staff","url":"https://legalstaff.in","logo":"https://legalstaff.in/assets/ls-logo-black.png"}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","@id":"https://legalstaff.in/#website","name":"Legal Staff","url":"https://legalstaff.in","inLanguage":"en-IN","publisher":{"@id":"https://legalstaff.in/#org"}}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","@id":"https://legalstaff.in/#app","name":"Legal Staff","description":"Legal Staff is practice and case management for Indian advocates and law firms: it reads court orders, picks out the next hearing date and sends WhatsApp reminders.","applicationCategory":"BusinessApplication","applicationSubCategory":"Legal practice management","operatingSystem":"Web","url":"https://legalstaff.in/","offers":{"@type":"AggregateOffer","priceCurrency":"INR","lowPrice":"6999","highPrice":"39999","offerCount":"3"},"featureList":["AI court order reader","WhatsApp hearing reminders","Digital advocate diary","AI legal research workspace","Case document management","Chamber team collaboration"],"publisher":{"@id":"https://legalstaff.in/#org"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","@id":"https://legalstaff.in/#app","name":"Legal Staff","description":"Legal Staff is practice and case management for Indian advocates and law firms: it reads court orders, picks out the next hearing date and sends WhatsApp reminders.","applicationCategory":"BusinessApplication","applicationSubCategory":"Legal practice management","operatingSystem":"Web","url":"https://legalstaff.in/","offers":{"@type":"AggregateOffer","priceCurrency":"INR","lowPrice":"2999","highPrice":"39999","offerCount":"3"},"featureList":["AI court order reader","WhatsApp hearing reminders","Digital advocate diary","AI legal research workspace","Case document management","Chamber team collaboration"],"publisher":{"@id":"https://legalstaff.in/#org"}}</script>
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
 <script src="config.js"></script>
@@ -218,47 +218,7 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
 
   <div style="position:relative;width:100%;margin-top:56px">
   {{ heroSats }}
-  <div class="lh-mock" style="--d:760ms;position:relative;width:100%;background:#FFFFFF;border-radius:16px 16px 0 0;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:hidden;text-align:left;color:#0A0A0A;display:grid;grid-template-columns:{{ shotCols }}">
-    <sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}">
-      <div style="background:#F5F5F4;padding:22px 16px;display:flex;flex-direction:column;gap:4px;font-size:14px">
-        <div style="display:flex;align-items:center;gap:8px;padding:0 10px 18px"><img src="assets/ls-mark-black.png" alt="" style="height:22px"><span style="font-weight:600;font-size:16px;letter-spacing:-.02em">Legal Staff</span></div>
-        <sc-for list="{{ shotNav }}" as="n" hint-placeholder-count="7">
-          <div style="{{ n.style }}">{{ n.label }}</div>
-        </sc-for>
-      </div>
-    </sc-if>
-    <div style="padding:clamp(18px,4vw,28px) clamp(16px,4vw,32px) clamp(22px,4vw,36px);display:flex;flex-direction:column;gap:22px;min-width:0">
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
-        <div><div style="font-size:14px;color:#5E5E5E">{{ today }}</div><div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:28px;font-weight:600;margin-top:2px">Good morning</div></div>
-        <span style="font-size:13px;color:#2B2B2B;background:#F0F0EF;border-radius:8px;padding:5px 12px;display:flex;align-items:center;gap:8px">{{ liveDot }}Illustration · court sources synced</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:22px;align-items:start">
-        <div style="display:flex;flex-direction:column">
-          <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;padding-bottom:10px;border-bottom:2px solid #0A0A0A"><span>Today's hearings</span><span style="color:#5E5E5E;font-weight:400">Example day</span></div>
-          <sc-for list="{{ heroRows }}" as="h" hint-placeholder-count="4">
-            <div class="lh" style="--d:{{ h.delay }}ms;display:flex;gap:16px;padding:13px 0;border-bottom:1px solid #E5E5E5;align-items:center">
-              <span style="font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;width:48px">{{ h.t }}</span>
-              <span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:600">{{ h.title }}</span><span style="display:block;font-size:13px;color:#5E5E5E">{{ h.court }}</span></span>
-              <span style="{{ h.chip }}">{{ h.tag }}</span>
-            </div>
-          </sc-for>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:14px">
-          <div class="lh" style="--d:1450ms;position:relative;overflow:hidden;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;gap:10px">
-            {{ scanLine }}
-            <div style="font-size:13px;color:#5E5E5E;font-weight:600">Next date found in the latest order</div>
-            <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:24px;font-weight:600">Next hearing date</div>
-            <div style="font-size:14px;color:#363636">Case title · taken from the paragraph that lists the matter</div>
-            <div style="display:flex;gap:8px;margin-top:4px"><span style="height:38px;padding:0 16px;display:flex;align-items:center;background:#0A0A0A;color:#fff;border-radius:8px;font-size:14px;font-weight:600">Confirm date</span><span style="height:38px;padding:0 14px;display:flex;align-items:center;border:1px solid #E5E5E5;border-radius:8px;font-size:14px">Edit</span></div>
-          </div>
-          <div class="lh" data-ls-trigger="count" style="--d:1600ms;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:16px;padding:16px 22px 16px 16px;display:flex;gap:16px;align-items:center">
-            {{ gauge }}
-            <div><div style="font-size:15px;font-weight:600">days left on a limitation deadline</div><div style="font-size:13px;color:#5E5E5E">Case number · provision applied · awaiting approval</div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  {{ heroMock }}
   </div>
 </div>
 </section>
@@ -289,6 +249,23 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
       {{ audArt }}
     </div>
     {{ featGrid }}
+  </div>
+</section>
+
+<section id="new" style="max-width:1280px;margin:0 auto;padding:0 clamp(20px,4vw,28px) clamp(64px,10vw,112px);display:flex;flex-direction:column;gap:36px">
+  <div class="ls-reveal" style="display:flex;flex-direction:column;gap:12px;max-width:760px">
+    <div style="font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px"><span style="font-size:12px;font-weight:600;background:#EAF6EE;color:#12703A;border-radius:6px;padding:2px 8px">New</span>Recently added</div>
+    <h2 style="font-weight:600;font-size:clamp(30px,3.6vw,44px);line-height:1.12;letter-spacing:-.025em;margin:0;text-wrap:balance">Your whole chamber, talking and working in one place.</h2>
+    <p style="margin:0;color:#5E5E5E;font-size:18px;text-wrap:pretty">The newest additions to Legal Staff, included in your plan.</p>
+  </div>
+  <div class="ls-reveal" style="--ls-delay:120ms;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px">
+    <sc-for list="{{ newFeats }}" as="n" hint-placeholder-count="4">
+      <div class="lp-feat" style="--d:{{ n.delay }}ms;display:flex;flex-direction:column;gap:8px;background:#FAFAF9;border:1px solid #E5E5E5;border-radius:16px;padding:24px">
+        <span class="lp-tile">{{ n.icon }}</span>
+        <div style="font-size:19px;font-weight:600;margin-top:6px">{{ n.t }}</div>
+        <div style="font-size:16px;color:#5E5E5E;text-wrap:pretty">{{ n.d }}</div>
+      </div>
+    </sc-for>
   </div>
 </section>
 
@@ -378,14 +355,14 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
   <div class="lp-pbg-grid"></div>
   <div class="lp-pbg-glow g1"></div><div class="lp-pbg-glow g2"></div>
   <svg class="lp-pbg-rings" viewBox="0 0 800 800" fill="none"><circle cx="400" cy="400" r="390" stroke="#E5E5E5"/><circle cx="400" cy="400" r="300" stroke="#E5E5E5" stroke-dasharray="2 8" class="lp-pbg-spin"/><circle cx="400" cy="400" r="210" stroke="#EDEDED"/><circle cx="400" cy="10" r="4" fill="#0A0A0A" class="lp-pbg-orbit"/></svg>
-  <div class="lp-pbg-chip c1 ls-float"><span class="lp-pbg-dot"></span>GST invoice with every payment</div>
+  <div class="lp-pbg-chip c1 ls-float"><span class="lp-pbg-dot"></span>Invoice with every payment</div>
   <div class="lp-pbg-chip c2 ls-float" style="animation-delay:-3s"><span class="lp-pbg-dot"></span>Change plan any time</div>
-  <div class="lp-pbg-chip c3 ls-float" style="animation-delay:-1.5s"><span class="lp-pbg-ic">₹</span>Prices in INR, excl. GST</div>
+  <div class="lp-pbg-chip c3 ls-float" style="animation-delay:-1.5s"><span class="lp-pbg-ic">₹</span>Prices in INR, no GST added</div>
 </div>
 <section id="pricing" style="position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:clamp(64px,10vw,112px) clamp(20px,4vw,28px);display:flex;flex-direction:column;gap:40px">
   <div class="ls-reveal" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px">
     <h2 style="font-weight:600;font-size:clamp(32px,3.8vw,46px);line-height:1.12;letter-spacing:-.025em;margin:0">Simple plans for every size of practice</h2>
-    <p style="margin:0;color:#5E5E5E;font-size:17px">All plans are paid subscriptions. Prices exclude 18% GST. Upgrade, downgrade or cancel at any time.</p>
+    <p style="margin:0;color:#5E5E5E;font-size:17px">Every plan starts with a 7-day free trial, no payment needed. Upgrade, downgrade or cancel at any time.</p>
     <div id="ls-cycle" class="lp-cycle">
       <span class="lp-knob" aria-hidden="true"></span>
       <sc-for list="{{ cycles }}" as="c" hint-placeholder-count="2">
@@ -462,13 +439,13 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
     <div style="display:flex;flex-direction:column;gap:10px"><b style="color:#fff">Company</b><a href="directory.html" style="color:#A3A3A3">Advocate directory</a><a href="app.html" style="color:#A3A3A3">Sign in</a><a href="/about" style="color:#A3A3A3">About</a><a href="/privacy" style="color:#A3A3A3">Privacy policy</a><a href="/cookies" style="color:#A3A3A3">Cookie policy</a><a href="/terms" style="color:#A3A3A3">Terms of service</a><a href="/refund-policy" style="color:#A3A3A3">Refund policy</a><a href="/data-rights" style="color:#A3A3A3">Your data rights</a><a href="#contact" onClick="{{ openContact }}" style="color:#A3A3A3">Contact</a><a href="/sitemap.xml" style="color:#A3A3A3">Sitemap</a></div>
   </div>
   <div style="max-width:1280px;margin:0 auto;padding:8px clamp(20px,4vw,28px) 40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:32px;font-size:14.5px;color:#A3A3A3">
-    <div style="display:flex;flex-direction:column;gap:10px"><b style="color:#fff">Features</b><a href="/features/ai-court-order-reader" style="color:#A3A3A3">AI court order reader</a><a href="/features/whatsapp-hearing-reminders" style="color:#A3A3A3">WhatsApp hearing reminders</a><a href="/features/digital-advocate-diary" style="color:#A3A3A3">Digital advocate diary</a><a href="/features/ai-legal-research-workspace" style="color:#A3A3A3">AI legal research workspace</a><a href="/features/case-document-management" style="color:#A3A3A3">Case document management</a><a href="/features/chamber-team-collaboration" style="color:#A3A3A3">Chamber team collaboration</a></div>
+    <div style="display:flex;flex-direction:column;gap:10px"><b style="color:#fff">Features</b><a href="/features/ai-court-order-reader" style="color:#A3A3A3">AI court order reader</a><a href="/features/whatsapp-hearing-reminders" style="color:#A3A3A3">WhatsApp hearing reminders</a><a href="/features/digital-advocate-diary" style="color:#A3A3A3">Digital advocate diary</a><a href="/features/ai-legal-research-workspace" style="color:#A3A3A3">AI legal research workspace</a><a href="/features/case-document-management" style="color:#A3A3A3">Case document management</a><a href="/features/chamber-team-collaboration" style="color:#A3A3A3">Chamber team collaboration</a><a href="/features/chamber-team-chat" style="color:#A3A3A3">Team chat for chambers</a></div>
     <div style="display:flex;flex-direction:column;gap:10px"><b style="color:#fff">Free advocate tools</b><a href="/tools/bns-ipc-crpc-bnss-converter" style="color:#A3A3A3">IPC → BNS section converter</a><a href="/tools/limitation-period-calculator" style="color:#A3A3A3">Limitation period calculator</a><a href="/tools/section-138-ni-act-timeline-calculator" style="color:#A3A3A3">Section 138 NI Act timeline</a><a href="/blog" style="color:#A3A3A3">Blog &amp; guides</a></div>
     <div style="display:flex;flex-direction:column;gap:10px"><b style="color:#fff">Compare</b><a href="/compare/physical-advocate-diary-vs-legal-staff" style="color:#A3A3A3">Paper diary vs Legal Staff</a><a href="/compare/ecourts-app-vs-legal-staff-workspace" style="color:#A3A3A3">eCourts app vs Legal Staff</a><a href="/compare/legacy-legal-erp-vs-legal-staff" style="color:#A3A3A3">Enterprise legal ERPs vs Legal Staff</a></div>
   </div>
   <div style="max-width:1280px;margin:0 auto;padding:24px clamp(20px,4vw,28px) 28px;border-top:1px solid #1F1F1F;font-size:14px;color:#A3A3A3"><b style="color:#fff;display:block;margin-bottom:12px">Courts &amp; tribunals</b><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:8px 24px"><a href="/courts/supreme-court-of-india" style="color:#A3A3A3">Supreme Court of India</a><a href="/courts/delhi-high-court" style="color:#A3A3A3">Delhi High Court</a><a href="/courts/bombay-high-court" style="color:#A3A3A3">Bombay High Court</a><a href="/courts/madras-high-court" style="color:#A3A3A3">Madras High Court</a><a href="/courts/calcutta-high-court" style="color:#A3A3A3">Calcutta High Court</a><a href="/courts/karnataka-high-court" style="color:#A3A3A3">Karnataka High Court</a><a href="/courts/allahabad-high-court" style="color:#A3A3A3">Allahabad High Court</a><a href="/courts/punjab-and-haryana-high-court" style="color:#A3A3A3">Punjab and Haryana High Court</a><a href="/courts/ecourts-district-and-sessions-courts" style="color:#A3A3A3">District and Sessions Courts (eCourts)</a><a href="/courts/nclt-and-nclat" style="color:#A3A3A3">NCLT and NCLAT</a><a href="/courts/consumer-courts-ncdrc-scdrc" style="color:#A3A3A3">Consumer Commissions (NCDRC, SCDRC, DCDRC)</a><a href="/courts/drt-debt-recovery-tribunal" style="color:#A3A3A3">Debt Recovery Tribunals (DRT and DRAT)</a><a href="/courts" style="color:#A3A3A3">All courts &amp; tribunals</a></div></div>
   <div style="max-width:1280px;margin:0 auto;padding:24px clamp(20px,4vw,28px) 28px;border-top:1px solid #1F1F1F;font-size:14px;color:#A3A3A3"><b style="color:#fff;display:block;margin-bottom:12px">Practice management software by city</b><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:8px 24px"><a href="/advocate-software-in-delhi" style="color:#A3A3A3">Advocate software in Delhi</a><a href="/advocate-software-in-mumbai" style="color:#A3A3A3">Advocate software in Mumbai</a><a href="/advocate-software-in-bengaluru" style="color:#A3A3A3">Advocate software in Bengaluru</a><a href="/advocate-software-in-chennai" style="color:#A3A3A3">Advocate software in Chennai</a><a href="/advocate-software-in-kolkata" style="color:#A3A3A3">Advocate software in Kolkata</a><a href="/advocate-software-in-hyderabad" style="color:#A3A3A3">Advocate software in Hyderabad</a><a href="/advocate-software-in-prayagraj" style="color:#A3A3A3">Advocate software in Prayagraj</a><a href="/advocate-software-in-chandigarh" style="color:#A3A3A3">Advocate software in Chandigarh</a><a href="/advocate-software-in-ahmedabad" style="color:#A3A3A3">Advocate software in Ahmedabad</a><a href="/advocate-software-in-pune" style="color:#A3A3A3">Advocate software in Pune</a><a href="/advocate-software-in-patna" style="color:#A3A3A3">Advocate software in Patna</a><a href="/advocate-software-in-ranchi" style="color:#A3A3A3">Advocate software in Ranchi</a><a href="/advocate-software-in-jaipur" style="color:#A3A3A3">Advocate software in Jaipur</a><a href="/advocate-software-in-lucknow" style="color:#A3A3A3">Advocate software in Lucknow</a><a href="/advocate-software-in-kochi" style="color:#A3A3A3">Advocate software in Kochi</a><a href="/advocate-software-in-india" style="color:#A3A3A3">All cities</a></div></div>
-  <div style="max-width:1280px;margin:0 auto;padding:20px clamp(20px,4vw,28px) 32px;font-size:14px;color:#8A8A8A;border-top:1px solid #1F1F1F;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><span>© 2026 Legal Staff · legalstaff.in</span><span>Prices in INR, exclusive of GST</span></div>
+  <div style="max-width:1280px;margin:0 auto;padding:20px clamp(20px,4vw,28px) 32px;font-size:14px;color:#8A8A8A;border-top:1px solid #1F1F1F;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><span>© 2026 Legal Staff · legalstaff.in</span><span>Prices in INR, no GST added</span></div>
 </footer>
 {{ modal }}
 </div>
@@ -596,7 +573,7 @@ class Component extends DCLogic {
       eyebrow = 'Summary · last updated 1 November 2026'; title = 'Privacy policy';
       body = [
         para('A plain-language summary of how Legal Staff handles personal data, written with reference to the Digital Personal Data Protection Act, 2023.', 'p'),
-        ...[['What we collect', 'Account details (name, email, phone, firm), billing details needed for GST invoices, and the case records and documents you choose to store in your workspace.'],
+        ...[['What we collect', 'Account details (name, email, phone, firm), billing details needed for invoices, and the case records and documents you choose to store in your workspace.'],
           ['How it is used', 'Only to provide the service you subscribed to: showing your cases, reading orders you add, sending the reminders you switch on and answering support requests. Your case files are not used to train AI models and are never shared with other firms.'],
           ['Who can see it', 'People in your organisation, according to the roles and case assignments you set. Platform staff cannot open case files; any support access is limited to a stated purpose and logged.'],
           ['Your rights', 'You can ask for a copy of your data, correct it, withdraw consent or have it deleted. Deletion requests are completed after any statutory retention period for billing records.'],
@@ -609,7 +586,7 @@ class Component extends DCLogic {
         para('A plain-language summary of the terms that apply when you subscribe to Legal Staff.', 'p'),
         ...[['The service', 'Legal Staff is practice-management software for advocates and law firms in India. It is not a law firm and does not give legal advice.'],
           ['AI output and calculations', 'Order summaries, extracted dates, limitation calculations and drafts are decision aids. An advocate must review and approve them before relying on them.'],
-          ['Subscriptions', 'All plans are paid subscriptions billed monthly or annually in INR, exclusive of 18% GST. You can upgrade, downgrade or cancel at any time; cancellation takes effect at the end of the current billing period.'],
+          ['Subscriptions', 'Every plan starts with a free trial of 7 days, once per firm. After the trial, plans are paid subscriptions billed monthly or annually in INR, and the workspace stops working until a plan is paid for; your data is kept. You can upgrade, downgrade or cancel at any time; cancellation takes effect at the end of the current billing period.'],
           ['Your data', 'You own the records and documents you add. You can export them at any time and for 30 days after your subscription ends.'],
           ['Advocate directory', 'Directory profiles show factual information only, in keeping with Bar Council of India rules. Legal Staff does not rank or recommend advocates, assign matters or share in fees.'],
           ['Acceptable use', 'Do not upload material you have no right to hold, attempt to reach another organisation\'s data, or misuse court-data sources.']].map(([t, d], i) => sect(t, d, i)),
@@ -888,6 +865,7 @@ class Component extends DCLogic {
       lock: 'M6 11h12v10H6z M9 11V8a3 3 0 0 1 6 0v3 M12 15v2', log: 'M9 6h11 M9 12h11 M9 18h11 M4.5 6h.01 M4.5 12h.01 M4.5 18h.01', consent: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M8.5 12l2.5 2.5 4.5-5',
       eyeoff: 'M3 3l18 18 M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-3 3.5 M6.6 6.6C4.3 8.1 3 12 3 12s4 6 9 6c1.6 0 3-.4 4.3-1',
       person: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0', firm: 'M3 21h18 M5 21V10 M19 21V10 M9.5 21V10 M14.5 21V10 M2 10l10-6 10 6z', corp: 'M4 21V4h10v17 M14 9h6v12 M8 8h2 M8 12h2 M8 16h2 M3 21h18',
+      dash: 'M3 3h7v9H3z M14 3h7v5h-7z M14 12h7v9h-7z M3 16h7v5H3z', chat: 'M4 5h16v11H9l-5 4z M8 9h8 M8 12.5h5', photo: 'M4 6h16v13H4z M4 16l5-5 4 4 3-3 4 4 M15.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z', mail: 'M3 6h18v13H3z M3 7l9 7 9-7', help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7 M12 17h.01',
       brain: 'M12 3l1.8 4.6L18.5 9l-4.7 1.6L12 15l-1.8-4.4L5.5 9l4.7-1.4z M18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z'
     };
     const icon = (k, size, d) => React.createElement('svg', { width: size || 26, height: size || 26, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', className: 'lp-svg', 'aria-hidden': true }, React.createElement('path', d == null ? { d: IC[k] } : { d: IC[k], pathLength: 1, className: 'lp-d', style: { '--d': d + 'ms' } }));
@@ -898,15 +876,15 @@ class Component extends DCLogic {
       { label: 'Advocates', who: 'For advocates practising alone', title: 'Never miss a date, even on a four-court day.', d: 'Orders are read as they arrive, next dates wait for your confirmation, and reminders reach you on WhatsApp before the hearing.', cta: 'See the Solo plan',
         feats: [['order', 'Court orders, read for you', 'OCR and a summary with paragraph citations for every new order.'], ['cal', 'Hearing calendar', 'Day and week views, clash warnings, Google Calendar sync and .ics export.'], ['bell', 'WhatsApp reminders', 'Two days before and at 7:30 AM IST on the day of the hearing.'], ['clock', 'Limitation tracker', 'Rule-based calculations that show each step and exclusion.'], ['pen', 'Drafting Studio', 'Notices, petitions and bail applications, dictated in Hindi, English or Hinglish.']] },
       { label: 'Chambers and law firms', who: 'For chambers with juniors and law firms', title: 'Run the whole team from one case list.', d: 'Partners, juniors, paralegals and accountants work in the same workspace, and each sees only the cases assigned to them.', cta: 'See the Professional and Firm plans',
-        feats: [['team', 'Team and roles', 'Assign cases and tasks. Access follows the assignment.'], ['case', 'Case workspace', 'Overview, parties, orders, hearings, documents and a full timeline on one page.'], ['globe', 'Client portal', 'Clients see only what you share: progress, dates, documents and invoices.'], ['rupee', 'Billing and fees', 'Invoice clients, record payments and expenses, and track what is outstanding.'], ['chart', 'Reports', 'Hearings, deadlines and fees across the firm, by person and by court.']] },
+        feats: [['team', 'Team and roles', 'Assign cases and tasks. Access follows the assignment.'], ['case', 'Case workspace', 'Overview, parties, orders, hearings, documents and a full timeline on one page.'], ['globe', 'Client portal', 'Clients see only what you share: progress, dates, documents and invoices.'], ['rupee', 'Billing and fees', 'Invoice clients, record payments and expenses, and track what is outstanding.'], ['chart', 'Reports', 'Hearings, deadlines and fees across the firm, by person and by court.'], ['chat', 'Team chat', 'A firm group chat and one-to-one chats, with files, meeting links and reactions.']] },
       { label: 'Corporate legal teams', who: 'For corporate legal departments', title: 'Every matter across every forum, in one view.', d: 'Track litigation handled by in-house counsel and external advocates, with controlled access and a record of every action.', cta: 'Talk to us about Enterprise',
         feats: [['case', 'Matter tracking', 'Cases across High Courts, district courts and tribunals in one list.'], ['key', 'SSO and access control', 'Single sign-on and fine-grained permissions down to individual documents.'], ['shield', 'Audit exports', 'Who viewed, changed or approved what, and when, ready for review.'], ['clock', 'Deadline oversight', 'Limitation dates wait for advocate approval before they count.'], ['chart', 'Reports and analytics', 'Status of every matter for management reporting.']] }
     ];
     const A = AUD[S.aud];
     const audCta = S.aud === 2 ? { href: '#contact', onCta: open('contact', 'Enterprise') } : { href: '#pricing', onCta: () => {} };
     const P = [
-      ['Solo', 'For an advocate practising alone', 699, 6999, ['1 user', '150 active cases', '10 GB storage', '200 AI credits / month', 'WhatsApp and email reminders', 'Limitation tracker']],
-      ['Professional', 'For advocates with juniors or a small chamber', 1499, 14999, ['Up to 3 users', '600 active cases', '50 GB storage', '1,000 AI credits / month', 'AI Case Brain and Drafting Studio', 'Client portal']],
+      ['Solo', 'For an advocate practising alone', 299, 2999, ['1 user', '150 active cases', '10 GB storage', '200 AI credits / month', 'WhatsApp and email reminders', 'Limitation tracker']],
+      ['Professional', 'For advocates with juniors or a small chamber', 799, 7999, ['1 user included, up to 15', '600 active cases', '50 GB storage', '1,000 AI credits / month', 'AI Case Brain and Drafting Studio', 'Client portal']],
       ['Firm', 'For law firms with teams and partners', 3999, 39999, ['Up to 15 users', 'Unlimited cases', '250 GB storage', '5,000 AI credits / month', 'Roles, permissions and AI agents', 'Reports and analytics']],
       ['Enterprise', 'For corporate legal departments and large firms', null, null, ['Custom users and storage', 'SSO and audit exports', 'Dedicated onboarding', 'Custom court-data providers']]
     ];
@@ -927,14 +905,9 @@ class Component extends DCLogic {
           h('div', { style: { minWidth: 0, flex: 1 } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, fontWeight: 600 } }, h('span', null, 'WhatsApp reminder'), h('span', { style: { fontWeight: 400, color: '#8A8A8A', fontSize: 12 } }, '7:30 AM')),
             h('div', { style: { fontSize: 13, color: '#363636', marginTop: 2 } }, 'Writ petition listed today at 12:00')))),
-        sat({ left: -34, top: 236 }, 2250, 'ls-float-slow', h('div', { style: { ...satCard, gap: 10, padding: '10px 16px 10px 10px' } },
+        sat({ left: -34, bottom: 74 }, 2250, 'ls-float-slow', h('div', { style: { ...satCard, gap: 10, padding: '10px 16px 10px 10px' } },
           h('span', { style: { width: 30, height: 30, borderRadius: 15, background: '#0A0A0A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }, h('svg', { width: 14, height: 14, viewBox: '0 0 14 14', fill: 'none', 'aria-hidden': true }, h('path', { d: 'M3 7.2l2.6 2.6L11 4.4', stroke: '#FFFFFF', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' }))),
           h('div', null, h('div', { style: { fontSize: 13, fontWeight: 600 } }, 'Next date confirmed'), h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, 'Added to calendar and history'))))) : null,
-      gauge: h('div', { style: { position: 'relative', width: 60, height: 60, flexShrink: 0 } },
-        h('svg', { viewBox: '0 0 60 60', width: 60, height: 60, 'aria-hidden': true, style: { display: 'block' } },
-          h('circle', { cx: 30, cy: 30, r: 25, fill: 'none', stroke: '#F6E3E1', strokeWidth: 4 }),
-          h('path', { d: 'M30 5a25 25 0 1 1 0 50a25 25 0 1 1 0-50', fill: 'none', stroke: '#B42318', strokeWidth: 4, strokeLinecap: 'round', pathLength: 30, strokeDasharray: S.cnt + ' 30' })),
-        h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 600, color: '#B42318', fontVariantNumeric: 'tabular-nums', lineHeight: 1 } }, String(S.cnt))),
       builtFor: h(React.Fragment, null, h('span', { className: 'lp-sr-only' }, bf.map(b => b[1]).join(', ')),
         h('div', { className: 'lp-track', 'aria-hidden': true }, h('div', { style: { display: 'flex' } }, ...bfSet('a')), h('div', { style: { display: 'flex' } }, ...bfSet('b')))),
       audArt: h('div', { key: 'art' + S.aud, style: { marginTop: 18, background: '#FAFAF9', border: '1px solid #E5E5E5', borderRadius: 16, padding: '6px 4px', aspectRatio: '420 / 250', width: '100%' } }, ART.aud[S.aud]),
@@ -959,14 +932,77 @@ class Component extends DCLogic {
         h('a', { key: 'c', href: '#contact', onClick: open('contact'), style: { display: 'flex', alignItems: 'center', minHeight: 50, padding: '0 4px', fontSize: 17, color: '#C9C9C9', borderBottom: '1px solid #1F1F1F' } }, 'Contact'),
         h('a', { key: 's', href: 'app.html', style: { marginTop: 14, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #4A4A4A', borderRadius: 8, fontSize: 16, color: '#fff' } }, 'Sign in')) : null,
       notNarrow: !narrow, footBrand: { display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0, gridColumn: S.w < 640 ? 'auto' : 'span 2' },
-      wide, shotCols: wide ? '220px minmax(0,1fr)' : 'minmax(0,1fr)',
-      shotNav: ['Dashboard', 'Cases', 'Court Orders', 'Hearings', 'Legal Deadlines', 'AI Case Brain', 'Drafting Studio'].map((label, i) => ({ label, style: { padding: '8px 10px', borderRadius: 8, background: i === 0 ? '#FFFFFF' : 'transparent', fontWeight: i === 0 ? 600 : 400, color: i === 0 ? '#0A0A0A' : '#363636' } })),
-      heroRows: [
-        { t: '10:30', title: 'Commercial suit', court: 'High Court · court number', tag: 'Conflict', chip: chip('#FDECEA', '#B42318') },
-        { t: '10:30', title: 'Bail application', court: 'District court · court number', tag: 'Conflict', chip: chip('#FDECEA', '#B42318') },
-        { t: '12:00', title: 'Writ petition', court: 'High Court · court number', tag: 'Brief ready', chip: chip('#F0F0EF', '#2B2B2B') },
-        { t: '2:15', title: 'Family matter', court: 'Family court', tag: 'Mediation', chip: chip('#EDEDED', '#363636') }
-      ].map((r, i) => ({ ...r, delay: 600 + i * 90 })),
+      wide,
+      /* The hero preview mirrors the real dashboard in app.html (sidebar, top bar, quick actions, morning briefing, counters) with example content. */
+      heroMock: (() => {
+        const ink = '#0A0A0A', mut = '#5E5E5E', line = '#E5E5E5', F = "'Instrument Sans',system-ui,sans-serif";
+        const ic = (k, n) => h('span', { style: { display: 'flex', color: mut, flexShrink: 0 } }, icon(k, n || 16));
+        const lab = t => h('div', { key: 'l' + t, style: { fontSize: 10.5, letterSpacing: '.07em', fontWeight: 600, color: '#8A8A8A', padding: '12px 10px 4px' } }, t);
+        const nav = (k, t, o) => h('div', { key: t, style: { display: 'flex', alignItems: 'center', gap: 9, padding: '6px 10px', borderRadius: 8, fontSize: 13, background: o && o.on ? '#FFFFFF' : 'transparent', border: '1px solid ' + (o && o.on ? line : 'transparent'), fontWeight: o && o.on ? 600 : 400, color: o && o.on ? ink : '#363636' } }, ic(k, 15), h('span', { style: { flex: 1 } }, t),
+          o && o.n ? h('span', { style: { minWidth: 17, height: 17, borderRadius: 9, background: ink, color: '#fff', fontSize: 10.5, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, o.n) : null,
+          o && o.tag ? h('span', { style: { fontSize: 10, fontWeight: 600, background: '#EAF6EE', color: '#12703A', borderRadius: 6, padding: '1px 6px' } }, o.tag) : null);
+        const side = h('div', { style: { background: '#FAFAF9', borderRight: '1px solid ' + line, padding: '16px 10px 12px', display: 'flex', flexDirection: 'column' } },
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px 12px' } }, h('img', { src: 'assets/ls-mark-black.png', alt: '', style: { height: 22 } }), h('span', { style: { fontWeight: 600, fontSize: 16, letterSpacing: '-.02em' } }, 'Legal Staff')),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 9, padding: '7px 9px', border: '1px solid ' + line, borderRadius: 8, background: '#fff' } },
+            h('span', { style: { width: 28, height: 28, borderRadius: 7, background: ink, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }, icon('firm', 16)),
+            h('span', { style: { minWidth: 0, flex: 1 } }, h('span', { style: { display: 'block', fontSize: 12.5, fontWeight: 600 } }, 'Your chambers'), h('span', { style: { display: 'block', fontSize: 11.5, color: mut } }, 'Professional plan')), h('span', { style: { color: mut, fontSize: 11 } }, '▾')),
+          lab('OVERVIEW'), nav('dash', 'Dashboard', { on: true }), nav('person', 'My Workspace'),
+          lab('PRACTICE'), nav('case', 'Cases'), nav('order', 'Court Orders'), nav('firm', 'Court Intelligence'), nav('cal', 'Hearings', { n: 4 }), nav('team', 'Clients CRM'), nav('clock', 'Legal Deadlines'),
+          lab('AI'), nav('brain', 'AI Case Brain'), nav('pen', 'AI Drafting Studio'),
+          lab('FIRM'), nav('team', 'Team'), nav('chat', 'Team chat', { tag: 'New' }), nav('rupee', 'Billing & Finance'),
+          h('div', { style: { marginTop: 'auto', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 9, borderTop: '1px solid ' + line, margin: 'auto -10px 0', padding: '10px 18px 0' } },
+            h('span', { style: { width: 30, height: 30, borderRadius: 15, background: '#F0F0EF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: mut } }, icon('person', 16)),
+            h('span', null, h('span', { style: { display: 'block', fontSize: 12.5, fontWeight: 600 } }, 'Your name'), h('span', { style: { display: 'block', fontSize: 11.5, color: mut } }, 'Advocate'))));
+        const btn = (t, dark, extra) => h('span', { style: { height: 32, padding: '0 12px', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', borderRadius: 8, fontSize: 13, fontWeight: dark ? 600 : 400, background: dark ? ink : '#fff', color: dark ? '#fff' : ink, border: '1px solid ' + (dark ? ink : line) } }, t, extra);
+        const top = h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '10px clamp(14px,3vw,28px)', borderBottom: '1px solid ' + line, background: '#fff' } },
+          h('span', { style: { flex: 1, minWidth: 0, maxWidth: 380, height: 32, borderRadius: 8, background: '#F5F5F4', border: '1px solid ' + line, display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: 13, color: '#8A8A8A', whiteSpace: 'nowrap', overflow: 'hidden' } }, wide ? 'Search cases, CNR, parties, documents…' : 'Search…'),
+          h('span', { style: { flex: 1 } }), btn('+ New case', true),
+          wide ? btn('Alerts', false, h('span', { style: { minWidth: 16, height: 16, borderRadius: 8, background: '#B42318', color: '#fff', fontSize: 10.5, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, '2')) : null,
+          wide ? btn('Copilot') : null);
+        const tile = (k, t, d, i) => h('div', { key: t, className: 'lh', style: { '--d': (900 + i * 80) + 'ms', display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: '1px solid ' + line, borderRadius: 12, padding: '12px 14px', minWidth: 0 } },
+          h('span', { style: { width: 34, height: 34, borderRadius: 8, background: '#F5F5F4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }, icon(k, 17)),
+          h('span', { style: { minWidth: 0 } }, h('span', { style: { display: 'block', fontSize: 13.5, fontWeight: 600 } }, t), h('span', { style: { display: 'block', fontSize: 12, color: mut } }, d)));
+        const rows = [['10:30', 'Commercial suit', 'High Court · court number · item', 'Clash', chip('#FDECEA', '#B42318')], ['10:30', 'Bail application', 'District court · court number · item', 'Clash', chip('#FDECEA', '#B42318')], ['12:00', 'Writ petition', 'High Court · court number · item', 'Brief ready', chip('#F0F0EF', '#2B2B2B')], ['2:15', 'Family matter', 'Family court · court number', 'Mediation', chip('#EDEDED', '#363636')]];
+        const brief = h('div', { style: { position: 'relative', overflow: 'hidden', background: '#fff', border: '1px solid ' + line, borderRadius: 14, padding: 'clamp(16px,3vw,24px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap: 24, alignItems: 'start' } },
+          h('div', { style: { display: 'flex', flexDirection: 'column', minWidth: 0 } },
+            h('div', { style: { fontSize: 11, letterSpacing: '.06em', fontWeight: 600, color: '#6B6B6B' } }, 'MORNING COURT INTELLIGENCE · 7:30 AM'),
+            h('div', { style: { fontFamily: F, fontSize: 'clamp(16px,2vw,19px)', lineHeight: 1.45, letterSpacing: '-.01em', margin: '10px 0 14px', textWrap: 'pretty' } }, 'You have four hearings today in three court complexes. Two of them, at 10:30 AM, are at the same time.'),
+            h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 } }, btn('Prepare hearing briefs', true), btn('Review deadline')),
+            ...rows.map(([t, title, court, tag, c], i) => h('div', { key: title, className: 'lh', style: { '--d': (1150 + i * 90) + 'ms', display: 'flex', gap: 14, padding: '11px 0', borderTop: '1px solid ' + line, alignItems: 'center' } },
+              h('span', { style: { fontVariantNumeric: 'tabular-nums', fontSize: 14, fontWeight: 600, width: 44 } }, t),
+              h('span', { style: { flex: 1, minWidth: 0 } }, h('span', { style: { display: 'block', fontSize: 14, fontWeight: 600 } }, title), h('span', { style: { display: 'block', fontSize: 12.5, color: mut } }, wide ? court : court.split(' · ')[0])),
+              h('span', { style: c }, tag)))),
+          h('div', { className: 'lh', style: { '--d': '1500ms', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 } },
+            h('div', { style: { fontSize: 11, letterSpacing: '.06em', fontWeight: 600, color: '#6B6B6B' } }, 'WHATSAPP BRIEFING PREVIEW'),
+            h('div', { style: { position: 'relative', overflow: 'hidden', border: '1px solid ' + line, borderRadius: 12, background: '#fff', boxShadow: '0 10px 30px rgba(0,0,0,.06)' } },
+              React.createElement('div', { 'aria-hidden': true, style: { position: 'absolute', left: 0, right: 0, top: 0, height: '18%', background: 'linear-gradient(180deg,transparent,rgba(10,10,10,.05),transparent)', animation: 'lsScan 3.6s ease-in-out infinite', pointerEvents: 'none' } }),
+              h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderBottom: '1px solid ' + line } }, h('span', { style: { width: 32, height: 32, borderRadius: 16, background: ink, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }, h('img', { src: 'assets/ls-mark-white.png', alt: '', style: { height: 16 } })),
+                h('span', null, h('span', { style: { display: 'block', fontSize: 13.5, fontWeight: 600 } }, 'Legal Staff'), h('span', { style: { display: 'block', fontSize: 12, color: mut } }, 'Preview of the morning message'))),
+              h('div', { style: { padding: '14px 16px 16px', fontSize: 13.5, lineHeight: 1.5, color: '#2B2B2B' } },
+                h('div', { style: { fontWeight: 600, color: ink, marginBottom: 4 } }, 'Good morning.'),
+                h('div', null, '4 hearings today. 10:30 AM clash between the High Court and the district court.'),
+                h('div', { style: { marginTop: 6 } }, 'Deadline: written statement due in 6 days.'),
+                h('div', { style: { textAlign: 'right', fontSize: 11.5, color: '#8A8A8A', marginTop: 6 } }, '7:30 AM')))));
+        const bars = last => h('span', { 'aria-hidden': true, style: { display: 'flex', alignItems: 'flex-end', gap: 3, height: 26 } }, ...[12, 18, 10, 22, 15, 20, 26].map((v, i) => h('i', { key: i, style: { width: 4, height: v, borderRadius: 1.5, background: i === 6 ? ink : '#D4D4D4' } })));
+        const stat = (t, v, note, red, i) => h('div', { key: t, className: 'lh', style: { '--d': (1600 + i * 80) + 'ms', background: '#fff', border: '1px solid ' + line, borderRadius: 12, padding: '14px 16px', minWidth: 0 } },
+          h('div', { style: { fontSize: 12.5, color: mut } }, t),
+          h('div', { style: { display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 } }, h('div', null, h('div', { style: { fontFamily: F, fontSize: 30, fontWeight: 600, lineHeight: 1.15, fontVariantNumeric: 'tabular-nums' } }, v), h('div', { style: { fontSize: 12, color: red ? '#B42318' : mut } }, note)), bars()));
+        const main = h('div', { style: { display: 'flex', flexDirection: 'column', minWidth: 0 } }, top,
+          h('div', { style: { padding: 'clamp(16px,3vw,26px) clamp(14px,3vw,28px) clamp(22px,4vw,34px)', display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0, backgroundColor: '#FAFAFA', backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px', flex: 1 } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' } },
+              h('div', null, h('div', { style: { fontSize: 13, color: mut } }, new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })), h('div', { style: { fontFamily: F, fontSize: 24, fontWeight: 600, letterSpacing: '-.02em', marginTop: 4 } }, 'Good morning')),
+              h('span', { style: { fontSize: 13, color: '#2B2B2B', background: '#F0F0EF', borderRadius: 8, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 8 } }, h('span', { style: { width: 7, height: 7, borderRadius: 4, background: '#16A34A', display: 'block', animation: 'lsPulse 2s ease-out infinite' } }), 'Example day · saved to your firm account')),
+            h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,' + (wide ? 190 : 150) + 'px),1fr))', gap: 10 } }, tile('case', 'New case', 'Manual entry or CNR import', 0), tile('order', 'Upload court order', 'Next date and key points', 1), tile('clock', 'Calculate limitation', 'Rule-based, with review', 2), tile('pen', 'Draft a document', 'Templates and dictation', 3)),
+            brief,
+            h('div', { 'data-ls-trigger': 'count', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,' + (wide ? 190 : 150) + 'px),1fr))', gap: 10 } }, stat("Today's hearings", '4', '1 time conflict', true, 0), stat('Active cases', '38', '3 pending filing', false, 1), stat('Deadlines in 7 days', String(S.cnt), '2 awaiting approval', false, 2), stat('Overdue tasks', '0', 'All tasks on time', false, 3))));
+        return h('div', { className: 'lh-mock', role: 'img', 'aria-label': 'Preview of the Legal Staff dashboard with example content', style: { '--d': '760ms', position: 'relative', width: '100%', background: '#FFFFFF', borderRadius: '16px 16px 0 0', boxShadow: '0 30px 80px rgba(0,0,0,.35)', overflow: 'hidden', textAlign: 'left', color: ink, display: 'grid', gridTemplateColumns: wide ? '228px minmax(0,1fr)' : 'minmax(0,1fr)' } }, wide ? side : null, main);
+      })(),
+      newFeats: [
+        ['chat', 'Team chat', 'A group chat for the firm and one-to-one chats, live. Share PDFs and files, post a Google Meet link as a meeting card, and react with emoji.'],
+        ['photo', 'Photos for people and the firm', 'Add your profile photo and move and zoom it to fit. Your team sees it in the team list and on cases. The firm can show its logo or a picture next to its name.'],
+        ['mail', 'Invitations by email', 'Invite a colleague with their work email. They get an invitation and join your firm the first time they sign in.'],
+        ['help', 'Support inside the app', 'Write to the Legal Staff team from Help without leaving your work. The reply comes to your email.']
+      ].map(([ic, t, d], i) => ({ icon: icon(ic, 24, 200 + i * 80), t, d, delay: i * 80 })),
       auds: AUD.map((a, i) => ({ label: a.label, go: () => this.setState({ aud: i }), style: { border: 0, background: 'transparent', padding: '14px 20px', fontSize: 17, whiteSpace: 'nowrap', color: S.aud === i ? '#0A0A0A' : '#5E5E5E', fontWeight: S.aud === i ? 600 : 400, borderBottom: S.aud === i ? '3px solid #0A0A0A' : '3px solid transparent', marginBottom: -1 } })),
       aud: { ...A, ...audCta, feats: A.feats.map(([ic, t, d]) => ({ icon: icon(ic), t, d })) },
       flow: [
@@ -991,14 +1027,14 @@ class Component extends DCLogic {
       ].map((x, i) => ({ ...x, delay: (i % 3) * 110, icon: icon(['shield', 'lock', 'team', 'log', 'consent', 'eyeoff'][i], 22, 250 + (i % 3) * 110) })),
       cycles: [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, pressed: S.cycle === k ? 'true' : 'false', go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: narrow ? '9px 14px' : '9px 18px', fontSize: narrow ? 14 : 15, background: 'transparent', color: S.cycle === k ? '#0A0A0A' : '#5E5E5E', fontWeight: S.cycle === k ? 600 : 400 } })),
       plans: P.map(([name, who, m, a, feats], i) => {
-        const feat = i === 1;
-        return { name, who, feats, feat, delay: i * 110, price: h('span', { key: S.cycle, className: 'lp-price' }, m ? inr(ann ? a : m) : 'Custom'), per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '', cta: m ? `Choose ${name}` : 'Contact sales',
+        const feat = i === 1, extra = name === 'Professional' ? [`+ ${inr(ann ? 2499 : 249)} ${ann ? '/ year' : '/ month'} per additional user`] : [];
+        return { name, who, feats: extra.concat(feats), feat, delay: i * 110, price: h('span', { key: S.cycle, className: 'lp-price' }, m ? inr(ann ? a : m) : 'Custom'), per: m ? (ann ? '/ year' : '/ month') : '', save: m && ann ? `Same as ${inr(Math.round(a / 12))} a month` : '', cta: m ? 'Start 7-day free trial' : 'Contact sales',
           href: m ? `app.html?plan=${name.toLowerCase()}&cycle=${S.cycle}` : '#contact', go: m ? () => {} : open('contact', 'Enterprise'),
           card: { flex: 1, transition: 'transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s', background: '#FFFFFF', border: feat ? '2px solid #0A0A0A' : '1px solid #E5E5E5', boxShadow: feat ? '0 8px 24px rgba(0,0,0,.08)' : 'none', borderRadius: 16, padding: 30, display: 'flex', flexDirection: 'column', gap: 10 },
           btn: { height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', border: feat ? 0 : '1px solid #0A0A0A', borderRadius: 8, fontSize: 16, fontWeight: 600, background: feat ? '#0A0A0A' : 'transparent', color: feat ? '#fff' : '#0A0A0A', margin: '8px 0' } };
       }),
       faqs: [
-        ['Is there a free plan?', 'No. Legal Staff is a paid subscription. You choose a plan at sign-up and pay securely with Razorpay, and you receive a GST invoice for every payment.'],
+        ['Is there a free trial?', 'Yes. Every plan starts with a 7-day free trial, with no payment needed. When the trial ends, the account stops working until you subscribe; your data is kept. You pay by UPI from any UPI app (GPay, PhonePe, Paytm, BHIM) and receive an invoice for every payment.'],
         ['Where do court orders come from?', 'From authorised court-data sources where they are available, or from your own uploads. Each order shows its source and when it was retrieved. An upload is never labelled as an official retrieval.'],
         ['Can I rely on the limitation calculations?', 'Each calculation shows the provision, the trigger date, every exclusion and the court-holiday check. It is a decision aid that an advocate must review and approve. It is not legal advice.'],
         ['Will my juniors see every case?', 'No. Roles and case assignments control access. Juniors and paralegals see only the cases and documents assigned to them.'],

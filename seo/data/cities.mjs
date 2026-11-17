@@ -529,7 +529,7 @@ export const cities = [
       { q: 'Does Legal Staff work for Kerala High Court matters?', a: 'Yes. Add the case, upload orders, and confirm the next date. It works for any court or tribunal.' },
       { q: 'Can clients abroad see their case?', a: 'Yes. Share selected matters through the client portal, and send updates by email or WhatsApp once connected.' },
       { q: 'Does it store documents securely?', a: 'Documents are kept in private storage and each firm’s data is isolated with row-level security.' },
-      { q: 'Is there a free trial?', a: 'You can start free from the pricing section on the home page, or book a demo to see it with your own matters.' }
+      { q: 'Is there a free trial?', a: 'Yes. Every plan starts with a 7-day free trial, with no payment needed. Start from the pricing section on the home page, or book a demo to see it with your own matters.' }
     ],
     nearby: ['chennai', 'bengaluru', 'hyderabad'],
     features: ['case-document-management', 'whatsapp-hearing-reminders', 'ai-court-order-reader'],

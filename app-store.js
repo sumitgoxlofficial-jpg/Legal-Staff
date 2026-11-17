@@ -28,17 +28,17 @@
   function seed() {
     return {
       v: 2, anchor: today(), session: null, labels: [], cases: [], hearings: [], orders: [], tasks: [], docs: [], clients: [], team: [], invoices: [], log: [],
-      firm: { name: '', city: '', address: '', gstin: '', legalName: '', stateCode: '', pan: '', gstReg: '', prefix: '', sac: '', kind: '', domain: '' },
+      firm: { name: '', city: '', address: '', gstin: '', court: '', photo: '', groupPhoto: '', kind: '', domain: '' },
       user: { name: '', title: '', role: 'Advocate', email: '', phone: '' },
-      sub: { plan: '', cycle: 'annual', since: '', renews: '', history: [] },
-      lim: null, lims: [], deadlines: [], chats: {}, copilot: [], drafts: {}, notes: '', research: [], watch: [],
+      sub: { plan: '', cycle: 'annual', status: '', since: '', renews: '', trialEnds: '', history: [] },
+      lim: null, lims: [], deadlines: [], chats: {}, copilot: [], drafts: {}, notes: '', photo: '', research: [], watch: [],
       agents: [
         { id: 'briefing', name: 'Daily briefing', what: "Compiles today's hearings, clashes and deadlines for every team member.", when: 'When you press Run now', on: true, runs: [] },
         { id: 'sentinel', name: 'Deadline sentinel', what: 'Checks limitation deadlines and overdue tasks and raises alerts.', when: 'When you press Run now', on: true, runs: [] },
         { id: 'client', name: 'Client update drafter', what: 'Drafts a plain-language update for the client after each new order.', when: 'When you press Run now', on: false, runs: [] },
         { id: 'causelist', name: 'Cause-list watcher', what: 'Lists your matters for the next working day, court by court.', when: 'When you press Run now', on: true, runs: [] }
       ],
-      settings: { whatsapp: true, email: true, inapp: true, briefingTime: '07:30', remindDays: 2, sidebar: 'Light', backdrop: 'Wallpaper', density: 'Comfortable', collapsed: false },
+      settings: { autoOrders: true, autoCheck: true, lastCheck: '', whatsapp: true, email: true, inapp: true, briefingTime: '07:30', remindDays: 2, sidebar: 'Light', backdrop: 'Wallpaper', density: 'Comfortable', collapsed: false },
       adminStatus: {}, adminNotes: {}
     };
   }
@@ -106,6 +106,8 @@
   function migrate(d) {
     if (!d) return d;
     if (!Array.isArray(d.labels)) d.labels = []; if (!Array.isArray(d.lims)) d.lims = []; if (!Array.isArray(d.deadlines)) d.deadlines = [];
+    /* A client saved without sharing settings (an older backup or record) gets the defaults, so the client screens can always read them. */
+    (d.clients || []).forEach(c => { if (c && !c.share) c.share = { dates: true, orders: true, invoices: false }; });
     const o = d.lim;
     if (o && typeof o === 'object' && o.judgment) {
       const id = 'llegacy';
@@ -259,73 +261,6 @@
     return paras;
   }
 
-  /* ---------- roles ----------
-     The firm owner (members.is_owner) is 'owner'. Every other member's role string maps onto one access level, the same way as
-     public.member_role() in supabase/migrations/0006_roles.sql. Unknown strings are 'associate'. */
-  const ROLES = { owner: 'Owner', partner: 'Partner', associate: 'Associate', clerk: 'Clerk / staff', viewer: 'Viewer (read-only)' };
-  const roleOf = (role, owner) => owner ? 'owner' : /partner/i.test(role || '') ? 'partner' : /^(viewer|read.?only)/i.test(role || '') ? 'viewer' : /(clerk|paralegal|office|staff|intern|munshi|secretary)/i.test(role || '') ? 'clerk' : 'associate';
-
-  /* ---------- plans ----------
-     What the pricing cards promise and the app can enforce. cases: open (active or pending) cases, 0 = unlimited. gb: stored files.
-     Without an active plan the firm keeps working for GRACE days (from the day the plan expired, or from when the firm was created,
-     but not before PLAN_FROM, the day these rules started) and is then read-only until a plan is chosen. Server mode only. */
-  const PLANS = { Solo: { seats: 1, cases: 150, gb: 10 }, Professional: { seats: 3, cases: 600, gb: 50 }, Firm: { seats: 15, cases: 0, gb: 250 } };
-  const TRIAL = { seats: 3, cases: 600, gb: 50 }, GRACE = 7, PLAN_FROM = '2026-11-16';
-  function planState(d, T) {
-    T = T || today(); const s = (d && d.sub) || {}, p = PLANS[s.plan];
-    const expired = !!p && valid(s.renews) && s.renews < T, active = !!p && !expired && (s.status || 'active') === 'active';
-    const from = p ? (valid(s.renews) ? s.renews : T) : [d && d.firmCreated, PLAN_FROM].filter(valid).sort().pop();
-    const graceEnds = addDays(from, GRACE), readOnly = !active && T > graceEnds;
-    return { plan: s.plan || '', active, expired, trial: !p, renews: s.renews || '', graceEnds, daysLeft: active ? null : Math.max(0, diffDays(graceEnds, T)), readOnly, limits: p || TRIAL };
-  }
-  const docBytes = x => { if (!x || !x.file) return 0; if (x.bytes) return +x.bytes; const m = /([\d.]+)\s*(KB|MB|GB)\b/.exec(x.meta || ''); return m ? Math.round(+m[1] * { KB: 1024, MB: 1048576, GB: 1073741824 }[m[2]]) : 0; };
-  const usage = d => ({ seats: (d.team || []).filter(u => u.status === 'Active' || u.status === 'Invited').length, cases: (d.cases || []).filter(c => c.status === 'active' || c.status === 'pending').length, bytes: (d.docs || []).reduce((a, x) => a + docBytes(x), 0) });
-
-  /* ---------- who created a record ---------- */
-  const COLS = ['cases', 'clients', 'hearings', 'orders', 'tasks', 'docs', 'invoices', 'deadlines', 'lims', 'watch'];
-  const idSet = d => { const s = new Set(); COLS.forEach(c => (d[c] || []).forEach(r => s.add(c + '|' + r.id))); return s; };
-  /* Records that were not there before a change get the creator's user id and name ("delete own" for associates and staff). */
-  function stampNew(d, before, uid, name) { if (!uid) return; COLS.forEach(c => (d[c] || []).forEach(r => { if (!r.createdBy && !before.has(c + '|' + r.id)) { r.createdBy = uid; r.createdByName = name || ''; } })); }
-
-  /* ---------- GST tax invoice ---------- */
-  const STATES = [['01', 'Jammu and Kashmir'], ['02', 'Himachal Pradesh'], ['03', 'Punjab'], ['04', 'Chandigarh'], ['05', 'Uttarakhand'], ['06', 'Haryana'], ['07', 'Delhi'], ['08', 'Rajasthan'], ['09', 'Uttar Pradesh'], ['10', 'Bihar'], ['11', 'Sikkim'], ['12', 'Arunachal Pradesh'], ['13', 'Nagaland'], ['14', 'Manipur'], ['15', 'Mizoram'], ['16', 'Tripura'], ['17', 'Meghalaya'], ['18', 'Assam'], ['19', 'West Bengal'], ['20', 'Jharkhand'], ['21', 'Odisha'], ['22', 'Chhattisgarh'], ['23', 'Madhya Pradesh'], ['24', 'Gujarat'], ['26', 'Dadra and Nagar Haveli and Daman and Diu'], ['27', 'Maharashtra'], ['29', 'Karnataka'], ['30', 'Goa'], ['31', 'Lakshadweep'], ['32', 'Kerala'], ['33', 'Tamil Nadu'], ['34', 'Puducherry'], ['35', 'Andaman and Nicobar Islands'], ['36', 'Telangana'], ['37', 'Andhra Pradesh'], ['38', 'Ladakh'], ['97', 'Other Territory']];
-  const stateName = c => (STATES.find(x => x[0] === c) || [, ''])[1];
-  const GSTIN_RE = /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/, PAN_RE = /^[A-Z]{5}\d{4}[A-Z]$/;
-  const gstinState = g => { g = String(g || '').trim().toUpperCase(); return GSTIN_RE.test(g) && stateName(g.slice(0, 2)) ? g.slice(0, 2) : ''; };
-  /* SAC codes for legal services (heading 9982). */
-  const SAC = [['998212', 'Legal advisory and representation services concerning other fields of law'], ['998211', 'Legal advisory and representation services concerning criminal law'], ['998213', 'Legal documentation and certification services concerning patents, copyrights and other intellectual property rights'], ['998214', 'Legal documentation and certification services concerning other documents'], ['998215', 'Arbitration and conciliation services'], ['998216', 'Other legal services n.e.c.']];
-  const sacName = c => (SAC.find(x => x[0] === c) || [, 'Legal services'])[1];
-  /* Indian financial year of a date: 2026-04-01 … 2027-03-31 → "2026-27". */
-  const fy = s => { const d = parse(valid(s) ? s : today()), y = d.getFullYear(), a = d.getMonth() >= 3 ? y : y - 1; return a + '-' + pad((a + 1) % 100); };
-  /* Invoice series: PREFIX/2026-27/0001 (at most 16 characters, as GST rule 46(b) requires, while the number has 4 digits). */
-  const invPrefix = f => { const p = String((f && f.prefix) || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3); if (p) return p; const w = String((f && f.name) || '').split(/\s+/).filter(x => /^[A-Za-z]/.test(x)).map(x => x[0].toUpperCase()).join('').slice(0, 3); return w || 'INV'; };
-  const invSeries = (f, date) => invPrefix(f) + '/' + fy(date) + '/';
-  const invNo = (series, n) => series + String(n).padStart(4, '0');
-  const nextInvSeq = (invoices, series) => 1 + Math.max(0, ...(invoices || []).map(i => String(i.no || '')).filter(n => n.startsWith(series) && /^\d{1,9}$/.test(n.slice(series.length))).map(n => +n.slice(series.length)));
-  /* Rupees in words, Indian numbering (lakh, crore). */
-  const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'], TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-  const two = n => n < 20 ? ONES[n] : TENS[Math.floor(n / 10)] + (n % 10 ? ' ' + ONES[n % 10] : '');
-  const three = n => [n >= 100 ? ONES[Math.floor(n / 100)] + ' Hundred' : '', n % 100 ? two(n % 100) : ''].filter(Boolean).join(' ');
-  function intWords(n) { if (!n) return ''; if (n >= 1e7) return [intWords(Math.floor(n / 1e7)) + ' Crore', intWords(n % 1e7)].filter(Boolean).join(' '); return [[Math.floor(n / 1e5), ' Lakh'], [Math.floor(n % 1e5 / 1e3), ' Thousand'], [n % 1e3, '']].filter(x => x[0]).map(x => (x[1] ? two(x[0]) : three(x[0])) + x[1]).join(' '); }
-  function inWords(x) { const p = Math.round(Math.abs(+x || 0) * 100), r = Math.floor(p / 100), ps = p % 100; if (!r && !ps) return 'Rupees Zero Only'; return [r ? 'Rupees ' + intWords(r) : '', ps ? (r ? 'and ' : '') + two(ps) + ' Paise' : ''].filter(Boolean).join(' ') + ' Only'; }
-  const r2 = n => Math.round((+n || 0) * 100) / 100;
-  /* inv.mode: 'fwd' tax charged (CGST+SGST within the state, IGST across states), 'rcm' reverse charge (the recipient pays), 'bos' bill of supply
-     (no GST: the firm is not registered). An invoice saved before these fields existed is read as it was shown then: forward charge at 18%. */
-  function invoiceTax(inv, firm, client) {
-    inv = inv || {}; firm = firm || {}; client = client || {};
-    const amount = r2(inv.amount), rate = inv.rate != null && inv.rate !== '' && !isNaN(+inv.rate) ? +inv.rate : 18, mode = ['fwd', 'rcm', 'bos'].includes(inv.mode) ? inv.mode : 'fwd';
-    const fState = firm.stateCode || gstinState(firm.gstin), cGstin = String((inv.clientGstin != null ? inv.clientGstin : client.gstin) || '').toUpperCase();
-    const pos = inv.pos || gstinState(cGstin) || client.stateCode || fState || '', intra = !fState || !pos || fState === pos;
-    const cgst = mode === 'bos' || !intra ? 0 : r2(amount * rate / 200), sgst = cgst, igst = mode === 'bos' || intra ? 0 : r2(amount * rate / 100), gst = r2(cgst + sgst + igst);
-    const tax = mode === 'fwd' ? gst : 0, total = r2(amount + tax), notes = [];
-    if (mode === 'rcm') notes.push(`Tax payable on reverse charge: Yes. GST of ${inr(gst)} on this supply is payable by the recipient (legal services by an advocate or a firm of advocates to a business entity, Notification 13/2017–Central Tax (Rate)). Check with your CA.`);
-    if (mode === 'bos') notes.push(`No GST is charged: ${firm.legalName || firm.name || 'the supplier'} is not registered under GST. Check with your CA.`);
-    if (mode === 'fwd' && (!fState || !pos)) notes.push('The firm\'s state or the place of supply is not set, so the tax is shown as CGST and SGST. Set the state in Settings › Firm profile.');
-    return { mode, title: mode === 'bos' ? 'Bill of supply' : 'Tax invoice', rcm: mode === 'rcm', intra, rate, amount, cgst, sgst, igst, gst, tax, total, words: inWords(total), fState, pos, posName: stateName(pos), sac: inv.sac || firm.sac || '998212', sacName: sacName(inv.sac || firm.sac || '998212'), clientGstin: cGstin, clientAddress: inv.clientAddress != null ? inv.clientAddress : [client.address, client.city].filter(Boolean).join(', '), notes, legacy: !inv.mode };
-  }
-  /* The tax treatment a new invoice starts with. */
-  const invMode = (firm, gstin) => (firm && firm.gstReg === 'no') || !(firm && (firm.gstin || firm.gstReg === 'yes')) ? 'bos' : (gstinState(gstin) ? 'rcm' : 'fwd');
-
   /* ---------- uploaded files (IndexedDB) ---------- */
   const idb = () => new Promise((res, rej) => { const r = indexedDB.open('ls-files', 1); r.onupgradeneeded = () => r.result.createObjectStore('f'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
   const files = {
@@ -338,7 +273,36 @@
   const pickFile = (accept, multiple) => new Promise(res => { const i = document.createElement('input'); i.type = 'file'; if (accept) i.accept = accept; i.multiple = !!multiple; i.onchange = () => res([...i.files]); i.click(); });
   const size = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 
+  /* ---------- plans, free trial and access ----------
+     Every plan starts with a 7-day free trial. When the trial or the paid period ends, the workspace becomes read-only
+     until a plan is paid for. mods lists the screens a plan includes beyond the ones every plan has.
+     The same limits are enforced on the server (migration 0006): writes need access, members are capped by plan. */
+  const TRIAL_DAYS = 7;
+  const PLANS = {
+    Solo: { users: 1, cases: 150, storage: 10, ai: 200, mods: [] },
+    Professional: { users: 3, cases: 600, storage: 50, ai: 1000, mods: ['brain', 'drafting', 'portal'] },
+    Firm: { users: 15, cases: Infinity, storage: 250, ai: 5000, mods: ['brain', 'drafting', 'portal', 'agents', 'reports'] }
+  };
+  /* The lowest plan that includes each gated screen. */
+  const MOD_PLAN = { brain: 'Professional', drafting: 'Professional', portal: 'Professional', agents: 'Firm', reports: 'Firm' };
+  /* state: 'none' (no plan chosen yet), 'trial', 'active', or 'expired' (trial or paid period over). */
+  function access(sub, nowMs) {
+    const s = sub || {}, now = nowMs || Date.now(), plan = PLANS[s.plan] ? s.plan : '';
+    if (!plan) return { state: 'none', ok: false, plan: '', limits: PLANS.Solo, daysLeft: 0, trialUsed: false };
+    /* Professional: the users bought (sub.seats); 3 on a trial or a plan bought before per-user pricing. */
+    const limits = plan === 'Professional' && s.seats ? Object.assign({}, PLANS[plan], { users: s.seats }) : PLANS[plan];
+    if (s.status === 'trialing') {
+      const end = Date.parse(s.trialEnds || ''), ms = end - now;
+      if (ms > 0) return { state: 'trial', ok: true, plan, limits, ends: s.trialEnds, daysLeft: Math.max(1, Math.ceil(ms / 864e5)), trialUsed: true };
+      return { state: 'expired', ok: false, plan, limits, ends: s.trialEnds, daysLeft: 0, trialUsed: true, wasTrial: true };
+    }
+    const left = s.renews ? diffDays(s.renews, today()) : -1;
+    if (left >= 0) return { state: 'active', ok: true, plan, limits, ends: s.renews, daysLeft: left + 1, trialUsed: true };
+    return { state: 'expired', ok: false, plan, limits, ends: s.renews, daysLeft: 0, trialUsed: true, wasTrial: false };
+  }
+  const hasMod = (acc, mod) => !MOD_PLAN[mod] || (acc.ok && acc.limits.mods.includes(mod));
+
   window.LS = { KEY, load, save, reset, seed, iso, parse, valid, today, addDays, diffDays, fmt, dmy, dayMon, longDate, isWeekend, nextWorking, t12, t12ap, nowHM, uid, inr, initials, short, pad,
     LOG_MAX: 300, limitation, RULES, rule, period, addMonths, migrate, CHECK, readOrder, dateOf, answer, download, csv, ics, docx, htmlToRuns, files, pickFile, size,
-    ROLES, roleOf, PLANS, TRIAL, GRACE, PLAN_FROM, planState, docBytes, usage, idSet, stampNew, STATES, stateName, GSTIN_RE, PAN_RE, gstinState, SAC, sacName, fy, invPrefix, invSeries, invNo, nextInvSeq, inWords, invoiceTax, invMode };
+    TRIAL_DAYS, PLANS, MOD_PLAN, access, hasMod };
 })();
