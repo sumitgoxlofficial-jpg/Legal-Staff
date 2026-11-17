@@ -105,34 +105,43 @@ export const isoDate = s => {
   const d = new Date(s); return isNaN(+d) ? '' : d.toISOString().slice(0, 10);
 };
 const names = v => (Array.isArray(v) ? v : v ? [v] : []).map(x => typeof x === 'string' ? x.trim() : String((x && (x.name || x.advocateName)) || '').trim()).filter(Boolean);
-/* Turns a provider response into our own shape. Field names are matched loosely; fields that are missing stay empty and the result is PARTIAL. */
+/* Turns a provider response into our own shape. Written against real eCourtsIndia answers (17 Nov 2026): a High Court record and a pending district-court record.
+   Court cases arrive under data.courtCaseData, tribunal cases under data.tribunalCaseData (documented, not yet seen by us). There is no case title: it is built from the parties.
+   Court-case fields that were seen: caseNumber (an internal number), registrationNumber ("12606/2023"), caseType, caseStatus, courtName, filingDate, registrationDate, nextHearingDate (pending cases),
+   lastHearingDate, decisionDate, orderCount, hearingCount, petitioners/respondents (string arrays), petitionerAdvocates/respondentAdvocates, judgmentOrders and interimOrders ({orderDate, orderType|description, orderUrl}),
+   historyOfCaseHearings ({businessOnDate, hearingDate, purposeOfListing, judge}: the business done on businessOnDate fixed hearingDate as the next date). Missing fields stay empty and the result is PARTIAL. */
+const arr = v => Array.isArray(v) ? v : [];
+const str = v => v == null || typeof v === 'object' ? '' : String(v).trim();
 export function normalizeCase(raw) {
-  const d = raw && raw.data ? raw.data : raw || {}, cc = d.courtCaseData || d;
-  const pick = (...n) => { const v = find(cc, n); return v == null || typeof v === 'object' ? '' : String(v).trim(); };
-  const hearingsRaw = find(cc, ['hearings', 'hearingHistory', 'caseHistory', 'history']), ordersRaw = find(cc, ['judgmentOrders', 'orders', 'interimOrders']);
-  const hearings = (Array.isArray(hearingsRaw) ? hearingsRaw : []).map(h => ({ date: isoDate(h.hearingDate || h.date || h.businessDate), purpose: String(h.purpose || h.purposeOfHearing || h.purposeName || '').trim(), judge: String(h.judge || h.judgeName || '').trim() })).filter(h => h.date);
-  const orders = (Array.isArray(ordersRaw) ? ordersRaw : []).map(o => ({ date: isoDate(o.orderDate || o.date), type: String(o.orderType || o.type || 'Order').trim(), file: String(o.orderUrl || o.fileName || o.file || '').trim(), url: String(o.url || '').trim() })).filter(o => o.date);
+  const d = raw && raw.data ? raw.data : raw || {}, cc = d.courtCaseData || d.tribunalCaseData || d;
+  const g = (...n) => { for (const k of n) { const v = cc && cc[k]; if (v != null && v !== '' && typeof v !== 'object') return String(v).trim(); } const v = find(cc, n); return v == null || typeof v === 'object' ? '' : String(v).trim(); };
+  const hist = arr(cc && (cc.historyOfCaseHearings || cc.hearings || cc.hearingHistory)), ord = [...arr(cc && cc.judgmentOrders), ...arr(cc && cc.interimOrders), ...arr(cc && cc.orders)];
+  const hearings = hist.map(h => ({ date: isoDate(h.businessOnDate || h.hearingDate || h.date || h.businessDate), purpose: str(h.purposeOfListing || h.purpose || h.purposeOfHearing || h.purposeName), judge: str(h.judge || h.judgeName) })).filter(h => h.date);
+  const seen = new Set(), orders = ord.map(o => ({ date: isoDate(o.orderDate || o.date), type: str(o.orderType || o.description || o.type) || 'Order', file: str(o.orderUrl || o.fileName || o.file), url: str(o.url) }))
+    .filter(o => o.date && !seen.has(o.date + '|' + o.file) && seen.add(o.date + '|' + o.file));
+  const pet = names(cc && cc.petitioners), res = names(cc && cc.respondents), side = a => a.length ? a[0] + (a.length > 1 ? ' & ORS' : '') : '';
+  const type = g('caseType', 'caseTypeName'), reg = g('registrationNumber'), num = reg ? (type && !/^\D/.test(reg) ? `${type} ${reg}` : reg) : g('caseNumber', 'caseNo');
   const n = {
-    cnr: normalizeCnr(pick('cnr', 'cnrNumber') || d.cnr), title: pick('title', 'caseTitle', 'causeTitle'), caseNumber: pick('caseNumber', 'registrationNumber', 'caseNo'),
-    caseType: pick('caseType', 'caseTypeName'), court: pick('courtName', 'court'), status: pick('caseStatus', 'status', 'statusNormalized'),
-    filingDate: isoDate(pick('filingDate', 'dateOfFiling')), registrationDate: isoDate(pick('registrationDate', 'dateOfRegistration')),
-    nextHearing: isoDate(pick('nextHearingDate', 'nextDate', 'nextHearing')), lastHearing: isoDate(pick('lastHearingDate', 'previousHearingDate')),
-    petitioners: names(find(cc, ['petitioners', 'petitioner'])), respondents: names(find(cc, ['respondents', 'respondent'])),
-    petitionerAdvocates: names(find(cc, ['petitionerAdvocates', 'petitionerAdvocate'])), respondentAdvocates: names(find(cc, ['respondentAdvocates', 'respondentAdvocate'])),
-    hearings, orders, lastOrder: orders.map(o => o.date).sort().pop() || ''
+    cnr: normalizeCnr(g('cnr', 'cnrNumber') || d.cnr), title: g('title', 'caseTitle', 'causeTitle') || (pet.length && res.length ? `${side(pet)} vs ${side(res)}` : side(pet) || side(res)), caseNumber: num, regNumber: reg,
+    caseType: type, court: g('courtName', 'court'), status: g('caseStatus', 'status', 'statusNormalized'),
+    filingDate: isoDate(g('filingDate', 'dateOfFiling')), registrationDate: isoDate(g('registrationDate', 'dateOfRegistration')), decisionDate: isoDate(g('decisionDate')),
+    nextHearing: isoDate(g('nextHearingDate', 'nextDate', 'nextHearing')), lastHearing: isoDate(g('lastHearingDate', 'previousHearingDate')),
+    petitioners: pet, respondents: res, petitionerAdvocates: names(cc && cc.petitionerAdvocates), respondentAdvocates: names(cc && cc.respondentAdvocates),
+    orderCount: Number(cc && cc.orderCount) || 0, hearings, orders, lastOrder: orders.map(o => o.date).sort().pop() || ''
   };
-  if (!n.lastHearing && hearings.length) { const past = hearings.map(h => h.date).filter(x => x < new Date().toISOString().slice(0, 10)).sort().pop(); if (past) n.lastHearing = past; }
   const need = ['title', 'court', 'status'], have = need.filter(k => n[k]);
   n.missing = need.filter(k => !n[k]); n.partial = have.length < need.length;
   n.empty = !n.title && !n.court && !n.status && !n.nextHearing && !n.caseNumber;
   return n;
 }
 /* The fetched record must belong to the case it is attached to. */
+/* "WP(C) 138/2024", "138/2024" and "Case No. 138 of 2024" all reduce to 138/2024. */
+export const caseKey = t => { t = String(t || ''); let m = /(\d+)\s*\/\s*(\d{4})\b/.exec(t) || /(\d+)\s+of\s+(\d{4})\b/i.exec(t); return m ? `${+m[1]}/${m[2]}` : ''; };
 export function matchesIdentifiers(c, n) {
   const reasons = [];
   if (n.empty) return { ok: false, reasons: ['The provider returned no case data'] };
   if (c.cnr && n.cnr && normalizeCnr(c.cnr) !== normalizeCnr(n.cnr)) reasons.push('CNR does not match');
-  if (c.case_number && n.caseNumber) { const a = String(c.case_number).replace(/\D/g, ''), b = String(n.caseNumber).replace(/\D/g, ''); if (a && b && !(a === b || b.endsWith(a) || a.endsWith(b))) reasons.push('Case number does not match'); }
+  if (c.case_number) { const a = caseKey(c.case_number), b = caseKey(n.regNumber || n.caseNumber); if (a && b && a !== b) reasons.push('Case number does not match'); }
   return { ok: !reasons.length, reasons };
 }
 
@@ -147,6 +156,7 @@ export function diffSnapshots(prev, next) {
   const po = new Set((prev.orders || []).map(o => o.date + '|' + o.file)), fresh = (next.orders || []).filter(o => !po.has(o.date + '|' + o.file));
   fresh.forEach(o => ev.push({ kind: /judg/i.test(o.type) ? 'new_judgment' : 'new_order', title: `${/judg/i.test(o.type) ? 'New judgment' : 'New order'} dated ${o.date}`, detail: o }));
   if (prev.court && next.court && prev.court !== next.court) ev.push({ kind: 'case_transferred', title: `Court changed from ${prev.court} to ${next.court}`, detail: { from: prev.court, to: next.court } });
+  if (!fresh.length && (next.orderCount || 0) > (prev.orderCount || 0)) ev.push({ kind: 'new_order', title: `${next.orderCount - prev.orderCount} new order(s) on the record`, detail: { from: prev.orderCount, to: next.orderCount } });
   if (!sameSet(prev.petitioners || [], next.petitioners || []) || !sameSet(prev.respondents || [], next.respondents || [])) ev.push({ kind: 'parties_changed', title: 'Parties changed', detail: {} });
   return ev;
 }
@@ -192,10 +202,10 @@ export const PORTALS = {
   tribunal: {
     NCLT: [['NCLT', 'https://nclt.gov.in/']], NCLAT: [['NCLAT', 'https://nclat.nic.in/']], DRT: [['Debts Recovery Tribunals', 'https://drt.gov.in/']], DRAT: [['Debts Recovery Tribunals', 'https://drt.gov.in/']],
     ITAT: [['ITAT', 'https://itat.gov.in/']], CESTAT: [['CESTAT', 'https://cestat.gov.in/']], NGT: [['NGT', 'https://greentribunal.gov.in/']], CAT: [['CAT', 'https://cgat.gov.in/']],
-    AFT: [['Armed Forces Tribunal', 'https://aftdelhi.nic.in/']], SAT: [['SAT', 'https://sat.gov.in/']], TDSAT: [['TDSAT', 'https://tdsat.gov.in/']], CONSUMER: [['e-Jagriti (consumer commissions)', 'https://e-jagriti.gov.in/']]
+    AFT: [['Armed Forces Tribunal', 'https://aftdelhi.nic.in/']], SAT: [['SAT', 'https://satweb.sat.gov.in/']], TDSAT: [['TDSAT', 'https://tdsat.gov.in/']], CONSUMER: [['e-Jagriti (consumer commissions)', 'https://e-jagriti.gov.in/']]
   }
 };
-/* Links to the official place to check a case by hand. Addresses are for convenience; confirm them before relying on them. */
+/* Links to the official place to check a case by hand. Checked 17 Nov 2026 (HTTP 200 and the right site): eCourts district and High Court services, Supreme Court, NCLT, NCLAT, DRT, ITAT, CESTAT, NGT, CAT, TDSAT, SAT (satweb.sat.gov.in). e-Jagriti is the official consumer platform but blocked our checker. Not confirmed: AFT (timed out). Addresses change, so keep checking. */
 export function portalLinks(info) {
   const t = PORTALS.tribunal;
   if (info.category === 'tribunal') return (info.tribunal && t[info.tribunal]) || Object.values(t).flat().filter((x, i, a) => a.findIndex(y => y[1] === x[1]) === i);

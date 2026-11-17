@@ -1,0 +1,71 @@
+{
+ "data": {
+  "courtCaseData": {
+   "caseNumber": "213400001382024",
+   "state": "DL",
+   "stateCode": "26",
+   "districtCode": "1",
+   "causelistType": "COMPLETE CAUSE LIST",
+   "courtName": "DLHC",
+   "courtNo": 0,
+   "judicialSection": "APP",
+   "judicialSectionRaw": "APPELLATE SIDE",
+   "historyOfCaseHearings": [],
+   "judgeCode": [
+    "594"
+   ],
+   "purpose": "FRESH MATTERS & APPLICATIONS",
+   "disposalType": "UNKNOWN",
+   "disposalTypeRaw": "UNKNOWN",
+   "lastHearingDate": "2024-01-05",
+   "interimOrders": [],
+   "cnr": "DLHC010001232024",
+   "cnrCourtCode": "DLHC01",
+   "courtComplexCode": "DLHC01",
+   "cnrCaseNumber": "000123",
+   "cnrYear": "2024",
+   "caseType": "WP_C",
+   "caseTypeRaw": "W.P.(C)",
+   "caseStatus": "DISPOSED",
+   "filingNumber": "9623/2024",
+   "filingDate": "2024-01-04",
+   "registrationNumber": "138/2024",
+   "registrationDate": "2024-01-04",
+   "firstHearingDate": "2024-01-05",
+   "decisionDate": "2024-01-05",
+   "caseDurationDays": 1,
+   "filingToFirstHearingDays": 1,
+   "judges": [
+    "Judge A"
+   ],
+   "petitioners": [
+    "Petitioner A"
+   ],
+   "petitionerAdvocates": [
+    "ADVOCATE ONE"
+   ],
+   "respondents": [
+    "Respondent B & ORS"
+   ],
+   "respondentAdvocates": [],
+   "hasOrders": true,
+   "hasJudgments": true,
+   "orderCount": 1,
+   "interimOrderCount": 0,
+   "judgmentCount": 1,
+   "hearingCount": 0,
+   "iaCount": 2,
+   "listingDates": [],
+   "judgmentOrders": [
+    {
+     "orderDate": "2024-01-05",
+     "orderType": "Final Order",
+     "orderUrl": "order-1.pdf"
+    }
+   ]
+  }
+ },
+ "meta": {
+  "request_id": "fixture"
+ }
+}
