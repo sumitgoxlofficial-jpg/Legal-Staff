@@ -95,7 +95,7 @@ create table if not exists public.whatsapp_audit_log (
 create index if not exists whatsapp_audit_log_recent_idx on public.whatsapp_audit_log (at desc);
 alter table public.whatsapp_audit_log enable row level security;
 -- The log is append-only.
-create or replace function public.whatsapp_audit_immutable() returns trigger language plpgsql as $$ begin raise exception 'whatsapp_audit_log is append-only'; end $$;
+create or replace function public.whatsapp_audit_immutable() returns trigger language plpgsql set search_path = '' as $$ begin raise exception 'whatsapp_audit_log is append-only'; end $$;
 drop trigger if exists whatsapp_audit_no_change on public.whatsapp_audit_log;
 create trigger whatsapp_audit_no_change before update or delete on public.whatsapp_audit_log for each row execute function public.whatsapp_audit_immutable();
 
