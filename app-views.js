@@ -1,7 +1,7 @@
 /* Legal Staff — UI kit, module screens and overlays rendered from JS (React.createElement). */
 (function () {
   'use strict';
-  const h = React.createElement, L = window.LS, useState = React.useState;
+  const h = React.createElement, L = window.LS, LSP = window.LSP, useState = React.useState;
   const K = { ink: '#0A0A0A', mut: '#5E5E5E', line: '#E5E5E5', soft: '#F5F5F4', soft2: '#F0F0EF', red: '#B42318', redBg: '#FDECEA', txt: '#363636' };
   const X = {
     page: { display: 'flex', flexDirection: 'column', gap: 22, maxWidth: 1320 },
@@ -291,9 +291,9 @@
     const d = app.db, c0 = editId && d.cases.find(c => c.id === editId);
     if (editId && (!c0 || !allowed(app, 'case.edit'))) return;
     if (!editId && overLimit(app, 'cases')) return;
-    const lead = c0 ? (c0.team || [])[0] : '', stages = c0 && c0.stage && !STAGES.includes(c0.stage) ? [...STAGES, c0.stage] : STAGES;
+    const lead = c0 ? (c0.team || [])[0] : '', stages = LSP.stages(d.firm, c0 && c0.stage);
     app.modal(() => h(Modal, { title: c0 ? 'Edit case' : 'New case', sub: c0 ? c0.no : 'Add the matter manually. You can upload orders and documents afterwards.', onClose: () => app.modal(null), width: 600 },
-      h(Form, { init: c0 ? { title: c0.title, full: c0.full || c0.title, no: c0.no, cnr: c0.cnr || '', court: c0.court, stage: c0.stage || STAGES[0], clientId: c0.clientId || '', team: lead || d.user.name, fileNo: c0.fileNo || '', state: c0.state || '', district: c0.district || '', bench: c0.bench || '', oppAdv: c0.oppAdv || '', labels: (c0.labels || []).slice() } : Object.assign({ team: d.user.name, stage: 'Pleadings' }, init), submit: c0 ? 'Save changes' : 'Create case', onCancel: () => app.modal(null),
+      h(Form, { init: c0 ? { title: c0.title, full: c0.full || c0.title, no: c0.no, cnr: c0.cnr || '', court: c0.court, stage: c0.stage || stages[0], clientId: c0.clientId || '', team: lead || d.user.name, fileNo: c0.fileNo || '', state: c0.state || '', district: c0.district || '', bench: c0.bench || '', oppAdv: c0.oppAdv || '', labels: (c0.labels || []).slice() } : Object.assign({ team: d.user.name, stage: stages[0] }, init), submit: c0 ? 'Save changes' : 'Create case', onCancel: () => app.modal(null),
         fields: [
           { k: 'title', label: 'Case title', req: true, ph: 'Party A v. Party B' },
           ...(c0 ? [{ k: 'full', label: 'Full cause title', ph: 'As written in the cause list' }] : []),
@@ -497,25 +497,52 @@
     confirmBox(app, 'Delete this order?', `The order of ${L.dmy(o.date)} in ${caseOf(d, o.caseId).title} and its text record will be deleted.` + (drop.length ? ` The hearing it added on ${drop.map(x => L.dmy(x.date)).join(', ')} is removed from the calendar too.` : '') + (hs.length > drop.length ? ' Hearings that already have an outcome are kept.' : ''), 'Delete order',
       () => { app.mut(db => { const docs = orderDocs(db, o).map(x => x.id); db.orders = db.orders.filter(x => x.id !== id); db.docs = db.docs.filter(x => !docs.includes(x.id)); db.hearings = db.hearings.filter(x => x.fromOrder !== id || x.outcome); db.hearings.forEach(x => { if (x.fromOrder === id) x.fromOrder = ''; }); logIt(db, `Order of ${L.dmy(o.date)} deleted by ${db.user.name}`, o.caseId); }, 'Order deleted'); app.go('orders'); });
   }
+  /* Sign-up: who you are, the area of law you work in, then the firm details. */
+  function Choice({ items, value, onPick, cols }) {
+    return h('div', { role: 'radiogroup', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(' + (cols || 200) + 'px,1fr))', gap: 10 } }, items.map(x => {
+      const on = value === x.k;
+      return h('button', { key: x.k, type: 'button', role: 'radio', 'aria-checked': on, 'data-pick': x.k, onClick: () => onPick(x.k), className: 'ls-btn', style: { textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 3, padding: '12px 14px', borderRadius: 10, border: '1.5px solid ' + (on ? K.ink : K.line), background: on ? K.soft : '#FFFFFF', color: K.ink } },
+        h('span', { style: { fontSize: 14, fontWeight: 600 } }, x.label), h('span', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.4 } }, x.sub));
+    }));
+  }
+  function OnboardFlow({ app, must }) {
+    const d = app.db, [step, setStep] = useState(0), [kind, setKind] = useState(d.firm.kind || 'advocate'), [dom, setDom] = useState(d.firm.domain || '');
+    const [labels, setLabels] = useState(true), area = dom ? LSP.DOMAINS[dom] : null;
+    const kindName = LSP.kind({ kind }).label;
+    const roles = kind === 'corporate' ? ['Head of Legal', 'General Counsel', 'Legal Manager', 'Legal Associate', 'Paralegal', 'Office Manager'] : kind === 'advocate' ? ['Advocate', 'Junior Advocate', 'Paralegal', 'Office Manager'] : ['Advocate', 'Managing Partner', 'Partner', 'Associate', 'Junior Advocate', 'Paralegal', 'Office Manager'];
+    const nameLabel = { advocate: 'Practice name (e.g. Adv. Meera Iyer)', chamber: 'Chamber name', firm: 'Law firm name', corporate: 'Company or department name' }[kind];
+    const titles = ['Who is this for?', 'Your area of practice', 'Set up your practice'];
+    const subs = ['Pick the one that fits best. It decides how your team is set up.', 'Your dashboard, case stages, labels and limitation presets follow this. You can change it later in Settings.', 'These details appear on your letterhead, invoices and briefings. You can change them later in Settings.'];
+    const finish = v => { const pick = { kind, domain: dom || 'general', labels: labels ? LSP.labelsFor(dom || 'general') : [] }; const all = Object.assign({}, v, pick);
+      if (window.LSB && LSB.on && !app.db.firmId) { app.modal(null); return app.createFirm(all); }
+      app.mut(db => { const name = v.name.trim(), old = db.user.name; db.user.name = name; db.user.role = v.role; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + name;
+        db.firm.name = v.firm.trim(); db.firm.city = v.city.trim(); db.firm.address = (v.address || '').trim() || v.city.trim(); db.firm.kind = pick.kind; db.firm.domain = pick.domain; LSP.addLabels(db, pick.labels);
+        const u = db.team.find(x => x.email === db.user.email) || db.team[0]; if (u) Object.assign(u, { name, title: db.user.title, role: v.role }); else db.team.push({ id: 'u1', name, title: db.user.title, role: v.role, email: db.user.email, status: 'Active' });
+        if (old && old !== name) { db.tasks.forEach(t => { if (t.who === old) t.who = name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? name : n); }); } }, 'Your practice is set up', true); app.modal(null); if (!L.access(app.db.sub).ok && L.access(app.db.sub).state === 'none') app.go('pricing'); };
+    const nav = (back, next, nextLabel, disabled) => h('div', { style: { display: 'flex', gap: 10, justifyContent: 'space-between' } }, back ? h(Btn, { onClick: back }, 'Back') : h('span'), h(Btn, { primary: true, disabled, onClick: next }, nextLabel || 'Continue'));
+    return h(Modal, { art: 'setup', width: step === 1 ? 760 : 560, title: titles[step], sub: subs[step], onClose: () => must ? app.toast('Set up your practice to continue, or sign out from the account menu.') : app.modal(null) },
+      h('div', { style: { fontSize: 12, color: K.mut, letterSpacing: '.04em', textTransform: 'uppercase', fontWeight: 600 } }, 'Step ' + (step + 1) + ' of 3'),
+      step === 0 && h(React.Fragment, null, h(Choice, { items: LSP.KINDS, value: kind, onPick: setKind }), nav(null, () => setStep(1))),
+      step === 1 && h(React.Fragment, null, h(Choice, { items: LSP.list(), value: dom, onPick: setDom, cols: 220 }),
+        area && area.labels.length > 0 && h('label', { style: { display: 'flex', gap: 8, alignItems: 'center', fontSize: 13.5, color: K.txt } }, h('input', { type: 'checkbox', checked: labels, onChange: e => setLabels(e.target.checked) }), 'Add the usual labels for ' + area.label.toLowerCase() + ': ' + area.labels.map(l => l[1]).join(', ')),
+        nav(() => setStep(0), () => setStep(2), 'Continue', !dom)),
+      step === 2 && h(React.Fragment, null,
+        h('div', { style: { fontSize: 13, color: K.txt, background: K.soft2, borderRadius: 8, padding: '8px 12px' } }, kindName + ' · ' + (area ? area.label : 'General practice'), ' ', h('a', { href: '#', onClick: e => { e.preventDefault(); setStep(0); } }, 'Change')),
+        h(Form, { init: { name: d.user.name, role: roles.includes(d.user.role) ? d.user.role : roles[0], firm: d.firm.name || app.pendingFirm || '', city: d.firm.city, address: d.firm.address }, submit: 'Start using Legal Staff',
+          fields: [{ k: 'name', label: 'Your full name', req: true, half: true }, { k: 'role', label: 'Designation', type: 'select', options: roles, half: true }, { k: 'firm', label: nameLabel, req: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'address', label: 'Office address', half: true }], onSubmit: finish })),
+      must && h('div', { style: { fontSize: 13, color: K.mut, borderTop: '1px solid ' + K.line, paddingTop: 12 } }, 'Signed in as ' + ((d.session && d.session.email) || d.user.email) + '. ', h('a', { href: '#', onClick: e => { e.preventDefault(); app.modal(null); app.signOut(); } }, 'Sign out')));
+  }
   function onboard(app) {
-    const d = app.db;
-    const must = window.LSB && LSB.on && !d.firmId;
-    app.modal(() => h(Modal, { art: 'setup', title: 'Set up your practice', sub: 'These details appear on your letterhead, invoices and briefings. You can change them later in Settings.', onClose: () => must ? app.toast('Set up your practice to continue, or sign out from the account menu.') : app.modal(null) },
-      h(Form, { init: { name: d.user.name, role: d.user.role || 'Advocate', firm: d.firm.name || app.pendingFirm || '', city: d.firm.city, address: d.firm.address }, submit: 'Start using Legal Staff',
-        fields: [{ k: 'name', label: 'Your full name', req: true, half: true }, { k: 'role', label: 'Designation', type: 'select', options: ['Advocate', 'Managing Partner', 'Partner', 'Associate', 'Junior Advocate', 'Paralegal', 'Office Manager'], half: true }, { k: 'firm', label: 'Firm or chamber name', req: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'address', label: 'Office address', half: true }],
-        onSubmit: v => { if (window.LSB && LSB.on && !app.db.firmId) { app.modal(null); return app.createFirm(v); } app.mut(db => { const name = v.name.trim(), old = db.user.name; db.user.name = name; db.user.role = v.role; db.user.title = (/(Partner|Associate|Advocate)/.test(v.role) ? 'Adv. ' : '') + name;
-          db.firm.name = v.firm.trim(); db.firm.city = v.city.trim(); db.firm.address = (v.address || '').trim() || v.city.trim();
-          const u = db.team.find(x => x.email === db.user.email) || db.team[0]; if (u) Object.assign(u, { name, title: db.user.title, role: v.role }); else db.team.push({ id: 'u1', name, title: db.user.title, role: v.role, email: db.user.email, status: 'Active' });
-          if (old && old !== name) { db.tasks.forEach(t => { if (t.who === old) t.who = name; }); db.hearings.forEach(x => { if (x.assignee === old) x.assignee = name; }); db.cases.forEach(c => { c.team = c.team.map(n => n === old ? name : n); }); } }, 'Your practice is set up', true); app.modal(null); if (!L.access(app.db.sub).ok && L.access(app.db.sub).state === 'none') app.go('pricing'); } }),
-      must && h('div', { style: { fontSize: 13, color: K.mut, borderTop: '1px solid ' + K.line, paddingTop: 12 } }, 'Signed in as ' + ((d.session && d.session.email) || d.user.email) + '. ', h('a', { href: '#', onClick: e => { e.preventDefault(); app.modal(null); app.signOut(); } }, 'Sign out'))));
+    const must = window.LSB && LSB.on && !app.db.firmId;
+    app.modal(() => h(OnboardFlow, { app, must }));
   }
   /* ---------- limitation calculations (records of kind 'limitation', d.lims) ---------- */
   const limOf = (d, id) => (d.lims || []).find(x => x.id === id);
-  const RULE_OPTS = () => L.RULES.map(r => [r.k, r.label]);
+  const RULE_OPTS = (firm) => LSP.ruleOrder(firm, L.RULES.map(r => r.k)).map(k => [k, L.rule(k).label]);
   /* A calculation form whose fields follow the chosen preset. */
   function LimForm({ app, l0 }) {
     const d = app.db, T = L.today();
-    const [v, setV] = useState(() => Object.assign({ title: '', rule: 'cca', caseId: '', judgment: '', applied: '', ready: '', n: '', unit: 'd', basis: '', copy: false }, l0 || {}));
+    const [v, setV] = useState(() => Object.assign({ title: '', rule: RULE_OPTS(app.db.firm)[0][0], caseId: '', judgment: '', applied: '', ready: '', n: '', unit: 'd', basis: '', copy: false }, l0 || {}));
     const [err, setErr] = useState({}), set = (k, x) => setV(Object.assign({}, v, { [k]: x })), r = L.rule(v.rule), copy = r.custom ? !!v.copy : r.copy;
     const inp = (k, type, ph) => h('input', { type: type || 'text', value: v[k] == null ? '' : v[k], placeholder: ph, onChange: e => set(k, e.target.value), style: X.input });
     const go = e => { e.preventDefault(); const er = {};
@@ -535,7 +562,7 @@
     return h('form', { onSubmit: go, noValidate: true, style: { display: 'flex', flexDirection: 'column', gap: 16 } },
       h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 14 } },
         F('title', 'Matter', inp('title', 'text', 'Appeal against decree in …')),
-        F('rule', 'Rule', h('select', { value: v.rule, onChange: e => set('rule', e.target.value), style: X.input, 'aria-label': 'Rule' }, RULE_OPTS().map(o => h('option', { key: o[0], value: o[0] }, o[1])))),
+        F('rule', 'Rule', h('select', { value: v.rule, onChange: e => set('rule', e.target.value), style: X.input, 'aria-label': 'Rule' }, RULE_OPTS(app.db.firm).map(o => h('option', { key: o[0], value: o[0] }, o[1])))),
         h('div', { key: 'rn', style: { flex: '1 1 100%', fontSize: 13, lineHeight: 1.55, background: r.none ? K.redBg : K.soft2, color: r.none ? K.red : K.txt, borderRadius: 8, padding: '10px 12px' } },
           r.custom ? 'Enter the period and the provision it comes from. The certified-copy and working-day rules are applied as for the presets.' : (r.none ? r.basis + '. No date is calculated. ' : `${r.kind}: ${L.period(r.n, r.u)} from ${r.pre ? `the day the cause of action arises, i.e. when ${r.pre} days to pay after receiving the demand notice have passed` : 'the ' + r.start.replace(/^Date/, 'date')}. ${r.basis}. `) + (r.custom ? '' : 'Preset only: check the statute / rules before relying on it.')),
         r.custom && F('n', 'Period', inp('n', 'text', 'e.g. 30'), true),
@@ -638,7 +665,7 @@
   }
   function CaseDetailsForm({ app, id, focus, auto }) {
     const c = app.db.cases.find(x => x.id === id) || {}, ps = c.parties || [];
-    const [v, setV] = useState(() => { const o = { pet: ps.filter(p => sideOf(p) === 'petitioner').map(partyText), res: ps.filter(p => sideOf(p) === 'respondent').map(partyText), stage: c.stage || STAGES[0], issues: (c.issues || []).slice(), ours: ourArgs(c).slice(), opp: (c.oppArgs || []).slice(), missing: (c.missing || []).slice(), summary: auto ? draftSummary(app.db, id) : (c.summary || '') };
+    const [v, setV] = useState(() => { const o = { pet: ps.filter(p => sideOf(p) === 'petitioner').map(partyText), res: ps.filter(p => sideOf(p) === 'respondent').map(partyText), stage: c.stage || LSP.stages(app.db.firm)[0], issues: (c.issues || []).slice(), ours: ourArgs(c).slice(), opp: (c.oppArgs || []).slice(), missing: (c.missing || []).slice(), summary: auto ? draftSummary(app.db, id) : (c.summary || '') };
       if (focus && Array.isArray(o[focus]) && !o[focus].length) o[focus].push(''); return o; });
     const [drafted, setDrafted] = useState(auto ? v.summary : '');
     React.useEffect(() => { const el = focus && document.querySelector(focus === 'summary' ? '#ls-cd-summary' : '[data-list="' + focus + '"], #ls-cd-' + focus); if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); } }, []);
@@ -651,7 +678,7 @@
         if (nv.summary !== (x.summary || '')) x.summaryMeta = !nv.summary ? '' : (drafted && nv.summary === drafted.trim() ? `Automatic draft from ${plural(n, 'order')} · review before relying on it` : `Written by ${db.user.name} · ${L.dayMon(L.today())}`);
         if (x.purpose === x.stage) x.purpose = v.stage; Object.assign(x, nv, { stage: v.stage, args: nv.ourArgs.join('\n') });
         if (JSON.stringify([x.parties, x.stage, x.issues, x.ourArgs, x.oppArgs, x.missing, x.summary]) !== before) logIt(db, `Case details updated by ${db.user.name}: ${names.join(', ')}`, id); }, 'Case details saved'); app.modal(null); };
-    const stages = c.stage && !STAGES.includes(c.stage) ? [...STAGES, c.stage] : STAGES;
+    const stages = LSP.stages(app.db.firm, c.stage);
     return h(Modal, { title: 'Case details', sub: c.title + (c.no ? ' · ' + c.no : ''), onClose: () => app.modal(null), width: 760 },
       h('div', { style: grid }, h(ListEdit, { label: PET, id: 'pet', items: v.pet, onChange: set('pet'), ph: 'Name — note (optional)' }), h(ListEdit, { label: RES, id: 'res', items: v.res, onChange: set('res'), ph: 'Name — note (optional)' })),
       h(Field, { label: 'Stage' }, h('select', { id: 'ls-cd-stage', 'aria-label': 'Stage', value: v.stage, onChange: e => set('stage')(e.target.value), style: Object.assign({}, X.input, { maxWidth: 320 }) }, stages.map(s => h('option', { key: s, value: s }, s)))),
@@ -1132,7 +1159,7 @@
       : h(Card, { title: 'Data on this device' }, backup, restore, row('Erase all data', 'Delete every case, client, invoice, file and setting on this device', h(Btn, { small: true, danger: true, onClick: () => confirmBox(app, 'Erase all data?', 'Every case, client, invoice, document and setting on this device will be deleted, including uploaded files. Export a backup first if you may need it. This cannot be undone.', 'Erase everything', () => { const s0 = d.session, u0 = d.user; L.files.clear(); const x = L.reset(); x.session = s0; x.user = u0; x.team = [{ id: 'u1', name: u0.name, title: u0.title, role: u0.role, email: u0.email, status: 'Active' }]; app.replace(x, 'All data erased'); onboard(app); }) }, 'Erase')), signOut);
     return h(Page, { art: 'settings', kicker: 'Firm', title: 'Settings', sub: server ? 'Saved to your firm\'s account' : 'Everything here is saved on this device', max: 1100 },
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,440px),1fr))', gap: 20, alignItems: 'start' } },
-        formCard('Firm profile', d.firm, [{ k: 'name', label: 'Firm name', req: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'gstin', label: 'GSTIN (optional)', half: true, check: v => v && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/i.test(v) ? 'A GSTIN has 15 characters, e.g. 07AAAAA0000A1Z5' : '' }, COURT_PICS.length ? { k: 'court', label: 'Main court', type: 'select', blank: 'Not set', options: COURTS, half: true } : null, { k: 'address', label: 'Address on letterhead and invoices' }].filter(Boolean), 'firm'),
+        formCard('Firm profile', Object.assign({}, d.firm, { kind: d.firm.kind || 'advocate', domain: LSP.norm(d.firm.domain) }), [{ k: 'name', label: 'Firm name', req: true }, { k: 'kind', label: 'Practice type', type: 'select', options: LSP.KINDS.map(x => [x.k, x.label]), half: true }, { k: 'domain', label: 'Area of practice (shapes the dashboard)', type: 'select', options: LSP.list().map(x => [x.k, x.label]), half: true }, { k: 'city', label: 'City', req: true, half: true }, { k: 'gstin', label: 'GSTIN (optional)', half: true, check: v => v && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/i.test(v) ? 'A GSTIN has 15 characters, e.g. 07AAAAA0000A1Z5' : '' }, COURT_PICS.length ? { k: 'court', label: 'Main court', type: 'select', blank: 'Not set', options: COURTS, half: true } : null, { k: 'address', label: 'Address on letterhead and invoices' }].filter(Boolean), 'firm'),
         h(Card, { title: 'Firm picture' }, h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
           h('button', { type: 'button', onClick: () => editPhoto(app, { firm: true }), title: 'Upload a picture', className: 'ls-avatar-btn', style: { border: 0, padding: 0, background: 'none', borderRadius: 16, cursor: 'pointer' } }, h(FirmMark, { app, size: 72 })),
           h('div', { style: { flex: 1, minWidth: 180 } }, h('div', { style: { fontSize: 13.5 } }, d.firm.photo ? 'Your own picture shows next to the firm name.' : courtPic(d.firm.court) ? 'The ' + d.firm.court + ' shows next to the firm name.' : 'Shows next to the firm name, for everyone in the firm.'), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 2 } }, d.firm.photo ? 'Remove it to go back to ' + (courtPic(d.firm.court) ? 'the photo of your main court.' : 'the firm initials.') : COURT_PICS.length ? 'Choose a main court in Firm profile to show its photo, or upload a logo or picture of your own.' : 'Upload a logo, or a picture such as your main court. You can move and zoom it before saving.')),

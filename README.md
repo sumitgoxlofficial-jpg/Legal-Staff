@@ -26,6 +26,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 ## Accounts and data
 
 - The app starts empty. On first sign-in you set up your firm, then add your own clients, cases, hearings, orders and invoices.
+- Sign-up asks who you are (advocate, chamber, law firm, corporate legal team) and the one area of law you work in (criminal, banking and recovery, family, tax and 10 more, or general practice). The dashboard figures, quick actions, watch panel, case stages, starter labels, limitation presets and sidebar order follow that area; it can be changed in Settings. The definitions are in `app-practice.js`.
 - Sign-in is with Google or a one-time email code.
 - Data is kept on the server (Supabase) when it is configured, otherwise in the browser. Export a backup, restore one, or erase everything from Settings.
 
