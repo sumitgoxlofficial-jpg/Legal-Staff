@@ -41,6 +41,12 @@
     const p = d.photo || ''; ok(await sb.rpc('set_my_photo', { f: firmId, p_photo: p })); mePhoto = p;
     const row = d.team.find(x => x.userId === uid); if (row) row.photo = p;
   }
+  /* Verification state of each case (legal_cases, migration 0022) and the latest changes found. Not part of the synced records; a database without the migration simply shows no state. */
+  async function courtState(d) {
+    d.cv = {}; d.cvNotes = [];
+    try { (await pages(() => sb.from('legal_cases').select('*').eq('firm_id', firmId).order('id'))).forEach(r => { d.cv[r.record_id] = r; });
+      d.cvNotes = ok(await sb.from('notification_events').select('*').eq('firm_id', firmId).order('created_at', { ascending: false }).limit(30)) || []; } catch (e) { d.cvOff = true; }
+  }
   async function subscription(d) {
     const s = ok(await sb.from('subscriptions').select('*').eq('firm_id', firmId).maybeSingle());
     const pays = ok(await sb.from('payments').select('plan,cycle,amount_paise,paid_at').eq('firm_id', firmId).eq('status', 'paid').order('paid_at', { ascending: false }));
@@ -72,6 +78,7 @@
       /* A calculation kept in the older firm state (one object in firms.state.lim) becomes a 'limitation' record; the next sync stores it and clears the old key. */
       const legacy = !!(d.lim && d.lim.judgment); window.LS.migrate(d);
       await members(d); await subscription(d);
+      await courtState(d);
       /* The member row is what the team sees. A device that has no photo of its own yet takes it from there; a photo saved before the column existed is sent up now. */
       if (photoCol) { if (!(u && u.data && 'photo' in u.data)) d.photo = mePhoto; else if ((d.photo || '') !== mePhoto) await pushPhoto(d).catch(() => {}); }
       take(d);
@@ -224,7 +231,11 @@
     ai: body => B.fn('ai', Object.assign({ firm_id: firmId }, body)),
     notify: () => B.fn('notify', { firm_id: firmId }),
     invite: email => B.fn('notify', { action: 'invite', firm_id: firmId, email: String(email).trim().toLowerCase() }),
-    court: cnr => B.fn('court-status', { cnr }),
+    /* Court records: all of it goes through functions/court-sync, which holds the provider key. The browser never sees a key. */
+    court: cnr => B.fn('court-sync', { action: 'peek', firm_id: firmId, cnr }),
+    courtVerify: (caseId, fresh) => B.fn('court-sync', { action: 'verify', firm_id: firmId, case_id: caseId, fresh: !!fresh }),
+    courtSync: () => B.fn('court-sync', { action: 'sync_firm', firm_id: firmId }),
+    courtAdmin: (action, payload) => B.fn('court-sync', Object.assign({ action }, payload || {})),
     /* ---- directory moderation ---- */
     async isAdmin() { return !!ok(await sb.rpc('is_platform_admin')); },
     async queue() { return ok(await sb.from('directory_applications').select('*').order('created_at', { ascending: true })).map(a => Object.assign({}, a, { date: new Date(a.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) })); },
