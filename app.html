@@ -537,6 +537,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             </div>
             <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">{{ c.labelsEl }}</div>
             <div style="margin-top:10px;font-size:12.5px;color:#5E5E5E;line-height:1.7">{{ c.metaLine }}</div>
+            <div style="margin-top:10px">{{ c.verifyEl }}</div>
           </div>
           <div style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:20px 22px;min-width:280px;display:flex;flex-direction:column;gap:12px">
             <div style="font-size:12px;color:#5E5E5E">Next hearing</div>
@@ -1373,7 +1374,7 @@ class Component extends DCLogic {
     const chipS = { fontSize: 13, background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: 8, padding: '4px 10px', whiteSpace: 'nowrap' }, lastLog = D.log.find(e => e.caseId === C0.id), created = C0.created || C0.createdOn;
     const extraChips = h(React.Fragment, null, C0.fileNo && h('span', { style: chipS }, 'File ' + C0.fileNo), (C0.district || C0.state) && h('span', { style: chipS }, [C0.district, C0.state].filter(Boolean).join(', ')), C0.isApp && h('span', { style: Object.assign({}, chipS, { background: '#EEF3FF', borderColor: '#C9D8FA', color: '#1D4FB0', fontWeight: 500 }) }, 'Application'));
     const metaLine = [lastLog && 'Last update: ' + LS.dmy(lastLog.ts.slice(0, 10)) + ' ' + LS.t12ap(lastLog.ts.slice(11)), created && 'Created: ' + LS.dmy(String(created).slice(0, 10)) + (C0.createdBy ? ' by ' + C0.createdBy : ''), C0.oppAdv && 'Opposite advocate: ' + C0.oppAdv].filter(Boolean).join('  ·  ');
-    const c = { extraChips, metaLine, labelsEl: C0.id ? V.labelChips(D, C0) : null, no: C0.no, full: C0.full, cnrLabel: C0.cnr ? 'CNR ' + C0.cnr : 'CNR not added', forum: C0.forum || C0.court, statusLine: (SC[C0.status] || SC.active)[0] + ' · ' + (C0.stage || ''),
+    const c = { extraChips, metaLine, verifyEl: C0.id ? V.verifyBadge(this, C0) : null, labelsEl: C0.id ? V.labelChips(D, C0) : null, no: C0.no, full: C0.full, cnrLabel: C0.cnr ? 'CNR ' + C0.cnr : 'CNR not added', forum: C0.forum || C0.court, statusLine: (SC[C0.status] || SC.active)[0] + ' · ' + (C0.stage || ''),
       nextLabel: cNext ? LS.longDate(cNext.date) : (cPend ? LS.longDate(cPend.nextDate) : 'Not fixed'), benchLine: cNext ? [cNext.court, LS.t12ap(cNext.time), cNext.item && 'Item ' + String(cNext.item).replace(/^item\s*/i, ''), cNext.bench || C0.bench, cNext.listNo && 'List ' + cNext.listNo].filter(Boolean).join(' · ') : (cPend ? 'From the last order · not yet confirmed' : (C0.bench || C0.court)),
       openOrder: () => cOrders[0] ? this.go('order', cOrders[0].id) : V.addOrder(this, C0.id), orderLabel: cOrders[0] ? 'Open latest order' : 'Add court order',
       brief: () => { this.setState({ brainCase: C0.id }); this.go('brain'); setTimeout(() => this.ask('Prepare a hearing brief'), 80); },

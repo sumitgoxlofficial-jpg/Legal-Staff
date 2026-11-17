@@ -1,0 +1,14 @@
+create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
+create schema auth; create function auth.uid() returns uuid language sql as $$ select nullif(current_setting('test.uid', true), '')::uuid $$;
+create schema vault; create table vault.secrets (id uuid primary key default gen_random_uuid(), name text, description text, secret text, created_at timestamptz default now());
+create view vault.decrypted_secrets as select id, name, secret as decrypted_secret, created_at from vault.secrets;
+create function vault.create_secret(s text, n text, d text default '') returns uuid language sql as $$ insert into vault.secrets(name, secret, description) values (n, s, d) returning id $$;
+create function vault.update_secret(i uuid, s text) returns void language sql as $$ update vault.secrets set secret = s where id = i $$;
+create schema cron; create table cron.job (jobname text); create function cron.unschedule(n text) returns boolean language sql as $$ select true $$; create function cron.schedule(n text, s text, c text) returns bigint language sql as $$ insert into cron.job values (n); select 1::bigint $$;
+create schema net; create function net.http_post(url text, headers jsonb, body jsonb) returns bigint language sql as $$ select 1::bigint $$;
+create table public.firms (id uuid primary key default gen_random_uuid(), name text);
+create table public.members (firm_id uuid, user_id uuid, status text default 'Active');
+create function public.is_member(f uuid) returns boolean language sql security definer as $$ select exists (select 1 from public.members m where m.firm_id = f and m.user_id = auth.uid()) $$;
+create table public.platform_admins (user_id uuid primary key);
+create function public.is_platform_admin() returns boolean language sql security definer as $$ select exists (select 1 from public.platform_admins where user_id = auth.uid()) $$;
+grant usage on schema public, auth to anon, authenticated, service_role; grant execute on function auth.uid() to anon, authenticated, service_role;
