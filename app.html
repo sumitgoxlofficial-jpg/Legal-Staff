@@ -11,6 +11,7 @@
 <script src="app-practice.js"></script>
 <script src="app-backend.js"></script>
 <script src="app-views.js"></script>
+<script src="app-sign.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
@@ -150,7 +151,15 @@ a:hover{color:#2B2B2B}
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #0A0A0A;outline-offset:2px}
-@media print{body *{visibility:hidden!important}.ls-print,.ls-print *{visibility:visible!important}.ls-print{position:absolute!important;left:0;top:0;width:100%;border:0!important}}
+@media print{body *{visibility:hidden!important}.ls-print,.ls-print *{visibility:visible!important}.ls-print{position:absolute!important;left:0;top:0;width:100%;border:0!important;background:#fff!important;padding:0!important}.ls-paper{box-shadow:none!important;max-width:none!important;padding:0!important}.ls-paper .ls-sheet{padding:0 2mm!important}}@page{size:A4;margin:16mm 14mm 18mm;@bottom-center{content:"Page " counter(page) " of " counter(pages);font:10px system-ui,sans-serif;color:#555}}
+.ls-paper{position:relative;overflow:hidden;max-width:794px;margin:0 auto;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.14),0 10px 30px rgba(0,0,0,.08);padding:14px}
+.ls-paper::before{content:attr(data-wm);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 clamp(64px,14vw,130px) 'Times New Roman',serif;letter-spacing:.18em;color:rgba(11,31,75,.05);transform:rotate(-28deg);pointer-events:none;user-select:none}
+.ls-sheet{position:relative;font-family:'Times New Roman','Noto Serif',Georgia,serif;font-size:15.5px;line-height:1.85;color:#111;text-align:justify;hyphens:auto}
+.ls-sheet p{margin:0 0 .85em;text-align:justify}
+.ls-sheet [contenteditable=true]:focus{outline:none}
+.ls-sheet [contenteditable=false]{user-select:none}
+.ls-sheet.ls-ro{cursor:default}
+@media (max-width:700px){.ls-sheet{padding:22px 18px 18px!important;font-size:14.5px}}
 </style>
 </helmet>
 <div style="display:flex;min-height:100vh;background:#F5F5F4;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:15px;line-height:1.5">
@@ -877,12 +886,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               <button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
             </sc-for>
           </section>
-          <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:48px 52px;position:relative;overflow:hidden;grid-column:span 2;min-width:0;font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;line-height:1.8;color:#1A1A1A">
-            <div contenteditable="false" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:16px;margin-bottom:20px;border-bottom:2px solid #0A0A0A;position:relative"><div style="line-height:1.4"><div style="font-size:20px;font-weight:600">{{ firmName }}</div><div style="font-size:13px;color:#5E5E5E">Advocates · {{ firmAddress }}</div></div><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><img src="assets/ls-mark-black.png" alt="" style="height:20px;display:block"><span style="font-weight:600;font-size:14px;letter-spacing:-.02em;line-height:1;color:#0A0A0A">Legal Staff</span></span></div>
-            {{ draft.body }}
-            <div contenteditable="false" style="margin-top:36px;padding-top:12px;border-top:1px solid #E5E5E5;display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:#5E5E5E;position:relative;font-family:'Instrument Sans',system-ui,sans-serif"><span>{{ draft.footer }}</span></div>
-          </section>
+          {{ draft.sheet }}
           <section style="display:flex;flex-direction:column;gap:16px">
+            {{ draft.secure }}
             <div style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:20px">
               <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600;margin-bottom:10px">AI checks</div>
               <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:#363636">
@@ -895,6 +901,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <div style="display:flex;align-items:center;gap:6px;border-top:1px solid #E5E5E5"><button onClick="{{ v.go }}" style="{{ v.style }}"><span style="font-weight:500">{{ v.v }}</span><span style="color:#5E5E5E;font-size:12px">{{ v.meta }}</span></button>{{ v.act }}</div>
               </sc-for>
             </div>
+            {{ draft.audit }}
           </section>
         </div>
       </div>
@@ -1469,6 +1476,7 @@ class Component extends DCLogic {
     const saved = D.drafts[S.tpl] || [], vlist = [...saved.map((x, i) => { const name = 'v' + (saved.length - i + 1); return { v: name + (x.label ? ' · ' + x.label : '') + (i === 0 ? ' · current' : ''), meta: `Saved by ${x.by} · ${LS.dayMon(x.at.slice(0, 10))}, ${x.at.slice(11)}`, html: x.html,
       act: V.can(this, 'draft.edit') ? h('span', { style: { display: 'inline-flex', gap: 4, flexShrink: 0 } }, h(V.IconBtn, { label: 'Rename ' + name, onClick: () => verName(i, x) }, '✎'), h(V.IconBtn, { label: 'Delete ' + name, danger: true, onClick: () => verDel(i, x, name) }, '×')) : null }; }), { v: 'v1' + (saved.length ? '' : ' · current'), meta: 'From template', html: this.tplHtml(S.tpl), act: null }];
     const vi = Math.min(S.ver, vlist.length - 1), dHtml = this.clean(vlist[vi].html), liveHtml = this.buf != null ? this.buf : dHtml, plain = liveHtml.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+    const dv = vi < saved.length ? saved[vi] : null, lockd = LSG.locked(dv), sealed = !!(dv && dv.seal), canEdit = V.can(this, 'draft.edit');
     const templates = this.tplNames.map((label, i) => ({ label, go: () => { this.buf = null; this.setState({ tpl: i, ver: 0 }); },
       style: { display: 'block', width: '100%', textAlign: 'left', border: 0, borderRadius: 8, padding: '9px 10px', fontSize: 14, background: S.tpl === i ? '#F0F0EF' : 'transparent', color: '#0A0A0A', fontWeight: S.tpl === i ? 600 : 400 } }));
     const versions = vlist.map((x, i) => ({ v: x.v, meta: x.meta, act: x.act, go: () => { this.buf = null; this.setState({ ver: i }); },
@@ -1477,13 +1485,45 @@ class Component extends DCLogic {
     const chk = [ph ? ['•', `${ph} placeholder${ph > 1 ? 's' : ''} in [brackets] still to be filled in`] : ['✓', 'No unfilled placeholders'], /\b\d{2}\.\d{2}\.\d{4}\b/.test(plain) ? ['✓', 'The document is dated'] : ['•', 'No date found in the document'], plain.includes(D.user.name) ? ['✓', 'Signature block is present'] : ['•', `The signature block for ${D.user.title} is missing`]];
     if (S.tpl === 2 || S.tpl === 0) chk.push(/fifteen days|15 days/i.test(plain) ? ['✓', 'The 15-day payment period is stated'] : ['•', 'The 15-day period for compliance is not stated']);
     if (S.tpl === 2) { const r = /returned unpaid on (\d{2}\.\d{2}\.\d{4})/.exec(plain), dt = /Date:\s*(\d{2}\.\d{2}\.\d{4})/.exec(plain); if (r && dt) { const n = dm(dt[1], r[1]); chk.push(n <= 30 && n >= 0 ? ['✓', `Notice is within 30 days of the return memo dated ${r[1]}, as s.138(b) requires`] : ['•', `Notice is dated ${n} days after the return memo. Section 138(b) allows 30 days.`]); } else chk.push(['•', 'Could not find the return memo date to check the 30-day period']);  }
+    if (dv && dv.stamp) chk.push(['✓', 'eStamp recorded (' + dv.stamp.state + ', ₹' + Number(dv.stamp.amount).toLocaleString('en-IN') + ')']);
+    const sgl = dv && dv.signers || []; if (sgl.length) { const dn = LSG.signedCount(dv); chk.push(dn === sgl.length ? ['✓', `All ${sgl.length} signature${sgl.length > 1 ? 's' : ''} collected`] : ['•', `${sgl.length - dn} of ${sgl.length} signatures still pending`]); }
+    if (sealed) chk.push(['✓', 'Sealed · ' + dv.seal.id]);
+    /* document reference, saved-version helpers and the printed sheet */
+    const nDrafts = Object.values(D.drafts).reduce((a, b) => a + b.length, 0), newRef = () => LSG.refNo(LSG.TPL_CODE[S.tpl], nDrafts), auditAt = () => T + ' ' + LS.nowHM();
+    /* Makes sure what is on screen is a saved version (with a reference number) and returns its index, or null if it could not be saved. nh: new html from "Fill details". */
+    const ensure = (nh, label) => {
+      const html = nh != null ? this.clean(nh) : (this.buf != null ? this.clean(this.ed ? this.ed.innerHTML : liveHtml) : null);
+      if (dv && html == null && dv.ref) return vi;
+      this.buf = null;
+      this.mut(db => { const arr = db.drafts[S.tpl] = db.drafts[S.tpl] || [];
+        if (dv) { const y = arr[vi]; if (!y || LSG.locked(y)) return; if (html != null) y.html = html; if (!y.ref) y.ref = newRef(); if (nh != null) (y.audit = y.audit || []).push({ at: auditAt(), who: db.user.name, what: label || 'Edited' }); }
+        else { arr.unshift({ at: auditAt(), by: 'you', label: label || '', html: html != null ? html : this.clean(this.ed ? this.ed.innerHTML : liveHtml), ref: newRef(), audit: [{ at: auditAt(), who: db.user.name, what: 'Document created' }] }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${arr.length + 1})`); } });
+      const idx = dv ? vi : 0, got = (this.db.drafts[S.tpl] || [])[idx]; if (!got) return null; if (!dv) this.setState({ ver: 0 }); return idx;
+    };
+    this.copyEditable = () => { if (!dv) return; V.confirmBox(this, 'Make an editable copy?', 'A new version with the same text is created. The signatures, seal and audit trail stay with the original version.', 'Create copy', () => { const html = dv.html; this.mut(db => { db.drafts[S.tpl].unshift({ at: auditAt(), by: 'you', label: 'Editable copy', html, ref: newRef(), audit: [{ at: auditAt(), who: db.user.name, what: 'Editable copy made from ' + (dv.seal ? dv.seal.id : (dv.ref || 'an earlier version')) }] }); V.logIt(db, `${db.user.name} made an editable copy of the ${this.tplNames[S.tpl]}`); }, 'Editable copy created'); this.setState({ ver: 0 }); }); };
+    const refTxt = (dv && dv.ref) || 'LS/' + LSG.TPL_CODE[S.tpl] + '/' + new Date().getFullYear() + '/____', docDate = LS.dmy(dv ? dv.at.slice(0, 10) : T), words = plain.trim().split(/\s+/).length;
+    const letterhead = h('div', { contentEditable: false, style: { textAlign: 'center', paddingBottom: 10, lineHeight: 1.4 } },
+      h('div', { style: { fontSize: 11, letterSpacing: '.34em', color: '#444', textTransform: 'uppercase' } }, 'Advocates & Legal Consultants'),
+      h('div', { style: { fontSize: 25, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', lineHeight: 1.25, margin: '4px 0 2px' } }, D.firm.name || 'Chamber of the Advocate'),
+      h('div', { style: { fontSize: 12.5, color: '#333' } }, [D.firm.address, D.firm.city].filter(Boolean).join(', ')),
+      (D.user.phone || D.user.email || D.firm.gstin) && h('div', { style: { fontSize: 11.5, color: '#555', fontFamily: 'system-ui,sans-serif' } }, [D.user.phone ? 'Tel: ' + D.user.phone : '', D.user.email, D.firm.gstin ? 'GSTIN: ' + D.firm.gstin : ''].filter(Boolean).join('  ·  ')),
+      h('div', { style: { borderTop: '3px solid #111', borderBottom: '1px solid #111', height: 5, marginTop: 10 } }));
+    const metaRow = h('div', { contentEditable: false, style: { display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 13.5, fontWeight: 600, margin: '8px 0 22px' } }, h('span', null, 'Ref. No.: ' + refTxt), h('span', null, 'Date: ' + docDate));
     const draft = { title: S.tpl === 2 ? 'Legal notice, s.138 NI Act' : this.tplNames[S.tpl], footer: `Draft ${vlist[vi].v.split(' ')[0]} · Prepared on Legal Staff · ${plain.trim().split(/\s+/).length} words`,
-      body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length, ref: el => { this.ed = el; }, contentEditable: true, suppressContentEditableWarning: true, spellCheck: true, style: { position: 'relative', outline: 'none' }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
+      sheet: null, secure: null, audit: null,
+      body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length, ref: el => { this.ed = el; }, contentEditable: !lockd && canEdit, suppressContentEditableWarning: true, spellCheck: true, 'aria-readonly': lockd, style: { position: 'relative', outline: 'none', minHeight: 240 }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
       checks: h(React.Fragment, null, chk.map(([m, t], i) => h('div', { key: i, style: { color: m === '✓' ? '#0A0A0A' : '#B42318' } }, m + ' ' + t))),
-      aiBtn: LSB.on && LSB.ai ? h(V.Btn, { onClick: () => V.aiDraft(this, S.tpl, this.tplNames[S.tpl]) }, '✦ Draft with AI') : null,
-      saveBtn: h(V.Btn, { onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
-      docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }], ...LS.htmlToRuns(this.ed)]); this.toast('DOCX downloaded'); },
+      aiBtn: LSB.on && LSB.ai && !lockd ? h(V.Btn, { onClick: () => V.aiDraft(this, S.tpl, this.tplNames[S.tpl]) }, '✦ Draft with AI') : null,
+      saveBtn: h(V.Btn, { disabled: lockd, title: lockd ? 'Signed or sealed: make an editable copy to change the text' : '', onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html, ref: newRef(), audit: [{ at: auditAt(), who: db.user.name, what: 'Version saved' }] }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
+      docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }], ...LS.htmlToRuns(this.ed), ...(dv && dv.stamp ? [[{ t: `Non-judicial stamp: ${dv.stamp.state}, Rs ${dv.stamp.amount}, certificate ${dv.stamp.certNo} (${dv.stamp.issuer})` }]] : []), ...sgl.map(x => [{ t: x.name + ', ' + x.role + (x.sigImg ? ' · signed electronically ' + x.signedAt : ' · signature pending'), b: false }]), ...(sealed ? [[{ t: `Sealed ${dv.seal.id} · SHA-256 ${dv.seal.hash}` }]] : [])]); this.toast('DOCX downloaded'); },
       pdf: () => { const sec = this.ed && this.ed.closest('section'); if (!sec) return; sec.classList.add('ls-print'); const done = () => { sec.classList.remove('ls-print'); window.removeEventListener('afterprint', done); }; window.addEventListener('afterprint', done); window.print(); } };
+    draft.sheet = h('section', { className: 'ls-paperwrap', 'aria-label': 'Document', style: { background: '#E4E4E1', border: '1px solid #E5E5E5', borderRadius: 12, padding: '26px 16px', gridColumn: 'span 2', minWidth: 0, overflowX: 'auto' } },
+      h('div', { className: 'ls-paper', 'data-wm': sealed ? '' : lockd ? 'SIGNING' : 'DRAFT' },
+        h('div', { className: 'ls-sheet' + (lockd ? ' ls-ro' : ''), style: { border: '3px double #1B1B1B', padding: '34px 42px 22px' } },
+          letterhead, metaRow, LSG.stampBlock(dv), draft.body, LSG.signBlock(dv), LSG.sealBlock(dv),
+          h('div', { contentEditable: false, style: { marginTop: 30, paddingTop: 8, borderTop: '1px solid #999', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 10.5, color: '#555', fontFamily: 'system-ui,sans-serif' } }, h('span', null, refTxt + ' · ' + words + ' words'), h('span', null, sealed ? dv.seal.id + ' · sealed' : 'Draft, not yet sealed'), h('span', null, 'Prepared on Legal Staff')))));
+    draft.secure = LSG.panel({ app: this, tpl: S.tpl, vi, cur: dv, saved, ensure, html: liveHtml, caseId: (D.cases[0] || {}).id, canEdit });
+    draft.audit = LSG.auditCard(dv);
 
     /* ---- pricing ---- */
     const cycles = [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14, background: S.cycle === k ? '#0A0A0A' : 'transparent', color: S.cycle === k ? '#fff' : '#363636' } }));
