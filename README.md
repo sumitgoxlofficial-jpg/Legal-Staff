@@ -21,6 +21,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - Each page is a template plus a logic class, rendered by `support.js` on React 18 (bundled in `vendor/`).
 - `app-store.js` holds the app's data layer: storage, local accounts, the limitation calculator, order reading, and exports (ICS, CSV, DOCX).
 - `app-views.js` holds the module screens, dialogs and forms.
+- `app-sign.js` holds the Drafting Studio extras: eStamp record, electronic signatures, fill-details automation, sealing (SHA-256) and audit trail.
 - `config.js` holds site settings such as the Google Client ID.
 
 ## Accounts and data
