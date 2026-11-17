@@ -489,7 +489,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           </div>
           <div style="display:flex;align-items:center;gap:8px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;height:38px;min-width:240px">
             <span style="color:#7A7A7A">⌕</span>
-            <input value="{{ caseQ }}" onChange="{{ setCaseQ }}" placeholder="Filter by party, number or court" style="border:0;outline:none;flex:1;font-size:14px;background:transparent;min-width:0">
+            <input value="{{ caseQ }}" onChange="{{ setCaseQ }}" placeholder="Filter by party, number, court or label" style="border:0;outline:none;flex:1;font-size:14px;background:transparent;min-width:0">
           </div>
         </div>
         <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;overflow-x:auto">
@@ -499,7 +499,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             </div>
             <sc-for list="{{ caseRows }}" as="r" hint-placeholder-count="8">
               <button onClick="{{ r.go }}" class="ls-row ls-row-btn" style="display:grid;grid-template-columns:minmax(260px,2.3fr) 1.4fr 1fr 1fr 1fr 120px;gap:16px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid #E5E5E5;background:#FFFFFF;padding:16px 22px;color:#0A0A0A;font-size:13.5px" style-hover="background:#FAFAF9">
-                <span style="min-width:0"><span style="display:block;font-weight:500;font-size:15px">{{ r.title }}</span><span style="display:block;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:12px;color:#5E5E5E">{{ r.no }}</span></span>
+                <span style="min-width:0"><span style="display:block;font-weight:500;font-size:15px">{{ r.title }}</span><span style="display:block;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:12px;color:#5E5E5E">{{ r.no }}</span><span style="display:block;margin-top:4px">{{ r.labelsEl }}</span></span>
                 <span style="color:#363636">{{ r.court }}</span>
                 <span style="{{ r.dateStyle }}">{{ r.next }}</span>
                 <span style="color:#5E5E5E">{{ r.stage }}</span>
@@ -530,7 +530,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               <span style="font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:4px 10px;white-space:nowrap">{{ c.cnrLabel }}</span>
               <span style="font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:4px 10px;white-space:nowrap">{{ c.forum }}</span>
               <span style="font-size:13px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:4px 10px;white-space:nowrap;font-weight:500">{{ c.statusLine }}</span>
+              {{ c.extraChips }}
             </div>
+            <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">{{ c.labelsEl }}</div>
+            <div style="margin-top:10px;font-size:12.5px;color:#5E5E5E;line-height:1.7">{{ c.metaLine }}</div>
           </div>
           <div style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:20px 22px;min-width:280px;display:flex;flex-direction:column;gap:12px">
             <div style="font-size:12px;color:#5E5E5E">Next hearing</div>
@@ -1087,7 +1090,7 @@ class Component extends DCLogic {
   tplNames = ['Legal notice', 'Petition', 'Section 138 notice', 'Bail application', 'Affidavit', 'Written statement', 'Reply', 'Appeal', 'Revision', 'Agreement'];
   dirList = [];
   state = { auth: LSB.on ? 'boot' : (this.db.session ? 'in' : 'login'), screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: '', promo: null, promoInput: '', promoErr: '' };
-  SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'courts', 'clients', 'documents', 'evidence', 'research', 'agents', 'team', 'chat', 'billing', 'portal', 'reports', 'settings'];
+  SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'causelist', 'ordersdate', 'ordersnotif', 'board', 'labels', 'courts', 'clients', 'documents', 'evidence', 'research', 'agents', 'team', 'chat', 'billing', 'portal', 'reports', 'settings'];
 
   componentDidMount() {
     this.onR = () => this.setState({ w: window.innerWidth }); window.addEventListener('resize', this.onR);
@@ -1293,7 +1296,7 @@ class Component extends DCLogic {
       team: 'M15 21a6 6 0 0 0-12 0 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M16 11h6', rupee: 'M6 4h12 M6 9h12 M9 4a5 5 0 0 1 0 10H6l8 7',
       globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M3 12h18 M12 3a14 14 0 0 1 0 18 M12 3a14 14 0 0 0 0 18', chart: 'M4 20V10 M10 20V4 M16 20v-7 M22 20H2',
       card: 'M2 6h20v13H2z M2 10h20 M6 15h4', gear: 'M4 6h10 M18 6h2 M16 4v4 M4 12h4 M12 12h8 M10 10v4 M4 18h12 M18 16v4', shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4',
-      upload: 'M12 16V4 M7 9l5-5 5 5 M4 20h16'
+      tag: 'M3 12V4h8l10 10-8 8z M7.5 8.5h.01', upload: 'M12 16V4 M7 9l5-5 5 5 M4 20h16'
     };
     const icon = (k, sz) => h('svg', { width: sz || 18, height: sz || 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: (sz || 18) <= 16 ? 1.6 : 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }, h('path', { d: IC[k] }));
     const chip = (bg, fg) => ({ fontSize: 12, fontWeight: 500, background: bg, color: fg, borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap', alignSelf: 'flex-start' });
@@ -1309,7 +1312,7 @@ class Component extends DCLogic {
     /* ---- navigation ---- */
     const navDef = [
       ['Overview', [['Dashboard', 'dashboard', 'dashboard'], ['My Workspace', 'workspace', 'user']]],
-      ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', limWait]]],
+      ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Daily Causelist', 'causelist', 'cal'], ['Orders by Date', 'ordersdate', 'order'], ['Orders by Notification', 'ordersnotif', 'order', pendOrders.length], ['Display Board', 'board', 'court'], ['Labels', 'labels', 'tag'], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', limWait]]],
       ['AI', [['AI Case Brain', 'brain', 'spark'], ['AI Drafting Studio', 'drafting', 'pen'], ['AI Legal Research', 'research', 'search'], ['AI Agents', 'agents', 'cpu']]],
       ['Firm', [['Team', 'team', 'team'], ['Team chat', 'chat', 'chat', LSB.on ? Object.values(this.chatUnread || {}).reduce((a, b) => a + b, 0) || 0 : 0], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
     ];
@@ -1343,7 +1346,7 @@ class Component extends DCLogic {
     const SC = { active: ['Active', '#F0F0EF', '#0A0A0A'], pending: ['Pending', '#FDECEA', '#B42318'], disposed: ['Disposed', '#EDEDED', '#363636'], archived: ['Archived', '#EDEDED', '#363636'] };
     const nextOf = c => { const nh = V.nextHearing(D, c.id); if (nh) return { label: nh.date === T ? 'Today, ' + LS.t12(nh.time) : LS.fmt(nh.date), today: nh.date === T }; const po = pendOrders.find(o => o.caseId === c.id); return { label: po ? LS.dayMon(po.nextDate) + ' · to confirm' : '—', today: false }; };
     const cq = S.caseQ.toLowerCase();
-    const caseRows = D.cases.filter(c => (S.caseFilter === 'all' || c.status === S.caseFilter) && (!cq || (c.title + c.no + c.court + c.cnr).toLowerCase().includes(cq))).map(c => { const n = nextOf(c); return { title: c.title, no: c.no, court: c.court, next: n.label, stage: c.purpose || c.stage, who: c.team.map(LS.short).join(', '), status: SC[c.status][0], go: () => this.go('case', c.id),
+    const caseRows = D.cases.filter(c => (S.caseFilter === 'all' || c.status === S.caseFilter) && (!cq || (c.title + c.no + c.court + c.cnr + (c.fileNo || '') + V.labelsOf(D, c).map(l => ' ' + l.code + ' ' + l.name).join('')).toLowerCase().includes(cq))).map(c => { const n = nextOf(c); return { title: c.title, no: c.no, labelsEl: V.labelChips(D, c, true), court: c.court, next: n.label, stage: c.purpose || c.stage, who: c.team.map(LS.short).join(', '), status: SC[c.status][0], go: () => this.go('case', c.id),
       chip: { fontSize: 12, fontWeight: 500, background: SC[c.status][1], color: SC[c.status][2], borderRadius: 6, padding: '2px 8px', justifySelf: 'start', whiteSpace: 'nowrap' },
       dateStyle: { color: n.today ? '#B42318' : '#363636', fontWeight: n.today ? 600 : 400, whiteSpace: 'nowrap' } }; });
 
@@ -1356,11 +1359,14 @@ class Component extends DCLogic {
     const orderByCite = p => { const m = /Order (\d\d\.\d\d\.\d{4})/.exec(p); return m && cOrders.find(o => LS.dmy(o.date) === m[1]); };
     const sumEl = C0.summary ? C0.summary.split(/(\[[^\]]+\])/).map((p, i) => /^\[/.test(p) ? h('a', { key: i, href: '#', onClick: e => { e.preventDefault(); const o = orderByCite(p) || (/Order/.test(p) && cOrders[0]); o ? this.go('order', o.id) : this.go('case', C0.id, 'documents'); } }, p) : p) : 'No summary written yet. Write one in Case details' + (cOrders.length ? ', or draft one from the key points of the orders on file.' : ', or add court orders and draft it from them.');
     const summaryBtns = C0.id ? h('span', { style: { display: 'inline-flex', gap: 6, flexWrap: 'wrap' } }, h(V.Btn, { small: true, onClick: () => V.caseDetails(this, C0.id, 'summary') }, C0.summary ? 'Edit summary' : 'Write summary'), h(V.Btn, { small: true, disabled: !cOrders.length, title: cOrders.length ? 'Assemble a draft from the key points of the orders' : 'No orders in this case yet', onClick: () => V.caseDetails(this, C0.id, 'summary', true) }, 'Draft from orders')) : null;
-    const c = { no: C0.no, full: C0.full, cnrLabel: C0.cnr ? 'CNR ' + C0.cnr : 'CNR not added', forum: C0.forum || C0.court, statusLine: (SC[C0.status] || SC.active)[0] + ' · ' + (C0.stage || ''),
-      nextLabel: cNext ? LS.longDate(cNext.date) : (cPend ? LS.longDate(cPend.nextDate) : 'Not fixed'), benchLine: cNext ? [cNext.court, LS.t12ap(cNext.time), C0.bench].filter(Boolean).join(' · ') : (cPend ? 'From the last order · not yet confirmed' : (C0.bench || C0.court)),
+    const chipS = { fontSize: 13, background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: 8, padding: '4px 10px', whiteSpace: 'nowrap' }, lastLog = D.log.find(e => e.caseId === C0.id), created = C0.created || C0.createdOn;
+    const extraChips = h(React.Fragment, null, C0.fileNo && h('span', { style: chipS }, 'File ' + C0.fileNo), (C0.district || C0.state) && h('span', { style: chipS }, [C0.district, C0.state].filter(Boolean).join(', ')), C0.isApp && h('span', { style: Object.assign({}, chipS, { background: '#EEF3FF', borderColor: '#C9D8FA', color: '#1D4FB0', fontWeight: 500 }) }, 'Application'));
+    const metaLine = [lastLog && 'Last update: ' + LS.dmy(lastLog.ts.slice(0, 10)) + ' ' + LS.t12ap(lastLog.ts.slice(11)), created && 'Created: ' + LS.dmy(String(created).slice(0, 10)) + (C0.createdBy ? ' by ' + C0.createdBy : ''), C0.oppAdv && 'Opposite advocate: ' + C0.oppAdv].filter(Boolean).join('  ·  ');
+    const c = { extraChips, metaLine, labelsEl: C0.id ? V.labelChips(D, C0) : null, no: C0.no, full: C0.full, cnrLabel: C0.cnr ? 'CNR ' + C0.cnr : 'CNR not added', forum: C0.forum || C0.court, statusLine: (SC[C0.status] || SC.active)[0] + ' · ' + (C0.stage || ''),
+      nextLabel: cNext ? LS.longDate(cNext.date) : (cPend ? LS.longDate(cPend.nextDate) : 'Not fixed'), benchLine: cNext ? [cNext.court, LS.t12ap(cNext.time), cNext.item && 'Item ' + String(cNext.item).replace(/^item\s*/i, ''), cNext.bench || C0.bench, cNext.listNo && 'List ' + cNext.listNo].filter(Boolean).join(' · ') : (cPend ? 'From the last order · not yet confirmed' : (C0.bench || C0.court)),
       openOrder: () => cOrders[0] ? this.go('order', cOrders[0].id) : V.addOrder(this, C0.id), orderLabel: cOrders[0] ? 'Open latest order' : 'Add court order',
       brief: () => { this.setState({ brainCase: C0.id }); this.go('brain'); setTimeout(() => this.ask('Prepare a hearing brief'), 80); },
-      actions: h(React.Fragment, null, h(V.Btn, { onClick: () => V.newCase(this, null, C0.id) }, 'Edit case'), h(V.Btn, { onClick: () => V.caseDetails(this, C0.id) }, 'Case details'), h(V.Btn, { onClick: () => V.addHearing(this, C0.id) }, '+ Hearing'), h(V.Btn, { onClick: () => V.addOrder(this, C0.id) }, '+ Order'), h(V.Btn, { onClick: () => V.uploadDoc(this, 'document', C0.id) }, '+ Document'),
+      actions: h(React.Fragment, null, h(V.Btn, { onClick: () => V.newCase(this, null, C0.id) }, 'Edit case'), h(V.Btn, { onClick: () => V.caseDetails(this, C0.id) }, 'Case details'), h(V.Btn, { onClick: () => this.mut(db => { const x = db.cases.find(y => y.id === C0.id); x.isApp = !x.isApp; V.logIt(db, x.isApp ? 'Marked as an application' : 'Marked as a case', C0.id); }, C0.isApp ? 'Marked as a case' : 'Marked as an application') }, C0.isApp ? 'Mark as case' : 'Mark as application'), h(V.Btn, { onClick: () => V.addHearing(this, C0.id) }, '+ Hearing'), h(V.Btn, { onClick: () => V.addOrder(this, C0.id) }, '+ Order'), h(V.Btn, { onClick: () => V.uploadDoc(this, 'document', C0.id) }, '+ Document'),
         h(V.Select, { value: C0.status, onChange: v => this.mut(db => { db.cases.find(x => x.id === C0.id).status = v; V.logIt(db, 'Status changed to ' + SC[v][0], C0.id); }, 'Case marked ' + SC[v][0].toLowerCase()), options: Object.keys(SC).map(k => [k, SC[k][0]]), style: { height: 36, minWidth: 120, fontSize: 13.5 } }), h(V.Btn, { danger: true, onClick: () => V.delCase(this, C0.id) }, 'Delete case')),
       summaryMeta: C0.summary ? (C0.summaryMeta || 'Written in Case details') : 'Not written yet', summaryEl: sumEl, summaryBtns, detailsEl: C0.id ? V.detailsView(this, C0) : null,
       tasksEl: h('div', null, cTasks.map(t => h(V.TaskRow, { key: t.id, app: this, t })), !cTasks.length && h('div', { style: { fontSize: 14, color: '#5E5E5E', paddingBottom: 8 } }, 'No tasks in this case.'), h('div', { style: { marginTop: 10 } }, h(V.Btn, { small: true, onClick: () => V.addTask(this, C0.id) }, '+ Add task'))),
