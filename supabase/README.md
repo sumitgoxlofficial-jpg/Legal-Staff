@@ -13,6 +13,9 @@
 | `migrations/0022_court_intelligence.sql` | Court-record engine: provider registry and coverage, verified case records, change snapshots, append-only audit, API usage, cost and budget, job queue with dead-letter state, Vault-held provider key, the 6-hourly sync job |
 | `functions/court-sync` | The court-record engine: official-portal links, reuse of verified records and a shared cache, the paid eCourtsIndia provider as fallback, budget control, duplicate-request block, change detection, scheduler and the administrator actions. Deploy with JWT verification off; it checks every caller itself |
 | `functions/_shared/court-logic.js` | The engine's pure logic (also unit-tested). Deploy `functions/` as a whole so `court-sync` can import it |
+| `migrations/0024_whatsapp_cloud.sql` | WhatsApp Cloud API connection: settings row, message and delivery log, opt-outs (hashed), API error history, append-only audit log, Vault access functions (service role only), 6-hourly health check |
+| `functions/whatsapp` | Admin › Settings › Integrations › WhatsApp API: save credentials (kept in Vault), test the connection against Meta, send a template test message, Meta webhook (verify token and `X-Hub-Signature-256`), token and webhook health, alert emails (deploy with JWT verification off) |
+| `functions/_shared/whatsapp-logic.js` | Its pure logic (also unit-tested), also used by `notify` |
 | `functions/court-status` | Older single-CNR lookup. The app no longer calls it (everything goes through `court-sync`); it can be removed |
 | `functions/auth-email` | Supabase Auth "Send Email" hook: sign-in codes, sign-up confirmations, invites, email changes and security notices in the Legal Staff design, sent through Resend (deploy with JWT verification off; it checks the hook signature) |
 | `functions/ai` | Real AI for AI Case Brain, AI Legal Research and AI Drafting Studio through Groq; picks the best model from Groq's live list; counts AI credits per firm per month by plan (deploy with JWT verification off; it checks the caller itself) |
@@ -54,6 +57,51 @@ A service whose secrets are missing is skipped and the app says it is not connec
 - Plans: every firm starts with a 7-day free trial of the plan it chooses. When the trial or a paid period ends, practice records and files can still be read and deleted but not added or changed (`firm_access()`), until a plan is paid for. Members are capped at 1 (Solo), 3 (Professional) or 15 (Firm). A payment made during the trial starts after the trial's last day.
 - The first person to create a firm becomes the platform administrator, who verifies public directory applications. Add others in the `platform_admins` table.
 - The public directory can submit applications, enquiries, reports and contact requests without signing in, and can read only verified profiles.
+
+## WhatsApp Cloud API (Meta, direct)
+
+Set up by a Legal Staff administrator in **Admin → Settings → Integrations → WhatsApp API** (`admin.html#settings/integrations`). The official Meta WhatsApp Business Platform is used directly: no Brevo, Twilio, Interakt, WATI or other paid provider. The page never contains a token: credentials are saved server-side and are not returned by any call.
+
+### Calls (`functions/whatsapp`, also reachable as `/api/whatsapp/...` through the `vercel.json` rewrite)
+
+| Call | What it does |
+| --- | --- |
+| `GET /connection/status` | Saved settings, which secrets exist (never their values), token and webhook health, API error history, recent messages, audit log |
+| `POST /connection/save` | IDs, Graph version and, when supplied, App Secret, System User token, webhook verify token. A blank secret keeps the stored one; a new one replaces it (rotation) |
+| `POST /connection/test` | Against Meta: token validity and expiry (`debug_token`), both permissions, the WABA, the Phone Number ID belongs to that WABA, the token can read the number, the app is subscribed, webhook fields |
+| `POST /connection/refresh-token` | Re-reads token validity, expiry and scopes |
+| `POST /connection/disconnect` | `{ confirm: true }` deletes the stored credentials from Legal Staff. It makes no call to Meta and does not touch the number |
+| `GET /phone-number`, `GET /templates` | Live number details and approved templates from Meta |
+| `POST /send-test` | One approved template message to one number. Result is "accepted" or "rejected" with Meta's message ID or error. It is marked delivered only when Meta's delivery webhook says so |
+| `POST /webhook/subscribe` | `{ confirm: true, override_callback?: true }` subscribes the app to the WABA |
+| `GET/POST /webhook` | Meta's callback. GET: verify token. POST: `X-Hub-Signature-256` is checked with the App Secret, then delivery, read and failure statuses update messages Legal Staff sent. Incoming messages are not stored and there is no inbox; only a STOP / START reply is acted on (the number is kept as a hash) and `notify` skips opted-out numbers |
+| `POST /health` | Scheduled (every 6 hours, `x-cron-secret`): re-checks the connection and emails the administrators when the token is invalid or about to expire, or the connection fails (at most once a day) |
+
+Only users listed in `public.super_admins` with a verified email can use the admin calls.
+
+### Environment variables and secrets
+
+| Name | Where | For |
+| --- | --- | --- |
+| `wa_app_secret`, `wa_access_token`, `wa_verify_token` | **Vault** (written by the page, encrypted at rest) | Meta App Secret, System User access token, webhook verify token. Never set these by hand, never as function secrets |
+| `RESEND_API_KEY`, `EMAIL_FROM` | function secrets (already used elsewhere) | Alert emails to the administrators |
+| `APP_URL` (optional) | function secret | Link in alert emails; defaults to `https://legalstaff.in` |
+| `WHATSAPP_GRAPH_URL` | tests only | Points the function at a mock of Meta's API. Do not set it in production |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE`, `WHATSAPP_TEMPLATE_LANG` | function secrets (existing) | The number `notify` already uses. Unchanged. If `WHATSAPP_TOKEN` and `WHATSAPP_PHONE_ID` are set, `notify` keeps using them; only when they are not set does it use this connection (once it is Connected). `WHATSAPP_TEMPLATE` is needed either way |
+
+### Deploy
+
+1. Apply `migrations/0024_whatsapp_cloud.sql` (needs `pg_cron`, `pg_net` and Vault, and the `cron_secret` Vault entry from migration 0003). Check the project address in the last statement.
+2. Deploy `functions/` (so `whatsapp` and `notify` can import `_shared/whatsapp-logic.js`), then deploy `whatsapp` with JWT verification **off** (Meta's calls carry no Supabase token; the function checks every admin call itself).
+3. Do the Meta steps below, then open the page and save, Test connection, subscribe, send a test.
+
+### Meta steps only a person can do
+
+1. Meta Developer Apps (`developers.facebook.com/apps`): select the Legal Staff app. WhatsApp → API Setup: note the App ID (App settings → Basic), the App Secret, the WhatsApp Business Account ID and the Phone Number ID.
+2. Meta Business Settings (`business.facebook.com/settings`) → Users → System Users: create a System User, assign the WhatsApp Business Account as an asset with full control, and generate a token for the Legal Staff app with `whatsapp_business_messaging` and `whatsapp_business_management`. Paste it only into the masked field on the page.
+3. In the Meta app → WhatsApp → Configuration set the callback URL shown on the page and the same verify token, and subscribe the `messages` field.
+4. Create and get an approved message template (a business-initiated message must use one).
+5. Until the business is verified and the app is live, Meta only lets you message numbers added as test recipients.
 
 ## Google Drive storage
 

@@ -1328,6 +1328,10 @@ class Component extends DCLogic {
     /* The practice area leads the Practice group with its own modules and renames what its work calls them. */
     const PA = LSP.domain(D.firm), isCorp = D.firm.kind === 'corporate', renameNav = Object.assign({}, isCorp ? { clients: 'Business units', portal: 'Business portal' } : {}, PA.rename);
     navDef[1][1].sort((a, b) => { const i = PA.lead.indexOf(a[1]), j = PA.lead.indexOf(b[1]); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
+    /* Split the long Practice list into clear sections (lead order from the practice area is kept inside each). */
+    const NAV_SPLIT = [['Case management', ['cases', 'calendar', 'clients', 'labels']], ['Court & orders', ['orders', 'causelist', 'ordersdate', 'ordersnotif', 'courts', 'board']], ['Records', ['documents', 'evidence', 'limitation']]];
+    const practiceItems = navDef[1][1];
+    navDef.splice(1, 1, ...NAV_SPLIT.map(([t, keys]) => [t, practiceItems.filter(it => keys.includes(it[1]))]).filter(g => g[1].length));
     const nav = navDef.map(([title, items]) => ({ title, items: items.map(([label0, key, ic, badge]) => { const label = renameNav[key] || label0;
       const locked = acc.ok && !LS.hasMod(acc, key); if (locked) badge = LS.MOD_PLAN[key] === 'Firm' ? 'Firm' : 'Pro';
       const active = S.screen === key || (key === 'cases' && S.screen === 'case') || (key === 'orders' && S.screen === 'order');

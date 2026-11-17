@@ -15,9 +15,10 @@ const eq = (a, b, m) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new
 const ok = (v, m) => { if (!v) throw new Error(m || 'expected true'); };
 
 const out = mkdtempSync(join(tmpdir(), 'notify-'));
-const src = readFileSync(join(root, 'supabase/functions/notify/index.ts'), 'utf8').replace('jsr:@supabase/supabase-js@2', 'fake-supabase-shim');
+const src = readFileSync(join(root, 'supabase/functions/notify/index.ts'), 'utf8').replace('jsr:@supabase/supabase-js@2', 'fake-supabase-shim').replace('../_shared/whatsapp-logic.js', './whatsapp-logic.js');
 writeFileSync(join(out, 'index.ts'), 'declare const Deno: any;\n' + src); writeFileSync(join(out, 'shim.d.ts'), 'declare module "fake-supabase-shim" { export const createClient: any; }');
-try { execFileSync('tsc', ['--target', 'es2022', '--module', 'esnext', '--moduleResolution', 'bundler', '--skipLibCheck', '--strict', 'false', '--lib', 'es2022,dom', '--outDir', join(out, 'js'), join(out, 'index.ts'), join(out, 'shim.d.ts')], { stdio: 'pipe' }); } catch (e) { console.log(String(e.stdout)); throw e; }
+cpSync(join(root, 'supabase/functions/_shared/whatsapp-logic.js'), join(out, 'whatsapp-logic.js'));
+try { execFileSync('tsc', ['--target', 'es2022', '--allowJs', '--module', 'esnext', '--moduleResolution', 'bundler', '--skipLibCheck', '--strict', 'false', '--lib', 'es2022,dom', '--outDir', join(out, 'js'), join(out, 'index.ts'), join(out, 'shim.d.ts')], { stdio: 'pipe' }); } catch (e) { console.log(String(e.stdout)); throw e; }
 writeFileSync(join(out, 'js/package.json'), '{"type":"module"}'); cpSync(join(here, 'court-fake-db.mjs'), join(out, 'js/fake-db.mjs'));
 const idx = join(out, 'js/index.js'); writeFileSync(idx, readFileSync(idx, 'utf8').replace('fake-supabase-shim', './fake-db.mjs'));
 
