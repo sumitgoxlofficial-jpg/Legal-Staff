@@ -1,4 +1,4 @@
--- Checks for migration 0024 on a real PostgreSQL: every check raises an exception when it fails, so a failure stops the run.
+-- Checks for migration 0035 on a real PostgreSQL: every check raises an exception when it fails, so a failure stops the run.
 create or replace function pg_temp.check(ok boolean, msg text) returns void language plpgsql as $$ begin if ok then raise notice 'ok   %', msg; else raise exception 'FAIL %', msg; end if; end $$;
 \set ON_ERROR_STOP 1
 set client_min_messages = notice;
@@ -109,56 +109,24 @@ end $$;
 reset role;
 
 
--- Rs 49 payment hook on public.payments
-do $$ declare u uuid := gen_random_uuid(); c uuid; k uuid := (select id from public.email_campaigns where code='reminder_1'); pid uuid; begin
-  insert into public.email_contacts (advocate_name, email, email_normalized, consent_status, consent_verified_at, first_email_status, reminder_due_date) values ('Pay', 'pay@example.in', 'pay@example.in', 'GRANTED', now(), 'SENT', current_date) returning id into c;
-  insert into public.email_queue (campaign_id, contact_id, scheduled_date, status, idempotency_key) values (k, c, current_date, 'sent', 'p:' || c);
-  insert into auth.users (id, email) values (u, 'Pay@Example.in');
-  insert into public.payments (user_id, amount_paise, status) values (u, 29900, 'paid');
-  perform pg_temp.check((select payment_status from public.email_contacts where id = c) = 'NONE', 'a Rs 299 payment is not treated as the Rs 49 listing');
-  insert into public.payments (user_id, amount_paise, status) values (u, 4900, 'created') returning id into pid;
-  perform pg_temp.check((select payment_status from public.email_contacts where id = c) = 'NONE', 'an unpaid Rs 49 order does nothing');
-  update public.payments set status = 'paid' where id = pid;
-  perform pg_temp.check((select payment_status = 'PAID' and reminder_due_date is null from public.email_contacts where id = c), 'paid Rs 49 marks the contact PAID and stops reminders');
-  perform pg_temp.check((select campaign_id = k from public.email_events where contact_id = c and event_type = 'payment_success'), 'payment attributed to the campaign last sent');
-  update public.payments set status = 'paid' where id = pid;
-  perform pg_temp.check((select count(*) from public.email_events where contact_id = c and event_type = 'payment_success') = 1, 'a repeated update is not double counted');
-  insert into public.payments (user_id, amount_paise, status) values (gen_random_uuid(), 4900, 'paid');
-  perform pg_temp.check(true, 'a payer who is not a contact does not break the payment');
-end $$;
-
-
--- directory listing payments (migration 0026)
-do $$ declare c uuid; d1 uuid; d2 uuid; begin
-  insert into public.directory_applications (id, email) values ('LS-DIR-P1', 'lister@example.in');
-  insert into public.email_contacts (advocate_name, email, email_normalized, first_email_status, consent_status) values ('Lister', 'lister@example.in', 'lister@example.in', 'SENT', 'GRANTED') returning id into c;
-  insert into public.email_queue (campaign_id, contact_id, scheduled_date, status, idempotency_key) values ((select id from public.email_campaigns where code='new_intro'), c, current_date, 'sent', 'l:' || c);
-  begin insert into public.directory_payments (application_id, order_no, amount_paise) values ('LS-DIR-P1', 'LDX0', 5100); perform pg_temp.check(false, 'amount band'); exception when check_violation then perform pg_temp.check(true, 'a listing amount must be Rs 49.00 to 49.99'); end;
-  insert into public.directory_payments (application_id, order_no, amount_paise) values ('LS-DIR-P1', 'LDX1', 4907) returning id into d1;
-  insert into public.directory_payments (application_id, order_no, amount_paise) values ('LS-DIR-P1', 'LDX2', 4911) returning id into d2;
+-- directory listing fee (directory_orders, migration 0026_directory_membership) -> email campaign conversion (migration 0036)
+do $$ declare c uuid; o1 uuid; o2 uuid; k uuid := (select id from public.email_campaigns where code='reminder_1'); begin
+  insert into public.directory_applications (id, email) values ('LS-DIR-F1', 'fee@example.in'), ('LS-DIR-F2', 'free@example.in');
+  insert into public.email_contacts (advocate_name, email, email_normalized, first_email_status, consent_status, reminder_due_date) values ('Fee', 'fee@example.in', 'fee@example.in', 'SENT', 'GRANTED', current_date) returning id into c;
+  insert into public.email_contacts (advocate_name, email, email_normalized, first_email_status, consent_status, reminder_due_date) values ('Free', 'free@example.in', 'free@example.in', 'SENT', 'GRANTED', current_date);
+  insert into public.email_queue (campaign_id, contact_id, scheduled_date, status, idempotency_key) values (k, c, current_date, 'sent', 'fee:' || c);
+  insert into public.directory_orders (application_id, amount_paise, status) values ('LS-DIR-F1', 4937, 'created') returning id into o1;
   perform pg_temp.check((select payment_status from public.email_contacts where id = c) = 'NONE', 'an unpaid listing order changes nothing');
-  update public.directory_payments set status = 'paid', utr = '412345670001', paid_at = now() where id = d1;
-  perform pg_temp.check((select payment_status = 'PAID' from public.email_contacts where id = c), 'a paid listing marks the matched email contact PAID');
-  begin update public.directory_payments set status = 'paid', utr = '412345670002' where id = d2; perform pg_temp.check(false, 'second paid'); exception when unique_violation then perform pg_temp.check(true, 'only one paid listing per application'); end;
-  begin insert into public.directory_payments (application_id, order_no, amount_paise, status, utr) values ('LS-DIR-P1', 'LDX3', 4920, 'created', '412345670001'); perform pg_temp.check(false, 'utr'); exception when unique_violation then perform pg_temp.check(true, 'a bank reference can confirm only one payment'); end;
-end $$;
-reset role; set role authenticated;
-do $$ begin begin perform count(*) from public.directory_payments; perform pg_temp.check(true, 'platform-admin policy exists (returns no rows for a non-admin)'); exception when insufficient_privilege then perform pg_temp.check(false, 'select grant'); end; end $$;
-reset role; set role anon;
-do $$ begin begin perform count(*) from public.directory_payments; perform pg_temp.check(false, 'anon read'); exception when insufficient_privilege then perform pg_temp.check(true, 'anonymous users cannot read listing payments'); end; end $$;
-reset role; set role service_role;
-
-
--- Razorpay listing payments (migration 0027)
-do $$ begin
-  insert into public.directory_applications (id, email) values ('LS-DIR-R1', 'rz@example.in');
-  begin insert into public.directory_payments (application_id, order_no, amount_paise, method, gateway_order_id) values ('LS-DIR-R1', 'LR1', 4950, 'razorpay', 'order_a'); perform pg_temp.check(false, 'rz amount'); exception when check_violation then perform pg_temp.check(true, 'a Razorpay listing order must be exactly Rs 49.00'); end;
-  begin insert into public.directory_payments (application_id, order_no, amount_paise, method) values ('LS-DIR-R1', 'LR2', 4900, 'card'); perform pg_temp.check(false, 'method'); exception when check_violation then perform pg_temp.check(true, 'only upi and razorpay are accepted methods'); end;
-  insert into public.directory_payments (application_id, order_no, amount_paise, method, gateway_order_id) values ('LS-DIR-R1', 'LR3', 4900, 'razorpay', 'order_b');
-  begin insert into public.directory_payments (application_id, order_no, amount_paise, method, gateway_order_id) values ('LS-DIR-R1', 'LR4', 4900, 'razorpay', 'order_b'); perform pg_temp.check(false, 'dup order'); exception when unique_violation then perform pg_temp.check(true, 'a Razorpay order id maps to one row'); end;
-  update public.directory_payments set status = 'paid', gateway_payment_id = 'pay_1' where order_no = 'LR3';
-  begin insert into public.directory_payments (application_id, order_no, amount_paise, method, gateway_order_id, gateway_payment_id) values ('LS-DIR-R1', 'LR5', 4900, 'razorpay', 'order_c', 'pay_1'); perform pg_temp.check(false, 'dup pay'); exception when unique_violation then perform pg_temp.check(true, 'a Razorpay payment id confirms only one row'); end;
-  begin update public.directory_payments set status = 'paid' where order_no = 'LR3' and false; perform pg_temp.check(true, 'noop'); end;
+  update public.directory_orders set status = 'paid' where id = o1;
+  perform pg_temp.check((select payment_status = 'PAID' and reminder_due_date is null from public.email_contacts where id = c), 'a paid listing fee marks the matched contact PAID and stops reminders');
+  perform pg_temp.check((select campaign_id = k and (meta->>'amount_paise') = '4937' from public.email_events where contact_id = c and event_type = 'payment_success'), 'the payment is attributed to the campaign last sent, with its amount');
+  update public.directory_orders set status = 'paid' where id = o1;
+  perform pg_temp.check((select count(*) from public.email_events where contact_id = c and event_type = 'payment_success') = 1, 'a repeated update is not double counted');
+  insert into public.directory_orders (application_id, amount_paise, status) values ('LS-DIR-F2', 0, 'paid');
+  perform pg_temp.check((select payment_status = 'NONE' and registration_status = 'COMPLETED' from public.email_contacts where email_normalized = 'free@example.in'), 'a 100%-off promo order is a registration, not a payment');
+  insert into public.directory_applications (id, email) values ('LS-DIR-F3', 'stranger@example.in');
+  insert into public.directory_orders (application_id, amount_paise, status) values ('LS-DIR-F3', 4900, 'paid');
+  perform pg_temp.check(true, 'a payer who is not a contact does not break the payment');
 end $$;
 
 -- audit log is append-only

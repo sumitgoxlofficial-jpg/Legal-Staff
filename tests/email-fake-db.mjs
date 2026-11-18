@@ -1,12 +1,12 @@
 // An in-memory stand-in for the supabase-js client, enough for supabase/functions/email-marketing. Used only by tests/email-engine.test.mjs.
-// The SQL functions (email_import_rows, email_suppress ...) are re-implemented here with the same rules as migration 0024;
+// The SQL functions (email_import_rows, email_suppress ...) are re-implemented here with the same rules as migration 0035;
 // those rules themselves are tested against a real PostgreSQL by tests/email-db/run.sh.
 export const db = { tables: {}, users: {}, admins: new Set(), cronSecret: 'cron-test' };
 const RealDate = Date; export const clock = { t: RealDate.now() };
 globalThis.Date = class extends RealDate { constructor(...a) { a.length ? super(...a) : super(clock.t); } static now() { return clock.t; } };
 const iso = () => new Date().toISOString();
 let seq = 1; const uid = (p) => `${p}-${seq++}`;
-const UNIQUE = { email_contacts: [['email_normalized'], ['contact_id']], email_queue: [['idempotency_key'], ['campaign_id', 'contact_id']], email_events: [['dedupe_key']], email_job_runs: [['job_key']], email_suppressions: [['email_normalized']], google_sheets_integrations: [['spreadsheet_id']], email_logs: [['provider_message_id']], directory_payments: [['order_no']], upi_sms: [['utr']] };
+const UNIQUE = { email_contacts: [['email_normalized'], ['contact_id']], email_queue: [['idempotency_key'], ['campaign_id', 'contact_id']], email_events: [['dedupe_key']], email_job_runs: [['job_key']], email_suppressions: [['email_normalized']], google_sheets_integrations: [['spreadsheet_id']], email_logs: [['provider_message_id']] };
 const DEFAULTS = {
   email_queue: () => ({ status: 'queued', attempts: 0, skip_reason: '', provider_message_id: null, last_error: '', created_at: iso(), updated_at: iso() }),
   email_events: () => ({ occurred_at: iso(), created_at: iso(), meta: {}, provider_message_id: null, queue_id: null, campaign_id: null, dedupe_key: null }),
@@ -14,7 +14,6 @@ const DEFAULTS = {
   email_job_runs: () => ({ started_at: iso(), finished_at: null, summary: {} }),
   email_import_runs: () => ({ status: 'running', started_at: iso(), errors: [], rows_read: 0 }),
   google_sheets_integrations: () => ({ sync_enabled: false, last_sync_at: null, last_sync_status: 'never', last_sync_summary: {}, created_at: iso() }),
-  directory_payments: () => ({ status: 'created', method: 'upi', utr: null, created_at: iso(), paid_at: null }), upi_sms: () => ({ utr: null, received_at: iso() }),
   email_audit_logs: () => ({ created_at: iso(), details: {}, target: '' }), email_consents: () => ({ created_at: iso() }),
 };
 const T = (n) => (db.tables[n] = db.tables[n] || []);

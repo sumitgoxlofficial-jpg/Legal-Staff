@@ -362,6 +362,37 @@ async function exportsAndSearch(o) {
     d = await o.download(() => o.click('Export DOCX')); assert(/\.docx$/.test(d.suggestedFilename()), d.suggestedFilename());
     const head = fs.readFileSync(await d.path()).slice(0, 2).toString(); eq(head, 'PK', 'DOCX is a zip');
   });
+  await step('drafting studio: fill details, eStamp, eSign, seal, verify, audit trail', async () => {
+    await o.go('#/drafting');
+    await o.click('Affidavit');
+    await o.see('Ref. No.');
+    await o.click('Fill details');
+    await o.set('name', 'Rohit Sharma');
+    await o.dclick('Fill document'); await o.see('Rohit Sharma');
+    await o.click('Add eStamp');
+    await o.fill([['State / UT of the stamp', 'Delhi'], ['Stamp duty paid (₹)', '10'], ['Certificate / stamp paper no.', 'IN-DL1234567890'], ['Purchased by', 'Rohit Sharma']]);
+    await o.dclick('Add to document'); await o.see('NON-JUDICIAL STAMP'); await o.see('IN-DL1234567890');
+    await o.click('Add signers'); await o.dclick('+ Add signer');
+    await o.fill([['Full name', 'Rohit Sharma']]); await o.dclick('Add signer');
+    await o.dclick('Sign now');
+    await page.getByRole('tab', { name: 'Type' }).click();
+    await o.dclick('Apply signature'); await o.see('Tick the consent box');
+    await page.getByLabel(/I agree to apply this electronic signature/).check();
+    await o.dclick('Apply signature'); await o.toast('Rohit Sharma has signed');
+    await o.dclick('Done'); await o.see('Signed electronically');
+    eq(await page.locator('[aria-readonly=true]').count(), 1, 'text is locked once signed');
+    await o.click('Seal document'); await o.dclick('Seal document');
+    await o.see('CERTIFICATE OF COMPLETION'); await o.see('SHA-256');
+    await o.click('Verify integrity'); await o.see('Document verified');
+    const t = await page.locator('[role=dialog]').innerText(); assert(/LSD-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}/.test(t), 'document id shown');
+    await o.closeDialog();
+    await o.see('Document sealed');
+    await o.shot('drafting-sealed'); await page.locator('.ls-paperwrap').screenshot({ path: path.join(SHOTS, 'drafting-paper.png') });
+    /* a sealed version that is altered in storage no longer verifies */
+    await o.ls(() => { const k = Object.keys(localStorage).find(k => /ls/i.test(k) && localStorage[k].includes('NON-JUDICIAL') === false && localStorage[k].includes('"seal"')); const d = JSON.parse(localStorage[k]); const v = Object.values(d.drafts)[0][0]; v.html = v.html.replace('Rohit Sharma', 'Rohit Verma'); localStorage[k] = JSON.stringify(d); });
+    await page.reload(); await page.locator('main, body').first().waitFor(); await sleep(800); await o.go('#/drafting');
+    await o.click('Affidavit'); await o.click('Verify integrity'); await o.see('Verification failed');
+  });
   await step('search finds the case and opens it', async () => {
     await o.go('#/dashboard');
     await page.locator('#ls-search').fill('Orion');
@@ -416,12 +447,6 @@ async function persistence(o) {
     await o.go('#/limitation'); await o.see('Appeal against order in CS 412/2026'); await o.see('Written statement');
     await o.go('#/evidence'); await o.see('Ex. P-1');
     if (SERVER) { const kinds = await o.fake(() => [...new Set(__fakeAdmin.records().map(r => r.kind))].sort().join(',')); for (const k of ['case', 'client', 'deadline', 'doc', 'hearing', 'limitation', 'log', 'order', 'task']) assert(kinds.split(',').includes(k), 'server has ' + k + ' records: ' + kinds); }
-  });
-  await step('moderation queue: a directory application with a paid Rs 49 listing fee shows the Paid badge, an unpaid one does not', async () => {
-    await o.ls(() => localStorage.setItem('ls.directory.applications', JSON.stringify([{ id: 'A-1', name: 'Paid Pat', enr: 'BR/1/2020', council: 'Bar Council', status: 'pending', paid: true, date: '1 Jan' }, { id: 'A-2', name: 'Unpaid Una', enr: 'BR/2/2020', council: 'Bar Council', status: 'pending', date: '1 Jan' }])));
-    await o.page.reload(); await waitIn(o); await o.go('#/admin'); await o.see('Paid Pat'); await o.see('Unpaid Una');
-    const n = await o.page.locator('text=\u20b949 listing fee paid').locator('visible=true').count(); eq(n, 1, 'one visible Paid badge');
-    await o.ls(() => localStorage.removeItem('ls.directory.applications'));
   });
 }
 

@@ -1,4 +1,4 @@
-// Legal Staff email marketing (supabase/migrations/0024_email_marketing.sql). One function, four kinds of caller:
+// Legal Staff email marketing (supabase/migrations/0035_email_marketing.sql). One function, four kinds of caller:
 //   a super administrator  { action: "overview" | "contacts" | "contact" | "export" | "consent_record" | "consent_verify" | "suppressions" | "suppress_add" |
 //                            "suppression_lift" | "sheets_get" | "sheets_connect" | "sheets_preview" | "sheets_save" | "sheets_sync" | "imports" | "campaigns" |
 //                            "templates" | "template_save" | "template_toggle" | "template_preview" | "template_test" | "queue" | "queue_cancel" | "history" |

@@ -1,6 +1,6 @@
 # Email Marketing Automation (Admin → Email Marketing)
 
-Imports advocate contacts from one Google Sheet, keeps consent, queues, logs and suppressions in the database, and sends two daily queues (new emails 10:00 IST, reminders 15:00 IST) plus an 8:00 PM report, through an approved provider (Brevo). It lives inside the existing admin console (`admin.html`), the existing Supabase project and the existing super-admin login. Nothing else in Legal Staff was changed except one line in `directory.html` (see "Conversion tracking").
+Imports advocate contacts from one Google Sheet, keeps consent, queues, logs and suppressions in the database, and sends two daily queues (new emails 10:00 IST, reminders 15:00 IST) plus an 8:00 PM report, through an approved provider (Brevo). It lives inside the existing admin console (`admin.html`), the existing Supabase project and the existing super-admin login. Nothing else in Legal Staff was changed except a script tag and one line in `directory.html` (see "Conversion tracking") and the Email Marketing tab in `admin.html`.
 
 **Sending is OFF until you switch it on.** Out of the box `SYSTEM_ENABLED=false`, `LEGAL_APPROVAL=false`, `PROVIDER_APPROVED=false`, `DRY_RUN=true`, and all three templates are inactive.
 
@@ -8,7 +8,7 @@ Imports advocate contacts from one Google Sheet, keeps consent, queues, logs and
 
 | Piece | File |
 | --- | --- |
-| Database (12 required tables + `email_import_runs`, `email_job_runs`), SQL functions, seed templates, 5-minute scheduler job | `supabase/migrations/0024_email_marketing.sql` |
+| Database (12 required tables + `email_import_runs`, `email_job_runs`), SQL functions, seed templates, 5-minute scheduler job | `supabase/migrations/0035_email_marketing.sql` |
 | Rules (eligibility gate, templates, time, tokens, provider mapping) | `supabase/functions/_shared/email-logic.js` |
 | Backend: Sheets import, planner, sender, webhooks, unsubscribe, admin API | `supabase/functions/email-marketing/index.ts` |
 | Admin screens (11 submenus) | `admin-email.js`, loaded by `admin.html` |
@@ -40,13 +40,11 @@ Withdrawing either approval switches automation off and deactivates all template
 ## Deploy
 
 ```bash
-# 1. database, migrations 0024 to 0027 (0024 also schedules the 5-minute job; check the project URL at the bottom of the migration matches yours)
-supabase db push          # or run supabase/migrations/0024_email_marketing.sql in the SQL editor
+# 1. database, migrations 0035 and 0036 (0035 also schedules the 5-minute job; check the project URL at the bottom of the migration matches yours)
+supabase db push          # or run supabase/migrations/0035_email_marketing.sql in the SQL editor
 
 # 2. function (JWT verification OFF: it checks every caller itself)
 supabase functions deploy email-marketing --no-verify-jwt
-supabase functions deploy upi-pay --no-verify-jwt     # redeploy: it now also confirms the Rs 49 directory listing
-supabase functions deploy listing-razorpay --no-verify-jwt   # Razorpay for the Rs 49 listing
 
 # 3. secrets
 supabase secrets set BREVO_API_KEY=... BREVO_WEBHOOK_SECRET=... EMAIL_TOKEN_SECRET=... GOOGLE_SERVICE_ACCOUNT_JSON="$(cat sa.json)"
@@ -58,7 +56,7 @@ The static files (`admin.html`, `admin-email.js`, `unsubscribe.html`, `static/em
 
 **Brevo webhooks.** Brevo → Transactional → Settings → Webhooks → add `https://<project>.supabase.co/functions/v1/email-marketing?action=webhook`, events: delivered, hard bounce, soft bounce, blocked, invalid, spam, unsubscribed, clicked, error; authentication: *Bearer token* = `BREVO_WEBHOOK_SECRET`. Brevo does not sign webhook bodies, so the shared secret in the Authorization header (compared in constant time) is the verification. Opens are ignored on purpose.
 
-**Scheduler.** Migration 0024 schedules `legal-staff-email-tick` every 5 minutes (pg_cron + pg_net, authenticated with the Vault `cron_secret` from migration 0003). The tick decides what is due from the admin-set times, so changing a time needs no redeploy. Each job takes a unique key (`plan_new:2026-11-18`) in `email_job_runs`, so two workers cannot run the same job; each queue row is claimed atomically before sending. If you prefer Google Apps Script for orchestration, a time trigger that POSTs `{"action":"tick"}` with header `x-cron-secret` does the same; do not run both.
+**Scheduler.** Migration 0035 schedules `legal-staff-email-tick` every 5 minutes (pg_cron + pg_net, authenticated with the Vault `cron_secret` from migration 0003). The tick decides what is due from the admin-set times, so changing a time needs no redeploy. Each job takes a unique key (`plan_new:2026-11-18`) in `email_job_runs`, so two workers cannot run the same job; each queue row is claimed atomically before sending. If you prefer Google Apps Script for orchestration, a time trigger that POSTs `{"action":"tick"}` with header `x-cron-secret` does the same; do not run both.
 
 ## Environment variables (function secrets)
 
@@ -83,7 +81,7 @@ Every email carries `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscr
 * Links in emails carry `utm_source=legalstaff_email`, `utm_medium=email`, `utm_campaign=<campaign code>`, `utm_content=step_N` and a signed `ls_t` token (contact + campaign).
 * `static/email-attribution.js` (loaded on `/directory`) records one click per contact and campaign and remembers the token for 30 days; `startApply()` in `directory.html` reports `registration_started`. Only the token is sent; no cookie.
 * **Registration**: a database trigger on `directory_applications` attributes an application whose email matches a contact (`registration_completed`; `profile_verified` when an admin verifies it). This stops reminders.
-* **₹49 payment**: migration `0025_email_payment_hook.sql` adds a trigger on `public.payments`: when a row becomes `paid` with `amount_paise = 4900`, the payer's email (from `auth.users`) is matched to a contact, `payment_success` is recorded against the campaign last sent to them, the contact is marked paid and reminders stop. It is idempotent per payment. **Limits:** this repo still has no dedicated ₹49 directory-listing checkout, so the hook only fires for ₹49 payments recorded in `payments` (which also requires a firm, plan and cycle); a promo that brings another plan to exactly ₹49 would match too. A future listing checkout that writes elsewhere should call `public.email_record_conversion(email, 'payment_success', payment_id, '{"amount_paise":4900}')` itself.
+* **₹49 listing fee**: the directory's own listing-fee flow (`directory_orders`, paid by UPI or Razorpay: see `supabase/README.md`) is wired in by migration `0036_email_directory_fee_hook.sql`. When an order becomes `paid`, the applicant's email is matched to a contact, `payment_success` is recorded against the campaign last sent to them, the contact is marked paid and reminders stop. A 100%-off promo order (amount 0) counts as a registration, not a payment. Idempotent per order. This module does not take payments itself.
 * Attribution is last-campaign-sent. Opens are never counted.
 
 ## Security notes
@@ -100,8 +98,6 @@ Every email carries `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscr
 | --- | --- |
 | `node tests/email-logic.test.mjs` | 50 passed |
 | `node tests/email-engine.test.mjs` | 65 passed |
-| `node tests/directory-pay.test.mjs` | 16 passed |
-| `node tests/razorpay.test.mjs` | 19 passed |
 | `bash tests/email-db/run.sh` | all database checks passed (migration applies and re-applies on PostgreSQL 16) |
 
 The engine test runs the real function code against an in-memory database, a local Brevo mock and a local Google Sheets mock holding 10,000 rows. The database test runs the real migration on PostgreSQL 16. The admin pages and the unsubscribe page were also loaded in a headless browser against canned data (no JavaScript errors; desktop and 390 px mobile layouts).
@@ -122,7 +118,7 @@ The engine test runs the real function code against an in-memory database, a loc
 | 8 | Unsubscribe suppresses immediately | engine + db: link, one-click POST, queued mail skipped, consent withdrawn |
 | 9 | Hard bounces and complaints suppressed | engine + db: webhook → suppression, never selected again, cannot be lifted |
 | 10 | Registration stops follow-ups | engine + db: reminder date cleared, no reminder sent |
-| 11 | ₹49 payment attribution | engine + db: `email_record_conversion` attributes to the last campaign; payment trigger in migration 0025, tested on PostgreSQL; no dedicated ₹49 checkout exists in this repo |
+| 11 | ₹49 payment attribution | engine + db: attributed to the last campaign; trigger on the directory fee orders (migration 0036), tested on PostgreSQL |
 | 12 | Daily limits enforced | engine: 100 cap holds across ticks with 50 more eligible |
 | 13 | Pause immediately | engine: emergency stop halts and holds the queue; settings off/DRY_RUN on stop sending |
 | 14 | Dashboard matches logs | engine: card values compared with counts of the underlying rows |
@@ -130,32 +126,3 @@ The engine test runs the real function code against an in-memory database, a loc
 | 16 | Production needs every approval | unit + engine: enabling refused without both documented approvals; DRY_RUN, kill switch, unconfigured provider and unauthenticated domain each block |
 
 Acceptance on the **live** system (real Brevo, real sheet) is not claimed here.
-
-
-## The ₹49 directory listing checkout
-
-Applicants pay **after applying**, from their application-status screen on `/directory` (a "Lifetime listing: ₹49, one-time" card with *Pay ₹49 by UPI*). No account is needed; the application reference **and** its enrolment number identify the applicant. Verification stays manual: **paying does not publish a profile.**
-
-* It reuses your existing UPI engine (`functions/upi-pay`, `pay_settings`). Each order is ₹49.00 plus 0–99 paise, so the paise identify the payment. The amount pool is shared with plan orders so two open orders never have the same amount, and an amount shared by two open orders is never guessed.
-* Confirmation is the same as for plans: Paytm order status, bank "credited" SMS, or bank alert email. The page polls and shows "Listing fee paid" within a minute or two.
-* Data: `directory_payments` (migration 0026): one paid row per application, a bank reference can confirm only one payment. When a payment is confirmed the applicant's other open orders are deleted. A *second* payment for an already-paid listing is **not** confirmed (it appears in `upi_sms` as "payment was already confirmed"): refund it by hand.
-* A paid listing is an email-campaign conversion (`payment_success`) through the applicant's email, so reminders stop.
-* The card is hidden when UPI is not switched on in `pay_settings`, and for rejected applications.
-
-**Moderator queue:** each application in Directory moderation shows a green "₹49 listing fee paid" badge when a paid `directory_payments` row exists (read through the existing platform-admin policy; an older database without the table just shows no badge). It does not change who can be verified. **Not included:** an invoice or receipt email.
-
-### Razorpay (second way to pay the ₹49)
-
-`functions/listing-razorpay` + migration 0027 add **card, netbanking, wallet and UPI through Razorpay Checkout** next to the manual UPI QR. The card on `/directory` shows both buttons when both are on, and hides a way that is off. Razorpay is used **only for this listing fee**; plan payments stay UPI-only (Razorpay was removed for plans in migration 0014).
-
-1. Razorpay Dashboard → API Keys → generate a key pair. Set **function secrets** (never in the repo or `config.js`): `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`. Only the key id is ever sent to the browser.
-2. Dashboard → Webhooks → add `https://<project>.supabase.co/functions/v1/listing-razorpay?action=webhook`, secret = `RAZORPAY_WEBHOOK_SECRET`, events `payment.captured` and `order.paid`. The webhook is what confirms a payment when the applicant closes the page early. Keep payment capture on **automatic** in the Razorpay settings (an authorised-only payment is captured by the server at verify time, but the webhook ignores it).
-3. Use `rzp_test_` keys first and pay with Razorpay's test cards; then swap to live keys.
-
-How it is made safe: the server creates the order at exactly ₹49.00; after Checkout it verifies the signature (HMAC-SHA256 of `order_id|payment_id`), then **reads the payment from Razorpay** and accepts it only for that order, ₹49, INR, captured; the browser's word is never enough. A signature or webhook that fails verification changes nothing. A payment for an already-paid listing (for example paid by UPI too) is **not** confirmed: its payment id is stored on the leftover row (`status='created'` with a `gateway_payment_id`), so you can find it and refund it in the Razorpay dashboard. Razorpay's fee (around 2 % plus GST at the time of writing: check your plan) comes out of the ₹49.
-
-**Not included:** an invoice or receipt email (Razorpay emails its own receipt if enabled in its settings; billing here is built around firm plans), automatic refunds, and a way to pay by something other than UPI/Razorpay. Not tested against real Razorpay (only a local mock): do one live ₹49 payment before announcing.
-
-Tests: `node tests/razorpay.test.mjs` (19 checks: signature rules, forged and mismatched payments, capture, webhook, duplicates, switched off, key never leaked) and the 0027 checks in `bash tests/email-db/run.sh`.
-
-Tests: `node tests/directory-pay.test.mjs` (16 checks, real `upi-pay` code against the in-memory database; no real UPI, bank or Paytm) and the migration 0026 checks in `bash tests/email-db/run.sh`. The pay card was also exercised in a headless browser against a mocked function.

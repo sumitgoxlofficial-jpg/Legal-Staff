@@ -8,7 +8,7 @@
   let hiding = false;
   const kfetch = (u, o) => fetch(u, hiding && o && (!o.body || (typeof o.body === 'string' && o.body.length < 60000)) ? Object.assign({}, o, { keepalive: true }) : o);
   const sb = on ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { global: { fetch: kfetch } }) : null;
-  const KIND = { cases: 'case', clients: 'client', hearings: 'hearing', orders: 'order', tasks: 'task', docs: 'doc', invoices: 'invoice', deadlines: 'deadline', lims: 'limitation', watch: 'watch', log: 'log' };
+  const KIND = { cases: 'case', clients: 'client', hearings: 'hearing', orders: 'order', tasks: 'task', docs: 'doc', invoices: 'invoice', deadlines: 'deadline', esign: 'esign', lims: 'limitation', watch: 'watch', log: 'log' };
   const USER_KEYS = ['settings', 'notes', 'chats', 'copilot', 'research', 'drafts', 'photo'];
   const PAGE = 1000, LOG_MAX = 300, NEWEST_FIRST = { cases: 1, clients: 1, docs: 1, orders: 1, invoices: 1, lims: 1 };
   let snap = {}, firmSnap = '', userSnap = '', teamSnap = '', meSnap = '', firmId = '', uid = '', busy = null, again = false;
@@ -55,13 +55,15 @@
     d.sub = { aiUsed: au ? au.used : 0, plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', seats: s ? s.seats || null : null, since: s ? s.since : '', renews: s ? s.renews : '', trialEnds: s && s.trial_ends ? s.trial_ends : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
   }
 
+  /* An administrator who signs in here is sent to the admin console, and only that (needs migration 0029; harmless without it). */
+  const toAdmin = async () => { try { const r = await sb.rpc('is_super_admin'); if (r.data === true) { location.replace('/admin'); return true; } } catch (e) {} return false; };
   const B = {
     on, client: sb,
-    async session() { const s = ok(await sb.auth.getSession()).session; uid = s ? s.user.id : ''; return s; },
-    async signInGoogle(token, nonce) { const d = ok(await sb.auth.signInWithIdToken({ provider: 'google', token, nonce })); uid = d.user.id; return d.session; },
+    async session() { const s = ok(await sb.auth.getSession()).session; uid = s ? s.user.id : ''; if (s && await toAdmin()) return new Promise(() => {}); return s; },
+    async signInGoogle(token, nonce) { const d = ok(await sb.auth.signInWithIdToken({ provider: 'google', token, nonce })); uid = d.user.id; if (await toAdmin()) return new Promise(() => {}); return d.session; },
     /* Email sign-in: Supabase emails a one-time code (and a sign-in link that opens /app). */
     async sendOtp(email) { ok(await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + '/app' } })); },
-    async verifyOtp(email, token) { const d = ok(await sb.auth.verifyOtp({ email, token, type: 'email' })); uid = d.user.id; return d.session; },
+    async verifyOtp(email, token) { const d = ok(await sb.auth.verifyOtp({ email, token, type: 'email' })); uid = d.user.id; if (await toAdmin()) return new Promise(() => {}); return d.session; },
     async signOut() { firmId = ''; uid = ''; snap = {}; try { await sb.auth.signOut(); } catch (e) {} },
     async firms() { return ok(await sb.rpc('my_firms')); },
     async createFirm(v) { return ok(await sb.rpc('create_firm', { p_name: v.firm, p_city: v.city, p_address: v.address || v.city, p_user_name: v.name, p_role: v.role })); },
@@ -185,6 +187,11 @@
       promo: (plan, cycle, promo, users) => B.fn('upi-pay', { action: 'promo', firm_id: firmId, plan, cycle, promo, users }),
       status: orderNo => B.fn('upi-pay', { action: 'status', firm_id: firmId, order_no: orderNo })
     },
+    /* Razorpay Standard Checkout (server function 'razorpay'): the server creates the order and checks the payment signature; the secret key never reaches the browser. */
+    razorpay: {
+      createOrder: (plan, cycle, gstin, promo, users) => B.fn('razorpay', { action: 'create-order', firm_id: firmId, plan, cycle, gstin, promo: promo || '', users }),
+      verify: r => B.fn('razorpay', { action: 'verify-payment', firm_id: firmId, razorpay_order_id: r.razorpay_order_id, razorpay_payment_id: r.razorpay_payment_id, razorpay_signature: r.razorpay_signature })
+    },
     /* Team chat: the firm's group chat ('team') and one-to-one chats ('dm:<uid>:<uid>'), live through Supabase Realtime. */
     chat: {
       me: () => uid,
@@ -238,11 +245,7 @@
     courtAdmin: (action, payload) => B.fn('court-sync', Object.assign({ action }, payload || {})),
     /* ---- directory moderation ---- */
     async isAdmin() { return !!ok(await sb.rpc('is_platform_admin')); },
-    async queue() {
-      const paid = new Set();   // applications whose Rs 49 listing fee is paid (directory_payments, migration 0026); an older database without it just shows no badge
-      try { const r = await sb.from('directory_payments').select('application_id').eq('status', 'paid'); (r.data || []).forEach(x => paid.add(x.application_id)); } catch (e) {}
-      return ok(await sb.from('directory_applications').select('*').order('created_at', { ascending: true })).map(a => Object.assign({}, a, { paid: paid.has(a.id), date: new Date(a.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) })); },
-
+    async queue() { return ok(await sb.from('directory_applications').select('*').order('created_at', { ascending: true })).map(a => Object.assign({}, a, { date: new Date(a.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) })); },
     async decide(id, status, note) { ok(await sb.rpc('directory_decide', { p_ref: id, p_status: status, p_note: note || '' })); }
   };
   window.LSB = B;
