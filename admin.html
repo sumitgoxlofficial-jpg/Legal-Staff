@@ -148,6 +148,7 @@
   .seg { background:#EDEDEA; border-radius:9px; } .seg button { transition:background .15s, color .15s, box-shadow .15s; font-weight:600; font-size:12.5px; }
   .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.1); }
   .empty { padding:44px 20px; }
+  #page a:not(.btn) { color:#1D4ED8; text-underline-offset:2px; } #page a:not(.btn):hover { color:#1E3A8A; }
   .banner { border-radius:10px; }
 
   /* modal, toast, login */
@@ -305,6 +306,7 @@
       const kids = subs ? `<div class="nav-sub ${on ? 'open' : ''}"><div>${subs.map(([sg, items]) => `${sg ? `<div class="sl">${sg}</div>` : ''}${items.map(([sk, sl]) => `<a href="#${k}/${sk}" data-k="${k}/${sk}" class="${on && (curSub || subs[0][1][0][0]) === sk ? 'on' : ''}">${sl}</a>`).join('')}`).join('')}</div></div>` : '';
       return `<a class="nav-item ${on ? 'on' : ''} ${subs && on ? 'open' : ''}" href="#${k}${subs ? '/' + subs[0][1][0][0] : ''}" data-k="${k}">${icon(k)}<span>${name}</span>${b ? `<span class="nav-badge">${b}</span>` : ''}${subs ? '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' : ''}</a>${kids}`;
     }).join('')}`).join('');
+    const act = t.querySelector('.nav-sub a.on') || t.querySelector('.nav-item.on'); if (act && t.scrollHeight > t.clientHeight) act.scrollIntoView({ block: 'nearest' });
   }
   function crumb(base, sub) {
     const tdef = TABS.find(x => x[0] === base), el = root.querySelector('#crumb'); if (!tdef || !el) return;
