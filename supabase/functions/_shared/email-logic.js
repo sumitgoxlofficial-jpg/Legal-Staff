@@ -165,14 +165,33 @@ export const templateProblems = (t) => {
   return [...new Set(p)];
 };
 /** Fills {{variables}}. HTML values are escaped; the plain-text part is not. */
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+/** Wraps the template body in the Legal Staff email layout: logo header, white card, footer with unsubscribe. Inline styles plus one <style> block (Gmail, Outlook.com and Apple Mail honour it). */
+export function brandedEmail(bodyHtml, { preheader = "", unsubscribeUrl = "", subject = "" } = {}) {
+  const unsub = unsubscribeUrl ? ` · <a href="${esc(unsubscribeUrl)}" style="color:#8A8A8A;text-decoration:underline">Unsubscribe</a>` : "";
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${esc(subject)}</title>
+<style>.ls-body p{margin:0 0 14px}.ls-body ul,.ls-body ol{margin:0 0 14px;padding-left:22px}.ls-body li{margin:0 0 4px}.ls-body a{color:#0A0A0A;font-weight:600;text-decoration:underline}.ls-body b,.ls-body strong{color:#0A0A0A}@media only screen and (max-width:620px){.ls-card{padding:22px 18px !important}}</style></head>
+<body style="margin:0;padding:0;background:#F4F4F2;-webkit-text-size-adjust:100%">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F4F4F2"><tr><td align="center" style="padding:28px 12px">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px">
+<tr><td style="padding:0 4px 16px"><a href="${SITE}" style="text-decoration:none"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
+<td valign="middle" style="padding-right:10px"><img src="${SITE}/assets/email-mark.png" width="38" height="39" alt="Legal Staff" style="display:block;border:0;outline:none"></td>
+<td valign="middle" style="font:700 20px/1 ${FONT};letter-spacing:-.02em;color:#0A0A0A">Legal Staff</td></tr></table></a></td></tr>
+<tr><td class="ls-card" style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:32px 32px 24px">
+<div class="ls-body" style="font:15px/1.65 ${FONT};color:#2B2B2B">${bodyHtml}</div></td></tr>
+<tr><td style="padding:18px 6px 0;font:12px/1.6 ${FONT};color:#8A8A8A;text-align:center">
+<a href="${SITE}" style="color:#5E5E5E;text-decoration:none;font-weight:600">Legal Staff</a> · Practice management for Indian advocates<br>
+<a href="${SITE}/directory" style="color:#8A8A8A;text-decoration:underline">Advocate directory</a> · <a href="${SITE}/privacy" style="color:#8A8A8A;text-decoration:underline">Privacy</a>${unsub}</td></tr>
+</table></td></tr></table></body></html>`;
+}
 export function renderTemplate(t, vars) {
   const fill = (s, html) => String(s ?? "").replace(/{{\s*([a-z_]+)\s*}}/g, (_, k) => (html ? esc(vars[k] ?? "") : String(vars[k] ?? "")));
-  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#ffffff"><div style="max-width:600px;margin:0 auto;padding:24px;font:15px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A0A0A">${fill(t.body_html, true)}</div></body></html>`;
+  const html = brandedEmail(fill(t.body_html, true), { subject: fill(t.subject, false), unsubscribeUrl: vars.unsubscribe_url });
   let text = fill(t.body_text || t.body_html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n\n").replace(/<[^>]+>/g, ""), false).trim();
   if (!text.includes(vars.unsubscribe_url)) text += `\n\nUnsubscribe: ${vars.unsubscribe_url}`;
   return { subject: fill(t.subject, false), html, text };
 }
-/** Campaign-specific UTM link to the directory, carrying a signed token so a registration can be tied to the contact and campaign. */
 export function trackedUrl(base, campaignCode, step, token) {
   const u = new URL(base);
   u.searchParams.set("utm_source", "legalstaff_email"); u.searchParams.set("utm_medium", "email"); u.searchParams.set("utm_campaign", campaignCode);
