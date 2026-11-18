@@ -23,7 +23,7 @@ const listPrice = (plan: string, cycle: string, seats?: number | null) => {
   const p = PRICES[plan]?.[cycle]; if (!p) return 0;
   return p + (plan === "Professional" ? (Math.max(1, Number(seats) || 1) - 1) * PER_USER[cycle] : 0);
 };
-const DIR_FEE_PAISE = 4900;       // one-time, lifetime directory listing: Rs 49 (no GST added, like plan payments)
+const DIR_FEE_PAISE = 4400;       // one-time, lifetime directory listing: Rs 49, less Rs 5 for paying by direct UPI (Razorpay in functions/razorpay charges the full Rs 49)
 const OPEN_MINUTES = 30;          // how long an order waits for payment in the app
 const LATE_HOURS = 24;            // a payment confirmed within this time still activates the plan
 
