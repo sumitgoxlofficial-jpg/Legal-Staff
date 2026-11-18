@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
+<script src="admin-email.js"></script>
 <style>
   :root { --bg:#F4F4F2; --card:#FFFFFF; --ink:#0A0A0A; --txt:#363636; --mut:#6B6B6B; --line:#E5E5E5; --soft:#F5F5F4; --rev:#2a78d6; --exp:#eb6834;
     --good:#137333; --goodbg:#E7F6EC; --warn:#B54708; --warnbg:#FEF3E2; --bad:#B42318; --badbg:#FDECEA; --info:#1D4ED8; --infobg:#E8EEFD; }
@@ -568,6 +569,9 @@
     draw();
   };
 
+  // extensions (admin-email.js adds the Email Marketing tab); hash links such as #email/contacts move inside a tab
+  window.addEventListener('hashchange', () => { const k = location.hash.slice(1); if (me && k) go(k); });
+  (window.LSAdminExtensions || []).forEach(f => f({ sb, esc, dt, day, toast, modal, VIEWS, TABS, fnUrl: name => cfg.supabaseUrl.replace(/\/$/, '') + '/functions/v1/' + name }));
   sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') loginView(); });
   boot();
 })();

@@ -19,6 +19,8 @@
 | `migrations/0024_whatsapp_cloud.sql` | WhatsApp Cloud API connection: settings row, message and delivery log, opt-outs (hashed), API error history, append-only audit log, Vault access functions (service role only), 6-hourly health check |
 | `functions/whatsapp` | Admin › Settings › Integrations › WhatsApp API: save credentials (kept in Vault), test the connection against Meta, send a template test message, Meta webhook (verify token and `X-Hub-Signature-256`), token and webhook health, alert emails (deploy with JWT verification off) |
 | `functions/_shared/whatsapp-logic.js` | Its pure logic (also unit-tested), also used by `notify` |
+| `functions/email-marketing` | Email Marketing Automation (admin console → Email Marketing): Google Sheets import, consent and suppression engine, 10:00/15:00 IST queues, Brevo sending, webhooks, unsubscribe, analytics. Deploy with JWT verification off. See `docs/email-marketing.md` |
+| `migrations/0035_email_marketing.sql` | Email marketing tables, SQL functions, seed templates (inactive) and the 5-minute scheduler job |
 | `functions/court-status` | Older single-CNR lookup. The app no longer calls it (everything goes through `court-sync`); it can be removed |
 | `functions/auth-email` | Supabase Auth "Send Email" hook: sign-in codes, sign-up confirmations, invites, email changes and security notices in the Legal Staff design, sent through Resend (deploy with JWT verification off; it checks the hook signature) |
 | `functions/ai` | Real AI for AI Case Brain, AI Legal Research and AI Drafting Studio through Groq; picks the best model from Groq's live list; counts AI credits per firm per month by plan (deploy with JWT verification off; it checks the caller itself) |
