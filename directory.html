@@ -462,7 +462,6 @@ a.lsd-a{text-decoration:none}
       </div>
 
       <aside style="flex:1 1 340px;max-width:440px;border:1px solid #E5E5E5;border-radius:14px;padding:26px;display:flex;flex-direction:column;gap:14px;position:sticky;top:96px">
-        {{ prof.wa }}
         <sc-if value="{{ notSent }}" hint-placeholder-val="{{ true }}">
           <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:22px;font-weight:600;margin:0">Request contact</h2>
           <div style="font-size:14px;color:#5E5E5E">The advocate sees your request and decides whether to reply.</div>
@@ -624,7 +623,7 @@ class Component extends DCLogic {
   PAGE = 6;
 
   blankContact() { return { name: '', contact: '', city: '', category: '', language: '', desc: '', consent: false }; }
-  blankApp() { return { name: '', email: '', mobile: '', city: '', enr: '', council: '', year: '', cop: '', areas: [], courts: '', district: '', langs: '', quals: '', chamber: '', whatsapp: '', docs: {}, photo: '', confirm: false }; }
+  blankApp() { return { name: '', email: '', mobile: '', city: '', enr: '', council: '', year: '', cop: '', areas: [], courts: '', district: '', langs: '', quals: '', chamber: '', docs: {}, photo: '', confirm: false }; }
 
   /* ---------- storage ---------- */
   read(key, fallback) { try { const v = JSON.parse(window.localStorage.getItem(key)); return v == null ? fallback : v; } catch (e) { return fallback; } }
@@ -813,7 +812,7 @@ class Component extends DCLogic {
       if (r.error || !Array.isArray(r.data)) { done({ statusErr: this.errText(r.error || { message: 'Unexpected response' }) }); return; }
       const mine = {}, apps = r.data.map(x => {
         const d = x.details || {}, docs = {}; (Array.isArray(d.documents) ? d.documents : []).forEach(f => { if (f && f.kind) docs[f.kind] = { name: f.name, size: f.size }; });
-        mine[x.id] = { enr: x.enr, email: x.email || '', mobile: x.mobile || '', city: x.city, cop: d.cop || '', areas: Array.isArray(d.areas) ? d.areas : this.splitList(d.areas), courts: d.courts || '', district: d.district || '', langs: d.langs || '', quals: d.quals || '', chamber: d.chamber || '', whatsapp: d.whatsapp || '', docs, photo: x.photo || '', submittedAt: x.created_at, updatedAt: x.created_at };
+        mine[x.id] = { enr: x.enr, email: x.email || '', mobile: x.mobile || '', city: x.city, cop: d.cop || '', areas: Array.isArray(d.areas) ? d.areas : this.splitList(d.areas), courts: d.courts || '', district: d.district || '', langs: d.langs || '', quals: d.quals || '', chamber: d.chamber || '', docs, photo: x.photo || '', submittedAt: x.created_at, updatedAt: x.created_at };
         return this.rowToApp(x);
       });
       let leads = [];
@@ -835,8 +834,6 @@ class Component extends DCLogic {
 
   /* ---------- data ---------- */
   data() { return []; }
-  /* a 10-digit Indian mobile number from what was typed, or '' */
-  waDigits(v) { const d = String(v || '').replace(/\D/g, '').replace(/^(91|0)(?=\d{10}$)/, ''); return /^[6-9]\d{9}$/.test(d) ? d : ''; }
   splitList(v) { return (Array.isArray(v) ? v.join(',') : String(v || '')).split(/[,;\n]+/).map(x => x.trim()).filter(Boolean); }
   /* only applications that a moderator has verified are listed */
   people() {
@@ -847,7 +844,7 @@ class Component extends DCLogic {
       const parts = nm.split(/\s+/).filter(Boolean);
       return { id: String(a.id), own: !!S.mine[a.id], sortKey: (parts[parts.length - 1] || nm) + ' ' + nm, ini: ((parts[0] || 'A')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase(), name: nm, photo: a.photo || '', years: Math.max(0, new Date().getFullYear() - (+a.year || new Date().getFullYear())), stat: S.stats[String(a.id)] || null, rev: S.revSum[String(a.id)] || null,
         state: councilState[a.council] || 'Other', city: a.city || d.city || '', district: d.district || '', enr: String(a.enr || ''), council: String(a.council || ''), year: String(a.year || ''),
-        areas: Array.isArray(d.areas) ? d.areas : this.splitList(d.areas), courts: this.splitList(d.courts), langs: this.splitList(d.langs), quals: d.quals || '—', chamber: d.chamber || '—', wa: this.waDigits(d.whatsapp), verifiedOn: '' };
+        areas: Array.isArray(d.areas) ? d.areas : this.splitList(d.areas), courts: this.splitList(d.courts), langs: this.splitList(d.langs), quals: d.quals || '—', chamber: d.chamber || '—', verifiedOn: '' };
     });
     return own;
   }
@@ -1026,7 +1023,6 @@ class Component extends DCLogic {
       if (!a.district.trim()) err.district = 'Enter your district.';
       if (!a.langs.trim()) err.langs = 'List at least one language.';
       if (!a.quals.trim()) err.quals = 'Enter your law degree.';
-      if (a.whatsapp.trim() && !this.waDigits(a.whatsapp)) err.whatsapp = 'Enter a 10-digit Indian mobile number, or leave it empty.';
     } else if (i === 3) {
       if (!a.docs.cert) err.cert = 'Your enrolment certificate is required.';
       if (!a.docs.id) err.id = 'A government photo ID is required.';
@@ -1048,7 +1044,7 @@ class Component extends DCLogic {
     if (sb) {
       if (!S.user) { this.setState({ appErr: { confirm: 'Sign in with Google to submit your application.' } }); return; }
       const core = { name: a.name.trim(), enr: a.enr.trim().toUpperCase(), council: a.council, year: a.year.trim(), city: a.city.trim() };
-      const details = { areas: a.areas, courts: a.courts.trim(), district: a.district.trim(), langs: a.langs.trim(), quals: a.quals.trim(), chamber: a.chamber.trim(), whatsapp: this.waDigits(a.whatsapp), cop: a.cop.trim(), documents: Object.keys(a.docs).map(k => ({ kind: k, name: a.docs[k].name, size: a.docs[k].size })) };
+      const details = { areas: a.areas, courts: a.courts.trim(), district: a.district.trim(), langs: a.langs.trim(), quals: a.quals.trim(), chamber: a.chamber.trim(), cop: a.cop.trim(), documents: Object.keys(a.docs).map(k => ({ kind: k, name: a.docs[k].name, size: a.docs[k].size })) };
       const fail = (msg, patch) => this.setState({ busy: '', appErr: { confirm: msg }, ...(patch || {}) });
       const keep = ' Everything you entered is still here. Please try again.';
       this.setState({ busy: 'app', appErr: {} });
@@ -1087,14 +1083,14 @@ class Component extends DCLogic {
       apps.push({ id, ...core, date: now.getDate() + ' ' + mon[now.getMonth()], status: 'pending', note: '' });
     }
     const prev = mine[id] || {};
-    mine[id] = { enr: core.enr, email: a.email.trim(), mobile: a.mobile.trim(), city: core.city, cop: a.cop.trim(), areas: a.areas, courts: a.courts.trim(), district: a.district.trim(), langs: a.langs.trim(), quals: a.quals.trim(), chamber: a.chamber.trim(), whatsapp: this.waDigits(a.whatsapp), docs: a.docs, submittedAt: prev.submittedAt || now.toISOString(), updatedAt: now.toISOString() };
+    mine[id] = { enr: core.enr, email: a.email.trim(), mobile: a.mobile.trim(), city: core.city, cop: a.cop.trim(), areas: a.areas, courts: a.courts.trim(), district: a.district.trim(), langs: a.langs.trim(), quals: a.quals.trim(), chamber: a.chamber.trim(), docs: a.docs, submittedAt: prev.submittedAt || now.toISOString(), updatedAt: now.toISOString() };
     if (!this.write(this.K.apps, apps) || !this.write(this.K.mine, mine)) { this.setState({ appErr: { confirm: 'This browser blocked local storage, so the application could not be saved.' } }); return; }
     this.nav({ screen: 'status', apps, mine, viewId: id, editingId: null, app: this.blankApp(), appErr: {}, step: 0 });
   }
   editApp(id) {
     const S = this.state, x = S.apps.find(a => a.id === id), d = S.mine[id] || {};
     if (!x) return;
-    this.nav({ screen: 'register', step: 0, editingId: id, appErr: {}, app: { ...this.blankApp(), name: x.name || '', enr: x.enr || '', council: x.council || '', year: String(x.year || ''), city: x.city || '', email: d.email || '', mobile: d.mobile || '', cop: d.cop || '', areas: d.areas || [], courts: d.courts || '', district: d.district || '', langs: d.langs || '', quals: d.quals || '', chamber: d.chamber || '', whatsapp: d.whatsapp || '', docs: d.docs || {}, photo: d.photo || x.photo || '' } });
+    this.nav({ screen: 'register', step: 0, editingId: id, appErr: {}, app: { ...this.blankApp(), name: x.name || '', enr: x.enr || '', council: x.council || '', year: String(x.year || ''), city: x.city || '', email: d.email || '', mobile: d.mobile || '', cop: d.cop || '', areas: d.areas || [], courts: d.courts || '', district: d.district || '', langs: d.langs || '', quals: d.quals || '', chamber: d.chamber || '', docs: d.docs || {}, photo: d.photo || x.photo || '' } });
   }
   currentApp() {
     const S = this.state;
@@ -1371,7 +1367,7 @@ class Component extends DCLogic {
     const stepDefs = [
       ['Personal', 'Personal details', [photoField, appField('name', 'Full name (as on enrolment certificate)', 'Your full name'), appField('email', 'Email', 'you@example.com', { type: 'email' }), appField('mobile', 'Mobile', '+91', { type: 'tel' }), appField('city', 'City', 'New Delhi')]],
       ['Enrolment', 'Enrolment details', [appField('enr', on && S.editingId ? 'Enrolment number (cannot be changed on a resubmission)' : 'Enrolment number', 'e.g. D/1234/2016', on && S.editingId ? { disabled: true } : null), councilField, appField('year', 'Year of enrolment', '2016', { inputMode: 'numeric', maxLength: 4 }), appField('cop', 'Certificate of Practice number', 'Optional')]],
-      ['Practice', 'Practice information', [areaChips, appField('courts', 'Courts', 'Delhi High Court, Saket District Courts'), appField('district', 'District', 'e.g. South'), appField('langs', 'Languages', 'Hindi, English'), appField('quals', 'Qualifications', 'B.A. LL.B.'), appField('chamber', 'Chamber address (optional)', ''), appField('whatsapp', 'WhatsApp number (optional): shown publicly so clients can message you', '10-digit mobile', { type: 'tel' })]],
+      ['Practice', 'Practice information', [areaChips, appField('courts', 'Courts', 'Delhi High Court, Saket District Courts'), appField('district', 'District', 'e.g. South'), appField('langs', 'Languages', 'Hindi, English'), appField('quals', 'Qualifications', 'B.A. LL.B.'), appField('chamber', 'Chamber address (optional)', '')]],
       ['Documents', 'Verification documents', []],
       ['Review', 'Review and submit', []]
     ];
@@ -1576,11 +1572,7 @@ class Component extends DCLogic {
       people: pageRows.map((p, i) => ({ extra: cardExtra(p), avatar: avatar(p.photo, p.ini, 64, 22, p.name, true), ini: p.ini, name: p.name, enr: p.enr, council: p.council, year: p.year, areas: p.areas.join(' · '), courts: p.courts.join(', '), langs: p.langs.join(', '), delay: 60 + i * 70, go: () => this.openProfile(p.id),
         you: p.own ? h('span', { style: { fontSize: 12, background: '#0A0A0A', color: '#fff', borderRadius: 8, padding: '2px 10px', fontWeight: 500 } }, 'Your profile') : null })),
       emptyState, pager,
-      prof: { wa: P.wa ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 14, borderBottom: '1px solid #E5E5E5' } },
-        h('a', { href: 'https://wa.me/91' + P.wa + '?text=' + encodeURIComponent('Hello ' + P.name + ', I found your profile on Legal Staff Directory and would like to talk about a legal matter.'), target: '_blank', rel: 'noopener noreferrer', className: 'lsd-a ls-press', style: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, height: 48, borderRadius: 10, background: '#25D366', color: '#073B1C', fontSize: 15, fontWeight: 700 } },
-          h('svg', { width: 22, height: 22, viewBox: '0 0 24 24', 'aria-hidden': true, fill: 'currentColor' }, h('path', { d: 'M12.04 2a9.9 9.9 0 0 0-8.5 15L2 22l5.1-1.5A9.9 9.9 0 1 0 12.04 2zm5.7 14c-.25.7-1.4 1.3-1.9 1.35-.5.05-1.1.2-3.6-.8-3-1.2-4.9-4.3-5.05-4.5-.15-.2-1.2-1.6-1.2-3s.75-2.1 1-2.4c.25-.3.55-.35.75-.35h.55c.2 0 .4 0 .6.45.25.55.8 1.95.85 2.1.1.15.1.3 0 .5-.1.2-.15.3-.3.5-.15.15-.3.35-.45.5-.15.15-.3.3-.15.6.15.3.7 1.15 1.5 1.85 1.05.9 1.9 1.2 2.2 1.35.3.15.45.1.6-.1.2-.2.7-.8.9-1.1.2-.3.35-.25.6-.15.25.1 1.6.75 1.9.9.3.15.45.2.55.3.1.15.1.7-.15 1.4z' })),
-          'Message on WhatsApp'),
-        h('div', { style: { fontSize: 12, color: '#8A8A8A', textAlign: 'center' } }, 'Opens WhatsApp with a message ready to send. Do not share confidential documents in the first message.')) : null, extra: profExtra, avatar: avatar(P.photo, P.ini, 96, 34, P.name, true), ini: P.ini, name: P.name, state: P.state, area0: P.areas[0] || 'All practice areas', place: [P.city, P.district && P.district !== P.city ? P.district + ' district' : ''].filter(Boolean).join(' · '),
+      prof: { extra: profExtra, avatar: avatar(P.photo, P.ini, 96, 34, P.name, true), ini: P.ini, name: P.name, state: P.state, area0: P.areas[0] || 'All practice areas', place: [P.city, P.district && P.district !== P.city ? P.district + ' district' : ''].filter(Boolean).join(' · '),
         verified: 'Enrolment verified' + (P.verifiedOn ? ' · ' + P.verifiedOn : ''), enr: P.enr, council: P.council, year: P.year, areas: P.areas.join(', ') || '—', courts: P.courts.join('; ') || '—', langs: P.langs.join(', ') || '—', quals: P.quals, chamber: P.chamber,
         goAll: () => this.searchAll(), goState: () => this.search({ q: '', loc: P.state, district: '', court: '', area: '' }), goArea: () => this.search({ q: '', loc: P.state, district: '', court: '', area: P.areas[0] || '' }) },
       contactFields: [cfField('name', 'Your name', 'Full name'), cfField('contact', 'Phone or email', '+91 or email'), cfField('city', 'City', P.city || 'New Delhi'),
@@ -1600,7 +1592,7 @@ class Component extends DCLogic {
       steps, stepTitle: cur[1], stepFields: cur[2], isForm: S.step < 3, isDocs: S.step === 3, isReview: S.step === 4, docSlots,
       reviewRows: [{ k: 'Name', v: A.name.trim() || '—' }, { k: 'Contact', v: [A.email.trim(), A.mobile.trim(), A.city.trim()].filter(Boolean).join(' · ') || '—' }, { k: 'Enrolment', v: [A.enr.trim().toUpperCase(), A.council, A.year.trim()].filter(Boolean).join(' · ') || '—' },
         { k: 'Practice areas', v: A.areas.join(', ') || '—' }, { k: 'Courts', v: A.courts.trim() || '—' }, { k: 'District', v: A.district.trim() || '—' }, { k: 'Languages', v: A.langs.trim() || '—' }, { k: 'Qualifications', v: A.quals.trim() || '—' },
-        { k: 'WhatsApp on profile', v: this.waDigits(A.whatsapp) ? '+91 ' + this.waDigits(A.whatsapp) : 'Not shown' }, { k: 'Photo', v: A.photo ? 'Added' : 'None (optional)' }, { k: 'Documents', v: nDocs ? nDocs + ' attached: ' + Object.keys(A.docs).map(k => A.docs[k].name).join(', ') : 'None attached' }],
+        { k: 'Photo', v: A.photo ? 'Added' : 'None (optional)' }, { k: 'Documents', v: nDocs ? nDocs + ' attached: ' + Object.keys(A.docs).map(k => A.docs[k].name).join(', ') : 'None attached' }],
       confirmOn: A.confirm, toggleConfirm: () => setApp('confirm', !A.confirm), stepErr, stepBad: !!stepErr,
       back: () => { if (S.step > 0) { this.setState({ step: S.step - 1, appErr: {} }); window.scrollTo(0, 0); } else if (S.editingId) this.nav({ screen: 'status' }); else this.go('home'); },
       backLabel: S.step > 0 ? 'Back' : 'Cancel', next: () => this.nextStep(),
