@@ -80,6 +80,7 @@ a.lsd-a{text-decoration:none}
     <nav style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
       <button onClick="{{ goAll }}" style="{{ navStyle.results }}" style-hover="color:#fff">Find an advocate</button>
       <button onClick="{{ goHomeBrowse }}" style="{{ navStyle.home }}" style-hover="color:#fff">Browse</button>
+      <button onClick="{{ goClients }}" style="{{ navStyle.home }}" style-hover="color:#fff">For clients</button>
       <button onClick="{{ goAdvocates }}" style="{{ navStyle.register }}" style-hover="color:#fff">For advocates</button>
       {{ authArea }}
     </nav>
@@ -160,21 +161,62 @@ a.lsd-a{text-decoration:none}
     <div style="max-width:1240px;margin:0 auto;padding:30px clamp(20px,4vw,24px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:24px">
       <div data-reveal="" style="display:flex;flex-direction:column;gap:2px"><div style="font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1.1">₹<span data-count="49">49</span></div><div style="font-size:13.5px;color:#5E5E5E">one-time fee for a lifetime profile</div></div>
       <div data-reveal="" data-delay="80" style="display:flex;flex-direction:column;gap:2px"><div style="font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1.1"><span data-count="0">0</span></div><div style="font-size:13.5px;color:#5E5E5E">per-lead fees or commissions</div></div>
-      <div data-reveal="" data-delay="160" style="display:flex;flex-direction:column;gap:2px"><div style="font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1.1"><span data-count="21">21</span></div><div style="font-size:13.5px;color:#5E5E5E">State Bar Councils covered</div></div>
+      <div data-reveal="" data-delay="160" style="display:flex;flex-direction:column;gap:2px"><div style="font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1.1"><span data-count="25">25</span></div><div style="font-size:13.5px;color:#5E5E5E">State Bar Councils covered</div></div>
       <div data-reveal="" data-delay="240" style="display:flex;flex-direction:column;gap:2px"><div style="font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1.1"><span data-count="12">12</span></div><div style="font-size:13.5px;color:#5E5E5E">practice areas to be found in</div></div>
     </div>
   </section>
 
-  <section style="max-width:1240px;margin:0 auto;padding:72px clamp(20px,4vw,24px) 0;display:flex;flex-direction:column;gap:26px">
-    <div data-reveal="" style="max-width:720px;display:flex;flex-direction:column;gap:10px">
-      <div style="font-size:12px;color:#5E5E5E;font-weight:600;letter-spacing:.04em;text-transform:uppercase">Choosing an advocate</div>
-      <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:clamp(26px,3.4vw,36px);line-height:1.1;margin:0;letter-spacing:-.025em;text-wrap:balance">Many advocates look alike. Here is how to pick the right one for your matter.</h2>
+  <!-- ======================= FOR CLIENTS: how to find the right advocate ======================= -->
+  <section id="clients" style="scroll-margin-top:64px;max-width:1240px;margin:0 auto;padding:80px clamp(20px,4vw,24px) 8px;display:flex;flex-direction:column;gap:40px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:40px;align-items:center">
+      <div data-reveal="" style="display:flex;flex-direction:column;gap:16px;min-width:0">
+        <div style="font-size:12px;color:#5E5E5E;font-weight:600;letter-spacing:.04em;text-transform:uppercase">For clients · Free to use</div>
+        <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:clamp(30px,4vw,46px);line-height:1.07;margin:0;letter-spacing:-.03em;text-wrap:balance">Find the right advocate for your case in minutes.</h2>
+        <p style="margin:0;font-size:17px;color:#5E5E5E;max-width:540px;text-wrap:pretty">Many advocates have similar experience. The right one is the one whose courts, practice area and language fit your matter, and who answers you. Here is how to tell, with facts, not ads.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
+          <button onClick="{{ goAll }}" class="lsd-cta ls-press" style="height:52px;padding:0 26px;background:#0A0A0A;color:#fff;border:0;border-radius:12px;font-size:16px;font-weight:700" style-hover="background:#2B2B2B">Find an advocate</button>
+          <button onClick="{{ goHomeBrowse }}" class="ls-press" style="height:52px;padding:0 22px;background:#fff;color:#0A0A0A;border:1px solid #D4D4D4;border-radius:12px;font-size:15px;font-weight:500" style-hover="border-color:#0A0A0A">Browse by practice area</button>
+        </div>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:#5E5E5E"><span>✓ No account needed</span><span>✓ No fee to search or contact</span><span>✓ Enrolment-verified profiles</span></div>
+      </div>
+      <div data-reveal="" data-delay="140" aria-hidden="true" style="position:relative;min-width:0;background:#F5F5F4;border:1px solid #E5E5E5;border-radius:24px;padding:22px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><span style="font-size:12px;background:#0A0A0A;color:#fff;border-radius:99px;padding:5px 12px;font-weight:600">Cheque bounce</span><span style="font-size:12px;background:#fff;border:1px solid #D4D4D4;border-radius:99px;padding:5px 12px">Pune</span><span style="font-size:12px;background:#fff;border:1px solid #D4D4D4;border-radius:99px;padding:5px 12px">Marathi</span><span style="font-size:12px;background:#fff;border:1px solid #D4D4D4;border-radius:99px;padding:5px 12px">10+ years</span></div>
+        <div class="lsd-float1" style="background:#fff;border:1px solid #E5E5E5;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center"><div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#F5F5F4,#C9C9C9);display:flex;align-items:center;justify-content:center;font-weight:700">SA</div><div style="min-width:0;flex:1"><div style="font-weight:600;font-size:15px">Sample Advocate A</div><div style="font-size:12px;color:#5E5E5E">Pune District Court · 14 years in practice</div></div><span style="font-size:11px;background:#E7F6EC;color:#137333;border-radius:99px;padding:3px 9px;font-weight:600;white-space:nowrap">Replied to 7 of 8</span></div>
+        <div class="lsd-float2" style="background:#fff;border:1px solid #E5E5E5;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center"><div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#F5F5F4,#C9C9C9);display:flex;align-items:center;justify-content:center;font-weight:700">SB</div><div style="min-width:0;flex:1"><div style="font-weight:600;font-size:15px">Sample Advocate B</div><div style="font-size:12px;color:#5E5E5E">Bombay High Court · 11 years in practice</div></div><span style="font-size:11px;background:#F0F0EF;border-radius:99px;padding:3px 9px;font-weight:600;white-space:nowrap">+ Compare</span></div>
+        <div style="font-size:11px;color:#8A8A8A">Illustration with sample advocates, not real people.</div>
+      </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px">
-      <div data-reveal="" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:8px"><div style="font-weight:700;font-size:13px;color:#5E5E5E">1</div><div style="font-weight:600;font-size:16px">Match the matter</div><div style="font-size:14px;color:#5E5E5E">Filter by practice area and the court your case is in. An advocate who appears in that court every week knows its procedure.</div></div>
-      <div data-reveal="" data-delay="80" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:8px"><div style="font-weight:700;font-size:13px;color:#5E5E5E">2</div><div style="font-weight:600;font-size:16px">Check experience</div><div style="font-size:14px;color:#5E5E5E">See years in practice and sort by it. The enrolment number and year are checked against the Bar Council record.</div></div>
-      <div data-reveal="" data-delay="160" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:8px"><div style="font-weight:700;font-size:13px;color:#5E5E5E">3</div><div style="font-weight:600;font-size:16px">Compare side by side</div><div style="font-size:14px;color:#5E5E5E">Tick “Compare” on up to three advocates and see courts, languages, qualifications and experience in one table.</div></div>
-      <div data-reveal="" data-delay="240" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:8px"><div style="font-weight:700;font-size:13px;color:#5E5E5E">4</div><div style="font-weight:600;font-size:16px">Prefer one who replies</div><div style="font-size:14px;color:#5E5E5E">Each profile shows how many contact requests the advocate has replied to. Send requests to two or three and see who answers.</div></div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:16px">
+      <div data-reveal="" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px"><div style="width:40px;height:40px;border-radius:50%;background:#0A0A0A;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center">1</div><div style="font-weight:600;font-size:17px">Say what your matter is</div><div style="font-size:14px;color:#5E5E5E">Choose the practice area, such as criminal, family, property or cheque bounce, and the city or court where your case is.</div></div>
+      <div data-reveal="" data-delay="80" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px"><div style="width:40px;height:40px;border-radius:50%;background:#0A0A0A;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center">2</div><div style="font-weight:600;font-size:17px">Narrow it down</div><div style="font-size:14px;color:#5E5E5E">Filter by language and years in practice, and sort by experience or by who replies to requests most.</div></div>
+      <div data-reveal="" data-delay="160" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px"><div style="width:40px;height:40px;border-radius:50%;background:#0A0A0A;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center">3</div><div style="font-weight:600;font-size:17px">Compare up to three</div><div style="font-size:14px;color:#5E5E5E">Tick “Compare” and see courts, languages, qualifications, experience and reply record side by side.</div></div>
+      <div data-reveal="" data-delay="240" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px"><div style="width:40px;height:40px;border-radius:50%;background:#16A34A;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center">4</div><div style="font-weight:600;font-size:17px">Send a request</div><div style="font-size:14px;color:#5E5E5E">Describe your matter and send a free contact request. Contact two or three advocates and see who answers, then agree fees directly.</div></div>
+    </div>
+
+    <div data-reveal="" style="background:#0A0A0A;color:#fff;border-radius:24px;padding:clamp(26px,4vw,42px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:30px">
+      <div style="display:flex;flex-direction:column;gap:10px"><h3 style="margin:0;font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:clamp(22px,2.6vw,30px);letter-spacing:-.02em;line-height:1.15">What to check before you choose</h3><p style="margin:0;color:#C9C9C9;font-size:15px">Six quick checks that tell you more than a promise or a slogan ever could.</p></div>
+      <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;font-size:14.5px;color:#E5E5E5">
+        <li style="display:flex;gap:10px"><span style="color:#4ADE80">✓</span><span><b>Blue tick:</b> the advocate's enrolment was checked against the Bar Council record.</span></li>
+        <li style="display:flex;gap:10px"><span style="color:#4ADE80">✓</span><span><b>Courts:</b> do they appear in the court your case is in?</span></li>
+        <li style="display:flex;gap:10px"><span style="color:#4ADE80">✓</span><span><b>Practice area:</b> do they work on matters like yours?</span></li>
+      </ul>
+      <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;font-size:14.5px;color:#E5E5E5">
+        <li style="display:flex;gap:10px"><span style="color:#4ADE80">✓</span><span><b>Years in practice:</b> counted from the enrolment year.</span></li>
+        <li style="display:flex;gap:10px"><span style="color:#4ADE80">✓</span><span><b>Language:</b> can you discuss your matter comfortably?</span></li>
+        <li style="display:flex;gap:10px"><span style="color:#4ADE80">✓</span><span><b>Replies:</b> do they answer requests? See “Replied to X of Y”.</span></li>
+      </ul>
+    </div>
+
+    <div style="max-width:820px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+      <h3 data-reveal="" style="margin:0;font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:clamp(24px,3vw,30px);letter-spacing:-.02em">Questions clients ask</h3>
+      <div data-reveal="" data-delay="80" style="display:flex;flex-direction:column;border-top:1px solid #E5E5E5">
+        <details class="lsd-faq"><summary>Is it free for me?<span class="plus">+</span></summary><p>Yes. Searching, comparing and sending a contact request cost nothing and need no account. You agree fees directly with the advocate.</p></details>
+        <details class="lsd-faq"><summary>Do you tell me who the “best” advocate is?<span class="plus">+</span></summary><p>No. Bar Council rules do not allow advocates to be ranked or advertised, and the right advocate depends on your matter. We show verified facts and let you compare, and results are always listed alphabetically.</p></details>
+        <details class="lsd-faq"><summary>How do I know an advocate is real?<span class="plus">+</span></summary><p>Look for the blue tick. We check each advocate's enrolment number, State Bar Council and year against the Bar Council record before the profile goes live.</p></details>
+        <details class="lsd-faq"><summary>What happens after I send a request?<span class="plus">+</span></summary><p>Only the advocate you chose sees your name, contact details and matter, and only with your consent. They decide whether to reply, and you can withdraw your request at any time.</p></details>
+        <details class="lsd-faq"><summary>Can Legal Staff handle my case or give legal advice?<span class="plus">+</span></summary><p>No. Legal Staff does not give legal advice, assign matters or take any share of fees. It only helps you find and contact advocates yourself.</p></details>
+      </div>
     </div>
   </section>
 
@@ -619,7 +661,7 @@ class Component extends DCLogic {
   K = { apps: 'ls.directory.applications', mine: 'ls.directory.myApplications', enq: 'ls.directory.enquiries', rep: 'ls.directory.reports' };
   AREAS = [['Civil', 'Recovery, injunctions, contracts'], ['Criminal', 'Bail, trials, quashing'], ['Family', 'Divorce, custody, maintenance'], ['Property', 'Title, partition, tenancy'], ['Consumer', 'Deficiency of service, refunds'], ['Labour & Employment', 'Wages, termination, PF'], ['Tax', 'GST, income tax appeals'], ['Corporate & Commercial', 'Commercial suits, company law'], ['Arbitration', 'Section 9, 11, 34 proceedings'], ['Constitutional & Writs', 'Writ petitions, service matters'], ['Cyber', 'IT Act, online fraud'], ['Banking & Recovery', 'DRT, SARFAESI, cheque bounce']];
   COUNCILS = [['Delhi', 'Bar Council of Delhi'], ['Maharashtra', 'Bar Council of Maharashtra & Goa'], ['Karnataka', 'Karnataka State Bar Council'], ['Tamil Nadu', 'Bar Council of Tamil Nadu & Puducherry'], ['Uttar Pradesh', 'Bar Council of Uttar Pradesh'], ['West Bengal', 'Bar Council of West Bengal'], ['Telangana', 'Bar Council of Telangana'], ['Gujarat', 'Bar Council of Gujarat'], ['Rajasthan', 'Bar Council of Rajasthan'], ['Kerala', 'Bar Council of Kerala'], ['Punjab', 'Bar Council of Punjab & Haryana'], ['Madhya Pradesh', 'State Bar Council of Madhya Pradesh'],
-    ['Andhra Pradesh', 'Bar Council of Andhra Pradesh'], ['Assam', 'Bar Council of Assam, Nagaland, Mizoram, Arunachal Pradesh & Sikkim'], ['Bihar', 'Bihar State Bar Council'], ['Chhattisgarh', 'State Bar Council of Chhattisgarh'], ['Himachal Pradesh', 'Bar Council of Himachal Pradesh'], ['Jammu & Kashmir', 'Bar Council of Jammu & Kashmir and Ladakh'], ['Jharkhand', 'Jharkhand State Bar Council'], ['Odisha', 'Odisha State Bar Council'], ['Uttarakhand', 'Bar Council of Uttarakhand']];
+    ['Andhra Pradesh', 'Bar Council of Andhra Pradesh'], ['Assam', 'Bar Council of Assam, Nagaland, Mizoram & Arunachal Pradesh'], ['Bihar', 'Bihar State Bar Council'], ['Chhattisgarh', 'State Bar Council of Chhattisgarh'], ['Himachal Pradesh', 'Bar Council of Himachal Pradesh'], ['Jammu & Kashmir', 'Bar Council of Jammu & Kashmir and Ladakh'], ['Jharkhand', 'Jharkhand State Bar Council'], ['Odisha', 'Odisha State Bar Council'], ['Uttarakhand', 'Bar Council of Uttarakhand'], ['Manipur', 'Bar Council of Manipur'], ['Meghalaya', 'Bar Council of Meghalaya'], ['Sikkim', 'Bar Council of Sikkim'], ['Tripura', 'Bar Council of Tripura']];
   PAGE = 6;
 
   blankContact() { return { name: '', contact: '', city: '', category: '', language: '', desc: '', consent: false }; }
@@ -898,8 +940,8 @@ class Component extends DCLogic {
     const app = this.blankApp(); if (S.user) { app.name = S.user.name || ''; app.email = S.user.email || ''; }
     this.nav({ screen: 'register', step: 0, app, appErr: {}, editingId: null });
   }
-  toLanding() {
-    const go = () => { const el = document.getElementById('advocates'); if (el) el.scrollIntoView({ behavior: 'smooth' }); };
+  toLanding(id) {
+    const go = () => { const el = document.getElementById(id || 'advocates'); if (el) el.scrollIntoView({ behavior: 'smooth' }); };
     if (this.state.screen === 'home') go(); else { this.nav({ screen: 'home' }, { keepScroll: true }); setTimeout(go, 80); }
   }
   browse() {
@@ -1556,7 +1598,7 @@ class Component extends DCLogic {
       navStyle: { results: navBtn(s.results || s.profile), home: navBtn(false), register: navBtn(s.register || s.status || s.pay) },
       goHome: () => this.go('home'), goHomeBrowse: () => this.browse(), goAll: () => this.searchAll(), goResults: () => this.nav({ screen: 'results' }),
       goRegister: () => this.startApply(), goStatus: () => this.nav({ screen: 'status', viewId: null }),
-      goAdvocates: () => this.toLanding(), goLanding: () => this.toLanding(),
+      goAdvocates: () => this.toLanding(), goClients: () => this.toLanding('clients'), goLanding: () => this.toLanding(),
       openLogin: openM('login'), openPrivacy: openM('privacy'), openTerms: openM('terms'), openReport: openM('report'),
       q: S.q, setQ: e => this.setState({ q: e.target.value }), qKey: e => { if (e.key === 'Enter') doSearch(); }, doSearch,
       locSelect: sel('dloc', 'State or city', S.loc, locOpts, setLoc, bare),
