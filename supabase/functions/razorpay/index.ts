@@ -12,6 +12,7 @@ class Fail extends Error { status: number; constructor(msg: string, status = 400
 
 const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 299, annual: 2999 }, Professional: { monthly: 799, annual: 7999 }, Firm: { monthly: 3999, annual: 39999 } };
 const PER_USER: Record<string, number> = { monthly: 249, annual: 2499 }, MAX_USERS = 15;   // keep in step with upi-pay, billing and admin
+const DIR_FEE_PAISE = 4900, RZP_DIR_OFF_PAISE = 500;                                         // directory listing fee (Rs 49) and the Rs 5 off for paying through Razorpay
 const MIN_PAISE = 100;                                                                      // Razorpay's minimum order amount
 const listPrice = (plan: string, cycle: string, seats?: number | null) => {
   const p = PRICES[plan]?.[cycle]; if (!p) return 0;
@@ -95,6 +96,38 @@ Deno.serve(async (req: Request) => {
     const asUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
     const { data: { user } } = await asUser.auth.getUser();
     if (!user) throw new Fail("Sign in again.", 401);
+    const auth = "Basic " + btoa(keyId + ":" + keySecret);
+
+    // ---- directory listing fee: Rs 49 once, Rs 5 off through Razorpay. No row is written until the payment is verified. ----
+    if (action === "dir-create-order" || action === "dir-verify-payment") {
+      const { data: app } = await admin.from("directory_applications").select("id,user_id,paid_at").eq("id", String(body.application_id ?? "")).maybeSingle();
+      if (!app || app.user_id !== user.id) throw new Fail("Application not found.", 404);
+      const expected = Math.max(MIN_PAISE, DIR_FEE_PAISE - RZP_DIR_OFF_PAISE);
+      if (action === "dir-create-order") {
+        if (app.paid_at) return json({ paid: true });
+        const receipt = "LD" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+        const r = await fetch("https://api.razorpay.com/v1/orders", { method: "POST", signal: AbortSignal.timeout(15000), headers: { Authorization: auth, "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: expected, currency: "INR", receipt, notes: { kind: "directory", application_id: app.id, user_id: user.id } }) });
+        const order = await r.json().catch(() => ({}));
+        if (r.status === 401) { console.error("razorpay auth failed"); throw new Fail("Razorpay rejected our credentials. The payment gateway needs to be reconfigured.", 401); }
+        if (!r.ok || !order.id) { console.error("razorpay dir order", r.status, JSON.stringify(order)); throw new Fail("Razorpay could not create the order. Please try again.", 500); }
+        return json({ order_id: order.id, amount: order.amount, currency: order.currency, receipt, key_id: keyId, discount: DIR_FEE_PAISE - expected });
+      }
+      const orderId = String(body.razorpay_order_id ?? ""), paymentId = String(body.razorpay_payment_id ?? ""), signature = String(body.razorpay_signature ?? "");
+      if (!orderId || !paymentId || !signature) throw new Fail("Missing payment details.");
+      if (!safeEqual(await sign(orderId, paymentId, keySecret), signature.toLowerCase())) throw new Fail("Payment verification failed. If money was deducted, it will be refunded; contact support.", 400);
+      // The signature proves this payment is for this order; the order itself (made by us) proves what it was for and how much.
+      const g = await fetch("https://api.razorpay.com/v1/orders/" + encodeURIComponent(orderId), { headers: { Authorization: auth }, signal: AbortSignal.timeout(15000) });
+      const order = await g.json().catch(() => ({}));
+      if (!g.ok || order.notes?.kind !== "directory" || order.notes?.application_id !== app.id || order.notes?.user_id !== user.id || order.amount !== expected || order.amount_paid !== expected) throw new Fail("Payment verification failed. If money was deducted, it will be refunded; contact support.", 400);
+      if (!app.paid_at) {
+        const now = new Date().toISOString();
+        await admin.from("directory_orders").insert({ application_id: app.id, user_id: user.id, order_no: orderId, amount_paise: expected, status: "paid", utr: paymentId, confirmed_by: "razorpay", paid_at: now });
+        await admin.from("directory_applications").update({ paid_at: now, order_no: orderId }).eq("id", app.id).is("paid_at", null);
+      }
+      return json({ success: true, order_no: orderId, utr: paymentId });
+    }
+
     const firmId = body.firm_id;
 
     if (action === "create-order") {
@@ -123,7 +156,7 @@ Deno.serve(async (req: Request) => {
 
       const receipt = "LS" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
       const r = await fetch("https://api.razorpay.com/v1/orders", { method: "POST", signal: AbortSignal.timeout(15000),
-        headers: { Authorization: "Basic " + btoa(keyId + ":" + keySecret), "Content-Type": "application/json" },
+        headers: { Authorization: auth, "Content-Type": "application/json" },
         body: JSON.stringify({ amount: price.total, currency: "INR", receipt, notes: { firm_id: String(firmId), plan: body.plan, cycle: body.cycle } }) });
       const order = await r.json().catch(() => ({}));
       if (r.status === 401) { console.error("razorpay auth failed"); throw new Fail("Razorpay rejected our credentials. The payment gateway needs to be reconfigured.", 401); }

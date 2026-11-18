@@ -854,6 +854,34 @@ class Component extends DCLogic {
     this._payTick = setInterval(() => { const p = this.state.pay; if (p && p.phase === 'waiting') this.setState({ pay: { ...p, left: left() } }); }, 1000);
     this._payPoll = setInterval(() => this.checkPay(), 4000);
   }
+  /* Pay the listing fee through Razorpay instead (Rs 5 off): leaves the UPI screen, opens Razorpay's window, verifies on the server. */
+  loadRazorpay() { return window.Razorpay ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://checkout.razorpay.com/v1/checkout.js'; sc.onload = res; sc.onerror = () => rej(new Error('Could not load Razorpay checkout. Check your connection and try again.')); document.head.appendChild(sc); }); }
+  async payRazorpay(id) {
+    if (!this.sb()) return;
+    this.stopPay(); this._rzDone = false;
+    this.setState({ pay: { phase: 'creating', id } });
+    const fail = msg => { if (this.state.screen === 'pay') this.setState({ pay: { phase: 'error', id, msg } }); };
+    const [r] = await Promise.all([this.fnCall('razorpay', { action: 'dir-create-order', application_id: id }), this.loadRazorpay().catch(e => ({ error: e.message }))]);
+    if (this.state.screen !== 'pay') return;
+    if (r.error) return fail(r.error);
+    const d = r.data || {};
+    if (d.paid) { this.setState({ pay: { phase: 'paid', id, r: {}, x: {} } }); this.refreshStatus(); return; }
+    if (!window.Razorpay) return fail('Could not load Razorpay checkout. Check your connection and try again.');
+    const u = this.state.user || {};
+    const rz = new window.Razorpay({
+      key: d.key_id, order_id: d.order_id, amount: d.amount, currency: d.currency, name: 'Legal Staff', description: 'Lifetime directory listing', prefill: { name: u.name || '', email: u.email || '' }, theme: { color: '#0A0A0A' },
+      handler: async resp => {
+        this._rzDone = true;
+        this.setState({ pay: { phase: 'creating', id } });
+        const v = await this.fnCall('razorpay', { action: 'dir-verify-payment', application_id: id, ...resp });
+        if (v.error) return fail(v.error);
+        this.setState({ pay: { phase: 'paid', id, r: { order_no: v.data.order_no }, x: { utr: v.data.utr, method: 'razorpay' } } }); this.refreshStatus();
+      },
+      modal: { ondismiss: () => { const p = this.state.pay; if (p && p.phase === 'creating' && !this._rzDone) this.startPay(id); } }
+    });
+    rz.on('payment.failed', e => { this._rzDone = true; try { rz.close(); } catch (x) {} fail((e.error && e.error.description) || 'The payment failed. You have not been charged, or any amount will be refunded.'); });
+    this.setState({ pay: { phase: 'creating', id } }); rz.open();
+  }
   async checkPay() {
     const p = this.state.pay; if (!p || p.phase !== 'waiting' || this._chk) return;
     this._chk = true;
@@ -1694,7 +1722,7 @@ class Component extends DCLogic {
         h('div', { style: { position: 'relative', width: 76, height: 76, margin: '34px 0 22px' } }, h('span', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, borderRadius: '50%', background: '#16A34A', opacity: .3, animation: 'lsdRing 1.6s ease-out 2' } }), h('div', { style: { position: 'relative', width: 76, height: 76, borderRadius: '50%', background: '#16A34A', color: '#fff', fontSize: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'lsdPop .6s cubic-bezier(.34,1.56,.64,1)' } }, '✓')),
         h('div', { style: { fontSize: 24, fontWeight: 600, letterSpacing: '-.02em' } }, 'Payment received'),
         h('div', { style: { fontSize: 14.5, color: '#363636', maxWidth: 380 } }, 'Your one-time ₹49 listing fee is paid, so you never pay again. Your profile is now listed. Upload your enrolment certificate and photo ID as soon as possible if you have not yet: they are checked automatically and the blue tick appears once everything matches.'),
-        pay.x && pay.x.utr ? h('div', { style: { fontSize: 12, color: '#8A8A8A' } }, 'UPI reference ' + pay.x.utr + ' · order ' + (r && r.order_no || '')) : null,
+        pay.x && pay.x.utr ? h('div', { style: { fontSize: 12, color: '#8A8A8A' } }, (pay.x.method === 'razorpay' ? 'Razorpay payment ID ' : 'UPI reference ') + pay.x.utr + ' · order ' + (r && r.order_no || '')) : null,
         dark('View my application', () => this.nav({ screen: 'status', viewId: pay.id }), 'v'))
       else if (pay.phase === 'expired') right = h('div', { style: { ...card, alignItems: 'flex-start' } }, h('div', { style: { fontSize: 20, fontWeight: 600 } }, 'This payment window has closed'), h('div', { style: { fontSize: 14, color: '#363636' } }, 'If you already paid ' + amt + ', it is still confirmed automatically within 24 hours and your profile unlocks by itself. If you have not paid, start again.'), h('div', { style: { fontSize: 12, color: '#8A8A8A' } }, 'Order ' + (r && r.order_no || '')), h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, dark('Start again', () => this.startPay(pay.id), 's'), light('Back to my status', () => this.nav({ screen: 'status' }), 'b')));
       else right = h('div', { style: { ...card, alignItems: 'center', textAlign: 'center', gap: 14, animation: 'lsRise .4s cubic-bezier(.2,.7,.2,1)' } },
@@ -1705,6 +1733,9 @@ class Component extends DCLogic {
         h('div', { style: { fontSize: 14, color: '#363636' } }, 'Scan with any UPI app: GPay, PhonePe, Paytm, BHIM'),
         h('a', { href: r.link, className: 'lsd-a lsd-cta', style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 46, padding: '0 22px', background: '#0A0A0A', color: '#fff', borderRadius: 10, fontSize: 15, fontWeight: 600 } }, 'Open UPI app (on your phone)'),
         h('div', { style: { fontSize: 12.5, color: '#5E5E5E' } }, 'Paying ' + r.payee + ' · ' + r.upi_id),
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', maxWidth: 360, fontSize: 12, color: '#8A8A8A' } }, h('span', { style: { flex: 1, height: 1, background: '#E5E5E5' } }), 'or', h('span', { style: { flex: 1, height: 1, background: '#E5E5E5' } })),
+        h('button', { type: 'button', onClick: () => this.payRazorpay(pay.id), className: 'ls-press', style: { height: 46, padding: '0 22px', border: '1px solid #0A0A0A', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 15, fontWeight: 600 } }, 'Pay ₹44 with Razorpay · ₹5 off'),
+        h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, 'Card · UPI · netbanking · wallets, confirmed instantly'),
         h('div', { role: 'status', style: { display: 'flex', gap: 10, alignItems: 'center', fontSize: 14, color: '#363636' } }, h('span', { className: 'lsd-spin' }), 'Waiting for your payment… ' + mm),
         h('div', { style: { fontSize: 12, color: '#8A8A8A', maxWidth: 360 } }, 'Keep this page open. It updates by itself as soon as the payment arrives. Pay the exact amount shown, including paise, so it is matched to your order ' + r.order_no + '.'));
       const left = h('div', { style: { background: '#0A0A0A', color: '#fff', borderRadius: 20, padding: 'clamp(24px,4vw,36px)', display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', overflow: 'hidden' } },
