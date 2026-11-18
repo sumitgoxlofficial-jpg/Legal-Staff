@@ -256,7 +256,7 @@
   }
 
   // ---------- layout ----------
-  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings']];
+  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings', [[null, [['general', 'General'], ['integrations', 'Integrations']]]]]];
   // sidebar sections (anything an extension adds that is not listed here lands under "More")
   const NAV = [['', ['overview']], ['Business', ['firms', 'payments', 'coupons', 'expenses']], ['Growth', ['directory', 'email']], ['Help', ['support']], ['System', ['settings']]];
   const IC = {
@@ -302,7 +302,7 @@
     const badge = k => (k === 'support' && unread ? unread : k === 'directory' && dirPending ? dirPending : 0);
     t.innerHTML = groups.map(([label, keys]) => `${label ? `<div class="nav-label">${label}</div>` : ''}${keys.map(k => {
       const [, name, subs] = byKey[k], on = k === tab, b = badge(k);
-      const kids = subs ? `<div class="nav-sub ${on ? 'open' : ''}"><div>${subs.map(([sg, items]) => `${sg ? `<div class="sl">${sg}</div>` : ''}${items.map(([sk, sl]) => `<a href="#${k}/${sk}" data-k="${k}/${sk}" class="${on && (curSub || subs[0][1][0][0]) === sk ? 'on' : ''}">${sl}</a>`).join('')}`).join('')}</div></div>` : '';
+      const kids = subs ? `<div class="nav-sub ${on ? 'open' : ''}"><div>${subs.map(([sg, items]) => `${sg ? `<div class="sl">${sg}</div>` : ''}${items.map(([sk, sl]) => `<a href="#${k}/${sk}" data-k="${k}/${sk}" class="${on && (curSub === 'whatsapp' ? 'integrations' : curSub || subs[0][1][0][0]) === sk ? 'on' : ''}">${sl}</a>`).join('')}`).join('')}</div></div>` : '';
       return `<a class="nav-item ${on ? 'on' : ''} ${subs && on ? 'open' : ''}" href="#${k}${subs ? '/' + subs[0][1][0][0] : ''}" data-k="${k}">${icon(k)}<span>${name}</span>${b ? `<span class="nav-badge">${b}</span>` : ''}${subs ? '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' : ''}</a>${kids}`;
     }).join('')}`).join('');
   }
@@ -567,7 +567,7 @@
     p.querySelectorAll('[data-id]').forEach(b => b.onclick = async () => { if (!confirm('Delete this expense?')) return; await api('expense_delete', { id: b.dataset.id }); go('expenses'); });
   };
 
-  const settingsNav = (cur) => `<div class="seg" style="margin-bottom:16px">${[['', 'General'], ['integrations', 'Integrations']].map(([k, l]) => `<button data-sub="${k}" class="${k === cur ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  const settingsNav = () => '';   // the sub-options live in the sidebar now
   const wireSettingsNav = p => p.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => go('settings' + (b.dataset.sub ? '/' + b.dataset.sub : '')));
   VIEWS.settings = async (p, sub) => {
     if (sub === 'whatsapp') return VIEWS.whatsapp(p);
