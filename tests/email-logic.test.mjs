@@ -67,8 +67,12 @@ await t('reminder date is five days on', () => eq(L.addDaysIso('2026-11-28', 5),
 
 console.log('sheet import mapping');
 await t('spreadsheet id from a URL or bare id', () => { const id = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789'; eq(L.parseSpreadsheetId(`https://docs.google.com/spreadsheets/d/${id}/edit#gid=0`), id); eq(L.parseSpreadsheetId(id), id); eq(L.parseSpreadsheetId('hello'), ''); });
-await t('columns are suggested from common headers', () => eq(L.autoMapColumns(['Advocate Name', 'Email Address', 'City', 'State', 'Source', 'Source URL']), { advocate_name: 'Advocate Name', email: 'Email Address', city: 'City', state: 'State', contact_source: 'Source', source_url: 'Source URL' }));
+await t('columns are suggested from common headers', () => eq(L.autoMapColumns(['Advocate Name', 'Email Address', 'City', 'State', 'Source', 'Source URL']), { advocate_name: 'Advocate Name', email: 'Email Address', city: 'City', state: 'State', source_url: 'Source URL' }));
 await t('rows are mapped with sheet row numbers; empty rows dropped', () => eq(L.mapRows([['name', 'mail'], ['A', 'a@x.in'], ['', ''], ['B', 'b@x.in']], { advocate_name: 'name', email: 'mail' }), [{ row: 2, advocate_name: 'A', email: 'a@x.in' }, { row: 4, advocate_name: 'B', email: 'b@x.in' }]));
+await t('a sheet with title banner rows above the header: the header row is found and row numbers stay true', () => {
+  const v = [['Pan-India Advocates Directory', 'TOTAL', 'STATES'], ['Master Directory', '1163', '12'], [''], ['State', 'PIN', 'Location', 'Advocate Name', 'Email', 'Type of Advocate', 'Source'], ['Delhi', '110003', 'Sher Shah Road, New Delhi', 'Meera Bhatia', 'm@x.in', 'Corporate', 'https://s/1'], ['', '', '', '', '', '', '']];
+  eq(L.findHeaderRow(v), 3); const m = L.autoMapColumns(v[3]); eq([m.email, m.advocate_name, m.state, m.city], ['Email', 'Advocate Name', 'State', 'Location']);
+  eq(L.mapRows(v, m), [{ row: 5, advocate_name: 'Meera Bhatia', email: 'm@x.in', city: 'Sher Shah Road, New Delhi', state: 'Delhi', source_url: 'https://s/1' }]); eq(L.findHeaderRow([['email'], ['a']]), 0); eq(L.findHeaderRow([['x'], ['y']]), 0); });
 await t('an import needs the email column mapped', () => { ok(L.mappingProblems({}).length); eq(L.mappingProblems({ email: 'x' }), []); });
 await t('email validation', () => { ok(L.isValidEmail(' Adv.Name+x@Mail.co.in ')); for (const b of ['', 'a@b', 'a b@c.in', '@c.in', 'a@.in']) ok(!L.isValidEmail(b), b); });
 

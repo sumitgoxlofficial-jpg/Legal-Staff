@@ -10,7 +10,7 @@
 // Deploy with JWT verification off; it checks every caller itself.
 // Secrets (function secrets, never the browser): BREVO_API_KEY, BREVO_WEBHOOK_SECRET, EMAIL_TOKEN_SECRET, GOOGLE_SERVICE_ACCOUNT_JSON, CRON_SECRET (optional).
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { SITE, DIRECTORY_URL, normEmail, isValidEmail, parseSpreadsheetId, autoMapColumns, mapRows, mappingProblems, MAPPABLE, istDate, istHm, addDaysIso, istInstant, jobDue, nextRun,
+import { SITE, DIRECTORY_URL, normEmail, isValidEmail, parseSpreadsheetId, autoMapColumns, findHeaderRow, mapRows, mappingProblems, MAPPABLE, istDate, istHm, addDaysIso, istInstant, jobDue, nextRun,
   remainingToday, evaluateEligibility, describeReasons, productionBlockers, settingsProblem, canActivateTemplate, templateProblems, renderTemplate, trackedUrl, makeToken, readToken,
   safeEqual, brevoPayload, classifySend, classifyBrevoEvent, googleAssertion, toCsv, toExcelXml, scrub, GLOBAL } from "../_shared/email-logic.js";
 
@@ -426,7 +426,7 @@ async function adminApi(admin: any, actor: string, action: string, b: any) {
     case "sheets_connect": {
       const id = parseSpreadsheetId(b.url); if (!id) throw new Fail("Paste the spreadsheet URL or its ID.");
       const info = await sheetInfo(id); const sheet = info.sheets.find((s: any) => s.title === b.sheet) ?? info.sheets[0]; if (!sheet) throw new Fail("The spreadsheet has no sheets.");
-      const head = (await sheetValues(id, sheet.title, 3))[0] ?? [];
+      const top = await sheetValues(id, sheet.title, 15), head = top[findHeaderRow(top)] ?? [];   // title banner rows above the header are skipped
       const { data: ex } = await admin.from("google_sheets_integrations").select("*").eq("spreadsheet_id", id).maybeSingle();
       const map = ex && ex.sheet_name === sheet.title && Object.keys(ex.column_map ?? {}).length ? ex.column_map : autoMapColumns(head);
       const row = { spreadsheet_id: id, spreadsheet_url: String(b.url).slice(0, 500), spreadsheet_title: info.title, sheet_name: sheet.title, column_map: map, created_by: actor, updated_at: nowIso() };
@@ -438,7 +438,7 @@ async function adminApi(admin: any, actor: string, action: string, b: any) {
       const values = await sheetValues(i.spreadsheet_id, b.sheet ?? i.sheet_name), rows = mapRows(values, map), seen = new Map<string, number>(); let invalid = 0, dup = 0; const valid: any[] = [];
       for (const r of rows) { const n = normEmail(r.email); if (!isValidEmail(n)) { invalid++; continue; } if (seen.has(n)) { dup++; continue; } seen.set(n, r.row); valid.push({ ...r, n }); }
       let existing = 0; for (let k = 0; k < valid.length; k += 200) existing += ((await admin.from("email_contacts").select("id", { count: "exact", head: true }).in("email_normalized", valid.slice(k, k + 200).map((v) => v.n))).count ?? 0);
-      return { headers: values[0] ?? [], total: rows.length, valid: valid.length, new: valid.length - existing, existing, duplicates: dup, invalid, sample: rows.slice(0, 15), note: "Imported contacts start as consent UNKNOWN and first email BLOCKED." };
+      return { headers: values[findHeaderRow(values)] ?? [], total: rows.length, valid: valid.length, new: valid.length - existing, existing, duplicates: dup, invalid, sample: rows.slice(0, 15), note: "Imported contacts start as consent UNKNOWN and first email BLOCKED." };
     }
     case "sheets_save": {
       const upd: any = { updated_at: nowIso() }; if (b.sheet) upd.sheet_name = String(b.sheet); if (b.column_map) { const pr = mappingProblems(b.column_map); if (pr.length) throw new Fail(pr[0]); upd.column_map = pick(b.column_map, MAPPABLE); } if (typeof b.sync_enabled === "boolean") upd.sync_enabled = b.sync_enabled;
