@@ -61,7 +61,7 @@ const sheetsBase = () => (env("GOOGLE_SHEETS_API_BASE") || "https://sheets.googl
 async function gget(path: string) {
   const r = await fetch(sheetsBase() + path, { headers: { Authorization: "Bearer " + (await googleToken()) } });
   const j = await r.json().catch(() => ({}));
-  if (r.status === 403 || r.status === 404) throw new Fail("The service account cannot open this spreadsheet. Share it (Viewer) with " + (parseServiceAccount(env("GOOGLE_SERVICE_ACCOUNT_JSON"))?.client_email ?? "the service account") + ".", 400);
+  if (r.status === 403 || r.status === 404) throw new Fail("The service account cannot open this spreadsheet. Share it (Viewer) with " + (parseServiceAccount(env("GOOGLE_SERVICE_ACCOUNT_JSON"))?.client_email ?? "the service account") + ". If it is already shared, make sure the Google Sheets API is enabled for the service account's project.", 400);
   if (!r.ok) throw new Fail("Google Sheets error: " + scrub(j.error?.message || r.status), 502);
   return j;
 }
