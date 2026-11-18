@@ -662,7 +662,9 @@ table tbody tr:hover{background:#FAFAF9}
 </sc-if>
 
 <sc-if value="{{ s.status }}" hint-placeholder-val="{{ false }}">
-  <div style="max-width:1120px;margin:0 auto;padding:40px clamp(16px,4vw,24px) 72px;display:flex;flex-direction:column;gap:20px">
+  <div style="position:relative;overflow:hidden">
+  {{ stat.bg }}
+  <div style="position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:40px clamp(16px,4vw,24px) 72px;display:flex;flex-direction:column;gap:20px">
     <sc-if value="{{ stat.none }}" hint-placeholder-val="{{ false }}">
       <div>
         <div style="font-size:12px;color:#5E5E5E;font-weight:600">Directory account</div>
@@ -675,6 +677,7 @@ table tbody tr:hover{background:#FAFAF9}
     <sc-if value="{{ stat.has }}" hint-placeholder-val="{{ true }}">
       {{ stat.dash }}
     </sc-if>
+  </div>
   </div>
 </sc-if>
 </main>
@@ -1798,6 +1801,20 @@ class Component extends DCLogic {
     const heroActions = actions.map(el => { const d = el.props.style && el.props.style.background === '#0A0A0A'; return React.cloneElement(el, { className: 'ls-press', style: { ...el.props.style, background: d ? '#fff' : 'transparent', color: d ? '#0A0A0A' : '#fff', border: d ? 0 : '1px solid rgba(255,255,255,.35)' } }); });
     const ico = d => h('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d }));
     const DICO = { v: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3zM9 12l2 2 4-4', f: 'M3 7h18v11H3zM3 11h18M7 15h3', p: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 100 6 3 3 0 000-6', c: 'M4 5h16v11H8l-4 4V5z' };
+    /* decorative backdrop for the dashboard: soft tinted glows, a fading dot grid and large outlined court graphics */
+    const bgArt = (css, child, cls) => h('div', { 'aria-hidden': true, className: cls || '', style: { position: 'absolute', pointerEvents: 'none', ...css } }, child);
+    const scales = h('svg', { viewBox: '0 0 200 200', width: '100%', height: '100%', fill: 'none', stroke: '#0A0A0A', strokeWidth: 2.2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+      h('circle', { cx: 100, cy: 28, r: 7 }), h('path', { d: 'M100 35v135M62 176h76M28 52h144M40 52L12 112M40 52l28 60M160 52l-28 60M160 52l28 60M12 112h56a28 22 0 01-56 0zM132 112h56a28 22 0 01-56 0z' }));
+    const shield = h('svg', { viewBox: '0 0 24 24', width: '100%', height: '100%', fill: 'none', stroke: '#0A0A0A', strokeWidth: .6, strokeLinecap: 'round', strokeLinejoin: 'round' }, h('path', { d: 'M12 2.5l7.5 3v5.5c0 4.6-3.2 8.2-7.5 10-4.3-1.8-7.5-5.4-7.5-10V5.5l7.5-3zM8.5 12l2.5 2.5 4.5-5' }));
+    const bg = h('div', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' } },
+      bgArt({ inset: 0, backgroundImage: 'radial-gradient(rgba(10,10,10,.09) 1px,transparent 1px)', backgroundSize: '24px 24px', WebkitMaskImage: 'linear-gradient(180deg,#000 0%,rgba(0,0,0,.5) 45%,transparent 85%)', maskImage: 'linear-gradient(180deg,#000 0%,rgba(0,0,0,.5) 45%,transparent 85%)' }),
+      bgArt({ width: 520, height: 520, left: -180, top: 360, background: '#D9E6FF', opacity: .65, borderRadius: '50%', filter: 'blur(90px)' }, null, 'lsd-orb'),
+      bgArt({ width: 460, height: 460, right: -160, top: 520, background: '#FFE9B8', opacity: .6, borderRadius: '50%', filter: 'blur(90px)' }, null, 'lsd-orb'),
+      bgArt({ width: 420, height: 420, right: -60, top: 700, opacity: .06 }, scales, 'lsd-float'),
+      bgArt({ width: 300, height: 300, left: -70, top: 1000, opacity: .07, transform: 'rotate(-12deg)' }, shield, 'lsd-float'),
+      bgArt({ width: 46, height: 46, left: '8%', top: 470, border: '2px solid rgba(10,10,10,.1)', borderRadius: '50%' }, null, 'lsd-float'),
+      bgArt({ width: 22, height: 22, right: '12%', top: 430, border: '2px solid rgba(10,10,10,.12)', borderRadius: 6, transform: 'rotate(18deg)' }, null, 'lsd-float'),
+      bgArt({ width: 12, height: 12, left: '46%', top: 560, background: 'rgba(10,10,10,.1)', borderRadius: '50%' }, null, 'lsd-float'));
     const dash = !app ? null : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18 } },
       h('section', { className: 'lsd-rise', style: { position: 'relative', overflow: 'hidden', borderRadius: 20, background: '#0A0A0A', color: '#fff', padding: 'clamp(22px,3.5vw,32px)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 24 } },
         h('div', { 'aria-hidden': true, className: 'lsd-dots', style: { position: 'absolute', inset: 0, opacity: .8, pointerEvents: 'none' } }),
@@ -1832,7 +1849,7 @@ class Component extends DCLogic {
           h('section', { style: { ...card, gap: 6 } }, h('div', { style: { fontWeight: 600, fontSize: 16 } }, 'Practice software'), h('div', { style: { fontSize: 13.5, color: '#5E5E5E', lineHeight: 1.5 } }, 'Run your chamber on Legal Staff: cases, hearings, clients, invoices and team chat in one workspace. Not included with the directory listing.'), h('a', { href: 'index.html#pricing', style: { fontSize: 14, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, color: '#0A0A0A' } }, 'See plans')))),
       leadsBox);
     const stat = {
-      has: !!app, none: !app, dash,
+      has: !!app, none: !app, dash, bg: app ? bg : null,
       title: !app ? (S.statusErr ? 'Your application could not be loaded' : 'No application found') : { pending: bothUp ? 'Your documents are being checked' : 'Upload your documents to get verified', info: 'We could not verify your documents yet', verified: isLive ? 'Your profile is verified and live' : 'Verified. Pay ₹49 to go live', rejected: 'Your application was not approved' }[status],
       sub: !app ? (S.statusErr ? 'The server could not be reached, so the status of your application is not shown. Try again in a moment.' : on ? 'This browser does not remember a directory application. Apply for a profile, or look up an existing application with its reference and enrolment number.' : '') || 'There is no directory application saved in this browser. Apply for a profile, or look up an existing application by its reference or enrolment number.'
         : 'Reference ' + app.id + (app.name ? ' · ' + app.name : '') + (app.date ? ' · submitted ' + app.date : '') + '. ' + { pending: bothUp ? 'Your documents are read automatically, usually within a minute. Press Refresh status in a moment.' : 'Your profile is not verified yet. Upload your enrolment certificate and photo ID below as soon as possible and they are checked automatically.', info: 'Your profile can stay listed, but it will not show the blue tick until the documents are verified.', verified: isLive ? 'Your profile is listed with the blue tick.' : 'Your documents are verified. Pay the one-time ₹49 fee and your profile is listed at once.', rejected: 'Your documents could not be verified after several attempts, so the profile is no longer listed. You can start a new application with correct documents.' }[status],
