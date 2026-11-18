@@ -303,6 +303,7 @@ header :focus-visible{outline-color:#fff}
             <div style="display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid #E5E5E5;font-size:14px;flex-wrap:wrap"><span style="color:#5E5E5E">{{ r.k }}</span><span>{{ r.v }}</span></div>
           </sc-for>
         </div>
+        {{ feePanel }}
         <label style="display:flex;gap:10px;font-size:13px;color:#363636;align-items:flex-start"><input type="checkbox" checked="{{ confirmOn }}" onChange="{{ toggleConfirm }}" style="width:16px;height:16px;margin-top:2px;accent-color:#0A0A0A;flex-shrink:0"><span>I confirm these details are accurate. My profile will contain no testimonials, claims of results or other promotional content.</span></label>
       </sc-if>
       <sc-if value="{{ isForm }}" hint-placeholder-val="{{ true }}">
@@ -375,7 +376,8 @@ class Component extends DCLogic {
     fDistrict: [], fCourt: [], fLang: [], fYears: [], sort: 'az', page: 1, profileId: null,
     cf: this.blankContact(), cfErr: {}, enquiries: [],
     app: this.blankApp(), appErr: {}, editingId: null, apps: [], mine: {}, viewId: null,
-    profiles: [], pState: 'idle', pErr: '', busy: '', statusErr: '', lookupEnr: '', modal: null, more: {}, lookup: '', lookupMsg: '', rf: { profile: '', reason: '', details: '', email: '' }, rfErr: {}, rfDone: null
+    profiles: [], pState: 'idle', pErr: '', busy: '', statusErr: '', lookupEnr: '', modal: null, more: {}, lookup: '', lookupMsg: '', rf: { profile: '', reason: '', details: '', email: '' }, rfErr: {}, rfDone: null,
+    feeCfg: null, feePromo: null, feePromoIn: '', feePromoErr: '', feePaid: null
   };
   K = { apps: 'ls.directory.applications', mine: 'ls.directory.myApplications', enq: 'ls.directory.enquiries', rep: 'ls.directory.reports' };
   AREAS = [['Civil', 'Recovery, injunctions, contracts'], ['Criminal', 'Bail, trials, quashing'], ['Family', 'Divorce, custody, maintenance'], ['Property', 'Title, partition, tenancy'], ['Consumer', 'Deficiency of service, refunds'], ['Labour & Employment', 'Wages, termination, PF'], ['Tax', 'GST, income tax appeals'], ['Corporate & Commercial', 'Commercial suits, company law'], ['Arbitration', 'Section 9, 11, 34 proceedings'], ['Constitutional & Writs', 'Writ petitions, service matters'], ['Cyber', 'IT Act, online fraud'], ['Banking & Recovery', 'DRT, SARFAESI, cheque bounce']];
@@ -500,7 +502,7 @@ class Component extends DCLogic {
   search(patch) { this.nav({ screen: 'results', page: 1, fDistrict: [], fCourt: [], fLang: [], fYears: [], ...patch }); }
   searchAll() { this.search({ q: '', loc: '', district: '', area: '', court: '' }); }
   openProfile(id) { this.nav({ screen: 'profile', profileId: id, cf: this.blankContact(), cfErr: {} }); }
-  startApply() { this.nav({ screen: 'register', step: 0, app: this.blankApp(), appErr: {}, editingId: null }); }
+  startApply() { this.loadFeeCfg(); const f = this.read('ls.directory.fee', null); this.nav({ screen: 'register', step: 0, app: this.blankApp(), appErr: {}, editingId: null, feePaid: f && f.order_id && f.email ? f : null, feePromo: null, feePromoIn: '', feePromoErr: '' }); }
   browse() {
     this.nav({ screen: 'home' }, { keepScroll: true });
     setTimeout(() => { const el = document.getElementById('browse'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 60);
@@ -611,11 +613,65 @@ class Component extends DCLogic {
     }
     return err;
   }
+  /* ---------- ₹49 listing fee (Razorpay) — only when the server has switched the fee on ---------- */
+  fn(body) {
+    const sb = this.sb();
+    return this.call(sb.functions.invoke('directory-pay', { body })).then(async r => {
+      if (!r.error) return r.data && r.data.error ? { data: null, error: r.data.error } : { data: r.data, error: '' };
+      let m = this.errText(r.error);
+      try { const j = await r.error.context.json(); if (j && j.error) m = j.error; } catch (e) {}
+      return { data: null, error: m };
+    });
+  }
+  loadFeeCfg() {
+    if (!this.sb() || this.state.feeCfg || this._feeBusy) return;
+    this._feeBusy = true;
+    this.fn({ action: 'config' }).then(r => { this._feeBusy = false; if (r.data) this.setState({ feeCfg: r.data }); });
+  }
+  feeRequired() { const S = this.state; return !!(this.sb() && S.feeCfg && S.feeCfg.enabled && !S.editingId); }
+  feeIsPaid() { const S = this.state; return !!(S.feePaid && S.feePaid.email === S.app.email.trim().toLowerCase()); }
+  feeApplyPromo() {
+    const S = this.state, code = String(S.feePromoIn || '').trim().toUpperCase();
+    if (!code) return this.setState({ feePromoErr: 'Enter a promo code.' });
+    if (S.busy) return;
+    this.setState({ busy: 'promo', feePromoErr: '' });
+    this.fn({ action: 'promo', email: S.app.email.trim(), promo: code }).then(r =>
+      this.setState(r.data ? { busy: '', feePromo: r.data, feePromoIn: r.data.code, feePromoErr: '' } : { busy: '', feePromo: null, feePromoErr: r.error }));
+  }
+  loadRazorpay() {
+    if (window.Razorpay) return Promise.resolve(true);
+    return new Promise(res => { const el = document.createElement('script'); el.src = 'https://checkout.razorpay.com/v1/checkout.js'; el.onload = () => res(!!window.Razorpay); el.onerror = () => res(false); document.head.appendChild(el); });
+  }
+  /* creates the order, opens Razorpay Checkout, verifies the payment on the server, then calls done() */
+  async payFee(done) {
+    const S = this.state, a = S.app;
+    if (S.busy) return;
+    const email = a.email.trim().toLowerCase();
+    const fail = m => this.setState({ busy: '', appErr: { confirm: m } });
+    this.setState({ busy: 'fee', appErr: {} });
+    const o = await this.fn({ action: 'create', email, promo: S.feePromo ? S.feePromo.code : '' });
+    if (!o.data) return fail(o.error + ' Everything you entered is still here.');
+    const paid = id => { const v = { email, order_id: id }; this.write('ls.directory.fee', v); this.setState({ busy: '', feePaid: v }); done(); };
+    if (o.data.free) return paid(o.data.order_id);
+    if (!(await this.loadRazorpay())) return fail('The payment window could not load. Check your connection and try again.');
+    const rz = new window.Razorpay({ key: o.data.key_id, order_id: o.data.order_id, amount: o.data.amount, currency: 'INR', name: 'Legal Staff', description: 'Directory listing fee',
+      prefill: { name: a.name.trim(), email: a.email.trim(), contact: a.mobile.trim() }, theme: { color: '#0A0A0A' },
+      modal: { ondismiss: () => { if (this.state.busy === 'fee') this.setState({ busy: '', appErr: { confirm: 'The payment was not completed. You have not been charged unless Razorpay says otherwise; try again when ready.' } }); } },
+      handler: async resp => {
+        const v = await this.fn({ action: 'verify', razorpay_order_id: resp.razorpay_order_id, razorpay_payment_id: resp.razorpay_payment_id, razorpay_signature: resp.razorpay_signature });
+        if (!v.data) return fail(v.error);
+        paid(o.data.order_id);
+      } });
+    rz.on('payment.failed', r => fail('The payment failed' + (r && r.error && r.error.description ? ' (' + r.error.description + ')' : '') + '. Please try again.'));
+    rz.open();
+  }
   nextStep() {
+    this.loadFeeCfg();
     const S = this.state, err = this.validateStep(S.step);
     if (Object.keys(err).length) { this.setState({ appErr: err }); return; }
     if (S.step < 4) { this.setState({ step: S.step + 1, appErr: {} }); window.scrollTo(0, 0); return; }
     for (let i = 0; i < 4; i++) { const e = this.validateStep(i); if (Object.keys(e).length) { this.setState({ step: i, appErr: e }); return; } }
+    if (this.feeRequired() && !this.feeIsPaid()) return this.payFee(() => this.submitApp());
     this.submitApp();
   }
   async submitApp() {
@@ -638,11 +694,13 @@ class Component extends DCLogic {
         let r;
         for (let i = 0; i < 3; i++) {
           id = mk();
-          r = await this.call(sb.from('directory_applications').insert({ id, ...core, email: a.email.trim(), mobile: a.mobile.trim(), details }));
+          r = await this.call(sb.from('directory_applications').insert({ id, ...core, email: a.email.trim(), mobile: a.mobile.trim(), details, ...(this.feeRequired() && this.feeIsPaid() ? { fee_order_id: this.state.feePaid.order_id } : {}) }));
           if (!(r.error && String(r.error.code) === '23505' && /pkey/i.test(String(r.error.message) + String(r.error.details || '')))) break;
         }
         if (r.error && String(r.error.code) === '23505') return this.setState({ busy: '', step: 1, appErr: { enr: 'An application with this enrolment number already exists.' } });
+        if (r.error && this.feeRequired()) return fail('Your application could not be submitted (' + this.errText(r.error) + '). Your ₹49 payment is saved against ' + a.email.trim() + ', so you will not be charged again.' + keep);
         if (r.error) return fail('Your application could not be submitted (' + this.errText(r.error) + ').' + keep);
+        this.write('ls.directory.fee', null);
         row = this.rowToApp({ id, ...core, status: 'pending', note: '', created_at: now.toISOString() });
       }
       const mine = this.readMine(), prev = mine[id] || {};
@@ -924,6 +982,23 @@ class Component extends DCLogic {
         E[k] ? h('div', { role: 'alert', style: { fontSize: 12, color: '#B42318' } }, E[k]) : null) };
     });
     const nDocs = Object.keys(A.docs).length;
+    /* ----- listing fee panel (review step) ----- */
+    const rp = p => '₹' + (p / 100).toFixed(2).replace(/\.00$/, '');
+    const feeReq = this.feeRequired(), feePaid = feeReq && this.feeIsPaid(), feeBase = feeReq ? S.feeCfg.amount : 0;
+    const feeTotal = feeReq ? (S.feePromo ? S.feePromo.total : feeBase) : 0;
+    const feeLine = (k, v, c) => h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14, color: c || '#0A0A0A' } }, h('span', null, k), h('span', null, v));
+    const feePanel = !feeReq ? null : h('div', { style: { border: '1px solid #E5E5E5', borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', gap: 10, background: '#FAFAF9' } },
+      h('div', { style: { fontWeight: 600, fontSize: 15 } }, 'Listing fee'),
+      feeLine('Directory listing fee', rp(feeBase)),
+      S.feePromo && !feePaid ? feeLine('Promo ' + S.feePromo.code + ' · ' + S.feePromo.label, '− ' + rp(S.feePromo.discount), '#137333') : null,
+      feeLine('Total', feePaid ? 'Paid ✓' : rp(feeTotal), feePaid ? '#137333' : '#0A0A0A'),
+      feePaid ? h('div', { style: { fontSize: 13, color: '#137333' } }, 'Payment received. Submit to send your application for verification.') : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        h('label', { htmlFor: 'fee-promo', style: { fontSize: 13, color: '#363636' } }, 'Promo code'),
+        h('div', { style: { display: 'flex', gap: 8 } },
+          h('input', { id: 'fee-promo', value: S.feePromoIn, placeholder: 'Enter code', onChange: e => this.setState({ feePromoIn: e.target.value.toUpperCase(), feePromoErr: '', feePromo: S.feePromo && S.feePromo.code === e.target.value.toUpperCase() ? S.feePromo : null }), onKeyDown: e => { if (e.key === 'Enter') { e.preventDefault(); this.feeApplyPromo(); } }, style: { flex: 1, minWidth: 0, height: 40, border: '1px solid #E5E5E5', borderRadius: 8, padding: '0 12px', fontSize: 14, background: '#fff' } }),
+          h('button', { type: 'button', onClick: () => S.feePromo ? this.setState({ feePromo: null, feePromoIn: '', feePromoErr: '' }) : this.feeApplyPromo(), style: { height: 40, padding: '0 16px', border: '1px solid #0A0A0A', background: '#fff', borderRadius: 8, fontSize: 14 } }, S.feePromo ? 'Remove' : S.busy === 'promo' ? 'Checking…' : 'Apply')),
+        S.feePromoErr ? h('div', { role: 'alert', style: { fontSize: 12.5, color: '#B42318' } }, S.feePromoErr) : S.feePromo ? h('div', { style: { fontSize: 12.5, color: '#137333' } }, 'Code applied. You save ' + rp(S.feePromo.discount) + '.') : null,
+        h('div', { style: { fontSize: 12.5, color: '#5E5E5E' } }, 'Pay by UPI, card or netbanking through Razorpay. The fee covers verification and is not a payment for any ranking or promotion.')));
     const stepErr = S.step === 4 ? (E.confirm || '') : '';
 
     /* ----- status ----- */
@@ -1003,10 +1078,10 @@ class Component extends DCLogic {
       reviewRows: [{ k: 'Name', v: A.name.trim() || '—' }, { k: 'Contact', v: [A.email.trim(), A.mobile.trim(), A.city.trim()].filter(Boolean).join(' · ') || '—' }, { k: 'Enrolment', v: [A.enr.trim().toUpperCase(), A.council, A.year.trim()].filter(Boolean).join(' · ') || '—' },
         { k: 'Practice areas', v: A.areas.join(', ') || '—' }, { k: 'Courts', v: A.courts.trim() || '—' }, { k: 'District', v: A.district.trim() || '—' }, { k: 'Languages', v: A.langs.trim() || '—' }, { k: 'Qualifications', v: A.quals.trim() || '—' },
         { k: 'Documents', v: nDocs ? nDocs + ' attached: ' + Object.keys(A.docs).map(k => A.docs[k].name).join(', ') : 'None attached' }],
-      confirmOn: A.confirm, toggleConfirm: () => setApp('confirm', !A.confirm), stepErr, stepBad: !!stepErr,
+      feePanel, confirmOn: A.confirm, toggleConfirm: () => setApp('confirm', !A.confirm), stepErr, stepBad: !!stepErr,
       back: () => { if (S.step > 0) { this.setState({ step: S.step - 1, appErr: {} }); window.scrollTo(0, 0); } else if (S.editingId) this.nav({ screen: 'status' }); else this.go('home'); },
       backLabel: S.step > 0 ? 'Back' : 'Cancel', next: () => this.nextStep(),
-      nextLabel: S.busy === 'app' ? 'Submitting…' : S.step < 4 ? 'Continue' : (S.editingId ? 'Resubmit for verification' : 'Submit for verification'),
+      nextLabel: S.busy === 'fee' ? 'Opening payment…' : S.busy === 'app' ? 'Submitting…' : S.step < 4 ? 'Continue' : (S.editingId ? 'Resubmit for verification' : feeReq && !feePaid ? (feeTotal === 0 ? 'Apply code & submit' : 'Pay ' + rp(feeTotal) + ' & submit') : 'Submit for verification'),
       track, stat
     };
   }
