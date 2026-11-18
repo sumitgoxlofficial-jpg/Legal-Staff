@@ -85,7 +85,7 @@ async function buildInvoice(admin: any, p: any, s: any) {
     period: sub ? { from: sub.since, to: sub.renews } : null,
     list, promo: p.promo_code || "", adjust: t.taxable - list,   // negative: discount; small positive: unique-amount paise
     ...t, total: p.amount_paise,
-    paidAt: p.paid_at, method: p.method === "promo" ? "Promo code" : "UPI", utr: p.utr || "", orderNo: p.order_no || "",
+    paidAt: p.paid_at, method: p.method === "promo" ? "Promo code" : p.method === "razorpay" ? "Razorpay" : "UPI", utr: p.utr || "", orderNo: p.order_no || "",
   };
 }
 
@@ -189,7 +189,7 @@ async function invoicePdf(inv: any) {
   // payment
   y -= 14; hr(y); y -= 20;
   T("PAYMENT", M, y, { size: 7.5, bold: true, color: mut }); y -= 15;
-  T(`Paid by ${d.method} on ${d.paidAt ? fmtDate(d.paidAt) : fmtDate(inv.issued_at)}${d.utr ? "   ·   UPI reference " + d.utr : ""}`, M, y); y -= 13;
+  T(`Paid by ${d.method} on ${d.paidAt ? fmtDate(d.paidAt) : fmtDate(inv.issued_at)}${d.utr ? "   ·   " + (d.method === "Razorpay" ? "Payment ID " : "UPI reference ") + d.utr : ""}`, M, y); y -= 13;
   if (d.promo) { T(`Promo code applied: ${d.promo}`, M, y, { color: mut }); y -= 13; }
   if (!d.gst) { T("No GST is charged on this invoice.", M, y, { color: mut, size: 8.5 }); y -= 12; }
 
