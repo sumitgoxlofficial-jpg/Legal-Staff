@@ -1171,8 +1171,11 @@ class Component extends DCLogic {
       if (!a.langs.trim()) err.langs = 'List at least one language.';
       if (!a.quals.trim()) err.quals = 'Enter your law degree.';
     } else if (i === 3) {
+      const stored = k => !this.sb() || (a.docs[k] && a.docs[k].path) || (this._files && this._files[k]);   // older applications only kept a file name
       if (!a.docs.cert) err.cert = 'Your enrolment certificate is required.';
+      else if (!stored('cert')) err.cert = 'Upload the enrolment certificate again: the earlier file was not stored.';
       if (!a.docs.id) err.id = 'A government photo ID is required.';
+      else if (!stored('id')) err.id = 'Upload the photo ID again: the earlier file was not stored.';
     } else if (i === 4) {
       if (!a.confirm) err.confirm = 'Please confirm that the details are accurate.';
     }
