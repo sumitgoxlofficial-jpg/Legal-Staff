@@ -35,23 +35,41 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
 @keyframes lsRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 :focus-visible{outline:2px solid #0A0A0A;outline-offset:2px}
 header :focus-visible{outline-color:#fff}
+
+@media (max-width:640px){
+  body{overflow-x:hidden}
+  .ls-hd>div{padding:10px 16px!important;gap:8px 12px!important;flex-wrap:wrap!important}
+  .ls-hd>div>button:first-child img{height:26px!important}
+  .ls-hd>div>button:first-child span span:first-child{font-size:18px!important}
+  .ls-hd>div>div{display:none!important}
+  .ls-nav{display:contents!important}
+  .ls-login{order:2;margin-left:auto;height:36px!important;padding:0 14px!important}
+  .ls-hd>div>button:first-child{order:1}
+  .ls-nav>button:not(.ls-login){order:3;flex:1 1 auto;text-align:center;height:38px;padding:0 8px!important;font-size:13px!important;white-space:nowrap}
+  h1{font-size:clamp(28px,8.5vw,36px)!important;line-height:1.12!important}
+  h2{font-size:clamp(22px,6.5vw,28px)!important;line-height:1.2!important}
+  input,select,textarea{font-size:16px!important}
+  header button,select,input{min-height:44px}
+  aside{position:static!important;max-width:none!important;flex:1 1 100%!important;width:100%}
+  footer>div{padding:28px 16px!important}
+}
 @keyframes lsDrift{0%{background-position:0 0}100%{background-position:64px 64px}}
 </style>
 </helmet>
 <div style="min-height:100vh;background:#FFFFFF;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:15px;line-height:1.5;display:flex;flex-direction:column">
 
-<header style="position:sticky;top:0;z-index:20;background:#0A0A0A;backdrop-filter:blur(6px);border-bottom:1px solid #E5E5E5;border-bottom:1px solid #1F1F1F">
+<header class="ls-hd" style="position:sticky;top:0;z-index:20;background:#0A0A0A;backdrop-filter:blur(6px);border-bottom:1px solid #E5E5E5;border-bottom:1px solid #1F1F1F">
   <div style="max-width:1240px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
     <button onClick="{{ goHome }}" style="border:0;background:none;padding:0;display:flex;align-items:center;gap:12px">
       <span style="display:flex;align-items:center;gap:9px;white-space:nowrap"><img src="assets/ls-mark-white.png" alt="" style="height:30px;display:block"><span style="font-weight:600;font-size:21px;letter-spacing:-.02em;line-height:1;color:#fff">Legal Staff</span></span>
       <span style="font-size:11px;color:#A3A3A3;border-left:1px solid #333;padding-left:12px;font-weight:600">Directory</span>
     </button>
     <div style="flex:1"></div>
-    <nav style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+    <nav class="ls-nav" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
       <button onClick="{{ goAll }}" style="{{ navStyle.results }}" style-hover="color:#fff">Find an advocate</button>
       <button onClick="{{ goHomeBrowse }}" style="{{ navStyle.home }}" style-hover="color:#fff">Browse</button>
       <button onClick="{{ goAdvocates }}" style="{{ navStyle.register }}" style-hover="color:#fff">For advocates</button>
-      <button onClick="{{ openLogin }}" style="white-space:nowrap;height:38px;padding:0 16px;border:1px solid #fff;background:#fff;border-radius:8px;font-size:14px;color:#0A0A0A" style-hover="background:#E5E5E5">Log in</button>
+      <button class="ls-login" onClick="{{ openLogin }}" style="white-space:nowrap;height:38px;padding:0 16px;border:1px solid #fff;background:#fff;border-radius:8px;font-size:14px;color:#0A0A0A" style-hover="background:#E5E5E5">Log in</button>
     </nav>
   </div>
 </header>
@@ -500,6 +518,20 @@ class Component extends DCLogic {
   search(patch) { this.nav({ screen: 'results', page: 1, fDistrict: [], fCourt: [], fLang: [], fYears: [], ...patch }); }
   searchAll() { this.search({ q: '', loc: '', district: '', area: '', court: '' }); }
   openProfile(id) { this.nav({ screen: 'profile', profileId: id, cf: this.blankContact(), cfErr: {} }); }
+  /* Continue with Google: reads the verified name and email from Google's sign-in and opens the advocate application with them filled in. */
+  gsi(cb) { const id = ((window.LS_CONFIG || {}).googleClientId || '').trim(); if (!id) return cb(new Error('off')); const go = () => cb(null, id);
+    if (window.google && window.google.accounts) return go();
+    let sc = document.getElementById('gsi-sdk'); if (!sc) { sc = document.createElement('script'); sc.id = 'gsi-sdk'; sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; document.head.appendChild(sc); }
+    sc.addEventListener('load', go); sc.addEventListener('error', () => cb(new Error('net'))); }
+  mountGoogle(el) { if (!el || el.dataset.g) return; el.dataset.g = '1';
+    this.gsi((err, id) => { if (err || !el.isConnected) return;
+      try { window.google.accounts.id.initialize({ client_id: id, callback: r => this.onGoogle(r.credential) });
+        window.google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', width: Math.max(200, Math.min(360, el.offsetWidth || 320)) }); } catch (e) {} }); }
+  onGoogle(cred) { let p = null; try { const b = cred.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'); p = JSON.parse(decodeURIComponent(atob(b).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''))); } catch (e) {}
+    if (!p || !p.email || p.email_verified === false) { this.setState({ lookupMsg: 'Google did not return a verified email address.' }); return; }
+    const cur = this.state.app || this.blankApp();
+    this.nav({ screen: 'register', step: 0, modal: null, editingId: null, appErr: {}, app: { ...this.blankApp(), ...(this.state.editingId ? {} : cur), name: cur.name || p.name || '', email: p.email } });
+    try { window.scrollTo(0, 0); } catch (e) {} }
   startApply() { this.nav({ screen: 'register', step: 0, app: this.blankApp(), appErr: {}, editingId: null }); }
   browse() {
     this.nav({ screen: 'home' }, { keepScroll: true });
@@ -748,6 +780,8 @@ class Component extends DCLogic {
                 h('button', { type: 'submit', style: { height: 44, padding: '0 18px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: 0, background: '#0A0A0A', color: '#fff', whiteSpace: 'nowrap' } }, S.busy === 'lookup' ? 'Checking…' : 'Check status')),
               errEl(S.lookupMsg),
               h('div', { style: { fontSize: 13, color: '#5E5E5E' } }, 'Not applied yet? ', h('a', { href: '#apply', onClick: e => { e.preventDefault(); this.setState({ modal: null }); this.startApply(); } }, 'Apply for a profile'), '.'))),
+        card('g', 'Advocate? Continue with Google', 'Start your directory application with your Google account. Your name and email are filled in for you; enrolment is verified before a profile goes live.',
+          h('div', { ref: el => this.mountGoogle(el), style: { minHeight: 44, display: 'flex', justifyContent: 'flex-start' } })),
         card('s', 'Practice software', 'Legal Staff subscribers sign in to their workspace separately from the directory.',
           h('a', { href: 'app.html', style: { alignSelf: 'flex-start', height: 44, padding: '0 18px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: '1px solid #0A0A0A', color: '#0A0A0A', display: 'flex', alignItems: 'center', textDecoration: 'none' } }, 'Sign in to Legal Staff')),
         h('div', { key: 'n', style: { fontSize: 13, color: '#5E5E5E' } }, 'Members of the public do not need an account to search the directory or request contact.')
@@ -892,7 +926,7 @@ class Component extends DCLogic {
     const councilField = { id: 'ap-council', label: 'State Bar Council', err: E.council || '', bad: !!E.council, wrap: wrap(false),
       control: sel('ap-council', 'State Bar Council', A.council, [['', 'Select your State Bar Council']].concat(this.COUNCILS.map(([, c]) => [c, c]).sort((a, b) => a[1].localeCompare(b[1]))), v => setApp('council', v), fieldStyle(E.council, 44)) };
     const stepDefs = [
-      ['Personal', 'Personal details', [appField('name', 'Full name (as on enrolment certificate)', 'Your full name'), appField('email', 'Email', 'you@example.com', { type: 'email' }), appField('mobile', 'Mobile', '+91', { type: 'tel' }), appField('city', 'City', 'New Delhi')]],
+      ['Personal', 'Personal details', [...(!S.editingId && !A.email ? [{ id: 'ap-google', label: 'Quick start', err: '', bad: false, wrap: wrap(true), control: h('div', { id: 'ap-google', ref: el => this.mountGoogle(el), style: { minHeight: 44, display: 'flex', justifyContent: 'flex-start' } }) }] : []), appField('name', 'Full name (as on enrolment certificate)', 'Your full name'), appField('email', 'Email', 'you@example.com', { type: 'email' }), appField('mobile', 'Mobile', '+91', { type: 'tel' }), appField('city', 'City', 'New Delhi')]],
       ['Enrolment', 'Enrolment details', [appField('enr', on && S.editingId ? 'Enrolment number (cannot be changed on a resubmission)' : 'Enrolment number', 'e.g. D/1234/2016', on && S.editingId ? { disabled: true } : null), councilField, appField('year', 'Year of enrolment', '2016', { inputMode: 'numeric', maxLength: 4 }), appField('cop', 'Certificate of Practice number', 'Optional')]],
       ['Practice', 'Practice information', [areaChips, appField('courts', 'Courts', 'Delhi High Court, Saket District Courts'), appField('district', 'District', 'e.g. South'), appField('langs', 'Languages', 'Hindi, English'), appField('quals', 'Qualifications', 'B.A. LL.B.'), appField('chamber', 'Chamber address (optional)', '')]],
       ['Documents', 'Verification documents', []],
