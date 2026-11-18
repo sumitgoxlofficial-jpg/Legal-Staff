@@ -15,4 +15,6 @@ $P -v ON_ERROR_STOP=1 -c "create table if not exists auth.users (id uuid primary
 $P -v ON_ERROR_STOP=1 -f "$D/mig.sql" >/dev/null && echo "migration applies"
 $P -v ON_ERROR_STOP=1 -f "$D/mig.sql" >/dev/null && echo "migration re-applies"
 $P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0025_email_payment_hook.sql" >/dev/null && echo "migration 0025 applies"
+$P -v ON_ERROR_STOP=1 -c "create or replace function public.is_platform_admin() returns boolean language sql as 'select false';" >/dev/null
+$P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0026_directory_payments.sql" >/dev/null && $P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0026_directory_payments.sql" >/dev/null && echo "migration 0026 applies and re-applies"
 $P -v ON_ERROR_STOP=1 -f "$HERE/email-db.test.sql" 2>&1 | grep -v '^$'

@@ -127,6 +127,27 @@ do $$ declare u uuid := gen_random_uuid(); c uuid; k uuid := (select id from pub
   perform pg_temp.check(true, 'a payer who is not a contact does not break the payment');
 end $$;
 
+
+-- directory listing payments (migration 0026)
+do $$ declare c uuid; d1 uuid; d2 uuid; begin
+  insert into public.directory_applications (id, email) values ('LS-DIR-P1', 'lister@example.in');
+  insert into public.email_contacts (advocate_name, email, email_normalized, first_email_status, consent_status) values ('Lister', 'lister@example.in', 'lister@example.in', 'SENT', 'GRANTED') returning id into c;
+  insert into public.email_queue (campaign_id, contact_id, scheduled_date, status, idempotency_key) values ((select id from public.email_campaigns where code='new_intro'), c, current_date, 'sent', 'l:' || c);
+  begin insert into public.directory_payments (application_id, order_no, amount_paise) values ('LS-DIR-P1', 'LDX0', 5100); perform pg_temp.check(false, 'amount band'); exception when check_violation then perform pg_temp.check(true, 'a listing amount must be Rs 49.00 to 49.99'); end;
+  insert into public.directory_payments (application_id, order_no, amount_paise) values ('LS-DIR-P1', 'LDX1', 4907) returning id into d1;
+  insert into public.directory_payments (application_id, order_no, amount_paise) values ('LS-DIR-P1', 'LDX2', 4911) returning id into d2;
+  perform pg_temp.check((select payment_status from public.email_contacts where id = c) = 'NONE', 'an unpaid listing order changes nothing');
+  update public.directory_payments set status = 'paid', utr = '412345670001', paid_at = now() where id = d1;
+  perform pg_temp.check((select payment_status = 'PAID' from public.email_contacts where id = c), 'a paid listing marks the matched email contact PAID');
+  begin update public.directory_payments set status = 'paid', utr = '412345670002' where id = d2; perform pg_temp.check(false, 'second paid'); exception when unique_violation then perform pg_temp.check(true, 'only one paid listing per application'); end;
+  begin insert into public.directory_payments (application_id, order_no, amount_paise, status, utr) values ('LS-DIR-P1', 'LDX3', 4920, 'created', '412345670001'); perform pg_temp.check(false, 'utr'); exception when unique_violation then perform pg_temp.check(true, 'a bank reference can confirm only one payment'); end;
+end $$;
+reset role; set role authenticated;
+do $$ begin begin perform count(*) from public.directory_payments; perform pg_temp.check(true, 'platform-admin policy exists (returns no rows for a non-admin)'); exception when insufficient_privilege then perform pg_temp.check(false, 'select grant'); end; end $$;
+reset role; set role anon;
+do $$ begin begin perform count(*) from public.directory_payments; perform pg_temp.check(false, 'anon read'); exception when insufficient_privilege then perform pg_temp.check(true, 'anonymous users cannot read listing payments'); end; end $$;
+reset role; set role service_role;
+
 -- audit log is append-only
 do $$ begin
   begin update public.email_audit_logs set action = 'x'; perform pg_temp.check(false, 'audit update'); exception when raise_exception then perform pg_temp.check(true, 'audit log cannot be updated'); end;

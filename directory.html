@@ -14,6 +14,7 @@
 <script src="vendor/react-dom.production.min.js"></script>
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
+<script src="/static/directory-pay.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
@@ -333,6 +334,7 @@ header :focus-visible{outline-color:#fff}
       <p style="margin:8px 0 0;color:#5E5E5E">{{ stat.sub }}</p>
     </div>
     {{ stat.noteBox }}
+    {{ stat.payBox }}
     {{ stat.actions }}
     <sc-if value="{{ stat.has }}" hint-placeholder-val="{{ true }}">
     <section style="border:1px solid #E5E5E5;border-radius:14px;padding:28px 30px;display:flex;flex-direction:column">
@@ -954,6 +956,7 @@ class Component extends DCLogic {
       sub: !app ? (S.statusErr ? 'The server could not be reached, so the status of your application is not shown. Try again in a moment.' : on ? 'This browser does not remember a directory application. Apply for a profile, or look up an existing application with its reference and enrolment number.' : '') || 'There is no directory application saved in this browser. Apply for a profile, or look up an existing application by its reference or enrolment number.'
         : 'Reference ' + app.id + (app.name ? ' · ' + app.name : '') + (app.date ? ' · submitted ' + app.date : '') + '. ' + { pending: 'Most applications are reviewed within 3 working days.', info: 'Review is paused until you respond.', verified: 'Only the verified enrolment details and the practice details you declared are shown.', rejected: 'You can apply again once the issue below is resolved.' }[status],
       noteBox: S.statusErr ? h('div', { role: 'alert', style: { background: '#FDECEA', borderRadius: 8, padding: '14px 16px', fontSize: 14, color: '#B42318', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' } }, h('span', null, (app ? 'The latest status could not be loaded (' : 'Status check failed (') + S.statusErr + ').'), h('button', { type: 'button', onClick: () => { this.setState({ statusErr: '' }); this.loadStore(); }, style: { height: 36, padding: '0 14px', border: '1px solid #B42318', background: '#FFFFFF', borderRadius: 8, fontSize: 13, color: '#B42318' } }, 'Try again')) : app && app.note ? h('div', { style: { background: '#F0F0EF', border: '1px solid #E3E3E2', borderRadius: 8, padding: '14px 16px', fontSize: 14, color: '#2B2B2B', display: 'flex', flexDirection: 'column', gap: 4 } }, h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600 } }, 'Note from the moderator'), h('div', { style: { overflowWrap: 'anywhere' } }, String(app.note))) : null,
+      payBox: window.LSDirPay ? window.LSDirPay.card(app, det) : null,
       actions: h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, ...actions),
       visibility: status === 'verified' ? 'Published in search' : status === 'rejected' ? 'Not published' : 'Hidden until verified',
       requests: status === 'verified' ? (nReq ? nReq + ' received in this browser' : 'Open · none received yet') : 'Open after you\'re published'

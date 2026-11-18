@@ -24,6 +24,7 @@ const listPrice = (plan: string, cycle: string, seats?: number | null) => {
   return p + (plan === "Professional" ? (Math.max(1, Number(seats) || 1) - 1) * PER_USER[cycle] : 0);
 };
 const OPEN_MINUTES = 30;          // how long an order waits for payment in the app
+const DIR_PRICE = 4900;           // Rs 49 lifetime directory listing, in paise (migration 0026)
 const LATE_HOURS = 24;            // a payment confirmed within this time still activates the plan
 
 // logic:start — pure functions, unit-tested in node.
@@ -120,6 +121,35 @@ async function activate(admin: any, p: any, utr: string | null, by: string) {
   return true;
 }
 
+/** Marks a directory listing payment paid (the profile is NOT published by this: the moderator still decides). */
+async function activateDir(admin: any, d: any, utr: string | null, by: string) {
+  const { data: already } = await admin.from("directory_payments").select("id").eq("application_id", d.application_id).eq("status", "paid").limit(1);
+  if (already?.length) return false;               // a second payment for a listing that is already paid: not confirmed again (refund by hand)
+  const { data: claimed, error } = await admin.from("directory_payments").update({ status: "paid", utr, confirmed_by: by, paid_at: new Date().toISOString() }).eq("id", d.id).eq("status", "created").select("id");
+  if (error || !claimed?.length) return false;
+  await admin.from("directory_payments").delete().eq("application_id", d.application_id).eq("status", "created");   // the applicant's other open orders are void
+  return true;
+}
+/** Amounts of every open UPI order in the Rs base..base+0.99 band, plan payments and listing payments together, so no two open orders share an amount. */
+async function openAmounts(admin: any, base: number) {
+  const since = new Date(Date.now() - LATE_HOURS * 3600e3).toISOString();
+  const [a, b] = await Promise.all([
+    admin.from("payments").select("amount_paise").eq("method", "upi").eq("status", "created").gte("amount_paise", base).lt("amount_paise", base + 100).gte("created_at", since),
+    admin.from("directory_payments").select("amount_paise").eq("status", "created").gte("amount_paise", base).lt("amount_paise", base + 100).gte("created_at", since)]);
+  return [...(a.data ?? []), ...(b.data ?? [])].map((r: any) => r.amount_paise);
+}
+/** The application this request is about, only when the enrolment number matches (the reference alone is not enough). */
+async function dirApplication(admin: any, body: any) {
+  const id = String(body.application_id ?? "").slice(0, 60), enr = String(body.enr ?? "").trim().toUpperCase();
+  if (!id || !enr) throw new Fail("Application reference and enrolment number are needed.");
+  const { data: a } = await admin.from("directory_applications").select("id,enr,status,name").eq("id", id).maybeSingle();
+  if (!a || String(a.enr).trim().toUpperCase() !== enr) throw new Fail("We could not find that application.", 404);
+  if (a.status === "rejected") throw new Fail("This application was not approved, so there is nothing to pay for.", 409);
+  return a;
+}
+const rl = new Map<string, number[]>();
+function rateLimit(key: string, max: number) { const t = Date.now(), a = (rl.get(key) ?? []).filter((x) => t - x < 60000); a.push(t); rl.set(key, a); if (a.length > max) throw new Fail("Too many requests. Try again in a minute.", 429); }
+
 /** Asks the billing function to create this payment's invoice and email it to the buyer (never blocks the plan). */
 async function issueInvoice(paymentId: string) {
   try {
@@ -135,18 +165,20 @@ async function confirmFromText(admin: any, sender: string, text: string, via: st
   const ins = await admin.from("upi_sms").insert({ sender, body: text, amount_paise: parsed.amount, utr: parsed.utr, note: via }).select("id").single();
   if (ins.error) return { ok: true, matched: false, note: "already received" };   // same bank reference sent twice (SMS and email)
   const since = new Date(Date.now() - LATE_HOURS * 3600e3).toISOString();
-  const { data: cands } = await admin.from("payments").select("*").eq("method", "upi").eq("status", "created").eq("amount_paise", parsed.amount).gte("created_at", since).order("created_at", { ascending: false });
-  if ((cands ?? []).length !== 1) {
-    await admin.from("upi_sms").update({ note: via + ": " + ((cands ?? []).length ? "more than one open order with this amount" : "no open order with this amount") }).eq("id", ins.data.id);
+  const { data: plan } = await admin.from("payments").select("*").eq("method", "upi").eq("status", "created").eq("amount_paise", parsed.amount).gte("created_at", since).order("created_at", { ascending: false });
+  const { data: dir } = await admin.from("directory_payments").select("*").eq("status", "created").eq("amount_paise", parsed.amount).gte("created_at", since).order("created_at", { ascending: false });
+  const cands = [...(plan ?? []).map((p: any) => ({ kind: "plan", p })), ...(dir ?? []).map((p: any) => ({ kind: "dir", p }))];
+  if (cands.length !== 1) {   // an amount shared by two open orders is never guessed
+    await admin.from("upi_sms").update({ note: via + ": " + (cands.length ? "more than one open order with this amount" : "no open order with this amount") }).eq("id", ins.data.id);
     return { ok: true, matched: false };
   }
-  const ok = await activate(admin, cands![0], parsed.utr, via);
-  await admin.from("upi_sms").update({ payment_id: cands![0].id, note: via + ": " + (ok ? "confirmed the payment" : "payment was already confirmed") }).eq("id", ins.data.id);
+  const c = cands[0], ok = c.kind === "dir" ? await activateDir(admin, c.p, parsed.utr, via) : await activate(admin, c.p, parsed.utr, via);
+  await admin.from("upi_sms").update({ ...(c.kind === "plan" ? { payment_id: c.p.id } : {}), note: via + ": " + (ok ? "confirmed the " + (c.kind === "dir" ? "directory listing " : "") + "payment" : "payment was already confirmed") }).eq("id", ins.data.id);
   return { ok: true, matched: ok };
 }
 
 /** Paytm for Business order status: paid only if the order number and the exact amount match. */
-async function paytmCheck(admin: any, s: any, p: any) {
+async function paytmCheck(admin: any, s: any, p: any, kind = "plan") {
   if (!s.paytm_mid || !p.order_no) return false;
   try {
     const u = "https://securegw.paytm.in/merchant-status/getTxnStatus?JsonData=" + encodeURIComponent(JSON.stringify({ MID: s.paytm_mid, ORDERID: p.order_no }));
@@ -154,7 +186,7 @@ async function paytmCheck(admin: any, s: any, p: any) {
     const j = await r.json().catch(() => ({}));
     if (j.STATUS !== "TXN_SUCCESS" || j.ORDERID !== p.order_no || toPaise(j.TXNAMOUNT) !== p.amount_paise) return false;
     if ((j.CURRENCY ?? "INR") !== "INR") return false;
-    return await activate(admin, p, j.BANKTXNID || j.TXNID || null, "paytm");
+    return kind === "dir" ? await activateDir(admin, p, j.BANKTXNID || j.TXNID || null, "paytm") : await activate(admin, p, j.BANKTXNID || j.TXNID || null, "paytm");
   } catch { return false; }
 }
 
@@ -217,10 +249,38 @@ Deno.serve(async (req: Request) => {
       if (!s.upi_enabled || !s.paytm_mid) return json({ skipped: true });
       const { data: pend } = await admin.from("payments").select("*").eq("method", "upi").eq("status", "created").gte("created_at", new Date(Date.now() - LATE_HOURS * 3600e3).toISOString()).limit(50);
       let paid = 0; for (const p of pend ?? []) if (await paytmCheck(admin, s, p)) paid++;
-      return json({ checked: (pend ?? []).length, paid });
+      const { data: dpend } = await admin.from("directory_payments").select("*").eq("status", "created").gte("created_at", new Date(Date.now() - LATE_HOURS * 3600e3).toISOString()).limit(50);
+      for (const p of dpend ?? []) if (await paytmCheck(admin, s, p, "dir")) paid++;
+      return json({ checked: (pend ?? []).length + (dpend ?? []).length, paid });
     }
 
     if (action === "config") return json({ enabled: !!(s.upi_enabled && s.upi_id), payee: s.payee_name });
+
+    // ---- the Rs 49 directory listing: public, no account; the application reference AND its enrolment number identify the applicant ----
+    if (action === "dir_create" || action === "dir_status") {
+      rateLimit("dir:" + (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim(), 40);
+      const a = await dirApplication(admin, body);
+      const { data: paid } = await admin.from("directory_payments").select("amount_paise,utr,paid_at").eq("application_id", a.id).eq("status", "paid").maybeSingle();
+      if (paid) return json({ paid: true, amount: paid.amount_paise, paid_at: paid.paid_at });
+      if (action === "dir_status") {
+        const { data: open } = await admin.from("directory_payments").select("*").eq("application_id", a.id).eq("status", "created").order("created_at", { ascending: false }).limit(1);
+        if (open?.length && (await paytmCheck(admin, s, open[0], "dir"))) return json({ paid: true, amount: open[0].amount_paise });
+        const { data: now } = await admin.from("directory_payments").select("amount_paise").eq("application_id", a.id).eq("status", "paid").maybeSingle();
+        return json(now ? { paid: true, amount: now.amount_paise } : { paid: false, enabled: !!(s.upi_enabled && s.upi_id) });
+      }
+      if (!s.upi_enabled || !s.upi_id) throw new Fail("UPI payments are not switched on yet.", 501);
+      const { data: mine } = await admin.from("directory_payments").select("*").eq("application_id", a.id).eq("status", "created").gte("created_at", new Date(Date.now() - OPEN_MINUTES * 60e3).toISOString()).order("created_at", { ascending: false }).limit(1);
+      let d = mine?.[0];
+      if (!d) {   // a fresh order, with its own amount
+        const k = pickOffset(DIR_PRICE, await openAmounts(admin, DIR_PRICE));
+        if (k < 0) throw new Fail("Too many UPI payments are waiting right now. Please try again in a few minutes.", 503);
+        const orderNo = "LD" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+        const ins = await admin.from("directory_payments").insert({ application_id: a.id, order_no: orderNo, amount_paise: DIR_PRICE + k }).select("*").single();
+        if (ins.error) throw new Fail("Could not create the payment.", 500);
+        d = ins.data;
+      }
+      return json({ paid: false, order_no: d.order_no, amount: d.amount_paise, upi_id: s.upi_id, payee: s.payee_name, link: upiLink(s, d.order_no, d.amount_paise), expires_at: new Date(Date.parse(d.created_at) + OPEN_MINUTES * 60e3).toISOString() });
+    }
 
     // ---- signed-in firm members ----
     const asUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
@@ -275,9 +335,7 @@ Deno.serve(async (req: Request) => {
         return json({ free: true, order_no: orderNo, amount: 0 });
       }
       const basePaise = price.total;   // after the promo code; no GST is added
-      const { data: open } = await admin.from("payments").select("amount_paise").eq("method", "upi").eq("status", "created")
-        .gte("amount_paise", basePaise).lt("amount_paise", basePaise + 100).gte("created_at", new Date(Date.now() - LATE_HOURS * 3600e3).toISOString());
-      const k = pickOffset(basePaise, (open ?? []).map((r: any) => r.amount_paise));
+      const k = pickOffset(basePaise, await openAmounts(admin, basePaise));
       if (k < 0) throw new Fail("Too many UPI payments are waiting right now. Please try again in a few minutes.", 503);
       const orderNo = "LS" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
       const amount = basePaise + k;

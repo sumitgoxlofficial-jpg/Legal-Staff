@@ -18,7 +18,9 @@ Nothing here is deployed.
 | `node tests/email-engine.test.mjs` | The real `supabase/functions/email-marketing` code against an in-memory database, a mock Brevo and a mock Google Sheets with 10,000 rows: import, consent, dry run, queues and caps, duplicates and concurrency, unsubscribe, bounces and complaints, reminders, kill switch, rate limits, attribution, dashboard totals, audit. Needs `tsc` on the PATH. |
 | `bash tests/email-db/run.sh` | Migration `0024_email_marketing.sql` on a real PostgreSQL 16: re-runnable, import function at 10,000 rows, consent and suppression rules, conversions, append-only audit, row level security. |
 
-Nothing here talks to the real Brevo or Google. See `docs/email-marketing.md` for what remains untested.
+| `node tests/directory-pay.test.mjs` | The ₹49 directory listing in `functions/upi-pay`: identification by reference + enrolment number, unique amounts shared with plan orders, matching a bank credit to exactly one order, no double confirmation, plan payments unaffected. Needs `tsc`. |
+
+Nothing here talks to the real Brevo, Google, UPI or a bank. See `docs/email-marketing.md` for what remains untested.
 
 ### Integration: what was tested against the real eCourtsIndia API
 

@@ -40,11 +40,12 @@ Withdrawing either approval switches automation off and deactivates all template
 ## Deploy
 
 ```bash
-# 1. database, migrations 0024 and 0025 (0024 also schedules the 5-minute job; check the project URL at the bottom of the migration matches yours)
+# 1. database, migrations 0024, 0025 and 0026 (0024 also schedules the 5-minute job; check the project URL at the bottom of the migration matches yours)
 supabase db push          # or run supabase/migrations/0024_email_marketing.sql in the SQL editor
 
 # 2. function (JWT verification OFF: it checks every caller itself)
 supabase functions deploy email-marketing --no-verify-jwt
+supabase functions deploy upi-pay --no-verify-jwt     # redeploy: it now also confirms the Rs 49 directory listing
 
 # 3. secrets
 supabase secrets set BREVO_API_KEY=... BREVO_WEBHOOK_SECRET=... EMAIL_TOKEN_SECRET=... GOOGLE_SERVICE_ACCOUNT_JSON="$(cat sa.json)"
@@ -98,6 +99,7 @@ Every email carries `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscr
 | --- | --- |
 | `node tests/email-logic.test.mjs` | 50 passed |
 | `node tests/email-engine.test.mjs` | 65 passed |
+| `node tests/directory-pay.test.mjs` | 16 passed |
 | `bash tests/email-db/run.sh` | all database checks passed (migration applies and re-applies on PostgreSQL 16) |
 
 The engine test runs the real function code against an in-memory database, a local Brevo mock and a local Google Sheets mock holding 10,000 rows. The database test runs the real migration on PostgreSQL 16. The admin pages and the unsubscribe page were also loaded in a headless browser against canned data (no JavaScript errors; desktop and 390 px mobile layouts).
@@ -126,3 +128,18 @@ The engine test runs the real function code against an in-memory database, a loc
 | 16 | Production needs every approval | unit + engine: enabling refused without both documented approvals; DRY_RUN, kill switch, unconfigured provider and unauthenticated domain each block |
 
 Acceptance on the **live** system (real Brevo, real sheet) is not claimed here.
+
+
+## The ₹49 directory listing checkout
+
+Applicants pay **after applying**, from their application-status screen on `/directory` (a "Lifetime listing: ₹49, one-time" card with *Pay ₹49 by UPI*). No account is needed; the application reference **and** its enrolment number identify the applicant. Verification stays manual: **paying does not publish a profile.**
+
+* It reuses your existing UPI engine (`functions/upi-pay`, `pay_settings`). Each order is ₹49.00 plus 0–99 paise, so the paise identify the payment. The amount pool is shared with plan orders so two open orders never have the same amount, and an amount shared by two open orders is never guessed.
+* Confirmation is the same as for plans: Paytm order status, bank "credited" SMS, or bank alert email. The page polls and shows "Listing fee paid" within a minute or two.
+* Data: `directory_payments` (migration 0026): one paid row per application, a bank reference can confirm only one payment. When a payment is confirmed the applicant's other open orders are deleted. A *second* payment for an already-paid listing is **not** confirmed (it appears in `upi_sms` as "payment was already confirmed"): refund it by hand.
+* A paid listing is an email-campaign conversion (`payment_success`) through the applicant's email, so reminders stop.
+* The card is hidden when UPI is not switched on in `pay_settings`, and for rejected applications.
+
+**Not included:** an invoice or receipt email (billing is built around firm plans), a "Paid" badge in the moderator's queue in `app.html`, refunds, and any second payment gateway. You answered "both" to the payment-rail question; the repo has no other gateway (Razorpay was removed in migration 0014), so tell me which one (and provide its keys) if you want it added next to UPI.
+
+Tests: `node tests/directory-pay.test.mjs` (16 checks, real `upi-pay` code against the in-memory database; no real UPI, bank or Paytm) and the migration 0026 checks in `bash tests/email-db/run.sh`. The pay card was also exercised in a headless browser against a mocked function.
