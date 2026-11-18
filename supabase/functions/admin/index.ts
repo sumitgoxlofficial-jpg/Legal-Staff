@@ -198,6 +198,29 @@ Deno.serve(async (req: Request) => {
     if (action === "expense_delete") { await admin.from("admin_expenses").delete().eq("id", body.id); return json({ ok: true }); }
 
     const KEYS = ["upi_enabled", "upi_id", "payee_name", "alert_email", "seller_name", "seller_address", "seller_state_code", "seller_gstin", "seller_pan", "seller_email", "seller_phone"];
+    // ---- directory review: applications, their private documents, and the decision ----
+    if (action === "directory_list") {
+      const { data } = await admin.from("directory_applications").select("id,name,enr,council,year,city,email,mobile,details,photo,status,note,paid_at,created_at,decided_at").order("created_at", { ascending: false }).limit(500);
+      return json({ applications: data ?? [] });
+    }
+    if (action === "directory_doc") {   // a 5-minute link to one uploaded document (must be a file recorded on an application)
+      const path = String(body.path ?? "");
+      if (!/^[0-9a-f-]{36}\/LS-DIR-\d{4}-\d+\/(cert|cop|id)-[^/]+$/i.test(path)) throw new Fail("Not a directory document.");
+      const { data, error } = await admin.storage.from("directory-docs").createSignedUrl(path, 300);
+      if (error || !data) throw new Fail("That file could not be opened. It may not have been uploaded.", 404);
+      return json({ url: data.signedUrl });
+    }
+    if (action === "directory_decide") {
+      const status = String(body.status ?? ""), note = String(body.note ?? "").trim();
+      if (!["verified", "info", "rejected"].includes(status)) throw new Fail("Choose verify, ask for more information, or reject.");
+      if (status !== "verified" && note.length < 5) throw new Fail("Write a note for the advocate: they will see it.");
+      const { data: app } = await admin.from("directory_applications").select("id").eq("id", String(body.id ?? "")).maybeSingle();
+      if (!app) throw new Fail("Application not found.", 404);
+      const { error } = await admin.from("directory_applications").update({ status, note, decided_at: new Date().toISOString(), decided_by: user.id }).eq("id", app.id);
+      if (error) throw new Fail("The decision could not be saved.", 500);
+      return json({ ok: true });
+    }
+
     if (action === "settings") { const { data } = await admin.from("pay_settings").select(KEYS.join(",")).eq("id", 1).single(); return json({ settings: data, admins: ((await admin.from("super_admins").select("email")).data ?? []).map((a: any) => a.email) }); }
     if (action === "settings_save") {
       const patch: any = {}; for (const k of KEYS) if (k in (body.settings ?? {})) patch[k] = k === "upi_enabled" ? !!body.settings[k] : String(body.settings[k] ?? "").trim();
