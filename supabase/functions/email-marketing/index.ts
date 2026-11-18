@@ -12,7 +12,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SITE, DIRECTORY_URL, normEmail, isValidEmail, parseSpreadsheetId, autoMapColumns, findHeaderRow, mapRows, mappingProblems, MAPPABLE, istDate, istHm, addDaysIso, istInstant, jobDue, nextRun,
   remainingToday, evaluateEligibility, describeReasons, productionBlockers, settingsProblem, canActivateTemplate, templateProblems, renderTemplate, trackedUrl, makeToken, readToken,
-  safeEqual, brevoPayload, classifySend, classifyBrevoEvent, googleAssertion, toCsv, toExcelXml, scrub, GLOBAL } from "../_shared/email-logic.js";
+  safeEqual, brevoPayload, classifySend, classifyBrevoEvent, googleAssertion, parseServiceAccount, toCsv, toExcelXml, scrub, GLOBAL } from "../_shared/email-logic.js";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret", "Access-Control-Allow-Methods": "POST, GET, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -44,14 +44,14 @@ async function getProvider(admin: any) {
   const key = env("BREVO_API_KEY");
   return { ...p, apiKey: key, configured: !!key && !!p?.sender_email, domainAuthenticated: !!p?.domain_authenticated };
 }
-const publicProvider = (p: any) => { const { apiKey, ...rest } = p; return { ...rest, api_key_set: !!apiKey, webhook_secret_set: !!env("BREVO_WEBHOOK_SECRET"), token_secret_set: env("EMAIL_TOKEN_SECRET").length >= 24, google_sa_set: !!env("GOOGLE_SERVICE_ACCOUNT_JSON") }; };
+const publicProvider = (p: any) => { const { apiKey, ...rest } = p; return { ...rest, api_key_set: !!apiKey, webhook_secret_set: !!env("BREVO_WEBHOOK_SECRET"), token_secret_set: env("EMAIL_TOKEN_SECRET").length >= 24, google_sa_set: !!parseServiceAccount(env("GOOGLE_SERVICE_ACCOUNT_JSON")) }; };
 
 // ---------- Google Sheets (read-only service account) ----------
 let gTok: { t: string; exp: number } | null = null;
 async function googleToken(): Promise<string> {
   if (gTok && gTok.exp > Date.now() + 60000) return gTok.t;
   const raw = env("GOOGLE_SERVICE_ACCOUNT_JSON"); if (!raw) throw new Fail("Google Sheets is not connected: set the GOOGLE_SERVICE_ACCOUNT_JSON secret and share the sheet with that service account.", 501);
-  let sa: any; try { sa = JSON.parse(raw); } catch { throw new Fail("GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON.", 501); }
+  const sa: any = parseServiceAccount(raw); if (!sa) throw new Fail("GOOGLE_SERVICE_ACCOUNT_JSON could not be read: paste the whole key file (it starts with { and contains client_email and private_key).", 501);
   const assertion = await googleAssertion(sa, Math.floor(Date.now() / 1000));
   const r = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }) });
   const j = await r.json().catch(() => ({})); if (!r.ok || !j.access_token) throw new Fail("Google refused the service account: " + scrub(j.error_description || j.error || r.status), 502);
@@ -61,7 +61,7 @@ const sheetsBase = () => (env("GOOGLE_SHEETS_API_BASE") || "https://sheets.googl
 async function gget(path: string) {
   const r = await fetch(sheetsBase() + path, { headers: { Authorization: "Bearer " + (await googleToken()) } });
   const j = await r.json().catch(() => ({}));
-  if (r.status === 403 || r.status === 404) throw new Fail("The service account cannot open this spreadsheet. Share it (Viewer) with " + (() => { try { return JSON.parse(env("GOOGLE_SERVICE_ACCOUNT_JSON")).client_email; } catch { return "the service account"; } })() + ".", 400);
+  if (r.status === 403 || r.status === 404) throw new Fail("The service account cannot open this spreadsheet. Share it (Viewer) with " + (parseServiceAccount(env("GOOGLE_SERVICE_ACCOUNT_JSON"))?.client_email ?? "the service account") + ".", 400);
   if (!r.ok) throw new Fail("Google Sheets error: " + scrub(j.error?.message || r.status), 502);
   return j;
 }
@@ -422,7 +422,7 @@ async function adminApi(admin: any, actor: string, action: string, b: any) {
     case "suppression_lift": { const { error } = await admin.rpc("email_lift_suppression", { p_email: b.email, p_actor: actor, p_note: String(b.note ?? "") }); if (error) throw new Fail(error.message); return { ok: true }; }
 
     case "sheets_get": { const { data } = await admin.from("google_sheets_integrations").select("*").order("created_at", { ascending: false }).limit(1); const p = await getProvider(admin);
-      return { integration: data?.[0] ?? null, google_connected: !!env("GOOGLE_SERVICE_ACCOUNT_JSON"), service_account: (() => { try { return JSON.parse(env("GOOGLE_SERVICE_ACCOUNT_JSON")).client_email; } catch { return ""; } })(), mappable: MAPPABLE, provider_ready: p.configured }; }
+      return { integration: data?.[0] ?? null, google_connected: !!env("GOOGLE_SERVICE_ACCOUNT_JSON"), service_account: (parseServiceAccount(env("GOOGLE_SERVICE_ACCOUNT_JSON"))?.client_email ?? ""), mappable: MAPPABLE, provider_ready: p.configured }; }
     case "sheets_connect": {
       const id = parseSpreadsheetId(b.url); if (!id) throw new Fail("Paste the spreadsheet URL or its ID.");
       const info = await sheetInfo(id); const sheet = info.sheets.find((s: any) => s.title === b.sheet) ?? info.sheets[0]; if (!sheet) throw new Fail("The spreadsheet has no sheets.");

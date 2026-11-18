@@ -96,6 +96,12 @@ await t('webhook events: bounces and complaints suppress, opens are ignored', ()
   for (const e of ['opened', 'unique_opened', 'proxy_open', 'deferred', 'request']) eq(L.classifyBrevoEvent({ event: e }), null, e);
 });
 await t('constant-time compare', () => { ok(L.safeEqual('abc', 'abc')); ok(!L.safeEqual('abc', 'abd')); ok(!L.safeEqual('abc', 'abcd')); });
+await t('the service-account secret is read however it was pasted (raw, quoted, base64, real newlines, smart quotes); garbage gives null', async () => {
+  const { generateKeyPairSync } = await import('node:crypto'); const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
+  const o = { type: 'service_account', client_email: 'sa@p.iam.gserviceaccount.com', private_key: privateKey }, j = JSON.stringify(o), pretty = JSON.stringify(o, null, 2);
+  const rawNewlines = pretty.replace(/\\n/g, '\n'), smart = pretty.replace(/"/g, '\u201C');
+  for (const [name, v] of [['raw', j], ['pretty', pretty], ['double-encoded', JSON.stringify(j)], ['base64', Buffer.from(j).toString('base64')], ['real newlines in the key', rawNewlines], ['smart quotes', smart], ['surrounding spaces and BOM', '\uFEFF  ' + j + '\n']]) { const r = L.parseServiceAccount(v); ok(r && r.client_email === 'sa@p.iam.gserviceaccount.com' && r.private_key.startsWith('-----BEGIN PRIVATE KEY-----\n'), name); const jwt = await L.googleAssertion(r, 1000); ok(jwt.split('.').length === 3, name + ' signs'); }
+  for (const bad of ['', 'nope', '{"client_email":"a"}', '{bad']) eq(L.parseServiceAccount(bad), null, bad); });
 await t('Google service-account assertion is a valid RS256 JWT', async () => {
   const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
   const jwt = await L.googleAssertion({ client_email: 'sa@p.iam.gserviceaccount.com', private_key: privateKey }, 1000); const [h, c, s] = jwt.split('.'); ok(s.length > 100);

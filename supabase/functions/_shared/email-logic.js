@@ -243,6 +243,21 @@ export async function googleAssertion(sa, nowSec, scope = "https://www.googleapi
   return `${head}.${claim}.${b64u(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(`${head}.${claim}`)))}`;
 }
 
+// ---------- Google service-account key, tolerant of how it was pasted ----------
+/** Reads the service-account key from a secret that may be raw JSON, JSON wrapped in quotes, base64 of the JSON, or JSON whose private key lost its \n escapes
+ *  (real line breaks inside the string) or got smart quotes from a word processor. Returns { client_email, private_key } or null. Never throws. */
+export function parseServiceAccount(raw) {
+  let s = String(raw ?? "").replace(/^\uFEFF/, "").trim();
+  if (!s) return null;
+  s = s.replace(/[\u201C\u201D]/g, '"');
+  const ok = (o) => (o && typeof o === "object" && typeof o.client_email === "string" && typeof o.private_key === "string" && o.private_key.includes("PRIVATE KEY") ? { client_email: o.client_email.trim(), private_key: o.private_key.replace(/\\n/g, "\n") } : null);
+  const tryJson = (t) => { try { const v = JSON.parse(t); return typeof v === "string" ? tryJson(v) : ok(v); } catch { return null; } };
+  let r = tryJson(s); if (r) return r;
+  if (/^[A-Za-z0-9+/=\s]+$/.test(s) && !s.includes("{")) { try { r = tryJson(atob(s.replace(/\s+/g, ""))); if (r) return r; } catch { /* not base64 */ } }
+  const email = s.match(/"client_email"\s*:\s*"([^"]+)"/), key = s.match(/"private_key"\s*:\s*"([\s\S]*?-----END [A-Z ]*PRIVATE KEY-----(?:\\n|\s)*)"/);
+  return email && key ? ok({ client_email: email[1], private_key: key[1].replace(/\r?\n/g, "\n").trim() + "\n" }) : null;
+}
+
 // ---------- exports ----------
 const csvCell = (v) => { let s = String(v ?? ""); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };   // also neutralises spreadsheet formulas
 export const toCsv = (cols, rows) => "﻿" + [cols.map((c) => csvCell(c.label)).join(","), ...rows.map((r) => cols.map((c) => csvCell(r[c.key])).join(","))].join("\r\n");
