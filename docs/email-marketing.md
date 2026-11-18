@@ -40,7 +40,7 @@ Withdrawing either approval switches automation off and deactivates all template
 ## Deploy
 
 ```bash
-# 1. database (also schedules the 5-minute job; check the project URL at the bottom of the migration matches yours)
+# 1. database, migrations 0024 and 0025 (0024 also schedules the 5-minute job; check the project URL at the bottom of the migration matches yours)
 supabase db push          # or run supabase/migrations/0024_email_marketing.sql in the SQL editor
 
 # 2. function (JWT verification OFF: it checks every caller itself)
@@ -81,7 +81,7 @@ Every email carries `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscr
 * Links in emails carry `utm_source=legalstaff_email`, `utm_medium=email`, `utm_campaign=<campaign code>`, `utm_content=step_N` and a signed `ls_t` token (contact + campaign).
 * `static/email-attribution.js` (loaded on `/directory`) records one click per contact and campaign and remembers the token for 30 days; `startApply()` in `directory.html` reports `registration_started`. Only the token is sent; no cookie.
 * **Registration**: a database trigger on `directory_applications` attributes an application whose email matches a contact (`registration_completed`; `profile_verified` when an admin verifies it). This stops reminders.
-* **₹49 payment**: this repository has no ₹49 listing payment flow yet (the existing `payments` table is for firm subscriptions). When it exists, call `select public.email_record_conversion(<payer email>, 'payment_success', <payment id>, '{"amount_paise":4900}')` from the payment confirmation code (service role). It is idempotent per payment id, marks the contact paid, stops reminders and attributes to the campaign last sent to that contact. This one hook is **not** wired yet.
+* **₹49 payment**: migration `0025_email_payment_hook.sql` adds a trigger on `public.payments`: when a row becomes `paid` with `amount_paise = 4900`, the payer's email (from `auth.users`) is matched to a contact, `payment_success` is recorded against the campaign last sent to them, the contact is marked paid and reminders stop. It is idempotent per payment. **Limits:** this repo still has no dedicated ₹49 directory-listing checkout, so the hook only fires for ₹49 payments recorded in `payments` (which also requires a firm, plan and cycle); a promo that brings another plan to exactly ₹49 would match too. A future listing checkout that writes elsewhere should call `public.email_record_conversion(email, 'payment_success', payment_id, '{"amount_paise":4900}')` itself.
 * Attribution is last-campaign-sent. Opens are never counted.
 
 ## Security notes
@@ -118,7 +118,7 @@ The engine test runs the real function code against an in-memory database, a loc
 | 8 | Unsubscribe suppresses immediately | engine + db: link, one-click POST, queued mail skipped, consent withdrawn |
 | 9 | Hard bounces and complaints suppressed | engine + db: webhook → suppression, never selected again, cannot be lifted |
 | 10 | Registration stops follow-ups | engine + db: reminder date cleared, no reminder sent |
-| 11 | ₹49 payment attribution | engine + db: `email_record_conversion` attributes to the last campaign; **payment hook itself is not wired (no ₹49 flow exists in this repo)** |
+| 11 | ₹49 payment attribution | engine + db: `email_record_conversion` attributes to the last campaign; payment trigger in migration 0025, tested on PostgreSQL; no dedicated ₹49 checkout exists in this repo |
 | 12 | Daily limits enforced | engine: 100 cap holds across ticks with 50 more eligible |
 | 13 | Pause immediately | engine: emergency stop halts and holds the queue; settings off/DRY_RUN on stop sending |
 | 14 | Dashboard matches logs | engine: card values compared with counts of the underlying rows |

@@ -11,6 +11,8 @@ P="psql -h $D -p $PORT -U postgres -qAt"
 $P -v ON_ERROR_STOP=1 -f "$ROOT/tests/court-db/supabase-stub.sql"
 $P -v ON_ERROR_STOP=1 -c "create table public.directory_applications (id text primary key, email text not null default '', status text not null default 'pending'); grant all on public.directory_applications to service_role;" >/dev/null
 sed 's/^create extension if not exists pg_cron;//' "$ROOT/supabase/migrations/0024_email_marketing.sql" > "$D/mig.sql"
+$P -v ON_ERROR_STOP=1 -c "create table if not exists auth.users (id uuid primary key, email text); create table public.payments (id uuid primary key default gen_random_uuid(), user_id uuid, amount_paise integer, status text default 'created'); grant all on public.payments to service_role;" >/dev/null
 $P -v ON_ERROR_STOP=1 -f "$D/mig.sql" >/dev/null && echo "migration applies"
 $P -v ON_ERROR_STOP=1 -f "$D/mig.sql" >/dev/null && echo "migration re-applies"
+$P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0025_email_payment_hook.sql" >/dev/null && echo "migration 0025 applies"
 $P -v ON_ERROR_STOP=1 -f "$HERE/email-db.test.sql" 2>&1 | grep -v '^$'

@@ -108,6 +108,25 @@ do $$ declare i int; t record; tot_new int := 0; tot_dup int := 0; begin
 end $$;
 reset role;
 
+
+-- Rs 49 payment hook on public.payments
+do $$ declare u uuid := gen_random_uuid(); c uuid; k uuid := (select id from public.email_campaigns where code='reminder_1'); pid uuid; begin
+  insert into public.email_contacts (advocate_name, email, email_normalized, consent_status, consent_verified_at, first_email_status, reminder_due_date) values ('Pay', 'pay@example.in', 'pay@example.in', 'GRANTED', now(), 'SENT', current_date) returning id into c;
+  insert into public.email_queue (campaign_id, contact_id, scheduled_date, status, idempotency_key) values (k, c, current_date, 'sent', 'p:' || c);
+  insert into auth.users (id, email) values (u, 'Pay@Example.in');
+  insert into public.payments (user_id, amount_paise, status) values (u, 29900, 'paid');
+  perform pg_temp.check((select payment_status from public.email_contacts where id = c) = 'NONE', 'a Rs 299 payment is not treated as the Rs 49 listing');
+  insert into public.payments (user_id, amount_paise, status) values (u, 4900, 'created') returning id into pid;
+  perform pg_temp.check((select payment_status from public.email_contacts where id = c) = 'NONE', 'an unpaid Rs 49 order does nothing');
+  update public.payments set status = 'paid' where id = pid;
+  perform pg_temp.check((select payment_status = 'PAID' and reminder_due_date is null from public.email_contacts where id = c), 'paid Rs 49 marks the contact PAID and stops reminders');
+  perform pg_temp.check((select campaign_id = k from public.email_events where contact_id = c and event_type = 'payment_success'), 'payment attributed to the campaign last sent');
+  update public.payments set status = 'paid' where id = pid;
+  perform pg_temp.check((select count(*) from public.email_events where contact_id = c and event_type = 'payment_success') = 1, 'a repeated update is not double counted');
+  insert into public.payments (user_id, amount_paise, status) values (gen_random_uuid(), 4900, 'paid');
+  perform pg_temp.check(true, 'a payer who is not a contact does not break the payment');
+end $$;
+
 -- audit log is append-only
 do $$ begin
   begin update public.email_audit_logs set action = 'x'; perform pg_temp.check(false, 'audit update'); exception when raise_exception then perform pg_temp.check(true, 'audit log cannot be updated'); end;
