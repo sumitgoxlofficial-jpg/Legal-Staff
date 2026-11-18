@@ -36,6 +36,20 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,transform .2
 @keyframes lsRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 :focus-visible{outline:2px solid #0A0A0A;outline-offset:2px}
 header :focus-visible{outline-color:#fff}
+
+@media (max-width:640px){
+  body{overflow-x:hidden}
+  .ls-hd>div{padding:10px 16px!important;gap:8px 12px!important;flex-wrap:wrap!important}
+  .ls-hd>div>button:first-child img{height:26px!important}
+  .ls-hd>div>button:first-child span span:first-child{font-size:18px!important}
+  .ls-hd>div>div{display:none!important}
+  .ls-nav{width:100%;gap:2px!important;flex-wrap:wrap}
+  .ls-nav>button{flex:1 1 0;min-width:0;white-space:nowrap;height:38px;padding:0 4px!important;font-size:12.5px!important;text-align:center}
+  .ls-nav>div{flex:1 1 100%;justify-content:space-between;padding-top:6px;border-top:1px solid #1F1F1F}
+  header button,select,input{min-height:44px}
+  aside{position:static!important;max-width:none!important;flex:1 1 100%!important;width:100%}
+  footer>div{padding:28px 16px!important}
+}
 @keyframes lsDrift{0%{background-position:0 0}100%{background-position:64px 64px}}
 @keyframes lsdOrb{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(40px,-30px,0) scale(1.15)}}
 @keyframes lsdShine{from{transform:translateX(-140%) skewX(-20deg)}to{transform:translateX(360%) skewX(-20deg)}}
@@ -94,14 +108,14 @@ table tbody tr:hover{background:#FAFAF9}
 </helmet>
 <div style="min-height:100vh;background:#FFFFFF;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:15px;line-height:1.5;display:flex;flex-direction:column">
 
-<header style="position:sticky;top:0;z-index:20;background:#0A0A0A;backdrop-filter:blur(6px);border-bottom:1px solid #E5E5E5;border-bottom:1px solid #1F1F1F">
+<header class="ls-hd" style="position:sticky;top:0;z-index:20;background:#0A0A0A;backdrop-filter:blur(6px);border-bottom:1px solid #E5E5E5;border-bottom:1px solid #1F1F1F">
   <div style="max-width:1240px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
     <button onClick="{{ goHome }}" style="border:0;background:none;padding:0;display:flex;align-items:center;gap:12px">
       <span style="display:flex;align-items:center;gap:9px;white-space:nowrap"><img src="assets/ls-mark-white.png" alt="" style="height:30px;display:block"><span style="font-weight:600;font-size:21px;letter-spacing:-.02em;line-height:1;color:#fff">Legal Staff</span></span>
       <span style="font-size:11px;color:#A3A3A3;border-left:1px solid #333;padding-left:12px;font-weight:600">Directory</span>
     </button>
     <div style="flex:1"></div>
-    <nav style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+    <nav class="ls-nav" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
       <button onClick="{{ goAll }}" style="{{ navStyle.results }}" style-hover="color:#fff">Find an advocate</button>
       <button onClick="{{ goHomeBrowse }}" style="{{ navStyle.home }}" style-hover="color:#fff">Browse</button>
       <button onClick="{{ goClients }}" style="{{ navStyle.home }}" style-hover="color:#fff">For clients</button>
