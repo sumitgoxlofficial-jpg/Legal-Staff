@@ -77,7 +77,19 @@ a.lsd-a{text-decoration:none}
 table tbody tr{transition:background .2s}
 table tbody tr:hover{background:#FAFAF9}
 @media(max-width:960px){.lsd-hero-art{display:none}.lsd-hero-grid{grid-template-columns:minmax(0,1fr)!important}}
-@media(prefers-reduced-motion:reduce){.lsd-marquee,.lsd-orb,.lsd-cta::after,.lsd-shield,.lsd-ringa,.lsd-flowline{animation:none!important}.lsd-check{stroke-dashoffset:0!important;animation:none!important}}
+@keyframes lsdRingFill{from{stroke-dashoffset:var(--c)}to{stroke-dashoffset:var(--o)}}
+@keyframes lsdPulse{0%{box-shadow:0 0 0 0 rgba(10,10,10,.35)}70%{box-shadow:0 0 0 9px rgba(10,10,10,0)}100%{box-shadow:0 0 0 0 rgba(10,10,10,0)}}
+@keyframes lsdGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes lsdFloatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.lsd-ringfill{stroke-dasharray:var(--c);stroke-dashoffset:var(--o);animation:lsdRingFill 1.6s cubic-bezier(.2,.7,.2,1) .3s both}
+.lsd-pulse{animation:lsdPulse 1.8s ease-out infinite}
+.lsd-rise{animation:lsRise .6s cubic-bezier(.2,.7,.2,1) both}
+.lsd-line{transform-origin:top;animation:lsdGrow .6s ease-out both}
+.lsd-float{animation:lsdFloatY 5s ease-in-out infinite}
+.lsd-tile{transition:transform .25s,box-shadow .25s,border-color .25s}
+.lsd-tile:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.08);border-color:#C9C9C9!important}
+.lsd-dots{background-image:radial-gradient(rgba(255,255,255,.09) 1px,transparent 1px);background-size:22px 22px;animation:lsDrift 18s linear infinite}
+@media(prefers-reduced-motion:reduce){.lsd-marquee,.lsd-orb,.lsd-cta::after,.lsd-shield,.lsd-ringa,.lsd-flowline,.lsd-ringfill,.lsd-pulse,.lsd-rise,.lsd-line,.lsd-float,.lsd-dots{animation:none!important}.lsd-check{stroke-dashoffset:0!important;animation:none!important}}
 </style>
 </helmet>
 <div style="min-height:100vh;background:#FFFFFF;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:15px;line-height:1.5;display:flex;flex-direction:column">
@@ -1773,32 +1785,48 @@ class Component extends DCLogic {
     /* ----- dashboard (a signed-in application): profile summary, key figures, progress, photo, inbox ----- */
     const dChip = (label, bg, c) => h('span', { key: label, style: { fontSize: 12.5, fontWeight: 600, background: bg, color: c, borderRadius: 99, padding: '4px 12px', whiteSpace: 'nowrap' } }, label);
     const stChip = { verified: ['✓ Verified', '#E7F6EC', '#137333'], pending: [bothUp ? 'Verification in progress' : 'Documents needed', '#FFF7E0', '#7A5B00'], info: ['Needs attention', '#FDECEA', '#B42318'], rejected: ['Not approved', '#FDECEA', '#B42318'] }[status || 'pending'];
-    const dTile = (label, value, sub, tone) => h('div', { key: label, style: { border: '1px solid #E5E5E5', borderRadius: 14, padding: '18px 20px', background: '#fff', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 } },
-      h('div', { style: { fontSize: 11.5, color: '#5E5E5E', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' } }, label),
+    let tileN = 0;
+    const dTile = (label, value, sub, tone, icon) => h('div', { key: label, className: 'lsd-tile lsd-rise', style: { animationDelay: (150 + tileN++ * 90) + 'ms', border: '1px solid #E5E5E5', borderRadius: 14, padding: '18px 20px', background: '#fff', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 } },
+      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } }, h('div', { style: { fontSize: 11.5, color: '#5E5E5E', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' } }, label), h('span', { style: { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: tone === '#137333' ? '#E7F6EC' : tone === '#B42318' ? '#FDECEA' : '#F5F5F4', color: tone || '#0A0A0A' } }, ico(DICO[icon]))),
       h('div', { style: { fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', color: tone || '#0A0A0A' } }, value),
       sub ? h('div', { style: { fontSize: 13, color: '#5E5E5E' } }, sub) : null);
     const nLeads = on ? S.leads.length : nReq, GREEN = '#137333', RED = '#B42318';
     const visVal = status === 'rejected' ? 'Not published' : !paid && on ? 'Hidden' : status === 'verified' ? 'Live' : 'Listed';
+    const stChipD = { verified: ['rgba(74,222,128,.18)', '#7CF0A6'], pending: ['rgba(255,200,60,.2)', '#FFD666'], info: ['rgba(255,120,110,.2)', '#FF9C94'], rejected: ['rgba(255,120,110,.2)', '#FF9C94'] }[status || 'pending'];
+    stChip.push(stChipD[0], stChipD[1]);
+    const doneN = track.filter(x => x.mark).length, pct = track.length ? Math.round(doneN / track.length * 100) : 0, RING_R = 38, RING_C = Math.round(2 * Math.PI * RING_R * 10) / 10;
+    const heroActions = actions.map(el => { const d = el.props.style && el.props.style.background === '#0A0A0A'; return React.cloneElement(el, { className: 'ls-press', style: { ...el.props.style, background: d ? '#fff' : 'transparent', color: d ? '#0A0A0A' : '#fff', border: d ? 0 : '1px solid rgba(255,255,255,.35)' } }); });
+    const ico = d => h('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d }));
+    const DICO = { v: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3zM9 12l2 2 4-4', f: 'M3 7h18v11H3zM3 11h18M7 15h3', p: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 100 6 3 3 0 000-6', c: 'M4 5h16v11H8l-4 4V5z' };
     const dash = !app ? null : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18 } },
-      h('section', { style: { ...card, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 20, padding: '24px 26px' } },
-        avatar(app.photo, (app.name || 'A').trim()[0].toUpperCase(), 76, 28, app.name, status === 'verified' && isLive),
-        h('div', { style: { flex: '1 1 260px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 } },
-          h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' } }, first ? 'Welcome, ' + first : 'Directory dashboard'),
-          h('div', { style: { fontFamily: "'Instrument Sans',system-ui,sans-serif", fontSize: 'clamp(22px,3vw,30px)', fontWeight: 600, letterSpacing: '-.025em', lineHeight: 1.15, overflowWrap: 'anywhere' } }, app.name || 'Your profile'),
-          h('div', { style: { fontSize: 13.5, color: '#5E5E5E' } }, [app.enr ? 'Enrolment ' + app.enr : '', app.city, 'Ref ' + app.id].filter(Boolean).join(' · ')),
-          h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, dChip(stChip[0], stChip[1], stChip[2]), on ? (paid ? dChip('Listing fee paid', '#F5F5F4', '#363636') : dChip('Fee pending', '#FFF7E0', '#7A5B00')) : null, submitted ? dChip('Submitted ' + submitted, '#F5F5F4', '#363636') : null)),
-        h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, ...actions)),
+      h('section', { className: 'lsd-rise', style: { position: 'relative', overflow: 'hidden', borderRadius: 20, background: '#0A0A0A', color: '#fff', padding: 'clamp(22px,3.5vw,32px)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 24 } },
+        h('div', { 'aria-hidden': true, className: 'lsd-dots', style: { position: 'absolute', inset: 0, opacity: .8, pointerEvents: 'none' } }),
+        orb({ width: 300, height: 300, background: '#4B4B4B', top: -120, right: -70 }), orb({ width: 220, height: 220, background: '#1F3A5F', bottom: -110, left: '30%' }),
+        h('div', { style: { position: 'relative', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20, flex: '1 1 420px', minWidth: 0 } },
+          avatar(app.photo, (app.name || 'A').trim()[0].toUpperCase(), 84, 30, app.name, status === 'verified' && isLive),
+          h('div', { style: { flex: '1 1 240px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 } },
+            h('div', { style: { fontSize: 12, color: '#C9C9C9', fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase' } }, first ? 'Welcome back, ' + first : 'Directory dashboard'),
+            h('div', { style: { fontFamily: "'Instrument Sans',system-ui,sans-serif", fontSize: 'clamp(24px,3.2vw,34px)', fontWeight: 600, letterSpacing: '-.025em', lineHeight: 1.12, overflowWrap: 'anywhere' } }, app.name || 'Your profile'),
+            h('div', { style: { fontSize: 13.5, color: '#BDBDBD' } }, [app.enr ? 'Enrolment ' + app.enr : '', app.city, 'Ref ' + app.id].filter(Boolean).join(' · ')),
+            h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, dChip(stChip[0], stChip[3], stChip[4]), on ? (paid ? dChip('Listing fee paid', 'rgba(255,255,255,.12)', '#fff') : dChip('Fee pending', 'rgba(255,200,60,.2)', '#FFD666')) : null, submitted ? dChip('Submitted ' + submitted, 'rgba(255,255,255,.12)', '#fff') : null))),
+        h('div', { className: 'lsd-float', style: { position: 'relative', display: 'flex', alignItems: 'center', gap: 14 } },
+          h('svg', { width: 92, height: 92, viewBox: '0 0 92 92', role: 'img', 'aria-label': 'Profile checklist ' + pct + ' percent complete' },
+            h('circle', { cx: 46, cy: 46, r: RING_R, fill: 'none', stroke: 'rgba(255,255,255,.14)', strokeWidth: 7 }),
+            h('circle', { className: 'lsd-ringfill', cx: 46, cy: 46, r: RING_R, fill: 'none', stroke: pct === 100 ? '#4ADE80' : '#fff', strokeWidth: 7, strokeLinecap: 'round', transform: 'rotate(-90 46 46)', style: { '--c': RING_C, '--o': RING_C * (1 - pct / 100) } }),
+            h('text', { x: 46, y: 52, textAnchor: 'middle', fontSize: 20, fontWeight: 700, fill: '#fff' }, pct + '%')),
+          h('div', { style: { fontSize: 12.5, color: '#C9C9C9', lineHeight: 1.45 } }, h('b', { style: { color: '#fff', fontSize: 14 } }, 'Profile checklist'), h('br'), doneN + ' of ' + track.length + ' steps done')),
+        h('div', { style: { position: 'relative', display: 'flex', gap: 10, flexWrap: 'wrap', width: '100%' } }, ...heroActions)),
       docBox,
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,210px),1fr))', gap: 14 } },
-        dTile('Verification', status === 'verified' ? 'Verified' : status === 'rejected' ? 'Not approved' : status === 'info' ? 'Needs attention' : bothUp ? 'In progress' : 'Not started', status === 'verified' ? 'Blue tick active' : bothUp ? 'Checked automatically' : 'Upload your documents', status === 'verified' ? GREEN : (status === 'rejected' || status === 'info') ? RED : null),
-        dTile('Listing fee', paid ? 'Paid' : on ? '₹49' : '—', paid ? 'Lifetime · no renewal' : on ? 'Due once, never renewed' : 'Not charged in this preview', paid ? GREEN : null),
-        dTile('Profile', visVal, stat0.visibility, visVal === 'Live' ? GREEN : visVal === 'Hidden' || visVal === 'Not published' ? RED : null),
-        dTile('Contact requests', String(nLeads), stat0.requests)),
+        dTile('Verification', status === 'verified' ? 'Verified' : status === 'rejected' ? 'Not approved' : status === 'info' ? 'Needs attention' : bothUp ? 'In progress' : 'Not started', status === 'verified' ? 'Blue tick active' : bothUp ? 'Checked automatically' : 'Upload your documents', status === 'verified' ? GREEN : (status === 'rejected' || status === 'info') ? RED : null, 'v'),
+        dTile('Listing fee', paid ? 'Paid' : on ? '₹49' : '—', paid ? 'Lifetime · no renewal' : on ? 'Due once, never renewed' : 'Not charged in this preview', paid ? GREEN : null, 'f'),
+        dTile('Profile', visVal, stat0.visibility, visVal === 'Live' ? GREEN : visVal === 'Hidden' || visVal === 'Not published' ? RED : null, 'p'),
+        dTile('Contact requests', String(nLeads), stat0.requests, null, 'c')),
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 18, alignItems: 'start' } },
         h('section', { style: { ...card, gap: 0, padding: '22px 24px' } },
           h('div', { style: { fontWeight: 600, fontSize: 17, marginBottom: 16 } }, 'Verification progress'),
-          ...track.map((x, i) => h('div', { key: i, style: { display: 'flex', gap: 14 } },
-            h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: 24 } }, h('div', { style: x.dot }, x.mark), i < track.length - 1 ? h('div', { style: { flex: 1, width: 1, background: '#E5E5E5', minHeight: 16 } }) : null),
+          ...track.map((x, i) => h('div', { key: i, className: 'lsd-rise', style: { display: 'flex', gap: 14, animationDelay: (350 + i * 130) + 'ms' } },
+            h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: 24 } }, h('div', { className: x.dot.background === '#E3E3E2' ? 'lsd-pulse' : '', style: x.dot }, x.mark), i < track.length - 1 ? h('div', { className: 'lsd-line', style: { flex: 1, width: 1, background: '#E5E5E5', minHeight: 16, animationDelay: (450 + i * 130) + 'ms' } }) : null),
             h('div', { style: { paddingBottom: 18, minWidth: 0 } }, h('div', { style: { fontWeight: 600, fontSize: 14.5 } }, x.t), h('div', { style: { fontSize: 13.5, color: '#5E5E5E', lineHeight: 1.5 } }, x.d))))),
         h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 } }, photoBox,
           h('section', { style: { ...card, gap: 6 } }, h('div', { style: { fontWeight: 600, fontSize: 16 } }, 'Practice software'), h('div', { style: { fontSize: 13.5, color: '#5E5E5E', lineHeight: 1.5 } }, 'Run your chamber on Legal Staff: cases, hearings, clients, invoices and team chat in one workspace. Not included with the directory listing.'), h('a', { href: 'index.html#pricing', style: { fontSize: 14, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, color: '#0A0A0A' } }, 'See plans')))),
