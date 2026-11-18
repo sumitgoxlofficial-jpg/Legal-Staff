@@ -378,7 +378,7 @@
           const status = b.dataset.d, note = $('#nt').value.trim();
           if (status !== 'verified' && note.length < 5) { $('#er').textContent = 'Write a note for the advocate: they will see it.'; return; }
           b.disabled = true;
-          try { await api('directory_decide', { id: a.id, status, note }); close(); toast(status === 'verified' ? 'Verified. The profile goes live once the fee is paid.' : status === 'info' ? 'Asked the advocate for more information.' : 'Rejected.'); VIEWS.directory(p); }
+          try { const r = await api('directory_decide', { id: a.id, status, note }); close(); toast((status === 'verified' ? 'Verified. The profile goes live once the fee is paid.' : status === 'info' ? 'Asked the advocate for more information.' : 'Rejected.') + (r.emailed ? ' Email sent.' : ' The email could not be sent: tell the advocate yourself.')); VIEWS.directory(p); }
           catch (e) { $('#er').textContent = e.message; b.disabled = false; }
         });
       });
