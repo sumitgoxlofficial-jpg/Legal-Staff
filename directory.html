@@ -165,6 +165,19 @@ a.lsd-a{text-decoration:none}
     </div>
   </section>
 
+  <section style="max-width:1240px;margin:0 auto;padding:72px clamp(20px,4vw,24px) 0;display:flex;flex-direction:column;gap:26px">
+    <div data-reveal="" style="max-width:720px;display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:12px;color:#5E5E5E;font-weight:600;letter-spacing:.04em;text-transform:uppercase">Choosing an advocate</div>
+      <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:clamp(26px,3.4vw,36px);line-height:1.1;margin:0;letter-spacing:-.025em;text-wrap:balance">Many advocates look alike. Here is how to pick the right one for your matter.</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px">
+      <div data-reveal="" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:8px"><div style="font-weight:700;font-size:13px;color:#5E5E5E">1</div><div style="font-weight:600;font-size:16px">Match the matter</div><div style="font-size:14px;color:#5E5E5E">Filter by practice area and the court your case is in. An advocate who appears in that court every week knows its procedure.</div></div>
+      <div data-reveal="" data-delay="80" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:8px"><div style="font-weight:700;font-size:13px;color:#5E5E5E">2</div><div style="font-weight:600;font-size:16px">Check experience</div><div style="font-size:14px;color:#5E5E5E">See years in practice and sort by it. The enrolment number and year are checked against the Bar Council record.</div></div>
+      <div data-reveal="" data-delay="160" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:8px"><div style="font-weight:700;font-size:13px;color:#5E5E5E">3</div><div style="font-weight:600;font-size:16px">Compare side by side</div><div style="font-size:14px;color:#5E5E5E">Tick “Compare” on up to three advocates and see courts, languages, qualifications and experience in one table.</div></div>
+      <div data-reveal="" data-delay="240" class="lsd-card" style="border:1px solid #E5E5E5;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:8px"><div style="font-weight:700;font-size:13px;color:#5E5E5E">4</div><div style="font-weight:600;font-size:16px">Prefer one who replies</div><div style="font-size:14px;color:#5E5E5E">Each profile shows how many contact requests the advocate has replied to. Send requests to two or three and see who answers.</div></div>
+    </div>
+  </section>
+
   <section id="browse" style="scroll-margin-top:64px;max-width:1240px;margin:0 auto;padding:72px 24px 24px;display:flex;flex-direction:column;gap:24px">
     <h2 data-reveal="" style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:30px;margin:0;letter-spacing:-.02em">Browse by practice area</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:12px">
@@ -399,8 +412,9 @@ a.lsd-a{text-decoration:none}
               <div style="font-size:13px;color:#5E5E5E;font-family:'Instrument Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums">{{ p.enr }} · {{ p.council }} · since {{ p.year }}</div>
               <div style="font-size:14px;color:#363636">{{ p.areas }}</div>
               <div style="font-size:13px;color:#5E5E5E">{{ p.courts }} · {{ p.langs }}</div>
+              {{ p.extra }}
             </div>
-            <button onClick="{{ p.go }}" style="white-space:nowrap;height:40px;padding:0 16px;border:1px solid #0A0A0A;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A;align-self:center" style-hover="background:#0A0A0A;color:#fff">View profile</button>
+            <button onClick="{{ p.go }}" class="ls-press" style="white-space:nowrap;height:40px;padding:0 16px;border:1px solid #0A0A0A;background:#FFFFFF;border-radius:8px;font-size:14px;color:#0A0A0A;align-self:center" style-hover="background:#0A0A0A;color:#fff">View profile</button>
           </div>
         </sc-for>
         {{ emptyState }}
@@ -443,6 +457,7 @@ a.lsd-a{text-decoration:none}
             <div><div style="font-size:13px;color:#5E5E5E">Chamber</div><div>{{ prof.chamber }}</div></div>
           </div>
         </section>
+        {{ prof.extra }}
         <div style="font-size:13px;color:#5E5E5E;text-wrap:pretty">This page shows factual information only. It is not an advertisement, solicitation or recommendation. Legal Staff does not rate advocates, assign matters or take any share of fees.</div>
       </div>
 
@@ -587,6 +602,7 @@ a.lsd-a{text-decoration:none}
   </div>
 </footer>
 {{ modal }}
+{{ compareBar }}
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script>
@@ -597,7 +613,8 @@ class Component extends DCLogic {
     cf: this.blankContact(), cfErr: {}, enquiries: [],
     app: this.blankApp(), appErr: {}, editingId: null, apps: [], mine: {}, viewId: null,
     profiles: [], pState: 'idle', pErr: '', busy: '', statusErr: '', lookupEnr: '', modal: null, more: {}, lookup: '', lookupMsg: '', rf: { profile: '', reason: '', details: '', email: '' }, rfErr: {}, rfDone: null,
-    user: null, authErr: '', authBusy: false, pay: null, leads: [], photoMsg: ''
+    user: null, authErr: '', authBusy: false, pay: null, leads: [], photoMsg: '',
+    compare: [], compareMsg: '', stats: {}, revSum: {}, reviews: [], rv: { rating: 0, body: '', name: '', msg: '', done: {} }
   };
   K = { apps: 'ls.directory.applications', mine: 'ls.directory.myApplications', enq: 'ls.directory.enquiries', rep: 'ls.directory.reports' };
   AREAS = [['Civil', 'Recovery, injunctions, contracts'], ['Criminal', 'Bail, trials, quashing'], ['Family', 'Divorce, custody, maintenance'], ['Property', 'Title, partition, tenancy'], ['Consumer', 'Deficiency of service, refunds'], ['Labour & Employment', 'Wages, termination, PF'], ['Tax', 'GST, income tax appeals'], ['Corporate & Commercial', 'Commercial suits, company law'], ['Arbitration', 'Section 9, 11, 34 proceedings'], ['Constitutional & Writs', 'Writ petitions, service matters'], ['Cyber', 'IT Act, online fraud'], ['Banking & Recovery', 'DRT, SARFAESI, cheque bounce']];
@@ -640,12 +657,28 @@ class Component extends DCLogic {
     try { const d = new Date(x.created_at); if (!isNaN(d)) date = d.getDate() + ' ' + mon[d.getMonth()]; } catch (e) {}
     return { id: x.id, name: x.name, enr: x.enr, council: x.council, year: x.year, city: x.city, status: x.status, note: x.note || '', date, created_at: x.created_at, photo: x.photo || '', paid: !!x.paid_at, paid_at: x.paid_at || null };
   }
+  /* client reviews are off unless config.js sets directoryReviews: true (Bar Council advertising rules: take legal advice first) */
+  reviewsOn() { return !!((window.LS_CONFIG || {}).directoryReviews) && !!this.sb(); }
+  async loadReviews(id) { const sb = this.sb(); if (!sb || !this.reviewsOn()) return; const r = await this.call(sb.rpc('directory_reviews_for', { p_app: id })); if (!r.error && Array.isArray(r.data) && this.state.profileId === id) this.setState({ reviews: r.data }); }
+  toggleCompare(id) { const c = this.state.compare; if (c.indexOf(id) >= 0) this.setState({ compare: c.filter(x => x !== id), compareMsg: '' }); else if (c.length >= 3) this.setState({ compareMsg: 'You can compare up to 3 advocates at a time.' }); else this.setState({ compare: c.concat(id), compareMsg: '' }); }
+  async markReplied(id) { const sb = this.sb(); if (!sb) return; const r = await this.call(sb.rpc('directory_mark_replied', { p_id: id })); if (!r.error && r.data === true) this.setState({ leads: this.state.leads.map(l => l.id === id ? { ...l, replied_at: new Date().toISOString() } : l) }); }
+  async sendReview(p) {
+    const S = this.state, enq = S.enquiries.find(e => e.advocateId === p.id && e.rid), v = S.rv, sb = this.sb();
+    if (!enq || !sb) return;
+    if (!v.rating) { this.setState({ rv: { ...v, msg: 'Choose a star rating.' } }); return; }
+    const r = await this.call(sb.rpc('directory_submit_review', { p_enquiry: enq.rid, p_rating: v.rating, p_body: v.body.trim(), p_name: v.name.trim() }));
+    if (r.error) { this.setState({ rv: { ...v, msg: 'Your review could not be sent (' + this.errText(r.error) + ').' } }); return; }
+    this.setState({ rv: { rating: 0, body: '', name: '', msg: '', done: { ...v.done, [p.id]: true } } });
+  }
   async loadProfiles() {
     const sb = this.sb(); if (!sb) return;
     this.setState({ pState: 'loading', pErr: '' });
     const r = await this.call(sb.rpc('directory_profiles'));
     if (r.error || !Array.isArray(r.data)) { this.setState({ pState: 'error', pErr: this.errText(r.error || { message: 'Unexpected response' }) }); return; }
     this.setState({ pState: 'ready', profiles: r.data.filter(x => x && x.id != null) });
+    const st = await this.call(sb.rpc('directory_response_stats'));
+    if (!st.error && Array.isArray(st.data)) { const m = {}; st.data.forEach(x => { m[x.application_id] = { total: x.total, replied: x.replied }; }); this.setState({ stats: m }); }
+    if (this.reviewsOn()) { const rs = await this.call(sb.rpc('directory_review_summary')); if (!rs.error && Array.isArray(rs.data)) { const m = {}; rs.data.forEach(x => { m[x.application_id] = { n: x.n, avg: +x.avg }; }); this.setState({ revSum: m }); } }
   }
   /* ---------- sign-in with Google (Supabase auth) ---------- */
   userFrom(u) { const m = (u && u.user_metadata) || {}; return { id: u.id, email: u.email || m.email || '', name: m.full_name || m.name || '', picture: m.avatar_url || m.picture || '' }; }
@@ -809,7 +842,7 @@ class Component extends DCLogic {
     const own = src.map(a => {
       const d = (this.sb() ? a.details : S.mine[a.id]) || {}, nm = String(a.name || 'Advocate');
       const parts = nm.split(/\s+/).filter(Boolean);
-      return { id: String(a.id), own: !!S.mine[a.id], sortKey: (parts[parts.length - 1] || nm) + ' ' + nm, ini: ((parts[0] || 'A')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase(), name: nm, photo: a.photo || '',
+      return { id: String(a.id), own: !!S.mine[a.id], sortKey: (parts[parts.length - 1] || nm) + ' ' + nm, ini: ((parts[0] || 'A')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase(), name: nm, photo: a.photo || '', years: Math.max(0, new Date().getFullYear() - (+a.year || new Date().getFullYear())), stat: S.stats[String(a.id)] || null, rev: S.revSum[String(a.id)] || null,
         state: councilState[a.council] || 'Other', city: a.city || d.city || '', district: d.district || '', enr: String(a.enr || ''), council: String(a.council || ''), year: String(a.year || ''),
         areas: Array.isArray(d.areas) ? d.areas : this.splitList(d.areas), courts: this.splitList(d.courts), langs: this.splitList(d.langs), quals: d.quals || '—', chamber: d.chamber || '—', verifiedOn: '' };
     });
@@ -842,7 +875,7 @@ class Component extends DCLogic {
   filtered(base) {
     const S = this.state, any = (sel, vals) => !sel.length || vals.some(v => sel.indexOf(v) >= 0);
     const out = base.filter(p => any(S.fDistrict, [p.district]) && any(S.fCourt, p.courts) && any(S.fLang, p.langs) && any(S.fYears, [this.yearBand(p)]));
-    const by = { az: (a, b) => a.sortKey.localeCompare(b.sortKey), za: (a, b) => b.sortKey.localeCompare(a.sortKey), old: (a, b) => (+a.year - +b.year) || a.sortKey.localeCompare(b.sortKey), new: (a, b) => (+b.year - +a.year) || a.sortKey.localeCompare(b.sortKey) };
+    const by = { az: (a, b) => a.sortKey.localeCompare(b.sortKey), za: (a, b) => b.sortKey.localeCompare(a.sortKey), resp: (a, b) => ((b.stat && b.stat.total >= 3 ? b.stat.replied / b.stat.total : -1) - (a.stat && a.stat.total >= 3 ? a.stat.replied / a.stat.total : -1)) || a.sortKey.localeCompare(b.sortKey), rated: (a, b) => ((b.rev ? b.rev.avg : -1) - (a.rev ? a.rev.avg : -1)) || a.sortKey.localeCompare(b.sortKey), old: (a, b) => (+a.year - +b.year) || a.sortKey.localeCompare(b.sortKey), new: (a, b) => (+b.year - +a.year) || a.sortKey.localeCompare(b.sortKey) };
     return out.sort(by[S.sort] || by.az);
   }
 
@@ -858,7 +891,7 @@ class Component extends DCLogic {
   go(screen) { this.nav({ screen }); }
   search(patch) { this.nav({ screen: 'results', page: 1, fDistrict: [], fCourt: [], fLang: [], fYears: [], ...patch }); }
   searchAll() { this.search({ q: '', loc: '', district: '', area: '', court: '' }); }
-  openProfile(id) { this.nav({ screen: 'profile', profileId: id, cf: this.blankContact(), cfErr: {} }); }
+  openProfile(id) { this.nav({ screen: 'profile', profileId: id, cf: this.blankContact(), cfErr: {}, reviews: [] }); this.loadReviews(id); }
   startApply() {
     const S = this.state, ex = this.sb() && S.user && S.apps.length ? S.apps[0] : null;
     if (ex) { this.nav({ screen: 'status', viewId: ex.id }); return; }
@@ -952,10 +985,11 @@ class Component extends DCLogic {
     if (sb) {
       const isMail = contact.indexOf('@') >= 0;
       this.setState({ busy: 'enq', cfErr: {} });
-      const r = await this.call(sb.from('directory_enquiries').insert({ application_id: p.id, name: f.name.trim(), email: isMail ? contact : '', phone: isMail ? '' : contact, category: f.category, language: f.language || p.langs[0] || 'English', message: f.desc.trim() + '\n\nCity: ' + f.city.trim() }));
+      const rid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : undefined;
+      const r = await this.call(sb.from('directory_enquiries').insert({ ...(rid ? { id: rid } : {}), application_id: p.id, name: f.name.trim(), email: isMail ? contact : '', phone: isMail ? '' : contact, category: f.category, language: f.language || p.langs[0] || 'English', message: f.desc.trim() + '\n\nCity: ' + f.city.trim() }));
       if (r.error) { this.setState({ busy: '', cfErr: { consent: 'Your request could not be sent (' + this.errText(r.error) + '). Your details are still in the form. Please try again.' } }); return; }
       const mem = this.readList(this.K.enq);
-      mem.push({ id: 'R-' + Date.now(), remote: true, advocateId: p.id, advocateName: p.name, name: f.name.trim(), contact, city: f.city.trim(), category: f.category, at: new Date().toISOString() });
+      mem.push({ id: 'R-' + Date.now(), rid, remote: true, advocateId: p.id, advocateName: p.name, name: f.name.trim(), contact, city: f.city.trim(), category: f.category, at: new Date().toISOString() });
       this.write(this.K.enq, mem);
       this.setState({ busy: '', enquiries: mem, cf: this.blankContact(), cfErr: {} });
       return;
@@ -1147,6 +1181,22 @@ class Component extends DCLogic {
           h('a', { href: 'app.html', style: { alignSelf: 'flex-start', height: 44, padding: '0 18px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: '1px solid #0A0A0A', color: '#0A0A0A', display: 'flex', alignItems: 'center', textDecoration: 'none' } }, 'Sign in to Legal Staff')),
         h('div', { key: 'n', style: { fontSize: 13, color: '#5E5E5E' } }, 'Members of the public do not need an account to search the directory or request contact.')
       ];
+    } else if (kind === 'compare') {
+      const ppl = this.people(), sel2 = S.compare.map(id => ppl.find(p => p.id === id)).filter(Boolean);
+      const [lst, lcity] = S.loc.split('|'), crit = !!(S.area || S.court || S.loc);
+      eyebrow = 'Side by side · facts only'; title = 'Compare advocates';
+      const th = { textAlign: 'left', padding: '10px 12px', fontSize: 12, color: '#5E5E5E', fontWeight: 600, verticalAlign: 'top', width: 130 }, td = { padding: '10px 12px', fontSize: 14, verticalAlign: 'top', overflowWrap: 'anywhere' };
+      const resp = p => p.stat && p.stat.total >= 3 ? 'Replied to ' + p.stat.replied + ' of ' + p.stat.total + ' requests (90 days)' : 'Not enough requests yet';
+      const match = p => { const m = []; if (S.area) m.push([p.areas.indexOf(S.area) >= 0, S.area]); if (S.court) m.push([this.courtMatch(p, S.court), S.court]); if (lst) m.push([p.state === lst && (!lcity || p.city === lcity), lcity || lst]); return m.map(([ok, t]) => (ok ? '✓ ' : '✗ ') + t).join('\n'); };
+      const rows = [['Enrolment', p => p.enr + '\n' + p.council], ['Years in practice', p => p.years + ' (since ' + p.year + ')'], ['Practice areas', p => p.areas.join(', ') || '—'], ['Courts', p => p.courts.join('; ') || '—'], ['Languages', p => p.langs.join(', ') || '—'], ['Qualifications', p => p.quals || '—'], ['City', p => [p.city, p.district].filter(Boolean).join(' · ') || '—'], ['Replies to requests', resp]]
+        .concat(this.reviewsOn() ? [['Client rating', p => p.rev ? p.rev.avg.toFixed(1) + ' / 5 (' + p.rev.n + ' reviews)' : 'No reviews yet']] : []).concat(crit ? [['Matches your search', match]] : []);
+      body = !sel2.length ? [para('Choose advocates with the Compare tick on the results first.', 'p')] : [
+        para('Only facts are shown. Nothing here is a rating or a recommendation, and no advocate is marked “best”: the right choice depends on your matter.', 'p'),
+        h('div', { key: 't', style: { overflowX: 'auto', border: '1px solid #E5E5E5', borderRadius: 12 } }, h('table', { style: { borderCollapse: 'collapse', width: '100%', minWidth: 520 } },
+          h('thead', null, h('tr', null, h('th', { style: th }), sel2.map(p => h('th', { key: p.id, style: { ...td, textAlign: 'left', fontSize: 16, fontWeight: 600 } }, p.name, h('div', { style: { fontSize: 12, fontWeight: 500, color: '#137333' } }, '✓ Enrolment verified'))))),
+          h('tbody', null, rows.map(([k, f]) => h('tr', { key: k, style: { borderTop: '1px solid #E5E5E5' } }, h('td', { style: th }, k), sel2.map(p => h('td', { key: p.id, style: { ...td, whiteSpace: 'pre-line' } }, f(p)))))),
+          h('tfoot', null, h('tr', { style: { borderTop: '1px solid #E5E5E5' } }, h('td', { style: th }), sel2.map(p => h('td', { key: p.id, style: td }, btn('View profile', () => { this.setState({ modal: null }); this.openProfile(p.id); }, true, 'v'))))))),
+        h('div', { key: 'c', style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, btn('Clear comparison', () => this.setState({ compare: [], modal: null })), btn('Close', close))];
     } else if (kind === 'report' && S.rfDone) {
       eyebrow = S.rfDone.remote ? 'Report a profile' : 'Reference ' + S.rfDone.ref; title = S.rfDone.remote ? 'Report received' : S.rfDone.saved ? 'Report saved' : 'Report not saved';
       body = S.rfDone.remote ? [para('Thank you. Your report has been recorded for moderator review. Reports are confidential and the advocate is not told who made them.', 'p'), h('div', { key: 'b', style: { display: 'flex', gap: 10 } }, btn('Done', close, true))] : [para(S.rfDone.saved ? 'Thank you. Your report is recorded for moderator review. Reports are confidential and the advocate is not told who made them.' : 'This browser blocked local storage, so the report could not be recorded. Please allow site data and try again.', 'p'),
@@ -1175,6 +1225,7 @@ class Component extends DCLogic {
     } else {
       eyebrow = 'Summary · last updated 1 November 2026'; title = 'Directory terms';
       body = [para('A plain-language summary of the rules for using the Legal Staff Directory.', 'p'),
+        sect('Choosing between advocates', 'You can sort and compare advocates on facts: years in practice, courts, languages and how many contact requests they have replied to. These are not ratings or recommendations, and nobody can pay to appear higher. Client reviews are not shown.', 12),
         sect('Factual listings only', 'Profiles show verified enrolment details and information declared by the advocate. In keeping with Bar Council of India rules, there are no rankings, ratings, testimonials or claims of results, and results are always listed alphabetically.', 1),
         sect('No recommendation', 'A listing is not an advertisement, solicitation or recommendation. Legal Staff does not assign matters, give legal advice or take any share of fees.', 2),
         sect('For advocates', 'You must hold a valid enrolment with a State Bar Council and keep your details accurate. Profiles can be suspended if details are inaccurate or enrolment lapses.', 3),
@@ -1183,7 +1234,7 @@ class Component extends DCLogic {
         sect('Separate from the software', 'A directory profile does not include the Legal Staff practice software, which needs its own paid subscription.', 5)];
     }
     return h('div', { role: 'dialog', 'aria-modal': true, 'aria-label': title, onMouseDown: e => { if (e.target === e.currentTarget) close(); }, style: { position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(10,10,10,.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'clamp(12px,4vw,48px) clamp(12px,4vw,24px)', overflowY: 'auto', animation: 'lsFade .2s ease-out' } },
-      h('div', { style: { width: '100%', maxWidth: 580, background: '#FFFFFF', borderRadius: 14, boxShadow: '0 24px 64px rgba(0,0,0,.3)', padding: 'clamp(20px,4vw,28px)', display: 'flex', flexDirection: 'column', gap: 16, fontSize: 15, lineHeight: 1.5, color: '#0A0A0A', animation: 'lsRise .3s cubic-bezier(.2,.7,.2,1)' } },
+      h('div', { style: { width: '100%', maxWidth: kind === 'compare' ? 940 : 580, background: '#FFFFFF', borderRadius: 14, boxShadow: '0 24px 64px rgba(0,0,0,.3)', padding: 'clamp(20px,4vw,28px)', display: 'flex', flexDirection: 'column', gap: 16, fontSize: 15, lineHeight: 1.5, color: '#0A0A0A', animation: 'lsRise .3s cubic-bezier(.2,.7,.2,1)' } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' } },
           h('div', { style: { minWidth: 0 } },
             h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600 } }, eyebrow),
@@ -1195,8 +1246,20 @@ class Component extends DCLogic {
   renderVals() {
     const S = this.state, h = React.createElement;
     const s = {}; ['home', 'results', 'profile', 'register', 'status', 'pay'].forEach(k => s[k] = S.screen === k);
-    const avatar = (photo, ini, size, fs, name) => photo ? h('img', { src: photo, alt: name ? 'Photo of ' + name : '', style: { width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid #E5E5E5', background: '#F0F0EF', display: 'block' } })
+    const avatarBase = (photo, ini, size, fs, name) => photo ? h('img', { src: photo, alt: name ? 'Photo of ' + name : '', style: { width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid #E5E5E5', background: '#F0F0EF', display: 'block' } })
       : h('div', { 'aria-hidden': true, style: { width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg,#F5F5F4,#D4D4D4)', color: '#0A0A0A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fs, fontWeight: 600, flexShrink: 0 } }, ini);
+    /* Instagram-style verified seal on the corner of the photo, shown once enrolment has been verified */
+    const sealPts = (() => { const pts = []; for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12, r = i % 2 ? 41 : 50; pts.push((50 + r * Math.sin(a)).toFixed(1) + ',' + (50 - r * Math.cos(a)).toFixed(1)); } return pts.join(' '); })();
+    const avatar = (photo, ini, size, fs, name, verified) => {
+      const base = avatarBase(photo, ini, size, fs, name);
+      if (!verified) return base;
+      const b = Math.max(18, Math.round(size * 0.34));
+      return h('div', { style: { position: 'relative', width: size, height: size, flexShrink: 0 } }, base,
+        h('span', { role: 'img', 'aria-label': 'Enrolment verified', title: 'Enrolment verified', className: 'ls-pop', style: { position: 'absolute', right: -Math.round(b * 0.1), bottom: -Math.round(b * 0.1), width: b, height: b, display: 'block', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,.35))' } },
+          h('svg', { viewBox: '0 0 100 100', width: b, height: b, 'aria-hidden': true },
+            h('polygon', { points: sealPts, fill: '#1D9BF0', stroke: '#fff', strokeWidth: 5, strokeLinejoin: 'round' }),
+            h('path', { d: 'M30 52l14 14 27-30', fill: 'none', stroke: '#fff', strokeWidth: 10, strokeLinecap: 'round', strokeLinejoin: 'round' }))));
+    };
     const all = this.people();
     const uniq = arr => arr.filter((v, i) => v && arr.indexOf(v) === i);
     const fmtDate = iso => { try { const d = new Date(iso); if (isNaN(d)) return ''; return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }); } catch (e) { return ''; } };
@@ -1390,7 +1453,7 @@ class Component extends DCLogic {
 
     const hasPhotoUi = on && S.user && app;
     const photoBox = hasPhotoUi ? h('section', { style: { ...card, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 18 } },
-      avatar(app.photo, (app.name || 'A').trim()[0].toUpperCase(), 72, 26, app.name),
+      avatar(app.photo, (app.name || 'A').trim()[0].toUpperCase(), 72, 26, app.name, status === 'verified' && isLive),
       h('div', { style: { flex: '1 1 220px', minWidth: 0 } }, h('div', { style: { fontWeight: 600, fontSize: 16 } }, 'Profile photo'), h('div', { style: { fontSize: 13.5, color: '#5E5E5E' } }, S.photoMsg || 'Shown on your card in search results and on your profile page. You can change it at any time.')),
       h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
         h('input', { id: 'st-photo', type: 'file', accept: 'image/jpeg,image/png,image/webp', style: { display: 'none' }, onChange: e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; this.takePhoto(f, (data, err) => data ? this.savePhoto(app.id, data) : this.setState({ photoMsg: err })); } }),
@@ -1401,9 +1464,36 @@ class Component extends DCLogic {
       : h('section', { style: { ...card, gap: 14 } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' } }, h('div', { style: { fontWeight: 600, fontSize: 18 } }, 'Your lead inbox'), h('div', { style: { fontSize: 13, color: '#5E5E5E' } }, S.leads.length ? S.leads.length + (S.leads.length === 1 ? ' contact request' : ' contact requests') : 'No requests yet')),
         S.leads.length ? h('div', { style: { display: 'flex', flexDirection: 'column' } }, S.leads.map(l => h('div', { key: l.id, style: { borderTop: '1px solid #E5E5E5', padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 4 } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' } }, h('b', null, l.name), h('span', { style: { fontSize: 12, color: '#8A8A8A' } }, fmtLead(l))),
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' } }, h('b', null, l.name), h('span', { style: { display: 'flex', gap: 10, alignItems: 'center', fontSize: 12, color: '#8A8A8A' } }, fmtLead(l), l.replied_at ? h('span', { style: { color: '#137333', fontWeight: 600 } }, '✓ Replied') : h('button', { type: 'button', onClick: () => this.markReplied(l.id), style: { height: 28, padding: '0 10px', border: '1px solid #0A0A0A', background: '#fff', borderRadius: 14, fontSize: 12.5, color: '#0A0A0A' } }, 'Mark as replied'))),
           h('div', { style: { fontSize: 13.5, display: 'flex', gap: 14, flexWrap: 'wrap' } }, l.phone ? h('a', { href: 'tel:' + l.phone }, l.phone) : null, l.email ? h('a', { href: 'mailto:' + l.email }, l.email) : null, h('span', { style: { color: '#5E5E5E' } }, [l.category, l.language].filter(Boolean).join(' · '))),
-          h('div', { style: { fontSize: 14, color: '#363636', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, l.message)))) : h('div', { style: { fontSize: 14, color: '#5E5E5E' } }, 'When a client sends a contact request from your profile, it shows up here with their name, number and matter. You decide whether to reply.'));
+          h('div', { style: { fontSize: 14, color: '#363636', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, l.message)))) : h('div', { style: { fontSize: 14, color: '#5E5E5E' } }, 'When a client sends a contact request from your profile, it shows up here with their name, number and matter. Mark each one as replied: your profile shows how many requests you have replied to, which helps clients choose.'));
+
+    const chipS = (bg, c) => ({ fontSize: 12, background: bg, color: c, borderRadius: 99, padding: '2px 10px', fontWeight: 500, whiteSpace: 'nowrap' });
+    const respText = p => p.stat && p.stat.total >= 3 ? 'Replied to ' + p.stat.replied + ' of ' + p.stat.total + ' requests' : '';
+    const starsOf = a => '★'.repeat(Math.round(a)) + '☆'.repeat(5 - Math.round(a));
+    const cardExtra = p => h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 } },
+      h('span', { style: chipS('#F5F5F4', '#363636') }, p.years + (p.years === 1 ? ' year' : ' years') + ' in practice'),
+      respText(p) ? h('span', { style: chipS('#E7F6EC', '#137333') }, respText(p)) : null,
+      this.reviewsOn() && p.rev ? h('span', { style: chipS('#FFF7E0', '#7A5B00') }, starsOf(p.rev.avg) + ' ' + p.rev.avg.toFixed(1) + ' (' + p.rev.n + ')') : null,
+      h('button', { type: 'button', 'aria-pressed': S.compare.indexOf(p.id) >= 0, onClick: () => this.toggleCompare(p.id), style: { marginLeft: 'auto', height: 28, padding: '0 12px', borderRadius: 14, border: '1px solid ' + (S.compare.indexOf(p.id) >= 0 ? '#0A0A0A' : '#D4D4D4'), background: S.compare.indexOf(p.id) >= 0 ? '#0A0A0A' : '#fff', color: S.compare.indexOf(p.id) >= 0 ? '#fff' : '#363636', fontSize: 12.5 } }, S.compare.indexOf(p.id) >= 0 ? '✓ Added to compare' : '+ Compare'));
+    const compareBar = S.compare.length && !S.modal ? h('div', { role: 'region', 'aria-label': 'Compare advocates', style: { position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: 16, zIndex: 40, background: '#0A0A0A', color: '#fff', borderRadius: 16, padding: '10px 12px 10px 18px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', boxShadow: '0 16px 48px rgba(0,0,0,.35)', maxWidth: 'calc(100vw - 24px)', animation: 'lsRise .3s cubic-bezier(.2,.7,.2,1)' } },
+      h('span', { style: { fontSize: 14 } }, S.compareMsg || (S.compare.length + (S.compare.length === 1 ? ' advocate' : ' advocates') + ' selected')),
+      h('button', { type: 'button', onClick: () => this.setState({ modal: 'compare', compareMsg: '' }), disabled: S.compare.length < 2, style: { height: 38, padding: '0 16px', borderRadius: 10, border: 0, background: S.compare.length < 2 ? '#3A3A3A' : '#fff', color: S.compare.length < 2 ? '#A3A3A3' : '#0A0A0A', fontWeight: 600, fontSize: 14 } }, S.compare.length < 2 ? 'Pick one more' : 'Compare'),
+      h('button', { type: 'button', onClick: () => this.setState({ compare: [], compareMsg: '' }), 'aria-label': 'Clear comparison', style: { height: 38, padding: '0 10px', border: 0, background: 'none', color: '#A3A3A3', fontSize: 13 } }, 'Clear')) : null;
+    const rvOn = this.reviewsOn(), myEnq = S.enquiries.find(e => e.advocateId === P.id && e.rid), reviewed = !!S.rv.done[P.id];
+    const profExtra = !P.id ? null : h('section', { style: { borderTop: '1px solid #E5E5E5', paddingTop: 22, display: 'flex', flexDirection: 'column', gap: 14 } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' } }, h('h2', { style: { fontSize: 20, fontWeight: 600, margin: 0 } }, 'At a glance'), h('span', { style: { fontSize: 12, color: '#5E5E5E' } }, 'Facts, not ratings')),
+      h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h('span', { style: chipS('#F5F5F4', '#363636') }, P.years + (P.years === 1 ? ' year' : ' years') + ' in practice, since ' + P.year), respText(P) ? h('span', { style: chipS('#E7F6EC', '#137333') }, respText(P) + ' in the last 90 days') : h('span', { style: chipS('#F5F5F4', '#5E5E5E') }, 'Reply record appears after 3 requests'), rvOn && P.rev ? h('span', { style: chipS('#FFF7E0', '#7A5B00') }, starsOf(P.rev.avg) + ' ' + P.rev.avg.toFixed(1) + ' from ' + P.rev.n + ' reviews') : null),
+      rvOn ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+        S.reviews.map((r, i) => h('div', { key: i, style: { border: '1px solid #E5E5E5', borderRadius: 12, padding: '12px 14px' } }, h('div', { style: { color: '#B8860B', fontSize: 14 } }, starsOf(r.rating), h('span', { style: { color: '#5E5E5E', fontSize: 12.5, marginLeft: 8 } }, (r.reviewer || 'A client'))), r.body ? h('div', { style: { fontSize: 14, color: '#363636', marginTop: 4, overflowWrap: 'anywhere' } }, r.body) : null)),
+        myEnq && !reviewed ? h('div', { style: { border: '1px dashed #C4C4C4', borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 } },
+          h('div', { style: { fontWeight: 600, fontSize: 14 } }, 'You contacted this advocate. Add your review'),
+          h('div', { role: 'radiogroup', 'aria-label': 'Rating', style: { display: 'flex', gap: 4 } }, [1, 2, 3, 4, 5].map(n => h('button', { key: n, type: 'button', role: 'radio', 'aria-checked': S.rv.rating === n, 'aria-label': n + ' star', onClick: () => this.setState({ rv: { ...S.rv, rating: n, msg: '' } }), style: { border: 0, background: 'none', fontSize: 26, color: n <= S.rv.rating ? '#B8860B' : '#C4C4C4', padding: 0 } }, '★'))),
+          h('textarea', { 'aria-label': 'Review', value: S.rv.body, maxLength: 600, onChange: e => this.setState({ rv: { ...S.rv, body: e.target.value } }), placeholder: 'Your experience, in a few lines. Do not share confidential details.', style: { minHeight: 70, border: '1px solid #E5E5E5', borderRadius: 8, padding: '8px 10px', fontSize: 14, resize: 'vertical' } }),
+          h('input', { 'aria-label': 'Your name', value: S.rv.name, onChange: e => this.setState({ rv: { ...S.rv, name: e.target.value } }), placeholder: 'Your first name (optional)', style: { height: 40, border: '1px solid #E5E5E5', borderRadius: 8, padding: '0 10px', fontSize: 14 } }),
+          S.rv.msg ? h('div', { role: 'alert', style: { fontSize: 12, color: '#B42318' } }, S.rv.msg) : null,
+          h('button', { type: 'button', onClick: () => this.sendReview(P), style: { alignSelf: 'flex-start', height: 40, padding: '0 16px', border: 0, borderRadius: 8, background: '#0A0A0A', color: '#fff', fontSize: 14 } }, 'Submit review'))
+          : reviewed ? h('div', { style: { fontSize: 13, color: '#137333' } }, 'Thank you. Your review will appear after moderation.') : null) : null);
 
     const areaMarquee = [0, 1].map(k => h('div', { key: k, style: { display: 'flex' } }, this.AREAS.map(([n]) => h('span', { key: n, style: { display: 'inline-flex', alignItems: 'center', gap: 20, padding: '0 20px', fontSize: 'clamp(20px,2.4vw,28px)', fontWeight: 600, color: '#6B6B6B', whiteSpace: 'nowrap', letterSpacing: '-.02em' } }, n, h('span', { style: { color: '#3A3A3A', fontSize: 16 } }, '✦')))));
 
@@ -1462,7 +1552,7 @@ class Component extends DCLogic {
     const openM = kind => e => { if (e && e.preventDefault) e.preventDefault(); this.setState({ modal: kind, lookup: '', lookupMsg: '', rfDone: null, rfErr: {}, ...(kind === 'report' && S.screen === 'profile' ? { rf: { ...S.rf, profile: P.id } } : {}) }); };
     return {
       heroGrid: h('div', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: `linear-gradient(${g} 1px,transparent 1px),linear-gradient(90deg,${g} 1px,transparent 1px)`, backgroundSize: '64px 64px', WebkitMaskImage: 'radial-gradient(ellipse 70% 80% at 30% 20%,#000,transparent)', maskImage: 'radial-gradient(ellipse 70% 80% at 30% 20%,#000,transparent)', animation: 'lsDrift 12s linear infinite' } }),
-      s, modal: this.renderModal(),
+      s, modal: this.renderModal(), compareBar,
       navStyle: { results: navBtn(s.results || s.profile), home: navBtn(false), register: navBtn(s.register || s.status || s.pay) },
       goHome: () => this.go('home'), goHomeBrowse: () => this.browse(), goAll: () => this.searchAll(), goResults: () => this.nav({ screen: 'results' }),
       goRegister: () => this.startApply(), goStatus: () => this.nav({ screen: 'status', viewId: null }),
@@ -1477,12 +1567,12 @@ class Component extends DCLogic {
       courts: ['Supreme Court of India', 'High Court of Delhi', 'Bombay High Court', 'Madras High Court', 'District Courts', 'Consumer Commissions', 'Debts Recovery Tribunals'].map(name => ({ name, go: () => this.search({ q: '', loc: '', district: '', area: '', court: name }) })),
       howSteps: [{ n: '1', t: 'Advocate applies', d: 'They submit their enrolment number, State Bar Council and supporting documents.' }, { n: '2', t: 'Enrolment checked', d: 'A moderator checks the documents against the Bar Council record. Every decision is logged.' }, { n: '3', t: 'Profile published', d: 'Only verified profiles appear in search. Declared details are labelled as declared.' }],
       resSummary: summary, resCount: on && S.pState !== 'ready' ? (S.pState === 'error' ? 'Not loaded' : 'Loading') : list.length === 1 ? '1 advocate' : (list.length || 'No') + ' advocates', resToolbar, hasAside: filters.length > 0 || anyCriteria,
-      sortSelect: !all.length ? null : sel('rsort', 'Sort order', S.sort, [['az', 'Name A–Z'], ['za', 'Name Z–A'], ['old', 'Enrolment year, earliest first'], ['new', 'Enrolment year, latest first']], v => this.setState({ sort: v, page: 1 }), { height: 34, border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, padding: '0 8px', fontSize: 13, color: '#0A0A0A' }),
+      sortSelect: !all.length ? null : sel('rsort', 'Sort order', S.sort, [['az', 'Name A–Z'], ['za', 'Name Z–A'], ['old', 'Most years in practice'], ['new', 'Enrolment year, latest first'], ['resp', 'Replies to requests, most first']].concat(this.reviewsOn() ? [['rated', 'Highest rated']] : []), v => this.setState({ sort: v, page: 1 }), { height: 34, border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, padding: '0 8px', fontSize: 13, color: '#0A0A0A' }),
       filters, clearBtn: anyCriteria ? h('button', { type: 'button', onClick: clearAll, style: linkBtn }, 'Clear search and filters') : null,
-      people: pageRows.map((p, i) => ({ avatar: avatar(p.photo, p.ini, 64, 22, p.name), ini: p.ini, name: p.name, enr: p.enr, council: p.council, year: p.year, areas: p.areas.join(' · '), courts: p.courts.join(', '), langs: p.langs.join(', '), delay: 60 + i * 70, go: () => this.openProfile(p.id),
+      people: pageRows.map((p, i) => ({ extra: cardExtra(p), avatar: avatar(p.photo, p.ini, 64, 22, p.name, true), ini: p.ini, name: p.name, enr: p.enr, council: p.council, year: p.year, areas: p.areas.join(' · '), courts: p.courts.join(', '), langs: p.langs.join(', '), delay: 60 + i * 70, go: () => this.openProfile(p.id),
         you: p.own ? h('span', { style: { fontSize: 12, background: '#0A0A0A', color: '#fff', borderRadius: 8, padding: '2px 10px', fontWeight: 500 } }, 'Your profile') : null })),
       emptyState, pager,
-      prof: { avatar: avatar(P.photo, P.ini, 96, 34, P.name), ini: P.ini, name: P.name, state: P.state, area0: P.areas[0] || 'All practice areas', place: [P.city, P.district && P.district !== P.city ? P.district + ' district' : ''].filter(Boolean).join(' · '),
+      prof: { extra: profExtra, avatar: avatar(P.photo, P.ini, 96, 34, P.name, true), ini: P.ini, name: P.name, state: P.state, area0: P.areas[0] || 'All practice areas', place: [P.city, P.district && P.district !== P.city ? P.district + ' district' : ''].filter(Boolean).join(' · '),
         verified: 'Enrolment verified' + (P.verifiedOn ? ' · ' + P.verifiedOn : ''), enr: P.enr, council: P.council, year: P.year, areas: P.areas.join(', ') || '—', courts: P.courts.join('; ') || '—', langs: P.langs.join(', ') || '—', quals: P.quals, chamber: P.chamber,
         goAll: () => this.searchAll(), goState: () => this.search({ q: '', loc: P.state, district: '', court: '', area: '' }), goArea: () => this.search({ q: '', loc: P.state, district: '', court: '', area: P.areas[0] || '' }) },
       contactFields: [cfField('name', 'Your name', 'Full name'), cfField('contact', 'Phone or email', '+91 or email'), cfField('city', 'City', P.city || 'New Delhi'),
