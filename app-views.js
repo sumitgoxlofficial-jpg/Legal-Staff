@@ -1600,6 +1600,47 @@
     };
     app.modal(() => h(Modal, { title: 'Pay by UPI', onClose: () => app.modal(null), width: 420 }, h(Body)));
   }
+  /* ---------- Pay by card, UPI, netbanking or wallet: Razorpay Standard Checkout (functions/razorpay) ---------- */
+  const loadRazorpay = () => window.Razorpay ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay checkout. Check your connection and try again.')); document.head.appendChild(s); });
+  function razorpayPay(app, o) {
+    const Body = () => {
+      const [st, setSt] = useState({ phase: 'creating' });
+      const start = () => {
+        setSt({ phase: 'creating' });
+        Promise.all([LSB.razorpay.createOrder(o.plan, o.cycle, o.gstin, o.promo, o.users), loadRazorpay()]).then(([ord]) => {
+          const me = app.db.user || {};
+          const rz = new window.Razorpay({
+            key: ord.key_id, order_id: ord.order_id, amount: ord.amount, currency: ord.currency, name: 'Legal Staff', description: `${o.name} plan · ${o.cycleLabel}`,
+            prefill: { name: me.name || '', email: me.email || '', contact: me.phone || '' }, theme: { color: '#0A0A0A' },
+            handler: resp => {
+              setSt({ phase: 'verifying', ord });
+              LSB.razorpay.verify(resp).then(v => { setSt({ phase: 'paid', ord, v }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); })
+                .catch(e => setSt({ phase: 'error', msg: e.message, ord }));
+            },
+            modal: { ondismiss: () => setSt(s => s.phase === 'verifying' || s.phase === 'paid' ? s : { phase: 'cancelled', ord }) }
+          });
+          rz.on('payment.failed', r => { setSt({ phase: 'error', msg: (r.error && r.error.description) || 'The payment failed. You have not been charged, or any amount will be refunded.', ord }); try { rz.close(); } catch (e) {} });
+          setSt({ phase: 'open', ord }); rz.open();
+        }).catch(e => setSt({ phase: 'error', msg: e.message }));
+      };
+      React.useEffect(start, []);
+      const col = { display: 'flex', flexDirection: 'column', gap: 12 }, amt = st.ord ? L.inr(st.ord.amount / 100) : '';
+      if (st.phase === 'creating') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Preparing your payment…' }));
+      if (st.phase === 'open') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `Complete the payment of ${amt} in the Razorpay window.`));
+      if (st.phase === 'verifying') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Verifying your payment…' }));
+      if (st.phase === 'cancelled') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, 'You closed the payment window. Nothing was charged.'),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close'), h(Btn, { primary: true, onClick: start }, 'Try again')));
+      if (st.phase === 'error') return h('div', { style: col }, h('div', { style: { color: K.red, fontSize: 14, lineHeight: 1.6 } }, st.msg),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close'), !st.ord || /could not|failed|try again/i.test(st.msg) ? h(Btn, { primary: true, onClick: start }, 'Try again') : null));
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center', padding: '10px 0' } },
+        h('div', { className: 'ls-pop', style: { width: 58, height: 58, borderRadius: 29, background: '#E7F6EC', color: '#137333', fontSize: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 8px #F3FBF5' } }, '✓'),
+        h('div', { style: { fontSize: 18, fontWeight: 600 } }, 'Payment received'),
+        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `${amt} for the ${o.name} plan (${o.cycleLabel}). Your plan is active.`),
+        h(PaidInvoice, { orderNo: st.v.order_no }),
+        h(Btn, { primary: true, onClick: () => { app.modal(null); app.go('dashboard'); } }, 'Go to dashboard'));
+    };
+    app.modal(() => h(Modal, { title: 'Pay with Razorpay', onClose: () => app.modal(null), width: 420 }, h(Body)));
+  }
   /* ---------- AI drafting: writes a first draft as a new version of the open template ---------- */
   const textToHtml = t => String(t).replace(/\*\*/g, '').split(/\n{2,}/).map(p => '<p>' + p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') + '</p>').join('');
   function aiDraft(app, tplIndex, tplName) {
@@ -1824,6 +1865,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { CourtAdmin, VerificationPanel, verifyBadge, verifyNow, portalBox, autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, upiPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { CourtAdmin, VerificationPanel, verifyBadge, verifyNow, portalBox, autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, upiPay, razorpayPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();
