@@ -209,6 +209,34 @@ export function brevoPayload(o) {
   };
 }
 /** What a send response means. 429 / 5xx are retried later, 4xx are permanent for this message. */
+/** Translates the Brevo-shaped payload into a Mailjet Send API v3.1 request. @param {any} p */
+export function mailjetPayload(p) {
+  const h = p.headers || {}, idem = h["X-Idempotency-Key"];
+  const { "X-Idempotency-Key": _omit, ...headers } = h;
+  return { Messages: [{
+    From: { Email: p.sender.email, Name: p.sender.name || undefined },
+    To: (p.to || []).map((t) => ({ Email: t.email, Name: t.name || undefined })),
+    Subject: p.subject, TextPart: p.textContent || undefined, HTMLPart: p.htmlContent || undefined,
+    ...(p.replyTo ? { ReplyTo: { Email: p.replyTo.email } } : {}),
+    ...(Object.keys(headers).length ? { Headers: headers } : {}),
+    ...(p.tags && p.tags.length ? { CustomCampaign: String(p.tags[0]).slice(0, 50) } : {}),
+    ...(idem ? { CustomID: String(idem).slice(0, 100) } : {}),
+  }] };
+}
+/** Reads Mailjet's reply into { status, messageId, error }. A 200 whose message status is "error" is reported as a 400. @param {number} status @param {any} j */
+export function parseMailjetResponse(status, j) {
+  const m = j && Array.isArray(j.Messages) ? j.Messages[0] : null;
+  if (status >= 200 && status < 300 && m && m.Status === "success") return { status, messageId: String(m.To?.[0]?.MessageID ?? m.To?.[0]?.MessageUUID ?? ""), error: "" };
+  const err = m?.Errors?.[0]?.ErrorMessage || j?.ErrorMessage || j?.message || "";
+  return { status: status >= 200 && status < 300 ? 400 : status, messageId: "", error: String(err) };
+}
+/** Maps a Mailjet event-callback object to the Brevo-shaped event the rest of the pipeline reads. Returns null for events we do not track. @param {any} ev */
+export function normalizeMailjetEvent(ev) {
+  const e = String(ev.event ?? "").toLowerCase();
+  const map = { sent: "delivered", click: "click", spam: "spam", blocked: "blocked", unsub: "unsubscribe", bounce: ev.hard_bounce ? "hard_bounce" : "soft_bounce" };
+  const event = map[e]; if (!event) return null;
+  return { event, email: ev.email, "message-id": ev.MessageID != null ? String(ev.MessageID) : "", ts_event: ev.time, link: ev.url, reason: ev.error || ev.error_related_to, id: ev.MessageID };
+}
 export function classifySend(status, retryAfter) {
   if (status >= 200 && status < 300) return { kind: "accepted" };
   if (status === 429) return { kind: "rate_limited", waitSec: Math.min(3600, Math.max(5, Number(retryAfter) || 60)) };

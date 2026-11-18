@@ -8,11 +8,12 @@
 //   the email provider     ?action=webhook with the webhook secret (delivery, bounce, complaint, click, unsubscribe)
 //   a recipient            ?action=unsub (GET shows, POST unsubscribes; also the RFC 8058 one-click POST) and ?action=landing (click / registration attribution)
 // Deploy with JWT verification off; it checks every caller itself.
+// Provider: EMAIL_PROVIDER=brevo (default) or mailjet. Mailjet secrets: MAILJET_API_KEY, MAILJET_SECRET_KEY, MAILJET_WEBHOOK_SECRET (falls back to BREVO_WEBHOOK_SECRET).
 // Secrets (function secrets, never the browser): BREVO_API_KEY, BREVO_WEBHOOK_SECRET, EMAIL_TOKEN_SECRET, GOOGLE_SERVICE_ACCOUNT_JSON, CRON_SECRET (optional).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SITE, DIRECTORY_URL, normEmail, isValidEmail, parseSpreadsheetId, autoMapColumns, findHeaderRow, mapRows, mappingProblems, MAPPABLE, istDate, istHm, addDaysIso, istInstant, jobDue, nextRun,
   remainingToday, evaluateEligibility, describeReasons, productionBlockers, settingsProblem, canActivateTemplate, templateProblems, renderTemplate, trackedUrl, makeToken, readToken,
-  safeEqual, brevoPayload, classifySend, classifyBrevoEvent, googleAssertion, parseServiceAccount, toCsv, toExcelXml, scrub, GLOBAL } from "../_shared/email-logic.js";
+  safeEqual, brevoPayload, classifySend, classifyBrevoEvent, mailjetPayload, parseMailjetResponse, normalizeMailjetEvent, googleAssertion, parseServiceAccount, toCsv, toExcelXml, scrub, GLOBAL } from "../_shared/email-logic.js";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret", "Access-Control-Allow-Methods": "POST, GET, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -39,12 +40,14 @@ async function audit(admin: any, actor: string, action: string, target = "", det
 
 // ---------- settings and provider ----------
 async function getSettings(admin: any) { const { data } = await admin.from("email_automation_settings").select("*").eq("id", 1).single(); return data; }
+const providerName = () => (env("EMAIL_PROVIDER").toLowerCase() === "mailjet" ? "mailjet" : "brevo");
+const webhookSecret = () => (providerName() === "mailjet" ? env("MAILJET_WEBHOOK_SECRET") || env("BREVO_WEBHOOK_SECRET") : env("BREVO_WEBHOOK_SECRET"));
 async function getProvider(admin: any) {
   const { data: p } = await admin.from("email_provider_settings").select("*").eq("id", 1).single();
-  const key = env("BREVO_API_KEY");
-  return { ...p, apiKey: key, configured: !!key && !!p?.sender_email, domainAuthenticated: !!p?.domain_authenticated };
+  const name = providerName(), key = name === "mailjet" ? (env("MAILJET_API_KEY") && env("MAILJET_SECRET_KEY") ? env("MAILJET_API_KEY") + ":" + env("MAILJET_SECRET_KEY") : "") : env("BREVO_API_KEY");
+  return { ...p, name, apiKey: key, configured: !!key && !!p?.sender_email, domainAuthenticated: !!p?.domain_authenticated };
 }
-const publicProvider = (p: any) => { const { apiKey, ...rest } = p; return { ...rest, api_key_set: !!apiKey, webhook_secret_set: !!env("BREVO_WEBHOOK_SECRET"), token_secret_set: env("EMAIL_TOKEN_SECRET").length >= 24, google_sa_set: !!parseServiceAccount(env("GOOGLE_SERVICE_ACCOUNT_JSON")) }; };
+const publicProvider = (p: any) => { const { apiKey, ...rest } = p; return { ...rest, api_key_set: !!apiKey, webhook_secret_set: !!webhookSecret(), token_secret_set: env("EMAIL_TOKEN_SECRET").length >= 24, google_sa_set: !!parseServiceAccount(env("GOOGLE_SERVICE_ACCOUNT_JSON")) }; };
 
 // ---------- Google Sheets (read-only service account) ----------
 let gTok: { t: string; exp: number } | null = null;
@@ -164,7 +167,14 @@ async function plan(admin: any, kind: "new" | "reminder", dry: boolean, actor = 
 }
 
 // ---------- sending ----------
-async function brevoSend(provider: any, payload: any) {
+/** Sends one email. Callers pass a Brevo-shaped payload; for Mailjet it is translated here. */
+async function emailSend(provider: any, payload: any) {
+  if (provider.name === "mailjet") {
+    const r = await fetch((env("MAILJET_API_BASE") || "https://api.mailjet.com").replace(/\/$/, "") + "/v3.1/send", { method: "POST", headers: { Authorization: "Basic " + btoa(provider.apiKey), "Content-Type": "application/json" }, body: JSON.stringify(mailjetPayload(payload)) });
+    const j = await r.json().catch(() => ({}));
+    const p = parseMailjetResponse(r.status, j);
+    return { status: p.status, retryAfter: r.headers.get("retry-after"), messageId: p.messageId, error: scrub(p.error) };
+  }
   const r = await fetch((env("BREVO_API_BASE") || "https://api.brevo.com").replace(/\/$/, "") + "/v3/smtp/email", { method: "POST", headers: { "api-key": provider.apiKey, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) });
   const j = await r.json().catch(() => ({}));
   return { status: r.status, retryAfter: r.headers.get("retry-after"), messageId: j.messageId ? String(j.messageId).replace(/^<|>$/g, "") : "", error: scrub(j.message || j.code || "") };
@@ -201,7 +211,7 @@ async function sendOne(admin: any, q: any): Promise<{ result: string; waitSec?: 
   const { count: done } = await admin.from("email_queue").select("id", { count: "exact", head: true }).in("campaign_id", camps.map((x: any) => x.id)).eq("scheduled_date", today).in("status", ["sending", "sent"]);
   if ((done ?? 0) > cap) { await release("queued", { attempts: q.attempts }); return { result: "hold", note: "daily limit reached" }; }   // 'sending' already includes this row
   const m = await buildMessage(tpl, camp, c);
-  const res = await brevoSend(provider, brevoPayload({ sender: { email: provider.sender_email, name: provider.sender_name, replyTo: provider.reply_to }, to: c.email_normalized, toName: c.advocate_name,
+  const res = await emailSend(provider, brevoPayload({ sender: { email: provider.sender_email, name: provider.sender_name, replyTo: provider.reply_to }, to: c.email_normalized, toName: c.advocate_name,
     subject: m.subject, html: m.html, text: m.text, unsubscribeUrl: m.direct, tags: [camp.code], idempotencyKey: q.idempotency_key }));
   const k = classifySend(res.status, res.retryAfter);
   if (k.kind === "accepted") {
@@ -287,7 +297,7 @@ async function sendReport(admin: any, settings: any, provider: any, s: any) {
   if (!settings.report_to || !provider.configured) return false;
   const c = s.cards, t = s.today;
   const lines = [`Legal Staff email report for ${s.date}`, "", `New emails sent: ${t.new ?? 0}`, `Reminder emails sent: ${t.reminders ?? 0}`, `Delivered: ${t.delivered ?? 0}`, `Failed: ${t.failed ?? 0}`, `Bounced: ${t.bounced ?? 0}`, `Clicked: ${t.clicked ?? 0}`, `Registered: ${t.registered ?? 0}`, `Paid: ${t.paid ?? 0}`, `Unsubscribed: ${t.unsubscribed ?? 0}`, "", `Contacts: ${c.total} · eligible ${c.eligible} · awaiting permission ${c.awaiting}`];
-  const r = await brevoSend(provider, { sender: { email: provider.sender_email, name: provider.sender_name }, to: [{ email: settings.report_to }], subject: `Legal Staff email report ${s.date}`, textContent: lines.join("\n"), htmlContent: `<pre style="font:14px/1.6 monospace">${lines.join("\n").replace(/</g, "&lt;")}</pre>` });
+  const r = await emailSend(provider, { sender: { email: provider.sender_email, name: provider.sender_name }, to: [{ email: settings.report_to }], subject: `Legal Staff email report ${s.date}`, textContent: lines.join("\n"), htmlContent: `<pre style="font:14px/1.6 monospace">${lines.join("\n").replace(/</g, "&lt;")}</pre>` });
   return r.status >= 200 && r.status < 300;
 }
 async function tick(admin: any) {
@@ -320,13 +330,14 @@ async function tick(admin: any) {
 
 // ---------- webhooks and recipients ----------
 async function webhook(admin: any, req: Request, url: URL) {
-  const secret = env("BREVO_WEBHOOK_SECRET"); if (!secret) throw new Fail("Webhook secret is not configured.", 501);
+  const secret = webhookSecret(); if (!secret) throw new Fail("Webhook secret is not configured.", 501);
   const given = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "") || url.searchParams.get("key") || "";
   if (!safeEqual(given, secret)) throw new Fail("Not allowed.", 403);
   const body = await req.json().catch(() => null); if (!body) throw new Fail("Bad request.");
   const list = Array.isArray(body) ? body : [body]; const res = { received: list.length, recorded: 0, ignored: 0, suppressed: 0 };
-  for (const ev of list) {
-    const k = classifyBrevoEvent(ev); if (!k) { res.ignored++; continue; }
+  for (const raw of list) {
+    const ev = providerName() === "mailjet" ? normalizeMailjetEvent(raw) : raw;
+    const k = ev && classifyBrevoEvent(ev); if (!k) { res.ignored++; continue; }
     const mid = String(ev["message-id"] ?? ev.messageId ?? "").replace(/^<|>$/g, ""), email = normEmail(ev.email);
     let q: any = null; if (mid) q = (await admin.from("email_queue").select("id,contact_id,campaign_id").eq("provider_message_id", mid).maybeSingle()).data;
     let contactId = q?.contact_id ?? null; if (!contactId && email) contactId = (await admin.from("email_contacts").select("id").eq("email_normalized", email).maybeSingle()).data?.id ?? null;
@@ -364,8 +375,8 @@ async function dns(name: string, type: string): Promise<string[]> {
   try { const r = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(name)}&type=${type}`, { headers: { Accept: "application/dns-json" } }); const j = await r.json(); return (j.Answer ?? []).map((a: any) => String(a.data).replace(/^"|"$/g, "").replace(/"\s*"/g, "")); } catch { return []; }
 }
 async function checkDomain(domain: string) {
-  const [txt, dmarc, k1, k2, kt] = await Promise.all([dns(domain, "TXT"), dns("_dmarc." + domain, "TXT"), dns("brevo1._domainkey." + domain, "CNAME"), dns("brevo2._domainkey." + domain, "CNAME"), dns("mail._domainkey." + domain, "TXT")]);
-  const spf = txt.some((t) => /^v=spf1/i.test(t) && /brevo|sendinblue/i.test(t)), dkim = k1.length > 0 || k2.length > 0 || kt.some((t) => /p=/.test(t)), dm = dmarc.some((t) => /^v=DMARC1/i.test(t));
+  const [txt, dmarc, k1, k2, kt] = await Promise.all([dns(domain, "TXT"), dns("_dmarc." + domain, "TXT"), dns("brevo1._domainkey." + domain, "CNAME"), dns("brevo2._domainkey." + domain, "CNAME"), dns((providerName() === "mailjet" ? "mailjet" : "mail") + "._domainkey." + domain, "TXT")]);
+  const spf = txt.some((t) => /^v=spf1/i.test(t) && (providerName() === "mailjet" ? /mailjet/i : /brevo|sendinblue/i).test(t)), dkim = providerName() === "mailjet" ? kt.some((t) => /p=/.test(t)) : k1.length > 0 || k2.length > 0 || kt.some((t) => /p=/.test(t)), dm = dmarc.some((t) => /^v=DMARC1/i.test(t));
   return { spf, dkim, dmarc: dm, all: spf && dkim && dm };
 }
 
@@ -468,7 +479,7 @@ async function adminApi(admin: any, actor: string, action: string, b: any) {
       const provider = await getProvider(admin); if (!provider.configured) throw new Fail("The email provider is not configured, so a test email cannot be sent.", 400);
       const to = normEmail(b.to || actor); const { data: ok } = await admin.from("super_admins").select("email").eq("email", to).maybeSingle(); if (!ok) throw new Fail("Test emails can only be sent to an administrator's own address.", 403);
       const m = renderTemplate({ subject: String(b.subject ?? ""), body_html: String(b.body_html ?? ""), body_text: String(b.body_text ?? "") }, { advocate_name: "Test Advocate", unsubscribe_url: SITE + "/unsubscribe?t=test", directory_url: DIRECTORY_URL, city: "", state: "", contact_id: "TEST" });
-      const r = await brevoSend(provider, { sender: { email: provider.sender_email, name: provider.sender_name }, to: [{ email: to }], subject: "[TEST] " + m.subject, htmlContent: m.html, textContent: m.text, tags: ["test"] });
+      const r = await emailSend(provider, { sender: { email: provider.sender_email, name: provider.sender_name }, to: [{ email: to }], subject: "[TEST] " + m.subject, htmlContent: m.html, textContent: m.text, tags: ["test"] });
       if (r.status < 200 || r.status >= 300) throw new Fail(`The provider refused the test email (${r.status}). ${r.error}`, 502); await audit(admin, actor, "test_email_sent", to, { template: b.key }); return { sent_to: to };
     }
     case "queue": { const { data } = await admin.from("email_queue").select("*, email_contacts(contact_id,advocate_name,email_normalized), email_campaigns(code,name)").in("status", b.status ? [b.status] : ["queued", "sending", "failed", "skipped"]).order("created_at", { ascending: false }).limit(200);
@@ -505,7 +516,7 @@ async function adminApi(admin: any, actor: string, action: string, b: any) {
     case "provider_save": {
       const email = normEmail(b.sender_email); if (!isValidEmail(email)) throw new Fail("Enter a valid sender address on your own domain."); if (/@(gmail|yahoo|outlook|hotmail|rediffmail)\./.test(email)) throw new Fail("Use a sender address on your own authenticated domain. Personal mailboxes are not allowed for campaigns.");
       const { data, error } = await admin.from("email_provider_settings").update({ sender_email: email, sender_name: String(b.sender_name || "Legal Staff").slice(0, 100), reply_to: b.reply_to && isValidEmail(b.reply_to) ? normEmail(b.reply_to) : "", sender_domain: email.split("@")[1], domain_authenticated: false, spf_ok: null, dkim_ok: null, dmarc_ok: null, updated_at: nowIso() }).eq("id", 1).select("*").single(); if (error) throw error;
-      await audit(admin, actor, "provider_sender_saved", email); return { provider: publicProvider({ ...data, apiKey: env("BREVO_API_KEY") }) };
+      await audit(admin, actor, "provider_sender_saved", email); return { provider: publicProvider({ ...data, apiKey: (await getProvider(admin)).apiKey }) };
     }
     case "provider_check": {
       const p = await getProvider(admin); if (!p.sender_domain) throw new Fail("Save the sender address first."); const r = await checkDomain(p.sender_domain);
