@@ -796,6 +796,16 @@ class Component extends DCLogic {
     this.gsiInit().then(() => { if (el.isConnected) window.google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', logo_alignment: 'center', width: Math.max(220, Math.min(380, el.offsetWidth || 340)) }); })
       .catch(e => { this._gsi = null; if (this.state.authErr !== e.message) this.setState({ authErr: e.message }); });
   }
+  /* an administrator's email signing in here opens the admin console instead (needs migration 0029; harmless without it) */
+  async toAdminIfSuper(session) {
+    const sb = this.sb(); if (!sb || !session) return false;
+    const r = await this.call(sb.rpc('is_super_admin'));
+    if (r.data !== true) return false;
+    try { localStorage.setItem('ls-admin-handoff', JSON.stringify({ access_token: session.access_token, refresh_token: session.refresh_token })); } catch (e) { return false; }
+    try { await sb.auth.signOut({ scope: 'local' }); } catch (e) {}
+    window.location.replace('/admin');
+    return true;
+  }
   async googleDone(cred, nonce) {
     const sb = this.sb();
     this.setState({ authBusy: true, authErr: '' });
@@ -803,6 +813,7 @@ class Component extends DCLogic {
       if (!sb) throw new Error('The server is not connected, so accounts are not available.');
       const r = await sb.auth.signInWithIdToken({ provider: 'google', token: cred, nonce });
       if (r.error) throw r.error;
+      if (await this.toAdminIfSuper(r.data.session)) return;
       this.setState({ user: this.userFrom(r.data.user), authBusy: false, modal: this.state.modal === 'login' ? null : this.state.modal });
       await this.refreshStatus();
       const S = this.state;
@@ -904,7 +915,7 @@ class Component extends DCLogic {
     this.setState({ busy: this.state.busy || 'status' });
     const done = patch => this.setState({ ...patch, busy: this.state.busy === 'status' ? '' : this.state.busy });
     let user = this.state.user;
-    if (!user) { try { const r = await sb.auth.getSession(); const ss = r && r.data && r.data.session; if (ss) { user = this.userFrom(ss.user); this.setState({ user }); this.prefill(user); } } catch (e) {} }
+    if (!user) { try { const r = await sb.auth.getSession(); const ss = r && r.data && r.data.session; if (ss) { if (await this.toAdminIfSuper(ss)) return; user = this.userFrom(ss.user); this.setState({ user }); this.prefill(user); } } catch (e) {} }
     if (user) {
       const r = await this.call(sb.rpc('directory_my_applications'));
       if (r.error || !Array.isArray(r.data)) { done({ statusErr: this.errText(r.error || { message: 'Unexpected response' }) }); return; }

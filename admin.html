@@ -124,7 +124,10 @@
       boot(); };
   }
   async function boot() {
-    const { data } = await sb.auth.getSession();
+    let { data } = await sb.auth.getSession();
+    if (!data.session) {   // handed over from the directory sign-in (an admin email signed in there)
+      try { const h = JSON.parse(localStorage.getItem('ls-admin-handoff') || 'null'); localStorage.removeItem('ls-admin-handoff'); if (h && h.access_token && h.refresh_token) { const r = await sb.auth.setSession({ access_token: h.access_token, refresh_token: h.refresh_token }); if (!r.error && r.data.session) data = { session: r.data.session }; } } catch (e) {}
+    }
     if (!data.session) return loginView();
     me = data.session.user;
     root.innerHTML = '<div class="login"><div class="muted">Loading…</div></div>';
