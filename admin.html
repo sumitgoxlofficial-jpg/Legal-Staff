@@ -67,6 +67,125 @@
   @media (max-width: 760px) { .split { grid-template-columns:1fr; } .two { grid-template-columns:1fr; } .who span { display:none; } header.top .wrap { gap:10px; } .kpi .v { font-size:22px; } }
   @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
 </style>
+<style id="theme">
+  /* ===== Legal Staff admin: design layer (sidebar layout, consistent components, gentle motion) ===== */
+  :root { --bg:#F5F5F3; --side:#0C0C0D; --side2:#161617; --side-line:#232325; --side-txt:#A8A8AD; --side-hi:#FFFFFF; --accent:#2a78d6; --accent-soft:#E8F0FB; --radius:12px; --sh1:0 1px 2px rgba(10,10,10,.04); --sh2:0 6px 20px rgba(10,10,10,.08); --ease:cubic-bezier(.2,.7,.2,1); --sidew:252px; }
+  html { scroll-behavior:smooth; }
+  body { background:var(--bg); letter-spacing:-.003em; }
+  ::selection { background:#0A0A0A; color:#fff; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* layout */
+  .app { display:grid; grid-template-columns:var(--sidew) minmax(0,1fr); min-height:100vh; }
+  .side { background:var(--side); color:var(--side-txt); position:sticky; top:0; height:100vh; display:flex; flex-direction:column; z-index:40; border-right:1px solid var(--side-line); }
+  .side .brand { color:var(--side-hi); padding:20px 20px 16px; font-size:16px; }
+  .side .brand img { width:28px; height:29px; filter:invert(1); }
+  .side .brand small { background:#fff; color:#0A0A0A; }
+  .nav { flex:1; overflow-y:auto; padding:4px 12px 16px; scrollbar-width:thin; scrollbar-color:#2a2a2d transparent; }
+  .nav-label { font-size:10.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#6E6E74; padding:16px 10px 6px; }
+  .nav-item { display:flex; align-items:center; gap:11px; padding:9px 10px; border-radius:9px; color:var(--side-txt); text-decoration:none; font-weight:500; font-size:14px; position:relative; transition:background .18s var(--ease), color .18s var(--ease); cursor:pointer; }
+  .nav-item svg { width:18px; height:18px; flex:none; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; opacity:.9; }
+  .nav-item:hover { background:var(--side2); color:var(--side-hi); }
+  .nav-item.on { background:#fff; color:#0A0A0A; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.3); }
+  .nav-item .chev { margin-left:auto; width:15px; height:15px; transition:transform .25s var(--ease); opacity:.6; }
+  .nav-item.open .chev { transform:rotate(90deg); }
+  .nav-badge { margin-left:auto; background:#E5484D; color:#fff; border-radius:999px; padding:0 7px; font-size:11px; font-weight:700; line-height:18px; min-width:18px; text-align:center; }
+  .nav-item .chev + .nav-badge, .nav-item .nav-badge ~ .chev { margin-left:8px; }
+  .nav-sub { display:grid; grid-template-rows:0fr; transition:grid-template-rows .3s var(--ease); }
+  .nav-sub.open { grid-template-rows:1fr; }
+  .nav-sub > div { overflow:hidden; margin-left:19px; padding-left:10px; border-left:1px solid var(--side-line); }
+  .nav-sub .sl { font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#5F5F65; padding:10px 8px 4px; }
+  .nav-sub a { display:block; padding:7px 10px; margin:1px 0; border-radius:7px; color:var(--side-txt); text-decoration:none; font-size:13.5px; transition:background .15s, color .15s; }
+  .nav-sub a:hover { color:var(--side-hi); background:var(--side2); }
+  .nav-sub a.on { color:#fff; background:#26262a; font-weight:600; box-shadow:inset 2px 0 0 #fff; }
+  .side-foot { border-top:1px solid var(--side-line); padding:14px; display:flex; align-items:center; gap:10px; }
+  .avatar { width:34px; height:34px; border-radius:50%; background:#26262a; color:#fff; display:grid; place-items:center; font-weight:700; font-size:14px; flex:none; }
+  .who2 { min-width:0; flex:1; } .who2 b { display:block; color:#fff; font-size:13px; font-weight:600; } .who2 span { display:block; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--side-txt); }
+  .side-foot .btn { background:transparent; border-color:#2f2f33; color:#d4d4d8; height:30px; padding:0 10px; font-size:12.5px; }
+  .side-foot .btn:hover { background:#1d1d20; border-color:#44444a; color:#fff; }
+
+  .content { min-width:0; display:flex; flex-direction:column; }
+  .topbar { height:60px; display:flex; align-items:center; gap:14px; padding:0 28px; background:rgba(245,245,243,.85); backdrop-filter:saturate(1.4) blur(10px); position:sticky; top:0; z-index:20; border-bottom:1px solid var(--line); }
+  .crumb { font-size:14px; color:var(--mut); display:flex; align-items:center; gap:8px; min-width:0; white-space:nowrap; overflow:hidden; }
+  .crumb b { color:var(--ink); font-weight:600; } .crumb i { font-style:normal; opacity:.5; }
+  .topbar .date { margin-left:auto; font-size:12.5px; color:var(--mut); white-space:nowrap; }
+  .burger { display:none; width:38px; height:38px; border-radius:9px; border:1px solid var(--line); background:#fff; cursor:pointer; place-items:center; }
+  .burger svg { width:18px; height:18px; stroke:#0A0A0A; fill:none; stroke-width:1.9; stroke-linecap:round; }
+  .scrim { display:none; }
+  main { padding:28px 0 72px; }
+  .wrap { max-width:1280px; padding:0 28px; }
+
+  /* page heading */
+  h1 { font-size:24px; font-weight:700; letter-spacing:-.025em; margin:0 0 4px; }
+  .sub { color:var(--mut); margin:0 0 22px; font-size:14px; max-width:70ch; }
+  h2 { letter-spacing:-.015em; }
+
+  /* cards, kpis */
+  .card { border-radius:var(--radius); box-shadow:var(--sh1); transition:box-shadow .2s var(--ease), border-color .2s var(--ease), transform .2s var(--ease); }
+  .grid > .card.kpi:hover { box-shadow:var(--sh2); border-color:#D8D8D5; transform:translateY(-1px); }
+  .kpi { position:relative; overflow:hidden; padding:18px 20px; }
+  .kpi::before { content:""; position:absolute; left:0; top:16px; bottom:16px; width:3px; border-radius:0 3px 3px 0; background:var(--accent); opacity:.85; }
+  .kpi .k { font-size:11.5px; letter-spacing:.08em; }
+  .kpi .v { font-size:28px; margin-top:8px; }
+  .kpi .s { font-size:12.5px; margin-top:4px; }
+
+  /* buttons and fields */
+  .btn { height:36px; border-radius:9px; font-weight:600; font-size:13.5px; box-shadow:var(--sh1); transition:background .15s, border-color .15s, box-shadow .15s, transform .1s; }
+  .btn:hover { border-color:#B5B5B5; background:#FAFAFA; } .btn:active { transform:translateY(1px); }
+  .btn.pri { box-shadow:0 1px 2px rgba(10,10,10,.25); } .btn.pri:hover { background:#222; }
+  .btn.sm { height:30px; font-size:12.5px; border-radius:8px; } .btn.danger:hover { background:var(--badbg); border-color:#F3C3BE; }
+  input, select, textarea { border-radius:9px; transition:border-color .15s, box-shadow .15s; }
+  input:hover, select:hover, textarea:hover { border-color:#C9C9C6; }
+  input:focus, select:focus, textarea:focus { outline:0; border-color:var(--accent); box-shadow:0 0 0 3px rgba(42,120,214,.15); }
+  label.f { font-size:12.5px; font-weight:600; color:#4A4A4A; }
+
+  /* tables */
+  .card:has(> .tscroll), .card:has(table) { padding-bottom:12px; }
+  th { background:#FAFAF9; border-bottom:1px solid var(--line); font-size:11px; padding:10px 12px; white-space:nowrap; }
+  th:first-child { border-radius:8px 0 0 8px; } th:last-child { border-radius:0 8px 8px 0; }
+  td { padding:12px; } tbody tr { transition:background .12s; } tbody tr:hover { background:#F8F8F6; }
+  .chip { font-size:11.5px; padding:3px 10px; letter-spacing:.005em; }
+  .seg { background:#EDEDEA; border-radius:9px; } .seg button { transition:background .15s, color .15s, box-shadow .15s; font-weight:600; font-size:12.5px; }
+  .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.1); }
+  .empty { padding:44px 20px; }
+  .banner { border-radius:10px; }
+
+  /* modal, toast, login */
+  .modal-bg { backdrop-filter:blur(3px); animation:fade .2s ease both; } .modal { border-radius:16px; animation:pop .28s var(--ease) both; }
+  .toast { animation:toast .3s var(--ease) both; border-radius:10px; }
+  .login { background:radial-gradient(1000px 500px at 50% -10%, #E9E9E5, var(--bg)); }
+  .login .card { box-shadow:0 20px 60px rgba(10,10,10,.1); padding:32px; border-radius:16px; animation:pop .4s var(--ease) both; }
+
+  /* loading skeleton */
+  .skel-block { display:grid; gap:14px; } .skel-block i { display:block; height:96px; border-radius:var(--radius); background:linear-gradient(100deg,#ECECE9 30%,#F6F6F4 50%,#ECECE9 70%); background-size:300% 100%; animation:shimmer 1.3s linear infinite; }
+  .skel-block i:first-child { height:34px; width:36%; } .skel-block i:last-child { height:260px; }
+
+  /* motion */
+  #page > *, .em-main > * { animation:rise .38s var(--ease) both; }
+  #page > :nth-child(2), .em-main > :nth-child(2) { animation-delay:.04s; } #page > :nth-child(3), .em-main > :nth-child(3) { animation-delay:.08s; } #page > :nth-child(n+4), .em-main > :nth-child(n+4) { animation-delay:.12s; }
+  .grid.k4 > .card, .grid.k3 > .card, .grid.k6 > .card { animation:rise .45s var(--ease) both; } .grid > .card:nth-child(2) { animation-delay:.05s; } .grid > .card:nth-child(3) { animation-delay:.1s; } .grid > .card:nth-child(4) { animation-delay:.15s; } .grid > .card:nth-child(n+5) { animation-delay:.2s; }
+  .chart svg path { transform-box:fill-box; transform-origin:bottom; animation:grow .7s var(--ease) both; }
+  .bar-fill > div { transition:width .6s var(--ease); animation:fillbar .8s var(--ease) both; transform-origin:left; }
+  @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes fade { from { opacity:0; } to { opacity:1; } }
+  @keyframes pop { from { opacity:0; transform:translateY(10px) scale(.98); } to { opacity:1; transform:none; } }
+  @keyframes toast { from { opacity:0; transform:translate(-50%,10px); } to { opacity:1; transform:translate(-50%,0); } }
+  @keyframes shimmer { to { background-position:-100% 0; } }
+  @keyframes grow { from { transform:scaleY(.02); } to { transform:scaleY(1); } }
+  @keyframes fillbar { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
+
+  /* tablet and phone: the sidebar becomes a slide-in drawer */
+  @media (max-width:980px) {
+    .app { grid-template-columns:minmax(0,1fr); }
+    .side { position:fixed; left:0; top:0; bottom:0; width:min(290px,86vw); transform:translateX(-102%); transition:transform .3s var(--ease); box-shadow:none; }
+    .side.open { transform:none; box-shadow:0 0 60px rgba(0,0,0,.5); }
+    .scrim { display:block; position:fixed; inset:0; background:rgba(10,10,10,.5); z-index:35; opacity:0; pointer-events:none; transition:opacity .25s; }
+    .scrim.on { opacity:1; pointer-events:auto; }
+    .burger { display:grid; } .topbar { padding:0 16px; } .wrap { padding:0 16px; } main { padding-top:20px; } .topbar .date { display:none; }
+  }
+  @media (max-width:520px) { .kpi { padding:14px 14px 14px 16px; } .kpi .v { font-size:21px; } .kpi .k { font-size:10.5px; } h1 { font-size:21px; } .card { padding:16px; } .tscroll { margin:0 -16px; padding:0 16px; } }
+</style>
 </head>
 <body>
 <div id="root"></div>
@@ -138,12 +257,39 @@
 
   // ---------- layout ----------
   const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings']];
+  // sidebar sections (anything an extension adds that is not listed here lands under "More")
+  const NAV = [['', ['overview']], ['Business', ['firms', 'payments', 'coupons', 'expenses']], ['Growth', ['directory', 'email']], ['Help', ['support']], ['System', ['settings']]];
+  const IC = {
+    overview: '<rect x="3" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.8"/>',
+    firms: '<path d="M4 21V6.5L12 3l8 3.5V21"/><path d="M9 21v-5h6v5M8.5 9.5h1M14.5 9.5h1M8.5 13h1M14.5 13h1"/>',
+    payments: '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/>',
+    coupons: '<path d="M3 12.5V4.5a1.5 1.5 0 0 1 1.5-1.5h8L21 11.5a1.5 1.5 0 0 1 0 2.1l-7.4 7.4a1.5 1.5 0 0 1-2.1 0z"/><circle cx="8" cy="8" r="1.3"/>',
+    expenses: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+    directory: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.9c1.6.7 2.7 2.2 3 4.1"/>',
+    email: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6.5L20.5 7"/>',
+    support: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4h0A2.5 2.5 0 0 1 4 13.5z"/><path d="M8.5 8.5h7M8.5 11.5h4"/>',
+    settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/>',
+    more: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+  };
+  const icon = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k] || IC.more}</svg>`;
+  let curSub = '';
   function shell() {
-    root.innerHTML = `<header class="top"><div class="wrap">
+    const ini = String(me.email || '?').trim().charAt(0).toUpperCase();
+    root.innerHTML = `<div class="app">
+      <aside class="side" id="side" aria-label="Main navigation">
         <div class="brand"><img src="assets/ls-mark-black.png" alt="">Legal Staff <small>Admin</small></div>
-        <nav class="tabs" id="tabs"></nav>
-        <div class="who"><span>${esc(me.email)}</span><button class="btn sm" id="out">Sign out</button></div>
-      </div></header><main><div class="wrap" id="page"></div></main>`;
+        <nav class="nav" id="tabs"></nav>
+        <div class="side-foot"><div class="avatar">${esc(ini)}</div><div class="who2"><b>Administrator</b><span title="${esc(me.email)}">${esc(me.email)}</span></div><button class="btn sm" id="out">Sign out</button></div>
+      </aside>
+      <div class="scrim" id="scrim"></div>
+      <div class="content">
+        <header class="topbar"><button class="burger" id="burger" aria-label="Open menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="crumb" id="crumb"></div><div class="date">${esc(new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</div></header>
+        <main><div class="wrap" id="page"></div></main>
+      </div></div>`;
+    const side = root.querySelector('#side'), scrim = root.querySelector('#scrim');
+    const drawer = on => { side.classList.toggle('open', on); scrim.classList.toggle('on', on); };
+    root.querySelector('#burger').onclick = () => drawer(!side.classList.contains('open')); scrim.onclick = () => drawer(false);
+    side.addEventListener('click', e => { if (e.target.closest('a')) drawer(false); });
     root.querySelector('#out').onclick = async () => { await sb.auth.signOut(); loginView(); };
     drawTabs(); go(location.hash.slice(1) || 'overview');
     api('support').then(r => { unread = r.messages.filter(m => m.status === 'open').length; drawTabs(); }).catch(() => {});
@@ -151,10 +297,26 @@
   }
   function drawTabs() {
     const t = root.querySelector('#tabs'); if (!t) return;
-    t.innerHTML = TABS.map(([k, l]) => `<button data-k="${k}" class="${k === tab ? 'on' : ''}">${l}${k === 'support' && unread ? `<span class="badge">${unread}</span>` : ''}${k === 'directory' && dirPending ? `<span class="badge">${dirPending}</span>` : ''}</button>`).join('');
-    t.querySelectorAll('button').forEach(b => b.onclick = () => go(b.dataset.k));
+    const byKey = Object.fromEntries(TABS.map(x => [x[0], x])), listed = new Set(NAV.flatMap(g => g[1]));
+    const groups = NAV.map(g => [g[0], g[1].filter(k => byKey[k])]).concat([['More', TABS.map(x => x[0]).filter(k => !listed.has(k))]]).filter(g => g[1].length);
+    const badge = k => (k === 'support' && unread ? unread : k === 'directory' && dirPending ? dirPending : 0);
+    t.innerHTML = groups.map(([label, keys]) => `${label ? `<div class="nav-label">${label}</div>` : ''}${keys.map(k => {
+      const [, name, subs] = byKey[k], on = k === tab, b = badge(k);
+      const kids = subs ? `<div class="nav-sub ${on ? 'open' : ''}"><div>${subs.map(([sg, items]) => `${sg ? `<div class="sl">${sg}</div>` : ''}${items.map(([sk, sl]) => `<a href="#${k}/${sk}" data-k="${k}/${sk}" class="${on && (curSub || subs[0][1][0][0]) === sk ? 'on' : ''}">${sl}</a>`).join('')}`).join('')}</div></div>` : '';
+      return `<a class="nav-item ${on ? 'on' : ''} ${subs && on ? 'open' : ''}" href="#${k}${subs ? '/' + subs[0][1][0][0] : ''}" data-k="${k}">${icon(k)}<span>${name}</span>${b ? `<span class="nav-badge">${b}</span>` : ''}${subs ? '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' : ''}</a>${kids}`;
+    }).join('')}`).join('');
   }
-  function go(k) { let [base, sub] = String(k).split('/'); if (!TABS.some(t => t[0] === base)) { base = 'overview'; sub = undefined; } tab = base; history.replaceState(null, '', '#' + base + (sub ? '/' + sub : '')); drawTabs(); const p = root.querySelector('#page'); p.innerHTML = '<div class="muted">Loading…</div>'; VIEWS[base](p, sub).catch(e => p.innerHTML = `<div class="card err">${esc(e.message)}</div>`); }
+  function crumb(base, sub) {
+    const tdef = TABS.find(x => x[0] === base), el = root.querySelector('#crumb'); if (!tdef || !el) return;
+    const sl = tdef[2] ? tdef[2].flatMap(g => g[1]).find(x => x[0] === String(sub || tdef[2][0][1][0][0]).split(':')[0]) : null;
+    el.innerHTML = sl ? `<span>${esc(tdef[1])}</span><i>/</i><b>${esc(sl[1])}</b>` : `<b>${esc(tdef[1])}</b>`;
+  }
+  function go(k) {
+    let [base, sub] = String(k).split('/'); if (!TABS.some(t => t[0] === base)) { base = 'overview'; sub = undefined; }
+    tab = base; curSub = sub ? sub.split(':')[0] : ''; history.replaceState(null, '', '#' + base + (sub ? '/' + sub : '')); drawTabs(); crumb(base, sub);
+    const p = root.querySelector('#page'); p.innerHTML = '<div class="skel-block"><i></i><i></i><i></i></div>'; window.scrollTo({ top: 0 });
+    VIEWS[base](p, sub).catch(e => p.innerHTML = `<div class="card err">${esc(e.message)}</div>`);
+  }
 
   // ---------- views ----------
   const VIEWS = {};
