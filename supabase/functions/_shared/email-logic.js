@@ -1,11 +1,14 @@
-// Legal Staff email marketing: the pure rules (no database, no network). Imported by functions/email-marketing and unit-tested in node.
+// Legal Staff email marketing: the pure rules (no database, no network). Imported by functions/email-marketing and unit-tested in node
+// (tests/email-logic.test.mjs). Everything that decides WHETHER an email may be sent lives here so it can be tested without sending anything.
 
 export const SITE = "https://legalstaff.in";
 export const DIRECTORY_URL = SITE + "/directory";
 
+// ---------- addresses and sheet columns ----------
 export const normEmail = (v) => String(v ?? "").trim().toLowerCase();
 export const isValidEmail = (v) => { const n = normEmail(v); return n.length <= 254 && /^[a-z0-9._%+'-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(n); };
 
+/** Accepts a full Google Sheets URL or a bare spreadsheet ID; returns the ID or "". */
 export function parseSpreadsheetId(input) {
   const s = String(input ?? "").trim();
   const m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]{20,})/);
@@ -23,6 +26,7 @@ const ALIASES = {
   consent_verified_at: ["consent_verified_at", "consent verified at", "email_verified_at"], consent_evidence_ref: ["consent_evidence_ref", "evidence_ref", "consent evidence", "evidence"],
   consent_wording_version: ["consent_wording_version", "wording_version", "consent wording"],
 };
+/** Suggests { field: header } from a header row. Unmatched fields are left out. */
 export function autoMapColumns(headers) {
   const norm = headers.map((h) => String(h ?? "").trim().toLowerCase().replace(/[\s-]+/g, " "));
   const out = {};
@@ -43,17 +47,25 @@ export function mapRows(values, map) {
   const idx = {}; for (const [f, name] of Object.entries(map)) { const i = header.findIndex((x) => String(x).trim() === String(name).trim()); if (i >= 0) idx[f] = i; }
   return rows.map((r, n) => { const o = { row: h + n + 2 }; for (const [f, i] of Object.entries(idx)) o[f] = String(r[i] ?? "").trim(); return o; }).filter((o) => Object.entries(o).some(([k, v]) => k !== "row" && v));
 }
+/** Fields a mapping must contain before an import can run. */
 export const mappingProblems = (map) => (map && map.email ? [] : ["Map the email column."]);
 
+// ---------- time (India) ----------
 const IST = 5.5 * 3600e3;
 export const istDate = (ms) => new Date(ms + IST).toISOString().slice(0, 10);
 export const istHm = (ms) => new Date(ms + IST).toISOString().slice(11, 16);
 export const addDaysIso = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+/** UTC instant of a given IST day at HH:MM. */
 export const istInstant = (date, hm) => Date.parse(`${date}T${hm}:00Z`) - IST;
+/** A daily job is due once its IST time has passed today and no more than `windowH` hours have gone by (a late tick still runs it; a day later it does not). */
 export function jobDue(nowMs, hm, windowH = 5) { const at = istInstant(istDate(nowMs), hm); return nowMs >= at && nowMs - at <= windowH * 36e5; }
+/** The next time a daily job at HH:MM runs (ISO), counting today only when it has not yet passed. */
 export function nextRun(nowMs, hm) { const t = istInstant(istDate(nowMs), hm); return new Date(nowMs < t ? t : t + 864e5).toISOString(); }
 export const remainingToday = (limit, doneToday) => Math.max(0, Number(limit || 0) - Number(doneToday || 0));
 
+// ---------- the compliance gate ----------
+// Every check from the specification, in order. Used when the planner picks contacts AND again immediately before each send
+// (with freshly read data), so a change made in between is honoured.
 export const REASONS = {
   NO_CONSENT: "No documented marketing permission",
   NOT_VERIFIED: "Email address not verified",
@@ -74,8 +86,19 @@ export const REASONS = {
   INVALID_EMAIL: "Invalid email address",
   SUPPRESSED: "Address is on the suppression list",
 };
+/** Reasons that mean "hold everything" (an administrator switch), not "skip this contact". */
 export const GLOBAL = new Set(["LEGAL", "PROVIDER", "SYSTEM", "KILL", "TEMPLATE"]);
 
+/**
+ * @param {object} i
+ *  contact   row of email_contacts          settings  email_automation_settings
+ *  campaign  {kind, step}                   template  {active}
+ *  provider  {approved:boolean, configured:boolean}
+ *  suppressed boolean (suppression list)    alreadySent boolean (queue/log row for this campaign + contact)
+ *  hasConsentRecord boolean                 todayIst 'YYYY-MM-DD'
+ *  dryRun    boolean (a dry run does not need the production switches to be on, but reports them)
+ * @returns {{ok:boolean, reasons:string[], hold:boolean}} ok only when nothing blocks; hold when only administrator switches block
+ */
 export function evaluateEligibility(i) {
   const c = i.contact, s = i.settings, r = [];
   if (s.kill_switch) r.push("KILL");
@@ -108,6 +131,7 @@ export function evaluateEligibility(i) {
 }
 export const describeReasons = (codes) => codes.map((c) => REASONS[c] || c);
 
+/** Production sending needs every switch on, DRY_RUN off, and a configured, authenticated provider. Returns the list of what is missing. */
 export function productionBlockers(s, provider) {
   const b = [];
   if (s.kill_switch) b.push("Emergency stop is on");
@@ -119,14 +143,17 @@ export function productionBlockers(s, provider) {
   if (!provider?.domainAuthenticated) b.push("Sender domain is not authenticated (SPF, DKIM and DMARC)");
   return b;
 }
+/** Enabling the system needs both approvals, each with a documented reference. Returns an error string or "". */
 export function settingsProblem(next) {
   if (next.system_enabled && !(next.legal_approval && next.provider_approved)) return "Automation cannot be enabled until legal approval and provider approval are both recorded.";
   if (next.legal_approval && !String(next.legal_approval_ref || "").trim()) return "Record where the legal approval is documented (reference) before turning it on.";
   if (next.provider_approved && !String(next.provider_approval_ref || "").trim()) return "Record where the provider approval is documented (reference) before turning it on.";
   return "";
 }
+/** The only template activation that is allowed: never while legal approval is missing. */
 export const canActivateTemplate = (s) => !!s.legal_approval;
 
+// ---------- templates ----------
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 export const TEMPLATE_VARS = ["advocate_name", "unsubscribe_url", "directory_url", "city", "state", "contact_id"];
 export const templateProblems = (t) => {
@@ -137,6 +164,7 @@ export const templateProblems = (t) => {
   for (const f of [t.subject, t.body_html, t.body_text]) for (const m of String(f || "").matchAll(/{{\s*([a-z_]+)\s*}}/g)) if (!TEMPLATE_VARS.includes(m[1])) p.push(`Unknown variable {{${m[1]}}}.`);
   return [...new Set(p)];
 };
+/** Fills {{variables}}. HTML values are escaped; the plain-text part is not. */
 export function renderTemplate(t, vars) {
   const fill = (s, html) => String(s ?? "").replace(/{{\s*([a-z_]+)\s*}}/g, (_, k) => (html ? esc(vars[k] ?? "") : String(vars[k] ?? "")));
   const html = `<!doctype html><html><body style="margin:0;padding:0;background:#ffffff"><div style="max-width:600px;margin:0 auto;padding:24px;font:15px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0A0A0A">${fill(t.body_html, true)}</div></body></html>`;
@@ -144,6 +172,7 @@ export function renderTemplate(t, vars) {
   if (!text.includes(vars.unsubscribe_url)) text += `\n\nUnsubscribe: ${vars.unsubscribe_url}`;
   return { subject: fill(t.subject, false), html, text };
 }
+/** Campaign-specific UTM link to the directory, carrying a signed token so a registration can be tied to the contact and campaign. */
 export function trackedUrl(base, campaignCode, step, token) {
   const u = new URL(base);
   u.searchParams.set("utm_source", "legalstaff_email"); u.searchParams.set("utm_medium", "email"); u.searchParams.set("utm_campaign", campaignCode);
@@ -151,12 +180,14 @@ export function trackedUrl(base, campaignCode, step, token) {
   return u.toString();
 }
 
+// ---------- signed tokens (unsubscribe links and landing attribution) ----------
 const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 async function hmac(secret, msg) {
   const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return b64u(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(msg)));
 }
 export function safeEqual(a, b) { a = String(a); b = String(b); let d = a.length ^ b.length; for (let i = 0; i < Math.max(a.length, b.length); i++) d |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0); return d === 0; }
+/** kind 'u' = unsubscribe, 'l' = landing attribution. The token never expires for 'u': an old email must still be able to unsubscribe. */
 export async function makeToken(secret, kind, contactId, campaignCode = "") { const body = [kind, contactId, campaignCode].join("."); return b64u(new TextEncoder().encode(body)) + "." + (await hmac(secret, body)).slice(0, 32); }
 export async function readToken(secret, token) {
   const [a, sig] = String(token || "").split("."); if (!a || !sig) return null;
@@ -165,6 +196,8 @@ export async function readToken(secret, token) {
   const [kind, contactId, campaignCode] = body.split("."); return { kind, contactId, campaignCode };
 }
 
+// ---------- the provider (Brevo) ----------
+/** The body of POST https://api.brevo.com/v3/smtp/email. Marketing mail always carries both List-Unsubscribe headers (RFC 8058 one-click). */
 /** @param {any} o */
 export function brevoPayload(o) {
   const { sender, to, toName, subject, html, text, unsubscribeUrl, unsubscribeMailto, tags, idempotencyKey } = o;
@@ -175,6 +208,7 @@ export function brevoPayload(o) {
     tags: tags || [],
   };
 }
+/** What a send response means. 429 / 5xx are retried later, 4xx are permanent for this message. */
 /** Translates the Brevo-shaped payload into a Mailjet Send API v3.1 request. @param {any} p */
 export function mailjetPayload(p) {
   const h = p.headers || {}, idem = h["X-Idempotency-Key"];
@@ -210,6 +244,7 @@ export function classifySend(status, retryAfter) {
   if (status >= 500 || status === 408) return { kind: "retry" };
   return { kind: "rejected" };
 }
+/** Maps a Brevo webhook event to what we record. Opens are deliberately ignored: they are not a confirmed human interaction. */
 export function classifyBrevoEvent(ev) {
   const e = String(ev.event ?? "").toLowerCase().replace(/[\s-]+/g, "_");
   switch (e) {
@@ -226,7 +261,9 @@ export function classifyBrevoEvent(ev) {
   }
 }
 
+// ---------- Google service-account auth ----------
 function pemToDer(pem) { const b = pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, ""); return Uint8Array.from(atob(b), (c) => c.charCodeAt(0)); }
+/** Signed JWT assertion for the Google OAuth token endpoint (read-only Sheets scope). */
 export async function googleAssertion(sa, nowSec, scope = "https://www.googleapis.com/auth/spreadsheets.readonly") {
   const enc = (o) => b64u(new TextEncoder().encode(JSON.stringify(o)));
   const head = enc({ alg: "RS256", typ: "JWT" }), claim = enc({ iss: sa.client_email, scope, aud: "https://oauth2.googleapis.com/token", iat: nowSec, exp: nowSec + 3300 });
@@ -238,9 +275,9 @@ export async function googleAssertion(sa, nowSec, scope = "https://www.googleapi
 /** Reads the service-account key from a secret that may be raw JSON, JSON wrapped in quotes, base64 of the JSON, or JSON whose private key lost its \n escapes
  *  (real line breaks inside the string) or got smart quotes from a word processor. Returns { client_email, private_key } or null. Never throws. */
 export function parseServiceAccount(raw) {
-  let s = String(raw ?? "").replace(/^﻿/, "").trim();
+  let s = String(raw ?? "").replace(/^\uFEFF/, "").trim();
   if (!s) return null;
-  s = s.replace(/[“”]/g, '"');
+  s = s.replace(/[\u201C\u201D]/g, '"');
   const ok = (o) => (o && typeof o === "object" && typeof o.client_email === "string" && typeof o.private_key === "string" && o.private_key.includes("PRIVATE KEY") ? { client_email: o.client_email.trim(), private_key: o.private_key.replace(/\\n/g, "\n") } : null);
   const tryJson = (t) => { try { const v = JSON.parse(t); return typeof v === "string" ? tryJson(v) : ok(v); } catch { return null; } };
   let r = tryJson(s); if (r) return r;
@@ -249,12 +286,15 @@ export function parseServiceAccount(raw) {
   return email && key ? ok({ client_email: email[1], private_key: key[1].replace(/\r?\n/g, "\n").trim() + "\n" }) : null;
 }
 
+// ---------- exports ----------
 const csvCell = (v) => { let s = String(v ?? ""); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };   // also neutralises spreadsheet formulas
 export const toCsv = (cols, rows) => "﻿" + [cols.map((c) => csvCell(c.label)).join(","), ...rows.map((r) => cols.map((c) => csvCell(r[c.key])).join(","))].join("\r\n");
+/** Excel opens this XML Spreadsheet 2003 file directly (.xls). */
 export const toExcelXml = (cols, rows) => {
   const x = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const row = (vals) => `<Row>${vals.map((v) => `<Cell><Data ss:Type="String">${x(v)}</Data></Cell>`).join("")}</Row>`;
   return `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Contacts"><Table>${row(cols.map((c) => c.label))}${rows.map((r) => row(cols.map((c) => r[c.key]))).join("")}</Table></Worksheet></Workbook>`;
 };
 
+// ---------- secrets ----------
 export const scrub = (s) => String(s ?? "").replace(/(api-key|authorization|bearer|private_key|token)["':=\s]+[A-Za-z0-9._\-+/=]{12,}/gi, "$1 [hidden]").replace(/xkeysib-[A-Za-z0-9-]+/g, "[hidden]").replace(/-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g, "[hidden]");

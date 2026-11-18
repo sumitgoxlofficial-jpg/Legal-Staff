@@ -4,6 +4,7 @@ Disallow: /app
 Disallow: /app.html
 Disallow: /admin
 Disallow: /admin.html
+Disallow: /unsubscribe
 Disallow: /supabase/
 Disallow: /seo/
 

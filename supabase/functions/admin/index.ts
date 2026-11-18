@@ -70,6 +70,37 @@ ${reply.split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px;font:15px/1.6 ${FO
 ${original ? `<div style="margin-top:22px;padding-top:14px;border-top:1px solid #EDEDED;font:13px/1.55 ${FONT};color:#6B6B6B"><b>Your message</b><br>${esc(original).replace(/\n/g, "<br>")}</div>` : ""}
 </td></tr><tr><td style="padding:16px 6px 0;font:12px/1.6 ${FONT};color:#8A8A8A;text-align:center">Reply to this email to continue the conversation.<br><a href="${SITE}" style="color:#5E5E5E">legalstaff.in</a></td></tr></table></td></tr></table></body></html>`;
 
+/** The email an advocate gets when a moderator decides their directory application. */
+function directoryDecisionEmail(name: string, status: string, note: string, paid: boolean, id: string) {
+  const first = (name || "").split(/\s+/)[0] || "";
+  const link = (h: string) => `${SITE}/directory#${h}`;
+  let subject: string, lines: string[], label: string, url: string;
+  if (status === "verified") {
+    subject = "Your Legal Staff Directory profile is verified";
+    lines = paid ? ["Your enrolment has been verified and your profile is now live in the Legal Staff Directory, with the verified tick on your photo.", "Clients can find you and send you contact requests. You will see them in your dashboard."]
+      : ["Your enrolment has been verified. Your profile goes live as soon as the one-time \u20b949 listing fee is paid.", "Open your dashboard and tap Pay \u20b949 to finish."];
+    label = paid ? "View my profile" : "Pay \u20b949 and go live"; url = link(paid ? "profile/" + encodeURIComponent(id) : "pay");
+  } else if (status === "info") {
+    subject = "We need a little more information for your directory profile";
+    lines = ["A moderator reviewed your application and needs something more before it can be verified:", note, "Open your application, update it and resubmit. Your \u20b949 payment, if made, stays valid."];
+    label = "Update my application"; url = link("status");
+  } else {
+    subject = "Your Legal Staff Directory application was not approved";
+    lines = ["A moderator reviewed your application and could not approve it:", note, "If this is a mistake or you can fix the issue, you can apply again from your dashboard. Reply to this email if you have a question."];
+    label = "Open my application"; url = link("status");
+  }
+  const text = `Hello ${first},\n\n${lines.join("\n\n")}\n\n${label}: ${url}\n\nLegal Staff Directory`;
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#F4F4F2"><table role="presentation" width="100%" style="background:#F4F4F2"><tr><td align="center" style="padding:28px 12px">
+<table role="presentation" width="100%" style="max-width:600px"><tr><td style="padding:0 4px 16px"><table role="presentation"><tr><td style="padding-right:10px"><img src="${SITE}/assets/email-mark.png" width="31" height="32" alt="Legal Staff" style="display:block;border:0"></td><td style="font:700 18px/1 ${FONT};color:#0A0A0A">Legal Staff</td></tr></table></td></tr>
+<tr><td style="background:#fff;border:1px solid #E5E5E5;border-radius:12px;padding:28px 30px">
+<div style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#6B6B6B;padding-bottom:8px">Legal Staff Directory</div>
+<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#363636">Hello${first ? " " + esc(first) : ""},</p>
+${lines.map((l) => `<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#0A0A0A">${esc(l).replace(/\n/g, "<br>")}</p>`).join("")}
+<p style="margin:20px 0 0"><a href="${url}" style="display:inline-block;background:#0A0A0A;color:#fff;text-decoration:none;font:600 15px/1 ${FONT};padding:14px 22px;border-radius:10px">${esc(label)}</a></p>
+</td></tr></table></td></tr></table></body></html>`;
+  return { subject, text, html };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const url = Deno.env.get("SUPABASE_URL")!, admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -198,6 +229,38 @@ Deno.serve(async (req: Request) => {
     if (action === "expense_delete") { await admin.from("admin_expenses").delete().eq("id", body.id); return json({ ok: true }); }
 
     const KEYS = ["upi_enabled", "upi_id", "payee_name", "alert_email", "seller_name", "seller_address", "seller_state_code", "seller_gstin", "seller_pan", "seller_email", "seller_phone"];
+    // ---- directory review: applications, their private documents, and the decision ----
+    if (action === "directory_list") {
+      const { data } = await admin.from("directory_applications").select("id,name,enr,council,year,city,email,mobile,details,photo,status,note,paid_at,created_at,decided_at,ai_report").order("created_at", { ascending: false }).limit(500);
+      return json({ applications: data ?? [] });
+    }
+    if (action === "directory_doc") {   // a 5-minute link to one uploaded document (must be a file recorded on an application)
+      const path = String(body.path ?? "");
+      if (!/^[0-9a-f-]{36}\/LS-DIR-\d{4}-\d+\/(cert|cop|id)-[^/]+$/i.test(path)) throw new Fail("Not a directory document.");
+      const { data, error } = await admin.storage.from("directory-docs").createSignedUrl(path, 300);
+      if (error || !data) throw new Fail("That file could not be opened. It may not have been uploaded.", 404);
+      return json({ url: data.signedUrl });
+    }
+    if (action === "directory_decide") {
+      const status = String(body.status ?? ""), note = String(body.note ?? "").trim();
+      if (!["verified", "info", "rejected"].includes(status)) throw new Fail("Choose verify, ask for more information, or reject.");
+      if (status !== "verified" && note.length < 5) throw new Fail("Write a note for the advocate: they will see it.");
+      const { data: app } = await admin.from("directory_applications").select("id,name,email,paid_at").eq("id", String(body.id ?? "")).maybeSingle();
+      if (!app) throw new Fail("Application not found.", 404);
+      const { error } = await admin.from("directory_applications").update({ status, note, decided_at: new Date().toISOString(), decided_by: user.id }).eq("id", app.id);
+      if (error) throw new Fail("The decision could not be saved.", 500);
+      let emailed = false;   // the decision stands even if the email cannot be sent
+      if (app.email) {
+        try {
+          const { data: s } = await admin.from("pay_settings").select("seller_email,alert_email").eq("id", 1).single();
+          const m = directoryDecisionEmail(app.name, status, note, !!app.paid_at, app.id);
+          await sendEmail(app.email, m.subject, m.text, m.html, s?.seller_email || s?.alert_email || email);
+          emailed = true;
+        } catch (e) { console.error("directory email", e); }
+      }
+      return json({ ok: true, emailed });
+    }
+
     if (action === "settings") { const { data } = await admin.from("pay_settings").select(KEYS.join(",")).eq("id", 1).single(); return json({ settings: data, admins: ((await admin.from("super_admins").select("email")).data ?? []).map((a: any) => a.email) }); }
     if (action === "settings_save") {
       const patch: any = {}; for (const k of KEYS) if (k in (body.settings ?? {})) patch[k] = k === "upi_enabled" ? !!body.settings[k] : String(body.settings[k] ?? "").trim();

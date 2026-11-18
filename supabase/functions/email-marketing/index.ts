@@ -1,11 +1,19 @@
-// Legal Staff email marketing (migrations 0035, 0036). One function, four kinds of caller: a super administrator (admin API), the scheduler (action tick with x-cron-secret),
-// the email provider (?action=webhook with the webhook secret) and a recipient (?action=unsub, ?action=landing). Deploy with JWT verification off; it checks every caller itself.
+// Legal Staff email marketing (supabase/migrations/0035_email_marketing.sql). One function, four kinds of caller:
+//   a super administrator  { action: "overview" | "contacts" | "contact" | "export" | "consent_record" | "consent_verify" | "suppressions" | "suppress_add" |
+//                            "suppression_lift" | "sheets_get" | "sheets_connect" | "sheets_preview" | "sheets_save" | "sheets_sync" | "imports" | "campaigns" |
+//                            "templates" | "template_save" | "template_toggle" | "template_preview" | "template_test" | "queue" | "queue_cancel" | "history" |
+//                            "analytics" | "settings" | "settings_save" | "kill" | "simulate" | "preview_schedule" | "provider" | "provider_save" | "provider_check" |
+//                            "report_now" | "audit" }
+//   the scheduler          { action: "tick" } with x-cron-secret: runs whatever is due (sheet sync, planning, sending, the daily report)
+//   the email provider     ?action=webhook with the webhook secret (delivery, bounce, complaint, click, unsubscribe)
+//   a recipient            ?action=unsub (GET shows, POST unsubscribes; also the RFC 8058 one-click POST) and ?action=landing (click / registration attribution)
+// Deploy with JWT verification off; it checks every caller itself.
 // Provider: EMAIL_PROVIDER=brevo (default) or mailjet. Mailjet secrets: MAILJET_API_KEY, MAILJET_SECRET_KEY, MAILJET_WEBHOOK_SECRET (falls back to BREVO_WEBHOOK_SECRET).
 // Secrets (function secrets, never the browser): BREVO_API_KEY, BREVO_WEBHOOK_SECRET, EMAIL_TOKEN_SECRET, GOOGLE_SERVICE_ACCOUNT_JSON, CRON_SECRET (optional).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { SITE, DIRECTORY_URL, normEmail, isValidEmail, parseSpreadsheetId, autoMapColumns, findHeaderRow, mapRows, mappingProblems, MAPPABLE, istDate, istHm, addDaysIso, istInstant, jobDue, nextRun,
   remainingToday, evaluateEligibility, describeReasons, productionBlockers, settingsProblem, canActivateTemplate, templateProblems, renderTemplate, trackedUrl, makeToken, readToken,
-  safeEqual, brevoPayload, classifySend, classifyBrevoEvent, mailjetPayload, parseMailjetResponse, normalizeMailjetEvent, googleAssertion, parseServiceAccount, toCsv, toExcelXml, scrub, GLOBAL } from "./email-logic.js";
+  safeEqual, brevoPayload, classifySend, classifyBrevoEvent, mailjetPayload, parseMailjetResponse, normalizeMailjetEvent, googleAssertion, parseServiceAccount, toCsv, toExcelXml, scrub, GLOBAL } from "../_shared/email-logic.js";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret", "Access-Control-Allow-Methods": "POST, GET, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -425,7 +433,7 @@ async function adminApi(admin: any, actor: string, action: string, b: any) {
     case "suppression_lift": { const { error } = await admin.rpc("email_lift_suppression", { p_email: b.email, p_actor: actor, p_note: String(b.note ?? "") }); if (error) throw new Fail(error.message); return { ok: true }; }
 
     case "sheets_get": { const { data } = await admin.from("google_sheets_integrations").select("*").order("created_at", { ascending: false }).limit(1); const p = await getProvider(admin);
-      return { integration: data?.[0] ?? null, google_connected: !!parseServiceAccount(env("GOOGLE_SERVICE_ACCOUNT_JSON")), service_account: (parseServiceAccount(env("GOOGLE_SERVICE_ACCOUNT_JSON"))?.client_email ?? ""), mappable: MAPPABLE, provider_ready: p.configured }; }
+      return { integration: data?.[0] ?? null, google_connected: !!env("GOOGLE_SERVICE_ACCOUNT_JSON"), service_account: (parseServiceAccount(env("GOOGLE_SERVICE_ACCOUNT_JSON"))?.client_email ?? ""), mappable: MAPPABLE, provider_ready: p.configured }; }
     case "sheets_connect": {
       const id = parseSpreadsheetId(b.url); if (!id) throw new Fail("Paste the spreadsheet URL or its ID.");
       const info = await sheetInfo(id); const sheet = info.sheets.find((s: any) => s.title === b.sheet) ?? info.sheets[0]; if (!sheet) throw new Fail("The spreadsheet has no sheets.");
