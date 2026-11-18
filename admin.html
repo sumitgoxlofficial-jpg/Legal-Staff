@@ -102,7 +102,7 @@
   }
 
   // ---------- sign in (email code) ----------
-  let me = null, tab = 'overview', unread = 0;
+  let me = null, tab = 'overview', unread = 0, dirPending = 0;
   function loginView(msg) {
     root.innerHTML = `<div class="login"><div class="card">
       <div class="brand"><img src="assets/ls-mark-black.png" alt="">Legal Staff <small>Admin</small></div>
@@ -133,7 +133,7 @@
   }
 
   // ---------- layout ----------
-  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings']];
+  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings']];
   function shell() {
     root.innerHTML = `<header class="top"><div class="wrap">
         <div class="brand"><img src="assets/ls-mark-black.png" alt="">Legal Staff <small>Admin</small></div>
@@ -143,10 +143,11 @@
     root.querySelector('#out').onclick = async () => { await sb.auth.signOut(); loginView(); };
     drawTabs(); go(location.hash.slice(1) || 'overview');
     api('support').then(r => { unread = r.messages.filter(m => m.status === 'open').length; drawTabs(); }).catch(() => {});
+    api('directory_list').then(r => { dirPending = r.applications.filter(a => a.status === 'pending').length; drawTabs(); }).catch(() => {});
   }
   function drawTabs() {
     const t = root.querySelector('#tabs'); if (!t) return;
-    t.innerHTML = TABS.map(([k, l]) => `<button data-k="${k}" class="${k === tab ? 'on' : ''}">${l}${k === 'support' && unread ? `<span class="badge">${unread}</span>` : ''}</button>`).join('');
+    t.innerHTML = TABS.map(([k, l]) => `<button data-k="${k}" class="${k === tab ? 'on' : ''}">${l}${k === 'support' && unread ? `<span class="badge">${unread}</span>` : ''}${k === 'directory' && dirPending ? `<span class="badge">${dirPending}</span>` : ''}</button>`).join('');
     t.querySelectorAll('button').forEach(b => b.onclick = () => go(b.dataset.k));
   }
   function go(k) { let [base, sub] = String(k).split('/'); if (!TABS.some(t => t[0] === base)) { base = 'overview'; sub = undefined; } tab = base; history.replaceState(null, '', '#' + base + (sub ? '/' + sub : '')); drawTabs(); const p = root.querySelector('#page'); p.innerHTML = '<div class="muted">Loading…</div>'; VIEWS[base](p, sub).catch(e => p.innerHTML = `<div class="card err">${esc(e.message)}</div>`); }
@@ -330,6 +331,59 @@
     };
     p.querySelectorAll('#fs button').forEach(b => b.onclick = () => { f = b.dataset.k; p.querySelectorAll('#fs button').forEach(x => x.classList.toggle('on', x === b)); list(); });
     list();
+  };
+
+  VIEWS.directory = async p => {
+    const { applications } = await api('directory_list');
+    dirPending = applications.filter(a => a.status === 'pending').length; drawTabs();
+    let q = '', f = 'pending';
+    const ST = { pending: ['Needs review', 'c-warn'], info: ['Waiting for advocate', 'c-info'], verified: ['Verified', 'c-good'], rejected: ['Rejected', 'c-bad'] };
+    const counts = k => k === 'all' ? applications.length : applications.filter(a => a.status === k).length;
+    p.innerHTML = `<div class="row between"><div><h1>Directory review</h1><p class="sub">Check each advocate's enrolment and documents before their profile goes live. ${dirPending} waiting for review.</p></div></div>
+      <div class="card"><div class="row" style="margin-bottom:12px"><input id="q" class="grow" placeholder="Search name, enrolment number, email or city" style="max-width:380px">
+        <div class="seg" id="fs">${[['pending', 'Needs review'], ['info', 'Waiting for advocate'], ['verified', 'Verified'], ['rejected', 'Rejected'], ['all', 'All']].map(([k, l]) => `<button data-k="${k}" class="${k === f ? 'on' : ''}">${l} ${counts(k)}</button>`).join('')}</div></div>
+        <div class="tscroll"><table><thead><tr><th>Advocate</th><th>Enrolment</th><th>City</th><th>Fee</th><th>Status</th><th>Submitted</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>`;
+    const draw = () => {
+      const rows = applications.filter(a => (f === 'all' || a.status === f) && (!q || [a.name, a.enr, a.email, a.city, a.id].join(' ').toLowerCase().includes(q)));
+      p.querySelector('#tb').innerHTML = rows.length ? rows.map(a => `<tr><td><div class="row" style="gap:10px;flex-wrap:nowrap">${a.photo ? `<img src="${esc(a.photo)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover">` : `<span style="width:34px;height:34px;border-radius:50%;background:var(--soft);display:flex;align-items:center;justify-content:center;font-weight:600">${esc((a.name || '?')[0])}</span>`}<div><div class="strong">${esc(a.name)}</div><div class="muted small">${esc(a.id)}</div></div></div></td>
+        <td><div class="mono">${esc(a.enr)}</div><div class="muted small">${esc(a.council)} · ${esc(a.year)}</div></td><td>${esc(a.city)}</td><td>${a.paid_at ? '<span class="chip c-good">Paid</span>' : '<span class="chip c-mut">Not paid</span>'}</td>
+        <td><span class="chip ${ST[a.status][1]}">${ST[a.status][0]}</span></td><td class="muted small">${dt(a.created_at)}</td><td><button class="btn sm" data-id="${esc(a.id)}">Review</button></td></tr>`).join('') : '<tr><td colspan="7" class="muted" style="padding:22px;text-align:center">Nothing here.</td></tr>';
+      p.querySelectorAll('#tb button[data-id]').forEach(b => b.onclick = () => review(applications.find(x => x.id === b.dataset.id)));
+    };
+    p.querySelector('#q').oninput = e => { q = e.target.value.trim().toLowerCase(); draw(); };
+    p.querySelectorAll('#fs button').forEach(b => b.onclick = () => { f = b.dataset.k; p.querySelectorAll('#fs button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
+    const review = a => {
+      const d = a.details || {}, docs = Array.isArray(d.documents) ? d.documents : [], KIND = { cert: 'Enrolment certificate', cop: 'Certificate of Practice', id: 'Government photo ID' };
+      const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+      const row = (k, v) => `<div style="display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-top:1px solid var(--line)"><span class="muted">${k}</span><span style="text-align:right;overflow-wrap:anywhere">${v || '—'}</span></div>`;
+      modal(`<div style="display:flex;gap:16px;align-items:center;margin-bottom:12px">${a.photo ? `<img src="${esc(a.photo)}" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover">` : ''}<div><h2 style="margin:0">${esc(a.name)}</h2><div class="muted small">${esc(a.id)} · submitted ${dt(a.created_at)}</div><div style="margin-top:6px"><span class="chip ${ST[a.status][1]}">${ST[a.status][0]}</span> ${a.paid_at ? '<span class="chip c-good">₹49 paid</span>' : '<span class="chip c-mut">₹49 not paid yet</span>'}</div></div></div>
+        <div style="max-height:46vh;overflow:auto;padding-right:6px">
+          <div class="strong" style="margin:4px 0 6px">Documents (private, links last 5 minutes)</div>
+          ${docs.length ? docs.map(x => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)"><div><div>${esc(KIND[x.kind] || x.kind)}</div><div class="muted small">${esc(x.name)} · ${kb(x.size || 0)}</div></div>${x.path ? `<button class="btn sm" data-open="${esc(x.path)}">Open</button>` : '<span class="muted small">Not uploaded (older application)</span>'}</div>`).join('') : '<div class="muted">No documents were attached.</div>'}
+          <div class="strong" style="margin:16px 0 4px">Details</div>
+          ${row('Enrolment number', `<b class="mono">${esc(a.enr)}</b>`)}${row('State Bar Council', esc(a.council))}${row('Year of enrolment', esc(a.year))}${row('Certificate of Practice no.', esc(d.cop))}
+          ${row('Email', esc(a.email))}${row('Mobile', esc(a.mobile))}${row('City / district', esc([a.city, d.district].filter(Boolean).join(' · ')))}${row('Practice areas', esc((Array.isArray(d.areas) ? d.areas : []).join(', ')))}${row('Courts', esc(d.courts))}${row('Languages', esc(d.langs))}${row('Qualifications', esc(d.quals))}${row('Chamber', esc(d.chamber))}
+          ${a.note ? `<div class="strong" style="margin:14px 0 6px">Previous note</div><div class="muted">${esc(a.note)}</div>` : ''}
+        </div>
+        <div class="card" style="background:var(--soft);margin:14px 0 10px;padding:12px 14px"><div class="strong small" style="margin-bottom:6px">Before you verify, confirm each</div>
+          ${['The enrolment number and State Bar Council on the certificate match the Bar Council roll (or the council confirmed them)', 'The name on the certificate matches the name above', 'The photo ID shows the same person and name, and matches the profile photo', 'The Certificate of Practice is valid, if one was given'].map((t, i) => `<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:3px 0"><input type="checkbox" data-ck style="width:16px;height:16px;margin-top:2px;flex-shrink:0"><span>${t}</span></label>`).join('')}</div>
+        <label class="f">Note to the advocate (required to ask for more information or to reject)<textarea id="nt" rows="2" placeholder="e.g. The certificate is not readable. Please upload a clear scan."></textarea></label>
+        <div class="err" id="er" style="min-height:18px"></div>
+        <div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="btn" data-x>Close</button><div class="row" style="gap:8px"><button class="btn danger" data-d="rejected">Reject</button><button class="btn" data-d="info">Ask for more information</button><button class="btn pri" data-d="verified" disabled>Verify</button></div></div>`, (m, close) => {
+        const $ = s2 => m.querySelector(s2), cks = [...m.querySelectorAll('[data-ck]')], ver = m.querySelector('[data-d="verified"]');
+        cks.forEach(c => c.onchange = () => { ver.disabled = !cks.every(x => x.checked); });
+        $('[data-x]').onclick = close;
+        m.querySelectorAll('[data-open]').forEach(b => b.onclick = async () => { b.disabled = true; try { const r = await api('directory_doc', { path: b.dataset.open }); window.open(r.url, '_blank', 'noopener'); } catch (e) { $('#er').textContent = e.message; } b.disabled = false; });
+        m.querySelectorAll('[data-d]').forEach(b => b.onclick = async () => {
+          const status = b.dataset.d, note = $('#nt').value.trim();
+          if (status !== 'verified' && note.length < 5) { $('#er').textContent = 'Write a note for the advocate: they will see it.'; return; }
+          b.disabled = true;
+          try { await api('directory_decide', { id: a.id, status, note }); close(); toast(status === 'verified' ? 'Verified. The profile goes live once the fee is paid.' : status === 'info' ? 'Asked the advocate for more information.' : 'Rejected.'); VIEWS.directory(p); }
+          catch (e) { $('#er').textContent = e.message; b.disabled = false; }
+        });
+      });
+    };
+    draw();
   };
 
   VIEWS.expenses = async p => {

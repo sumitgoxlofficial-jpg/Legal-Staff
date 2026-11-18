@@ -611,7 +611,7 @@ table tbody tr:hover{background:#FAFAF9}
             </div>
           </sc-for>
         </div>
-        <div style="font-size:13px;color:#5E5E5E">PDF, JPG or PNG, up to 5 MB each. Files are not uploaded to a server yet: only the file name and size are recorded.</div>
+        <div style="font-size:13px;color:#5E5E5E">{{ docNote }}</div>
       </sc-if>
       <sc-if value="{{ isReview }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;flex-direction:column">
@@ -901,7 +901,7 @@ class Component extends DCLogic {
       const r = await this.call(sb.rpc('directory_my_applications'));
       if (r.error || !Array.isArray(r.data)) { done({ statusErr: this.errText(r.error || { message: 'Unexpected response' }) }); return; }
       const mine = {}, apps = r.data.map(x => {
-        const d = x.details || {}, docs = {}; (Array.isArray(d.documents) ? d.documents : []).forEach(f => { if (f && f.kind) docs[f.kind] = { name: f.name, size: f.size }; });
+        const d = x.details || {}, docs = {}; (Array.isArray(d.documents) ? d.documents : []).forEach(f => { if (f && f.kind) docs[f.kind] = { name: f.name, size: f.size, path: f.path }; });
         mine[x.id] = { enr: x.enr, email: x.email || '', mobile: x.mobile || '', city: x.city, cop: d.cop || '', areas: Array.isArray(d.areas) ? d.areas : this.splitList(d.areas), courts: d.courts || '', district: d.district || '', langs: d.langs || '', quals: d.quals || '', chamber: d.chamber || '', docs, photo: x.photo || '', submittedAt: x.created_at, updatedAt: x.created_at };
         return this.rowToApp(x);
       });
@@ -924,6 +924,19 @@ class Component extends DCLogic {
 
   /* ---------- data ---------- */
   data() { return []; }
+  /* uploads the chosen documents to the private bucket (path: user/application/kind-name); returns the docs with their paths */
+  async uploadDocs(id, docs) {
+    const sb = this.sb(), uid = this.state.user.id, out = { ...docs }, NAME = { cert: 'The enrolment certificate', cop: 'The Certificate of Practice', id: 'The photo ID' };
+    for (const k of Object.keys(docs)) {
+      const f = this._files && this._files[k]; if (!f) continue;
+      const safe = f.name.replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80), path = uid + '/' + id + '/' + k + '-' + safe;
+      const type = /\.pdf$/i.test(f.name) ? 'application/pdf' : /\.png$/i.test(f.name) ? 'image/png' : 'image/jpeg';
+      const r = await this.call(sb.storage.from('directory-docs').upload(path, f, { upsert: true, contentType: type }));
+      if (r.error) return { error: (NAME[k] || 'A document') + ' could not be uploaded (' + this.errText(r.error) + ').' };
+      out[k] = { ...docs[k], path };
+    }
+    return { docs: out };
+  }
   splitList(v) { return (Array.isArray(v) ? v.join(',') : String(v || '')).split(/[,;\n]+/).map(x => x.trim()).filter(Boolean); }
   /* only applications that a moderator has verified are listed */
   people() {
@@ -1134,26 +1147,25 @@ class Component extends DCLogic {
     if (sb) {
       if (!S.user) { this.setState({ appErr: { confirm: 'Sign in with Google to submit your application.' } }); return; }
       const core = { name: a.name.trim(), enr: a.enr.trim().toUpperCase(), council: a.council, year: a.year.trim(), city: a.city.trim() };
-      const details = { areas: a.areas, courts: a.courts.trim(), district: a.district.trim(), langs: a.langs.trim(), quals: a.quals.trim(), chamber: a.chamber.trim(), cop: a.cop.trim(), documents: Object.keys(a.docs).map(k => ({ kind: k, name: a.docs[k].name, size: a.docs[k].size })) };
+      const details = { areas: a.areas, courts: a.courts.trim(), district: a.district.trim(), langs: a.langs.trim(), quals: a.quals.trim(), chamber: a.chamber.trim(), cop: a.cop.trim(), documents: Object.keys(a.docs).map(k => ({ kind: k, name: a.docs[k].name, size: a.docs[k].size, path: a.docs[k].path || '' })) };
       const fail = (msg, patch) => this.setState({ busy: '', appErr: { confirm: msg }, ...(patch || {}) });
       const keep = ' Everything you entered is still here. Please try again.';
       this.setState({ busy: 'app', appErr: {} });
       let id = S.editingId;
-      if (id) {
+      if (!id) id = 'LS-DIR-' + now.getFullYear() + '-' + String(Math.floor(Math.random() * 100000)).padStart(5, '0');
+      const up = await this.uploadDocs(id, a.docs);
+      if (up.error) return fail(up.error + keep);
+      details.documents = Object.keys(up.docs).map(k => ({ kind: k, name: up.docs[k].name, size: up.docs[k].size, path: up.docs[k].path || '' }));
+      if (S.editingId) {
         const r = await this.call(sb.rpc('directory_update_mine', { p_ref: id, p_name: core.name, p_council: core.council, p_year: core.year, p_city: core.city, p_email: a.email.trim(), p_mobile: a.mobile.trim(), p_details: details, p_photo: a.photo || '' }));
         if (r.error) return fail('Your update could not be sent (' + this.errText(r.error) + ').' + keep);
         if (r.data !== true) return fail('This application can no longer be updated. It may already have been reviewed, so go back and refresh its status.');
       } else {
-        const mk = () => 'LS-DIR-' + now.getFullYear() + '-' + String(Math.floor(Math.random() * 100000)).padStart(5, '0');
-        let r;
-        for (let i = 0; i < 3; i++) {
-          id = mk();
-          r = await this.call(sb.from('directory_applications').insert({ id, ...core, email: a.email.trim(), mobile: a.mobile.trim(), details, photo: a.photo || '', user_id: S.user.id }));
-          if (!(r.error && String(r.error.code) === '23505' && /pkey/i.test(String(r.error.message) + String(r.error.details || '')))) break;
-        }
-        if (r.error && String(r.error.code) === '23505') return this.setState({ busy: '', step: 1, appErr: { enr: 'An application with this enrolment number already exists.' } });
+        const r = await this.call(sb.from('directory_applications').insert({ id, ...core, email: a.email.trim(), mobile: a.mobile.trim(), details, photo: a.photo || '', user_id: S.user.id }));
+        if (r.error && String(r.error.code) === '23505') return /pkey/i.test(String(r.error.message) + String(r.error.details || '')) ? fail('Something went wrong while saving. Please press submit again.') : this.setState({ busy: '', step: 1, appErr: { enr: 'An application with this enrolment number already exists.' } });
         if (r.error) return fail('Your application could not be submitted (' + this.errText(r.error) + ').' + keep);
       }
+      this._files = {};
       await this.refreshStatus();
       const row = this.state.apps.find(x => x.id === id);
       this.setState({ busy: '', app: this.blankApp(), appErr: {}, step: 0, editingId: null });
@@ -1480,6 +1492,7 @@ class Component extends DCLogic {
       if (!f) return;
       if (!/\.(pdf|jpe?g|png)$/i.test(f.name)) { this.setState({ appErr: { ...this.state.appErr, [k]: 'Choose a PDF, JPG or PNG file.' } }); return; }
       if (f.size > 5 * 1048576) { this.setState({ appErr: { ...this.state.appErr, [k]: 'That file is ' + kb(f.size) + '. The limit is 5 MB.' } }); return; }
+      (this._files = this._files || {})[k] = f;
       this.setState({ app: { ...this.state.app, docs: { ...this.state.app.docs, [k]: { name: f.name, size: f.size } } }, appErr: { ...this.state.appErr, [k]: undefined } });
     };
     const smallBtn = (label, onClick, key) => h('button', { key, type: 'button', onClick, style: { height: 36, padding: '0 14px', border: '1px solid #0A0A0A', background: '#FFFFFF', borderRadius: 8, fontSize: 13, color: '#0A0A0A' } }, label);
@@ -1489,7 +1502,7 @@ class Component extends DCLogic {
         h('input', { id: 'doc-' + k, type: 'file', accept: '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png', onChange: pickFile(k), 'aria-label': t, style: { display: 'none' } }),
         f ? h('div', { style: { fontSize: 13, color: '#0A0A0A', fontWeight: 500, overflowWrap: 'anywhere' } }, '✓ ' + f.name + ' · ' + kb(f.size)) : null,
         h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, smallBtn(f ? 'Replace file' : 'Upload PDF or image', open, 'u'),
-          f ? h('button', { key: 'r', type: 'button', onClick: () => { const docs = { ...this.state.app.docs }; delete docs[k]; setApp('docs', docs); }, style: { height: 36, padding: '0 12px', border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, fontSize: 13, color: '#5E5E5E' } }, 'Remove') : null),
+          f ? h('button', { key: 'r', type: 'button', onClick: () => { const docs = { ...this.state.app.docs }; delete docs[k]; if (this._files) delete this._files[k]; setApp('docs', docs); }, style: { height: 36, padding: '0 12px', border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, fontSize: 13, color: '#5E5E5E' } }, 'Remove') : null),
         E[k] ? h('div', { role: 'alert', style: { fontSize: 12, color: '#B42318' } }, E[k]) : null) };
     });
     const nDocs = Object.keys(A.docs).length;
@@ -1684,6 +1697,7 @@ class Component extends DCLogic {
         foot: 'Legal Staff does not assign matters or take part in fee arrangements. ' + (enq.remote ? 'Removing it below only clears this confirmation from your browser; to withdraw the request itself, contact Legal Staff.' : 'You can withdraw your request and consent at any time.'), summary: `${enq.name} · ${enq.contact} · ${enq.category} · saved ${fmtDate(enq.at)}`,
         note: enq.remote ? 'Your request has been recorded for the Legal Staff team to pass on to the advocate. There is no automatic email to the advocate yet.' : 'Your request is saved in this browser. There is no server behind this site yet, so no email or message is sent to the advocate.' } : { head: '', withdraw: '', foot: '', summary: '', note: '' },
       regTitle: S.editingId ? 'Update your application' : on ? 'Create your lifetime directory profile' : 'Apply for a directory profile',
+      docNote: on ? 'PDF, JPG or PNG, up to 5 MB each. Files are stored privately: only you and Legal Staff moderators can open them, and they are never shown on your profile.' : 'PDF, JPG or PNG, up to 5 MB each. Files are not uploaded to a server: only the file name and size are recorded.',
       regSub: on ? 'Takes about five minutes. Your profile goes live after your enrolment is verified and the one-time ₹49 listing fee is paid. A directory profile does not include the Legal Staff practice software.' : "Your profile is published only after your enrolment is verified. A directory profile doesn't include the Legal Staff practice software.",
       showForm: !on || !!S.user, gateBox, feeNote, authArea, payView, areaMarquee,
       steps, stepTitle: cur[1], stepFields: cur[2], isForm: S.step < 3, isDocs: S.step === 3, isReview: S.step === 4, docSlots,
