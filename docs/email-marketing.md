@@ -40,12 +40,13 @@ Withdrawing either approval switches automation off and deactivates all template
 ## Deploy
 
 ```bash
-# 1. database, migrations 0024, 0025 and 0026 (0024 also schedules the 5-minute job; check the project URL at the bottom of the migration matches yours)
+# 1. database, migrations 0024 to 0027 (0024 also schedules the 5-minute job; check the project URL at the bottom of the migration matches yours)
 supabase db push          # or run supabase/migrations/0024_email_marketing.sql in the SQL editor
 
 # 2. function (JWT verification OFF: it checks every caller itself)
 supabase functions deploy email-marketing --no-verify-jwt
 supabase functions deploy upi-pay --no-verify-jwt     # redeploy: it now also confirms the Rs 49 directory listing
+supabase functions deploy listing-razorpay --no-verify-jwt   # Razorpay for the Rs 49 listing
 
 # 3. secrets
 supabase secrets set BREVO_API_KEY=... BREVO_WEBHOOK_SECRET=... EMAIL_TOKEN_SECRET=... GOOGLE_SERVICE_ACCOUNT_JSON="$(cat sa.json)"
@@ -100,6 +101,7 @@ Every email carries `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscr
 | `node tests/email-logic.test.mjs` | 50 passed |
 | `node tests/email-engine.test.mjs` | 65 passed |
 | `node tests/directory-pay.test.mjs` | 16 passed |
+| `node tests/razorpay.test.mjs` | 19 passed |
 | `bash tests/email-db/run.sh` | all database checks passed (migration applies and re-applies on PostgreSQL 16) |
 
 The engine test runs the real function code against an in-memory database, a local Brevo mock and a local Google Sheets mock holding 10,000 rows. The database test runs the real migration on PostgreSQL 16. The admin pages and the unsubscribe page were also loaded in a headless browser against canned data (no JavaScript errors; desktop and 390 px mobile layouts).
@@ -140,6 +142,20 @@ Applicants pay **after applying**, from their application-status screen on `/dir
 * A paid listing is an email-campaign conversion (`payment_success`) through the applicant's email, so reminders stop.
 * The card is hidden when UPI is not switched on in `pay_settings`, and for rejected applications.
 
-**Not included:** an invoice or receipt email (billing is built around firm plans), a "Paid" badge in the moderator's queue in `app.html`, refunds, and any second payment gateway. You answered "both" to the payment-rail question; the repo has no other gateway (Razorpay was removed in migration 0014), so tell me which one (and provide its keys) if you want it added next to UPI.
+**Not included for the UPI route:** an invoice or receipt email, and a "Paid" badge in the moderator's queue in `app.html`.
+
+### Razorpay (second way to pay the ₹49)
+
+`functions/listing-razorpay` + migration 0027 add **card, netbanking, wallet and UPI through Razorpay Checkout** next to the manual UPI QR. The card on `/directory` shows both buttons when both are on, and hides a way that is off. Razorpay is used **only for this listing fee**; plan payments stay UPI-only (Razorpay was removed for plans in migration 0014).
+
+1. Razorpay Dashboard → API Keys → generate a key pair. Set **function secrets** (never in the repo or `config.js`): `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`. Only the key id is ever sent to the browser.
+2. Dashboard → Webhooks → add `https://<project>.supabase.co/functions/v1/listing-razorpay?action=webhook`, secret = `RAZORPAY_WEBHOOK_SECRET`, events `payment.captured` and `order.paid`. The webhook is what confirms a payment when the applicant closes the page early. Keep payment capture on **automatic** in the Razorpay settings (an authorised-only payment is captured by the server at verify time, but the webhook ignores it).
+3. Use `rzp_test_` keys first and pay with Razorpay's test cards; then swap to live keys.
+
+How it is made safe: the server creates the order at exactly ₹49.00; after Checkout it verifies the signature (HMAC-SHA256 of `order_id|payment_id`), then **reads the payment from Razorpay** and accepts it only for that order, ₹49, INR, captured; the browser's word is never enough. A signature or webhook that fails verification changes nothing. A payment for an already-paid listing (for example paid by UPI too) is **not** confirmed: its payment id is stored on the leftover row (`status='created'` with a `gateway_payment_id`), so you can find it and refund it in the Razorpay dashboard. Razorpay's fee (around 2 % plus GST at the time of writing: check your plan) comes out of the ₹49.
+
+**Not included:** an invoice or receipt email (Razorpay emails its own receipt if enabled in its settings; billing here is built around firm plans), a "Paid" badge in the moderator's queue in `app.html`, automatic refunds, and a way to pay by something other than UPI/Razorpay. Not tested against real Razorpay (only a local mock): do one live ₹49 payment before announcing.
+
+Tests: `node tests/razorpay.test.mjs` (19 checks: signature rules, forged and mismatched payments, capture, webhook, duplicates, switched off, key never leaked) and the 0027 checks in `bash tests/email-db/run.sh`.
 
 Tests: `node tests/directory-pay.test.mjs` (16 checks, real `upi-pay` code against the in-memory database; no real UPI, bank or Paytm) and the migration 0026 checks in `bash tests/email-db/run.sh`. The pay card was also exercised in a headless browser against a mocked function.

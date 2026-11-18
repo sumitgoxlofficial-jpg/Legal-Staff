@@ -148,6 +148,19 @@ reset role; set role anon;
 do $$ begin begin perform count(*) from public.directory_payments; perform pg_temp.check(false, 'anon read'); exception when insufficient_privilege then perform pg_temp.check(true, 'anonymous users cannot read listing payments'); end; end $$;
 reset role; set role service_role;
 
+
+-- Razorpay listing payments (migration 0027)
+do $$ begin
+  insert into public.directory_applications (id, email) values ('LS-DIR-R1', 'rz@example.in');
+  begin insert into public.directory_payments (application_id, order_no, amount_paise, method, gateway_order_id) values ('LS-DIR-R1', 'LR1', 4950, 'razorpay', 'order_a'); perform pg_temp.check(false, 'rz amount'); exception when check_violation then perform pg_temp.check(true, 'a Razorpay listing order must be exactly Rs 49.00'); end;
+  begin insert into public.directory_payments (application_id, order_no, amount_paise, method) values ('LS-DIR-R1', 'LR2', 4900, 'card'); perform pg_temp.check(false, 'method'); exception when check_violation then perform pg_temp.check(true, 'only upi and razorpay are accepted methods'); end;
+  insert into public.directory_payments (application_id, order_no, amount_paise, method, gateway_order_id) values ('LS-DIR-R1', 'LR3', 4900, 'razorpay', 'order_b');
+  begin insert into public.directory_payments (application_id, order_no, amount_paise, method, gateway_order_id) values ('LS-DIR-R1', 'LR4', 4900, 'razorpay', 'order_b'); perform pg_temp.check(false, 'dup order'); exception when unique_violation then perform pg_temp.check(true, 'a Razorpay order id maps to one row'); end;
+  update public.directory_payments set status = 'paid', gateway_payment_id = 'pay_1' where order_no = 'LR3';
+  begin insert into public.directory_payments (application_id, order_no, amount_paise, method, gateway_order_id, gateway_payment_id) values ('LS-DIR-R1', 'LR5', 4900, 'razorpay', 'order_c', 'pay_1'); perform pg_temp.check(false, 'dup pay'); exception when unique_violation then perform pg_temp.check(true, 'a Razorpay payment id confirms only one row'); end;
+  begin update public.directory_payments set status = 'paid' where order_no = 'LR3' and false; perform pg_temp.check(true, 'noop'); end;
+end $$;
+
 -- audit log is append-only
 do $$ begin
   begin update public.email_audit_logs set action = 'x'; perform pg_temp.check(false, 'audit update'); exception when raise_exception then perform pg_temp.check(true, 'audit log cannot be updated'); end;

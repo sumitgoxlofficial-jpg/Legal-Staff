@@ -19,8 +19,9 @@ Nothing here is deployed.
 | `bash tests/email-db/run.sh` | Migration `0024_email_marketing.sql` on a real PostgreSQL 16: re-runnable, import function at 10,000 rows, consent and suppression rules, conversions, append-only audit, row level security. |
 
 | `node tests/directory-pay.test.mjs` | The ₹49 directory listing in `functions/upi-pay`: identification by reference + enrolment number, unique amounts shared with plan orders, matching a bank credit to exactly one order, no double confirmation, plan payments unaffected. Needs `tsc`. |
+| `node tests/razorpay.test.mjs` | `functions/listing-razorpay` against a local Razorpay mock: signature rules, forged or mismatched payments refused, server-side capture, webhook, duplicate payments, switched off, key never leaked. Needs `tsc`. |
 
-Nothing here talks to the real Brevo, Google, UPI or a bank. See `docs/email-marketing.md` for what remains untested.
+Nothing here talks to the real Brevo, Google, UPI, Razorpay or a bank. See `docs/email-marketing.md` for what remains untested.
 
 ### Integration: what was tested against the real eCourtsIndia API
 
