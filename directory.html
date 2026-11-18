@@ -828,7 +828,7 @@ class Component extends DCLogic {
   async fnCall(name, body, ms) {
     const sb = this.sb(); if (!sb) return { error: 'The server is not connected.' };
     const r = await this.call(sb.functions.invoke(name, { body }), ms);
-    if (r.error) { let msg = this.errText(r.error); try { const j = await r.error.context.json(); if (j && j.error) msg = j.error; } catch (e) {} return { error: msg }; }
+    if (r.error) { let msg = this.errText(r.error); try { const j = await r.error.context.json(); if (j && j.error) msg = j.error; } catch (e) {} return { error: msg, status: r.error.context && r.error.context.status }; }
     return { data: r.data };
   }
 
@@ -871,6 +871,8 @@ class Component extends DCLogic {
     const fail = msg => { if (this.state.screen === 'pay') this.setState({ pay: { phase: 'error', id, msg } }); };
     const [r] = await Promise.all([this.fnCall('razorpay', { action: 'dir-create-order', application_id: id, promo: this._promo ? this._promo.code : '' }), this.loadRazorpay().catch(e => ({ error: e.message }))]);
     if (this.state.screen !== 'pay') return;
+    /* Gateway not set up or its keys rejected (a 401/501 from the function): this is our problem, not the advocate's, so carry on with the UPI route instead of showing an error. */
+    if (r.error && (r.status === 401 || r.status === 501 || /reconfigured|not switched on/i.test(r.error))) { console.error('Razorpay unavailable, using UPI:', r.error); return this.startPay(id); }
     if (r.error) return fail(r.error);
     const d = r.data || {};
     if (d.paid) { this.setState({ pay: { phase: 'paid', id, r: {}, x: {} } }); this.refreshStatus(); return; }
