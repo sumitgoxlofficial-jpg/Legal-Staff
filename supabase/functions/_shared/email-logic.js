@@ -21,7 +21,7 @@ export const CONSENT_FIELDS = ["consent_source", "consent_timestamp", "consent_v
 export const MAPPABLE = [...SOURCE_FIELDS, ...CONSENT_FIELDS];
 const ALIASES = {
   advocate_name: ["advocate_name", "advocate name", "name", "full name", "advocate"], email: ["email", "email address", "e-mail", "mail", "email id"],
-  city: ["city", "district", "town"], state: ["state"], contact_source: ["contact_source", "contact source", "source"], source_url: ["source_url", "source url", "url", "link"],
+  city: ["city", "district", "town", "location"], state: ["state"], contact_source: ["contact_source", "contact source"], source_url: ["source_url", "source url", "source", "url", "link"],
   consent_source: ["consent_source", "consent source"], consent_timestamp: ["consent_timestamp", "consent timestamp", "consented_at", "consent date"],
   consent_verified_at: ["consent_verified_at", "consent verified at", "email_verified_at"], consent_evidence_ref: ["consent_evidence_ref", "evidence_ref", "consent evidence", "evidence"],
   consent_wording_version: ["consent_wording_version", "wording_version", "consent wording"],
@@ -33,11 +33,19 @@ export function autoMapColumns(headers) {
   for (const f of MAPPABLE) for (const a of ALIASES[f]) { const i = norm.indexOf(a.replace(/_/g, " ")) >= 0 ? norm.indexOf(a.replace(/_/g, " ")) : norm.indexOf(a); if (i >= 0) { out[f] = headers[i]; break; } }
   return out;
 }
-/** Turns raw sheet rows (arrays, first row is the header) into objects for email_import_rows. `row` is the 1-based sheet row number. */
+/** Index of the header row: the first of the first 15 rows with a cell that names the email column (sheets often start with title banner rows). 0 when none does. */
+export function findHeaderRow(values) {
+  for (let i = 0; i < Math.min(values.length, 15); i++) {
+    const cells = (values[i] || []).map((h) => String(h ?? "").trim().toLowerCase().replace(/[\s-]+/g, " "));
+    if (cells.some((c) => ALIASES.email.some((a) => c === a || c === a.replace(/_/g, " ")))) return i;
+  }
+  return 0;
+}
+/** Turns raw sheet rows (arrays; the header row is found by findHeaderRow) into objects for email_import_rows. `row` is the 1-based number of the row in the sheet. */
 export function mapRows(values, map) {
-  const [header = [], ...rows] = values;
-  const idx = {}; for (const [f, h] of Object.entries(map)) { const i = header.findIndex((x) => String(x).trim() === String(h).trim()); if (i >= 0) idx[f] = i; }
-  return rows.map((r, n) => { const o = { row: n + 2 }; for (const [f, i] of Object.entries(idx)) o[f] = String(r[i] ?? "").trim(); return o; }).filter((o) => Object.entries(o).some(([k, v]) => k !== "row" && v));
+  const h = findHeaderRow(values), header = values[h] || [], rows = values.slice(h + 1);
+  const idx = {}; for (const [f, name] of Object.entries(map)) { const i = header.findIndex((x) => String(x).trim() === String(name).trim()); if (i >= 0) idx[f] = i; }
+  return rows.map((r, n) => { const o = { row: h + n + 2 }; for (const [f, i] of Object.entries(idx)) o[f] = String(r[i] ?? "").trim(); return o; }).filter((o) => Object.entries(o).some(([k, v]) => k !== "row" && v));
 }
 /** Fields a mapping must contain before an import can run. */
 export const mappingProblems = (map) => (map && map.email ? [] : ["Map the email column."]);
