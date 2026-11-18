@@ -64,8 +64,20 @@ header :focus-visible{outline-color:#fff}
 .lsd-drop:hover,.lsd-drop.on{border-color:#0A0A0A!important;background:#FAFAF9!important}
 .lsd-spin{width:18px;height:18px;border-radius:50%;border:2px solid #D4D4D4;border-top-color:#0A0A0A;animation:lsdSpin .8s linear infinite;display:inline-block}
 a.lsd-a{text-decoration:none}
+@keyframes lsdDash{to{stroke-dashoffset:-28}}
+@keyframes lsdScan{0%{transform:translateY(0);opacity:0}15%,85%{opacity:1}100%{transform:translateY(80px);opacity:0}}
+@keyframes lsdCheckLoop{0%{stroke-dashoffset:60}30%,85%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+@keyframes lsdShieldBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.lsd-shield{animation:lsdShieldBob 5s ease-in-out infinite}
+.lsd-ringa{animation:lsdRing 2.6s ease-out infinite}
+.lsd-check{stroke-dasharray:60;animation:lsdCheckLoop 4s ease-in-out infinite}
+.lsd-flowline{stroke-dasharray:6 8;animation:lsdDash 1.4s linear infinite}
+.lsd-ico{width:40px;height:40px;border-radius:11px;background:#F5F5F4;color:#0A0A0A;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .25s,color .25s,transform .35s cubic-bezier(.34,1.56,.64,1)}
+.lsd-card:hover .lsd-ico{background:#0A0A0A;color:#fff;transform:rotate(-7deg) scale(1.1)}
+table tbody tr{transition:background .2s}
+table tbody tr:hover{background:#FAFAF9}
 @media(max-width:960px){.lsd-hero-art{display:none}.lsd-hero-grid{grid-template-columns:minmax(0,1fr)!important}}
-@media(prefers-reduced-motion:reduce){.lsd-marquee,.lsd-orb,.lsd-cta::after{animation:none!important}}
+@media(prefers-reduced-motion:reduce){.lsd-marquee,.lsd-orb,.lsd-cta::after,.lsd-shield,.lsd-ringa,.lsd-flowline{animation:none!important}.lsd-check{stroke-dashoffset:0!important;animation:none!important}}
 </style>
 </helmet>
 <div style="min-height:100vh;background:#FFFFFF;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:15px;line-height:1.5;display:flex;flex-direction:column">
@@ -220,12 +232,47 @@ a.lsd-a{text-decoration:none}
     </div>
   </section>
 
+  <!-- ======================= VERIFY AN ADVOCATE ======================= -->
+  <section id="verify" style="scroll-margin-top:64px;max-width:1240px;margin:0 auto;padding:84px clamp(20px,4vw,24px) 8px">
+    <div style="position:relative;background:linear-gradient(135deg,#FAFAF9,#F0F0EF);border:1px solid #E5E5E5;border-radius:28px;overflow:hidden;padding:clamp(26px,5vw,56px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:44px;align-items:center">
+      <svg aria-hidden="true" class="lsd-float2" width="320" height="320" viewBox="0 0 100 100" style="position:absolute;right:-60px;top:-70px;opacity:.07;pointer-events:none"><circle cx="50" cy="50" r="48" fill="none" stroke="#0A0A0A" stroke-width="1" stroke-dasharray="2 3"/><circle cx="50" cy="50" r="34" fill="none" stroke="#0A0A0A" stroke-width="1"/><circle cx="50" cy="50" r="20" fill="none" stroke="#0A0A0A" stroke-width="1" stroke-dasharray="2 3"/></svg>
+      <div data-reveal="" style="position:relative;display:flex;flex-direction:column;gap:18px;min-width:0">
+        <div style="font-size:12px;color:#5E5E5E;font-weight:600;letter-spacing:.04em;text-transform:uppercase">Verify before you hire</div>
+        <h2 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:clamp(28px,3.8vw,42px);line-height:1.08;margin:0;letter-spacing:-.03em;text-wrap:balance">How to verify an advocate is genuine.</h2>
+        <ol style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px">
+          <li style="display:flex;gap:14px;align-items:flex-start"><span style="width:32px;height:32px;border-radius:50%;background:#1D9BF0;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">✓</span><span style="font-size:15px;color:#363636"><b>Look for the blue tick</b> on the photo. It means Legal Staff checked the enrolment number, State Bar Council and year.</span></li>
+          <li style="display:flex;gap:14px;align-items:flex-start"><span style="width:32px;height:32px;border-radius:50%;background:#0A0A0A;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">2</span><span style="font-size:15px;color:#363636"><b>Note the enrolment number</b> and State Bar Council shown on the profile, and check them below.</span></li>
+          <li style="display:flex;gap:14px;align-items:flex-start"><span style="width:32px;height:32px;border-radius:50%;background:#0A0A0A;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">3</span><span style="font-size:15px;color:#363636"><b>Cross-check with the Bar Council.</b> The State Bar Council keeps the roll of enrolled advocates and can confirm a number.</span></li>
+          <li style="display:flex;gap:14px;align-items:flex-start"><span style="width:32px;height:32px;border-radius:50%;background:#0A0A0A;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">4</span><span style="font-size:15px;color:#363636"><b>Ask to see the documents</b> at your first meeting: the enrolment certificate, Certificate of Practice and a photo ID.</span></li>
+        </ol>
+        <div style="font-size:13px;color:#5E5E5E">Something looks wrong? <a href="#report" onClick="{{ openReport }}">Report a profile</a> and a moderator will check it. Never pay a stranger in advance.</div>
+      </div>
+      <div data-reveal="" data-delay="140" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:18px;min-width:0">
+        <div class="lsd-shield" aria-hidden="true" style="position:relative;width:150px;height:170px">
+          <span class="lsd-ringa" style="position:absolute;inset:20px 15px;border-radius:50%;border:2px solid #1D9BF0"></span>
+          <span class="lsd-ringa" style="position:absolute;inset:20px 15px;border-radius:50%;border:2px solid #1D9BF0;animation-delay:1.2s"></span>
+          <svg viewBox="0 0 100 114" width="150" height="170" style="position:relative;filter:drop-shadow(0 14px 22px rgba(29,155,240,.35))"><path d="M50 4 92 20v34c0 28-18 48-42 56C26 102 8 82 8 54V20z" fill="#1D9BF0"/><path d="M50 4 92 20v34c0 28-18 48-42 56z" fill="#fff" opacity=".12"/><path class="lsd-check" d="M30 56l14 14 27-30" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="position:absolute;left:18px;right:18px;top:14px;height:34px;border-radius:50%;background:linear-gradient(180deg,transparent,rgba(255,255,255,.55),transparent);animation:lsdScan 3.4s ease-in-out infinite"></span>
+        </div>
+        <div style="width:100%;max-width:420px;background:#fff;border:1px solid #E5E5E5;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 18px 44px rgba(0,0,0,.06)">
+          <label for="vq" style="font-weight:600;font-size:15px">Is this enrolment number listed here?</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input id="vq" value="{{ vq }}" onChange="{{ setVq }}" onKeyDown="{{ vKey }}" placeholder="e.g. D/1234/2016" style="flex:1 1 170px;min-width:0;height:46px;border:1px solid #D4D4D4;border-radius:10px;padding:0 14px;font-size:15px">
+            <button onClick="{{ doVerify }}" class="lsd-cta ls-press" style="height:46px;padding:0 20px;border:0;border-radius:10px;background:#0A0A0A;color:#fff;font-size:15px;font-weight:600">Check</button>
+          </div>
+          <div style="font-size:12px;color:#8A8A8A">A match means the profile is published and verified. No match does not prove someone is not an advocate: they may not have joined. Ask for their certificate and check with the State Bar Council.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="browse" style="scroll-margin-top:64px;max-width:1240px;margin:0 auto;padding:72px 24px 24px;display:flex;flex-direction:column;gap:24px">
     <h2 data-reveal="" style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:30px;margin:0;letter-spacing:-.02em">Browse by practice area</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:12px">
       <sc-for list="{{ areas }}" as="a" hint-placeholder-count="12">
         <button data-reveal="" data-delay="{{ a.delay }}" data-dist="14" onClick="{{ a.go }}" class="lsd-card" style="text-align:left;border:1px solid #E5E5E5;background:#FFFFFF;border-radius:12px;padding:18px 20px;color:#0A0A0A;display:flex;flex-direction:column;gap:4px" style-hover="border-color:#0A0A0A">
-          <span style="font-size:16px;font-weight:500">{{ a.name }}</span>
+          {{ a.icon }}
+          <span style="font-size:16px;font-weight:500;margin-top:8px">{{ a.name }}</span>
           <span style="font-size:13px;color:#5E5E5E">{{ a.eg }}</span>
         </button>
       </sc-for>
@@ -261,8 +308,8 @@ a.lsd-a{text-decoration:none}
         <p style="margin:0;color:#5E5E5E">Each profile separates verified enrolment details from information the advocate has declared.</p>
       </div>
       <sc-for list="{{ howSteps }}" as="h" hint-placeholder-count="3">
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <div style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:34px;color:#0A0A0A;font-weight:600">{{ h.n }}</div>
+        <div data-reveal="" data-delay="{{ h.delay }}" class="lsd-card" style="display:flex;flex-direction:column;gap:8px;background:#fff;border:1px solid #E5E5E5;border-radius:16px;padding:22px">
+          <div style="display:flex;align-items:center;gap:12px">{{ h.icon }}<svg aria-hidden="true" width="100%" height="6" style="flex:1;min-width:0"><line class="lsd-flowline" x1="0" y1="3" x2="100%" y2="3" stroke="#C4C4C4" stroke-width="2" stroke-linecap="round"/></svg><span style="font-family:'Instrument Sans',system-ui,sans-serif;font-size:30px;color:#0A0A0A;font-weight:600">{{ h.n }}</span></div>
           <div style="font-weight:600;font-size:16px">{{ h.t }}</div>
           <div style="font-size:14px;color:#5E5E5E;text-wrap:pretty">{{ h.d }}</div>
         </div>
@@ -273,6 +320,7 @@ a.lsd-a{text-decoration:none}
   <!-- ======================= FOR ADVOCATES: the landing section ======================= -->
   <section id="advocates" style="scroll-margin-top:64px;background:#0A0A0A;color:#fff;position:relative;overflow:hidden;margin-top:36px">
     <div class="lsd-orb" aria-hidden="true" style="width:460px;height:460px;background:#3A3A3A;top:-160px;left:-120px;opacity:.45"></div>
+    <svg aria-hidden="true" class="lsd-float2" width="420" height="420" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;right:-70px;bottom:-60px;opacity:.09;pointer-events:none"><path d="M12 3v17"/><path d="M5 7l7-3 7 3"/><path d="M5 7l-3 7a3.5 3.5 0 0 0 6 0z"/><path d="M19 7l-3 7a3.5 3.5 0 0 0 6 0z"/><path d="M8 21h8"/></svg>
     <div style="position:relative;max-width:1240px;margin:0 auto;padding:clamp(64px,8vw,104px) clamp(20px,4vw,24px) 40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:48px;align-items:center">
       <div data-reveal="" style="display:flex;flex-direction:column;gap:20px;min-width:0">
         <div style="font-size:12px;color:#C9C9C9;font-weight:600;letter-spacing:.04em;text-transform:uppercase">For advocates · Lifetime directory profile</div>
@@ -655,7 +703,7 @@ class Component extends DCLogic {
     cf: this.blankContact(), cfErr: {}, enquiries: [],
     app: this.blankApp(), appErr: {}, editingId: null, apps: [], mine: {}, viewId: null,
     profiles: [], pState: 'idle', pErr: '', busy: '', statusErr: '', lookupEnr: '', modal: null, more: {}, lookup: '', lookupMsg: '', rf: { profile: '', reason: '', details: '', email: '' }, rfErr: {}, rfDone: null,
-    user: null, authErr: '', authBusy: false, pay: null, leads: [], photoMsg: '',
+    vq: '', user: null, authErr: '', authBusy: false, pay: null, leads: [], photoMsg: '',
     compare: [], compareMsg: '', stats: {}, revSum: {}, reviews: [], rv: { rating: 0, body: '', name: '', msg: '', done: {} }
   };
   K = { apps: 'ls.directory.applications', mine: 'ls.directory.myApplications', enq: 'ls.directory.enquiries', rep: 'ls.directory.reports' };
@@ -1302,6 +1350,11 @@ class Component extends DCLogic {
             h('polygon', { points: sealPts, fill: '#1D9BF0', stroke: '#fff', strokeWidth: 5, strokeLinejoin: 'round' }),
             h('path', { d: 'M30 52l14 14 27-30', fill: 'none', stroke: '#fff', strokeWidth: 10, strokeLinecap: 'round', strokeLinejoin: 'round' }))));
     };
+    const ci = (cx, cy, r) => 'M' + (cx - r) + ' ' + cy + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0';
+    const ICONS = { 'Civil': ['M12 3v17', 'M5 7l7-3 7 3', 'M5 7l-3 7a3.5 3.5 0 0 0 6 0z', 'M19 7l-3 7a3.5 3.5 0 0 0 6 0z', 'M8 21h8'], 'Criminal': ['M5 11h14v10H5z', 'M8 11V7a4 4 0 0 1 8 0v4', 'M12 15v3'], 'Family': [ci(9, 8, 3), ci(17, 9, 2.5), 'M3 20c0-3 3-5 6-5s6 2 6 5', 'M16 15c3 0 5 1.5 5 4'], 'Property': ['M3 11l9-8 9 8', 'M5 10v11h14V10', 'M10 21v-6h4v6'], 'Consumer': ['M6 7h12l-1 14H7z', 'M9 7a3 3 0 0 1 6 0'], 'Labour & Employment': ['M3 7h18v13H3z', 'M9 7V4h6v3', 'M3 13h18'], 'Tax': [ci(7, 7, 2.2), ci(17, 17, 2.2), 'M19 5L5 19'], 'Corporate & Commercial': ['M4 21V5l8-2v18', 'M12 9h8v12', 'M7 9h2', 'M7 13h2', 'M7 17h2', 'M15 13h2', 'M15 17h2'], 'Arbitration': ['M4 12h16', 'M8 8l-4 4 4 4', 'M16 8l4 4-4 4'], 'Constitutional & Writs': ['M6 3h9l4 4v14H6z', 'M15 3v4h4', 'M9 12h6', 'M9 16h6'], 'Cyber': [ci(12, 12, 9), 'M3 12h18', 'M12 3c3 3 3 15 0 18', 'M12 3c-3 3-3 15 0 18'], 'Banking & Recovery': ['M3 10l9-6 9 6', 'M5 10v8', 'M9 10v8', 'M15 10v8', 'M19 10v8', 'M3 21h18'] };
+    const iconSvg = ds => h('svg', { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }, ds.map((d, i) => h('path', { key: i, d })));
+    const areaIcon = name => h('span', { className: 'lsd-ico', 'aria-hidden': true }, iconSvg(ICONS[name] || ICONS['Civil']));
+    const stepIcon = ds => h('span', { className: 'lsd-ico', style: { background: '#0A0A0A', color: '#fff' }, 'aria-hidden': true }, iconSvg(ds));
     const all = this.people();
     const uniq = arr => arr.filter((v, i) => v && arr.indexOf(v) === i);
     const fmtDate = iso => { try { const d = new Date(iso); if (isNaN(d)) return ''; return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }); } catch (e) { return ''; } };
@@ -1319,6 +1372,7 @@ class Component extends DCLogic {
     const live = S.screen === 'results';
     const setLoc = v => this.setState({ loc: v, district: '', ...(live ? { page: 1, fDistrict: [] } : {}) });
     const setArea = v => this.setState({ area: v, ...(live ? { page: 1 } : {}) });
+    const doVerify = () => { const v = S.vq.trim(); if (v) this.search({ q: v, loc: '', district: '', area: '', court: '' }); };
     const doSearch = () => this.search({ fDistrict: S.district ? [S.district] : [] });
 
     /* ----- results ----- */
@@ -1370,7 +1424,7 @@ class Component extends DCLogic {
       h('div', { style: { fontSize: 15, color: '#5E5E5E', maxWidth: 560, textWrap: 'pretty' } }, 'A profile appears here only after an advocate applies and a moderator has verified their enrolment. Are you an enrolled advocate? Apply for a profile and track its review from this page.'),
       h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, applyBtn, h('button', { type: 'button', onClick: () => this.nav({ screen: 'status', viewId: null }), style: { marginTop: 6, height: 44, padding: '0 18px', border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, fontSize: 14, color: '#0A0A0A' } }, 'Check application status'))) : h('div', { style: { border: '1px solid #E5E5E5', borderRadius: 14, padding: '36px 24px', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' } },
       h('div', { style: { fontSize: 20, fontWeight: 600 } }, 'No advocates match these criteria'),
-      h('div', { style: { fontSize: 14, color: '#5E5E5E', maxWidth: 520 } }, 'Try a different location or practice area, remove a filter, or search by a type of matter such as “bail”, “divorce” or “cheque bounce”.'),
+      h('div', { style: { fontSize: 14, color: '#5E5E5E', maxWidth: 520 } }, /\d+\/\d+/.test(S.q) ? 'No published, verified advocate has this enrolment number. That does not prove the person is not an advocate: they may not have joined this directory. Ask for their enrolment certificate and check with the State Bar Council.' : 'Try a different location or practice area, remove a filter, or search by a type of matter such as “bail”, “divorce” or “cheque bounce”.'),
       h('button', { type: 'button', onClick: clearAll, style: { marginTop: 6, height: 40, padding: '0 16px', border: '1px solid #0A0A0A', background: '#FFFFFF', borderRadius: 8, fontSize: 14, color: '#0A0A0A' } }, 'Clear search and filters'));
 
     /* ----- profile ----- */
@@ -1600,14 +1654,15 @@ class Component extends DCLogic {
       goRegister: () => this.startApply(), goStatus: () => this.nav({ screen: 'status', viewId: null }),
       goAdvocates: () => this.toLanding(), goClients: () => this.toLanding('clients'), goLanding: () => this.toLanding(),
       openLogin: openM('login'), openPrivacy: openM('privacy'), openTerms: openM('terms'), openReport: openM('report'),
+      vq: S.vq, setVq: e => this.setState({ vq: e.target.value }), vKey: e => { if (e.key === 'Enter') doVerify(); }, doVerify,
       q: S.q, setQ: e => this.setState({ q: e.target.value }), qKey: e => { if (e.key === 'Enter') doSearch(); }, doSearch,
       locSelect: sel('dloc', 'State or city', S.loc, locOpts, setLoc, bare),
       distSelect: sel('ddist', 'District', S.district, [['', !locState ? 'Choose a state first' : (distOpts.length ? 'Any district' : 'No districts listed yet')]].concat(distOpts.map(d => [d, d])), v => this.setState({ district: v }), { ...bare, color: distOpts.length ? '#0A0A0A' : '#8A8A8A' }, !distOpts.length),
       areaSelect: sel('darea', 'Practice area', S.area, areaOpts, setArea, bare),
-      areas: this.AREAS.map(([name, eg], i) => ({ name, eg, delay: (i % 4) * 60 + Math.floor(i / 4) * 80, go: () => this.search({ q: '', loc: '', district: '', court: '', area: name }) })),
+      areas: this.AREAS.map(([name, eg], i) => ({ icon: areaIcon(name), name, eg, delay: (i % 4) * 60 + Math.floor(i / 4) * 80, go: () => this.search({ q: '', loc: '', district: '', court: '', area: name }) })),
       states: ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Uttar Pradesh', 'West Bengal', 'Telangana', 'Gujarat', 'Rajasthan', 'Kerala', 'Punjab', 'Madhya Pradesh'].map(name => ({ name, go: () => this.search({ q: '', loc: name, district: '', court: '', area: '' }) })),
       courts: ['Supreme Court of India', 'High Court of Delhi', 'Bombay High Court', 'Madras High Court', 'District Courts', 'Consumer Commissions', 'Debts Recovery Tribunals'].map(name => ({ name, go: () => this.search({ q: '', loc: '', district: '', area: '', court: name }) })),
-      howSteps: [{ n: '1', t: 'Advocate applies', d: 'They submit their enrolment number, State Bar Council and supporting documents.' }, { n: '2', t: 'Enrolment checked', d: 'A moderator checks the documents against the Bar Council record. Every decision is logged.' }, { n: '3', t: 'Profile published', d: 'Only verified profiles appear in search. Declared details are labelled as declared.' }],
+      howSteps: [{ n: '1', icon: stepIcon(['M6 3h9l4 4v14H6z', 'M15 3v4h4', 'M9 12h6', 'M9 16h6']), delay: 0, t: 'Advocate applies', d: 'They submit their enrolment number, State Bar Council and supporting documents.' }, { n: '2', icon: stepIcon([ci(11, 11, 7), 'M21 21l-4.3-4.3', 'M8 11l2 2 4-4']), delay: 100, t: 'Enrolment checked', d: 'A moderator checks the documents against the Bar Council record. Every decision is logged.' }, { n: '3', icon: stepIcon(['M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', 'M8.5 12l2.5 2.5 4.5-5']), delay: 200, t: 'Profile published', d: 'Only verified profiles appear in search. Declared details are labelled as declared.' }],
       resSummary: summary, resCount: on && S.pState !== 'ready' ? (S.pState === 'error' ? 'Not loaded' : 'Loading') : list.length === 1 ? '1 advocate' : (list.length || 'No') + ' advocates', resToolbar, hasAside: filters.length > 0 || anyCriteria,
       sortSelect: !all.length ? null : sel('rsort', 'Sort order', S.sort, [['az', 'Name A–Z'], ['za', 'Name Z–A'], ['old', 'Most years in practice'], ['new', 'Enrolment year, latest first'], ['resp', 'Replies to requests, most first']].concat(this.reviewsOn() ? [['rated', 'Highest rated']] : []), v => this.setState({ sort: v, page: 1 }), { height: 34, border: '1px solid #E5E5E5', background: '#FFFFFF', borderRadius: 8, padding: '0 8px', fontSize: 13, color: '#0A0A0A' }),
       filters, clearBtn: anyCriteria ? h('button', { type: 'button', onClick: clearAll, style: linkBtn }, 'Clear search and filters') : null,
