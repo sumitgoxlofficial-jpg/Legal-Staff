@@ -231,7 +231,7 @@ Deno.serve(async (req: Request) => {
     const KEYS = ["upi_enabled", "upi_id", "payee_name", "alert_email", "seller_name", "seller_address", "seller_state_code", "seller_gstin", "seller_pan", "seller_email", "seller_phone"];
     // ---- directory review: applications, their private documents, and the decision ----
     if (action === "directory_list") {
-      const { data } = await admin.from("directory_applications").select("id,name,enr,council,year,city,email,mobile,details,photo,status,note,paid_at,created_at,decided_at").order("created_at", { ascending: false }).limit(500);
+      const { data } = await admin.from("directory_applications").select("id,name,enr,council,year,city,email,mobile,details,photo,status,note,paid_at,created_at,decided_at,ai_report").order("created_at", { ascending: false }).limit(500);
       return json({ applications: data ?? [] });
     }
     if (action === "directory_doc") {   // a 5-minute link to one uploaded document (must be a file recorded on an application)

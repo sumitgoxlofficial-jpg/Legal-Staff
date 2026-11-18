@@ -363,6 +363,7 @@
           <div class="strong" style="margin:16px 0 4px">Details</div>
           ${row('Enrolment number', `<b class="mono">${esc(a.enr)}</b>`)}${row('State Bar Council', esc(a.council))}${row('Year of enrolment', esc(a.year))}${row('Certificate of Practice no.', esc(d.cop))}
           ${row('Email', esc(a.email))}${row('Mobile', esc(a.mobile))}${row('City / district', esc([a.city, d.district].filter(Boolean).join(' · ')))}${row('Practice areas', esc((Array.isArray(d.areas) ? d.areas : []).join(', ')))}${row('Courts', esc(d.courts))}${row('Languages', esc(d.langs))}${row('Qualifications', esc(d.quals))}${row('Chamber', esc(d.chamber))}
+          ${a.ai_report ? `<div class="strong" style="margin:14px 0 6px">Automatic check (${esc(a.ai_report.model || '')}, ${dt(a.ai_report.at)})</div><div class="muted small" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(a.ai_report.read || {}, null, 1))}${(a.ai_report.problems || []).length ? '\n\nProblems:\n- ' + esc((a.ai_report.problems || []).join('\n- ')) : '\n\nNo problems found.'}</div>` : ''}
           ${a.note ? `<div class="strong" style="margin:14px 0 6px">Previous note</div><div class="muted">${esc(a.note)}</div>` : ''}
         </div>
         <div class="card" style="background:var(--soft);margin:14px 0 10px;padding:12px 14px"><div class="strong small" style="margin-bottom:6px">Before you verify, confirm each</div>
