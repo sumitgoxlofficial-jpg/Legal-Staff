@@ -24,6 +24,7 @@ const listPrice = (plan: string, cycle: string, seats?: number | null) => {
   return p + (plan === "Professional" ? (Math.max(1, Number(seats) || 1) - 1) * PER_USER[cycle] : 0);
 };
 const DIR_FEE_PAISE = 4400;       // one-time, lifetime directory listing: Rs 49, less Rs 5 for paying by direct UPI (Razorpay in functions/razorpay charges the full Rs 49)
+const DIR_RZP_PAISE = 4900;       // the same fee paid through Razorpay (functions/razorpay)
 const OPEN_MINUTES = 30;          // how long an order waits for payment in the app
 const LATE_HOURS = 24;            // a payment confirmed within this time still activates the plan
 
@@ -96,6 +97,21 @@ const upiLink = (s: any, orderNo: string, paise: number) => {
   return "upi://pay?" + p.toString().replace(/\+/g, "%20");
 };
 
+const promoText = (c: any) => c.fixed_total != null ? "pay \u20b9" + (c.fixed_total / 100).toFixed(2).replace(/\.00$/, "") + " in total" : [c.percent_off ? c.percent_off + "% off" : "", c.amount_off ? "\u20b9" + c.amount_off + " off" : ""].filter(Boolean).join(" + ");
+/** The promo code row for a directory listing fee, checked as plan "Directory" / cycle "once" (codes limited to other plans do not apply); null when none was given. */
+async function dirPromo(admin: any, raw: unknown, userId: string) {
+  const code = String(raw ?? "").trim().toUpperCase();
+  if (!code) return null;
+  const { data: c } = await admin.from("promo_codes").select("*").eq("code", code).maybeSingle();
+  const why = promoProblem(c, "Directory", "once");
+  if (why) throw new Fail(why);
+  if (c.once_per_firm) {
+    const { data: used } = await admin.from("directory_orders").select("id").eq("user_id", userId).eq("promo_code", code).eq("status", "paid").limit(1);
+    if (used?.length) throw new Fail("You have already used that promo code.");
+  }
+  return c;
+}
+
 async function settings(admin: any) {
   const { data, error } = await admin.from("pay_settings").select("*").eq("id", 1).single();
   if (error) throw error;
@@ -127,6 +143,7 @@ async function activateDir(admin: any, o: any, utr: string | null, by: string) {
     .eq("id", o.id).eq("status", "created").select("id");
   if (!claimed?.length) return false;
   await admin.from("directory_applications").update({ paid_at: new Date().toISOString(), order_no: o.order_no }).eq("id", o.application_id).is("paid_at", null);
+  if (o.promo_code) await admin.rpc("promo_use", { c: o.promo_code });
   return true;
 }
 
@@ -246,9 +263,14 @@ Deno.serve(async (req: Request) => {
     if (!user) throw new Fail("Sign in again.", 401);
 
     // ---- directory listing fee: Rs 49 once, for life. Any signed-in account that owns an application (no firm needed) ----
-    if (action === "dir_create" || action === "dir_status") {
+    if (action === "dir_create" || action === "dir_status" || action === "dir_promo") {
       const { data: app } = await admin.from("directory_applications").select("id,user_id,paid_at").eq("id", String(body.application_id ?? "")).maybeSingle();
       if (!app || app.user_id !== user.id) throw new Fail("Application not found.", 404);
+      if (action === "dir_promo") {
+        const c = await dirPromo(admin, body.promo, user.id);
+        if (!c) throw new Fail("Enter a promo code.");
+        return json({ code: c.code, label: promoText(c), upi: priceFor(DIR_FEE_PAISE / 100, c), rzp: priceFor(DIR_RZP_PAISE / 100, c) });
+      }
       if (action === "dir_status") {
         const { data: o } = await admin.from("directory_orders").select("*").eq("order_no", String(body.order_no ?? "")).eq("application_id", app.id).maybeSingle();
         if (!o) throw new Fail("Payment not found.", 404);
@@ -258,17 +280,27 @@ Deno.serve(async (req: Request) => {
       }
       if (app.paid_at) return json({ paid: true });
       if (!s.upi_enabled || !s.upi_id) throw new Fail("UPI payments are not switched on yet.", 501);
+      const promo = await dirPromo(admin, body.promo, user.id);
+      const price = priceFor(DIR_FEE_PAISE / 100, promo);
+      if (price.total === 0) {   // a 100%-off code: nothing to pay, the listing is paid now
+        const orderNo = "LD" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase(), now = new Date().toISOString();
+        const { error } = await admin.from("directory_orders").insert({ application_id: app.id, user_id: user.id, order_no: orderNo, amount_paise: 0, status: "paid", confirmed_by: "promo", paid_at: now, promo_code: promo!.code, discount_paise: price.discount });
+        if (error) throw new Fail("Could not apply the promo code.", 500);
+        await admin.from("directory_applications").update({ paid_at: now, order_no: orderNo }).eq("id", app.id).is("paid_at", null);
+        await admin.rpc("promo_use", { c: promo!.code });
+        return json({ free: true, order_no: orderNo, amount: 0 });
+      }
       const since = new Date(Date.now() - OPEN_MINUTES * 60e3).toISOString();
       const { data: again } = await admin.from("directory_orders").select("*").eq("application_id", app.id).eq("status", "created").gte("created_at", since).order("created_at", { ascending: false }).limit(1);
-      if (again?.length) { const o = again[0]; return json({ order_no: o.order_no, amount: o.amount_paise, upi_id: s.upi_id, payee: s.payee_name, link: upiLink(s, o.order_no, o.amount_paise), expires_at: new Date(Date.parse(o.created_at) + OPEN_MINUTES * 60e3).toISOString() }); }
+      if (again?.length && (again[0].promo_code ?? "") === (promo?.code ?? "")) { const o = again[0]; return json({ order_no: o.order_no, amount: o.amount_paise, upi_id: s.upi_id, payee: s.payee_name, link: upiLink(s, o.order_no, o.amount_paise), expires_at: new Date(Date.parse(o.created_at) + OPEN_MINUTES * 60e3).toISOString() }); }
       const lateSince = new Date(Date.now() - LATE_HOURS * 3600e3).toISOString();
-      const { data: a1 } = await admin.from("payments").select("amount_paise").eq("method", "upi").eq("status", "created").gte("amount_paise", DIR_FEE_PAISE).lt("amount_paise", DIR_FEE_PAISE + 100).gte("created_at", lateSince);
-      const { data: a2 } = await admin.from("directory_orders").select("amount_paise").eq("status", "created").gte("amount_paise", DIR_FEE_PAISE).lt("amount_paise", DIR_FEE_PAISE + 100).gte("created_at", lateSince);
-      const k = pickOffset(DIR_FEE_PAISE, [...(a1 ?? []), ...(a2 ?? [])].map((r: any) => r.amount_paise));
+      const { data: a1 } = await admin.from("payments").select("amount_paise").eq("method", "upi").eq("status", "created").gte("amount_paise", price.total).lt("amount_paise", price.total + 100).gte("created_at", lateSince);
+      const { data: a2 } = await admin.from("directory_orders").select("amount_paise").eq("status", "created").gte("amount_paise", price.total).lt("amount_paise", price.total + 100).gte("created_at", lateSince);
+      const k = pickOffset(price.total, [...(a1 ?? []), ...(a2 ?? [])].map((r: any) => r.amount_paise));
       if (k < 0) throw new Fail("Too many UPI payments are waiting right now. Please try again in a few minutes.", 503);
       const orderNo = "LD" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
-      const amount = DIR_FEE_PAISE + k;
-      const { error } = await admin.from("directory_orders").insert({ application_id: app.id, user_id: user.id, order_no: orderNo, amount_paise: amount });
+      const amount = price.total + k;
+      const { error } = await admin.from("directory_orders").insert({ application_id: app.id, user_id: user.id, order_no: orderNo, amount_paise: amount, promo_code: promo?.code ?? null, discount_paise: price.discount });
       if (error) throw new Fail("Could not create the payment.", 500);
       return json({ order_no: orderNo, amount, upi_id: s.upi_id, payee: s.payee_name, link: upiLink(s, orderNo, amount), expires_at: new Date(Date.now() + OPEN_MINUTES * 60e3).toISOString() });
     }

@@ -77,7 +77,19 @@ a.lsd-a{text-decoration:none}
 table tbody tr{transition:background .2s}
 table tbody tr:hover{background:#FAFAF9}
 @media(max-width:960px){.lsd-hero-art{display:none}.lsd-hero-grid{grid-template-columns:minmax(0,1fr)!important}}
-@media(prefers-reduced-motion:reduce){.lsd-marquee,.lsd-orb,.lsd-cta::after,.lsd-shield,.lsd-ringa,.lsd-flowline{animation:none!important}.lsd-check{stroke-dashoffset:0!important;animation:none!important}}
+@keyframes lsdRingFill{from{stroke-dashoffset:var(--c)}to{stroke-dashoffset:var(--o)}}
+@keyframes lsdPulse{0%{box-shadow:0 0 0 0 rgba(10,10,10,.35)}70%{box-shadow:0 0 0 9px rgba(10,10,10,0)}100%{box-shadow:0 0 0 0 rgba(10,10,10,0)}}
+@keyframes lsdGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes lsdFloatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.lsd-ringfill{stroke-dasharray:var(--c);stroke-dashoffset:var(--o);animation:lsdRingFill 1.6s cubic-bezier(.2,.7,.2,1) .3s both}
+.lsd-pulse{animation:lsdPulse 1.8s ease-out infinite}
+.lsd-rise{animation:lsRise .6s cubic-bezier(.2,.7,.2,1) both}
+.lsd-line{transform-origin:top;animation:lsdGrow .6s ease-out both}
+.lsd-float{animation:lsdFloatY 5s ease-in-out infinite}
+.lsd-tile{transition:transform .25s,box-shadow .25s,border-color .25s}
+.lsd-tile:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.08);border-color:#C9C9C9!important}
+.lsd-dots{background-image:radial-gradient(rgba(255,255,255,.09) 1px,transparent 1px);background-size:22px 22px;animation:lsDrift 18s linear infinite}
+@media(prefers-reduced-motion:reduce){.lsd-marquee,.lsd-orb,.lsd-cta::after,.lsd-shield,.lsd-ringa,.lsd-flowline,.lsd-ringfill,.lsd-pulse,.lsd-rise,.lsd-line,.lsd-float,.lsd-dots{animation:none!important}.lsd-check{stroke-dashoffset:0!important;animation:none!important}}
 </style>
 </helmet>
 <div style="min-height:100vh;background:#FFFFFF;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:15px;line-height:1.5;display:flex;flex-direction:column">
@@ -650,37 +662,18 @@ table tbody tr:hover{background:#FAFAF9}
 </sc-if>
 
 <sc-if value="{{ s.status }}" hint-placeholder-val="{{ false }}">
-  <div style="max-width:880px;margin:0 auto;padding:44px 24px 72px;display:flex;flex-direction:column;gap:24px">
-    <div>
-      <div style="font-size:12px;color:#5E5E5E;font-weight:600">Directory account</div>
-      <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:34px;margin:8px 0 0">{{ stat.title }}</h1>
-      <p style="margin:8px 0 0;color:#5E5E5E">{{ stat.sub }}</p>
-    </div>
+  <div style="max-width:1120px;margin:0 auto;padding:40px clamp(16px,4vw,24px) 72px;display:flex;flex-direction:column;gap:20px">
+    <sc-if value="{{ stat.none }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="font-size:12px;color:#5E5E5E;font-weight:600">Directory account</div>
+        <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:34px;margin:8px 0 0">{{ stat.title }}</h1>
+        <p style="margin:8px 0 0;color:#5E5E5E">{{ stat.sub }}</p>
+      </div>
+      {{ stat.actions }}
+    </sc-if>
     {{ stat.noteBox }}
-    {{ stat.docBox }}
-    {{ stat.actions }}
     <sc-if value="{{ stat.has }}" hint-placeholder-val="{{ true }}">
-    <section style="border:1px solid #E5E5E5;border-radius:14px;padding:28px 30px;display:flex;flex-direction:column">
-      <sc-for list="{{ track }}" as="t" hint-placeholder-count="4">
-        <div data-reveal="" data-delay="{{ t.delay }}" data-dist="10" style="display:flex;gap:18px">
-          <div style="display:flex;flex-direction:column;align-items:center;width:24px">
-            <div style="{{ t.dot }}">{{ t.mark }}</div>
-            <div style="flex:1;width:1px;background:#E5E5E5;min-height:18px"></div>
-          </div>
-          <div style="padding-bottom:22px">
-            <div style="font-weight:600;font-size:15px">{{ t.t }}</div>
-            <div style="font-size:14px;color:#5E5E5E">{{ t.d }}</div>
-          </div>
-        </div>
-      </sc-for>
-    </section>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
-      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Profile visibility</div><div style="font-weight:500;margin-top:4px">{{ stat.visibility }}</div></div>
-      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Contact requests</div><div style="font-weight:500;margin-top:4px">{{ stat.requests }}</div></div>
-      <div style="border:1px solid #E5E5E5;border-radius:14px;padding:20px"><div style="font-size:13px;color:#5E5E5E">Practice software</div><div style="font-weight:500;margin-top:4px">Not included. <a href="index.html#pricing">See plans</a></div></div>
-    </div>
-    {{ stat.photoBox }}
-    {{ stat.leadsBox }}
+      {{ stat.dash }}
     </sc-if>
   </div>
 </sc-if>
@@ -843,17 +836,29 @@ class Component extends DCLogic {
     if (!this.sb()) return;
     this.stopPay();
     this.setState({ pay: { phase: 'creating', id } });
-    const r = await this.fnCall('upi-pay', { action: 'dir_create', application_id: id });
+    const r = await this.fnCall('upi-pay', { action: 'dir_create', application_id: id, promo: this._promo ? this._promo.code : '' });
     if (this.state.screen !== 'pay') return;
     if (r.error) { this.setState({ pay: { phase: 'error', id, msg: r.error } }); return; }
     const d = r.data || {};
-    if (d.paid) { this.setState({ pay: { phase: 'paid', id, r: {}, x: {} } }); this.refreshStatus(); return; }
+    if (d.paid || d.free) { this.setState({ pay: { phase: 'paid', id, r: { order_no: d.order_no }, x: d.free ? { method: 'promo' } : {} } }); this.refreshStatus(); return; }
     const end = Date.parse(d.expires_at), left = () => Math.max(0, Math.round((end - Date.now()) / 1000));
-    this.setState({ pay: { phase: 'waiting', id, r: d, end, left: left(), qr: '' } });
+    this.setState({ pay: { phase: 'waiting', id, r: d, end, left: left(), qr: '', promo: this._promo || null } });
     this.loadQr().then(() => { const q = window.qrcode(0, 'M'); q.addData(d.link); q.make(); const p = this.state.pay; if (p && p.r === d) this.setState({ pay: { ...p, qr: q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }) } }); }).catch(() => { const p = this.state.pay; if (p && p.r === d) this.setState({ pay: { ...p, qr: 'failed' } }); });
     this._payTick = setInterval(() => { const p = this.state.pay; if (p && p.phase === 'waiting') this.setState({ pay: { ...p, left: left() } }); }, 1000);
     this._payPoll = setInterval(() => this.checkPay(), 4000);
   }
+  /* promo code on the listing fee: checked on the server, then the order is made again at the new price */
+  async applyPromo(id) {
+    const code = String(this.state.promoIn || '').trim(); if (!code) { this.setState({ promoErr: 'Enter a promo code.' }); return; }
+    if (this.state.promoBusy) return;
+    this.setState({ promoBusy: true, promoErr: '' });
+    const r = await this.fnCall('upi-pay', { action: 'dir_promo', application_id: id, promo: code });
+    if (r.error) { this.setState({ promoBusy: false, promoErr: r.error }); return; }
+    this._promo = { code: r.data.code, label: r.data.label, upi: r.data.upi.total, rzp: r.data.rzp.total };
+    this.setState({ promoBusy: false, promoIn: '', promoErr: '' });
+    this.startPay(id);
+  }
+  removePromo(id) { this._promo = null; this.setState({ promoErr: '' }); this.startPay(id); }
   /* Pay the listing fee through Razorpay instead (full Rs 49; the direct UPI route is Rs 5 cheaper): leaves the UPI screen, opens Razorpay's window, verifies on the server. */
   loadRazorpay() { return window.Razorpay ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://checkout.razorpay.com/v1/checkout.js'; sc.onload = res; sc.onerror = () => rej(new Error('Could not load Razorpay checkout. Check your connection and try again.')); document.head.appendChild(sc); }); }
   async payRazorpay(id) {
@@ -861,7 +866,7 @@ class Component extends DCLogic {
     this.stopPay(); this._rzDone = false;
     this.setState({ pay: { phase: 'creating', id } });
     const fail = msg => { if (this.state.screen === 'pay') this.setState({ pay: { phase: 'error', id, msg } }); };
-    const [r] = await Promise.all([this.fnCall('razorpay', { action: 'dir-create-order', application_id: id }), this.loadRazorpay().catch(e => ({ error: e.message }))]);
+    const [r] = await Promise.all([this.fnCall('razorpay', { action: 'dir-create-order', application_id: id, promo: this._promo ? this._promo.code : '' }), this.loadRazorpay().catch(e => ({ error: e.message }))]);
     if (this.state.screen !== 'pay') return;
     if (r.error) return fail(r.error);
     const d = r.data || {};
@@ -925,6 +930,7 @@ class Component extends DCLogic {
     this.setState({ busy: '' });
   }
   openPay() {
+    this._promo = null;
     const app = this.currentApp();
     if (!app || app.paid) { this.nav({ screen: 'status' }); return; }
     this.nav({ screen: 'pay', viewId: app.id, pay: null });
@@ -1711,7 +1717,7 @@ class Component extends DCLogic {
     let payView = null;
     if (s.pay) {
       const pay = S.pay, pa = S.apps.find(a => a.id === (pay && pay.id)) || app, r = pay && pay.r;
-      const amt = r && r.amount ? '₹' + (r.amount / 100).toFixed(2) : '₹49', mm = pay && pay.left != null ? String(Math.floor(pay.left / 60)).padStart(2, '0') + ':' + String(pay.left % 60).padStart(2, '0') : '';
+      const rupee = p => '₹' + (p / 100).toFixed(p % 100 ? 2 : 0), rzpTotal = pay && pay.promo ? pay.promo.rzp : 4900, amt = r && r.amount ? '₹' + (r.amount / 100).toFixed(2) : '₹49', mm = pay && pay.left != null ? String(Math.floor(pay.left / 60)).padStart(2, '0') + ':' + String(pay.left % 60).padStart(2, '0') : '';
       const dark = (label, onClick, key) => h('button', { key, type: 'button', onClick, className: 'ls-press', style: { height: 46, padding: '0 20px', border: 0, borderRadius: 10, background: '#0A0A0A', color: '#fff', fontSize: 15, fontWeight: 600 } }, label);
       const light = (label, onClick, key) => h('button', { key, type: 'button', onClick, className: 'ls-press', style: { height: 46, padding: '0 20px', border: '1px solid #E5E5E5', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 15 } }, label);
       let right;
@@ -1730,13 +1736,20 @@ class Component extends DCLogic {
         h('div', { style: { position: 'relative', width: 232, height: 232, border: '1px solid #E5E5E5', borderRadius: 16, padding: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', overflow: 'hidden' } },
           pay.qr === 'failed' ? h('div', { style: { fontSize: 13, color: '#5E5E5E', padding: 12 } }, 'The QR code could not load. Use the button below on your phone, or pay to the UPI ID shown.') : pay.qr ? h('div', { style: { width: '100%', height: '100%' }, dangerouslySetInnerHTML: { __html: pay.qr.replace('<svg ', '<svg width="100%" height="100%" ') } }) : h('span', { className: 'lsd-spin' }),
           pay.qr && pay.qr !== 'failed' ? h('div', { 'aria-hidden': true, style: { position: 'absolute', left: 0, right: 0, height: 36, background: 'linear-gradient(180deg,transparent,rgba(10,10,10,.12),transparent)', animation: 'ls-scan 2.8s ease-in-out infinite' } }) : null),
-        h('div', { style: { fontSize: 12.5, fontWeight: 600, color: '#137333', background: '#E7F6EC', borderRadius: 99, padding: '4px 12px' } }, '₹5 off when you pay by UPI here · ₹49 with Razorpay'),
+        h('div', { style: { fontSize: 12.5, fontWeight: 600, color: '#137333', background: '#E7F6EC', borderRadius: 99, padding: '4px 12px' } }, '₹5 off when you pay by UPI here · ' + rupee(rzpTotal) + ' with Razorpay'),
         h('div', { style: { fontSize: 14, color: '#363636' } }, 'Scan with any UPI app: GPay, PhonePe, Paytm, BHIM'),
         h('a', { href: r.link, className: 'lsd-a lsd-cta', style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 46, padding: '0 22px', background: '#0A0A0A', color: '#fff', borderRadius: 10, fontSize: 15, fontWeight: 600 } }, 'Open UPI app (on your phone)'),
         h('div', { style: { fontSize: 12.5, color: '#5E5E5E' } }, 'Paying ' + r.payee + ' · ' + r.upi_id),
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', maxWidth: 360, fontSize: 12, color: '#8A8A8A' } }, h('span', { style: { flex: 1, height: 1, background: '#E5E5E5' } }), 'or', h('span', { style: { flex: 1, height: 1, background: '#E5E5E5' } })),
-        h('button', { type: 'button', onClick: () => this.payRazorpay(pay.id), className: 'ls-press', style: { height: 46, padding: '0 22px', border: '1px solid #0A0A0A', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 15, fontWeight: 600 } }, 'Pay ₹49 with Razorpay'),
+        h('button', { type: 'button', onClick: () => this.payRazorpay(pay.id), className: 'ls-press', style: { height: 46, padding: '0 22px', border: '1px solid #0A0A0A', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 15, fontWeight: 600 } }, 'Pay ' + rupee(rzpTotal) + ' with Razorpay'),
         h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, 'Card · UPI · netbanking · wallets, confirmed instantly (no discount)'),
+        h('div', { style: { width: '100%', maxWidth: 360, borderTop: '1px solid #E5E5E5', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' } },
+          pay.promo
+            ? h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#E7F6EC', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: '#137333' } }, h('span', null, h('b', null, pay.promo.code), ' applied · ' + pay.promo.label), h('button', { type: 'button', onClick: () => this.removePromo(pay.id), style: { border: 0, background: 'none', color: '#137333', textDecoration: 'underline', fontSize: 12.5, padding: 0 } }, 'Remove'))
+            : h('div', { style: { display: 'flex', gap: 8 } },
+                h('input', { value: S.promoIn || '', placeholder: 'Promo code', 'aria-label': 'Promo code', onChange: e => this.setState({ promoIn: e.target.value.toUpperCase(), promoErr: '' }), onKeyDown: e => { if (e.key === 'Enter') this.applyPromo(pay.id); }, style: { flex: 1, minWidth: 0, height: 42, border: '1px solid #D4D4D4', borderRadius: 10, padding: '0 12px', fontSize: 14, fontFamily: 'inherit' } }),
+                h('button', { type: 'button', onClick: () => this.applyPromo(pay.id), disabled: !!S.promoBusy, className: 'ls-press', style: { height: 42, padding: '0 16px', border: '1px solid #0A0A0A', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 14, fontWeight: 600 } }, S.promoBusy ? 'Checking…' : 'Apply')),
+          S.promoErr ? h('div', { role: 'alert', style: { fontSize: 12.5, color: '#B42318' } }, S.promoErr) : null),
         h('div', { role: 'status', style: { display: 'flex', gap: 10, alignItems: 'center', fontSize: 14, color: '#363636' } }, h('span', { className: 'lsd-spin' }), 'Waiting for your payment… ' + mm),
         h('div', { style: { fontSize: 12, color: '#8A8A8A', maxWidth: 360 } }, 'Keep this page open. It updates by itself as soon as the payment arrives. Pay the exact amount shown, including paise, so it is matched to your order ' + r.order_no + '.'));
       const left = h('div', { style: { background: '#0A0A0A', color: '#fff', borderRadius: 20, padding: 'clamp(24px,4vw,36px)', display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', overflow: 'hidden' } },
@@ -1765,8 +1778,61 @@ class Component extends DCLogic {
       S.lateErr ? h('div', { role: 'alert', style: { fontSize: 13, color: '#B42318' } }, S.lateErr) : null,
       h('div', null, h('button', { type: 'button', disabled: S.busy === 'verify', onClick: () => this.submitLate(app.id), className: 'ls-press', style: { height: 46, padding: '0 22px', border: 0, borderRadius: 10, background: '#0A0A0A', color: '#fff', fontSize: 15, fontWeight: 600 } }, S.busy === 'verify' ? 'Checking your documents…' : 'Upload and verify')));
     const nReq = app ? S.enquiries.filter(e => e.advocateId === app.id).length : 0;
+    const stat0 = {
+      visibility: status === 'rejected' ? 'Not published' : !paid && on ? 'Hidden until the ₹49 fee is paid' : status === 'verified' ? 'Listed with the blue tick' : 'Listed, no blue tick until verified',
+      requests: isLive && status !== 'rejected' ? (on ? (S.leads.length ? S.leads.length + ' received' : 'Open · none received yet') : nReq ? nReq + ' received in this browser' : 'Open · none received yet') : 'Open after you\'re published'
+    };
+    /* ----- dashboard (a signed-in application): profile summary, key figures, progress, photo, inbox ----- */
+    const dChip = (label, bg, c) => h('span', { key: label, style: { fontSize: 12.5, fontWeight: 600, background: bg, color: c, borderRadius: 99, padding: '4px 12px', whiteSpace: 'nowrap' } }, label);
+    const stChip = { verified: ['✓ Verified', '#E7F6EC', '#137333'], pending: [bothUp ? 'Verification in progress' : 'Documents needed', '#FFF7E0', '#7A5B00'], info: ['Needs attention', '#FDECEA', '#B42318'], rejected: ['Not approved', '#FDECEA', '#B42318'] }[status || 'pending'];
+    let tileN = 0;
+    const dTile = (label, value, sub, tone, icon) => h('div', { key: label, className: 'lsd-tile lsd-rise', style: { animationDelay: (150 + tileN++ * 90) + 'ms', border: '1px solid #E5E5E5', borderRadius: 14, padding: '18px 20px', background: '#fff', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 } },
+      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } }, h('div', { style: { fontSize: 11.5, color: '#5E5E5E', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' } }, label), h('span', { style: { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: tone === '#137333' ? '#E7F6EC' : tone === '#B42318' ? '#FDECEA' : '#F5F5F4', color: tone || '#0A0A0A' } }, ico(DICO[icon]))),
+      h('div', { style: { fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', color: tone || '#0A0A0A' } }, value),
+      sub ? h('div', { style: { fontSize: 13, color: '#5E5E5E' } }, sub) : null);
+    const nLeads = on ? S.leads.length : nReq, GREEN = '#137333', RED = '#B42318';
+    const visVal = status === 'rejected' ? 'Not published' : !paid && on ? 'Hidden' : status === 'verified' ? 'Live' : 'Listed';
+    const stChipD = { verified: ['rgba(74,222,128,.18)', '#7CF0A6'], pending: ['rgba(255,200,60,.2)', '#FFD666'], info: ['rgba(255,120,110,.2)', '#FF9C94'], rejected: ['rgba(255,120,110,.2)', '#FF9C94'] }[status || 'pending'];
+    stChip.push(stChipD[0], stChipD[1]);
+    const doneN = track.filter(x => x.mark).length, pct = track.length ? Math.round(doneN / track.length * 100) : 0, RING_R = 38, RING_C = Math.round(2 * Math.PI * RING_R * 10) / 10;
+    const heroActions = actions.map(el => { const d = el.props.style && el.props.style.background === '#0A0A0A'; return React.cloneElement(el, { className: 'ls-press', style: { ...el.props.style, background: d ? '#fff' : 'transparent', color: d ? '#0A0A0A' : '#fff', border: d ? 0 : '1px solid rgba(255,255,255,.35)' } }); });
+    const ico = d => h('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d }));
+    const DICO = { v: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3zM9 12l2 2 4-4', f: 'M3 7h18v11H3zM3 11h18M7 15h3', p: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 100 6 3 3 0 000-6', c: 'M4 5h16v11H8l-4 4V5z' };
+    const dash = !app ? null : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18 } },
+      h('section', { className: 'lsd-rise', style: { position: 'relative', overflow: 'hidden', borderRadius: 20, background: '#0A0A0A', color: '#fff', padding: 'clamp(22px,3.5vw,32px)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 24 } },
+        h('div', { 'aria-hidden': true, className: 'lsd-dots', style: { position: 'absolute', inset: 0, opacity: .8, pointerEvents: 'none' } }),
+        orb({ width: 300, height: 300, background: '#4B4B4B', top: -120, right: -70 }), orb({ width: 220, height: 220, background: '#1F3A5F', bottom: -110, left: '30%' }),
+        h('div', { style: { position: 'relative', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20, flex: '1 1 420px', minWidth: 0 } },
+          avatar(app.photo, (app.name || 'A').trim()[0].toUpperCase(), 84, 30, app.name, status === 'verified' && isLive),
+          h('div', { style: { flex: '1 1 240px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 } },
+            h('div', { style: { fontSize: 12, color: '#C9C9C9', fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase' } }, first ? 'Welcome back, ' + first : 'Directory dashboard'),
+            h('div', { style: { fontFamily: "'Instrument Sans',system-ui,sans-serif", fontSize: 'clamp(24px,3.2vw,34px)', fontWeight: 600, letterSpacing: '-.025em', lineHeight: 1.12, overflowWrap: 'anywhere' } }, app.name || 'Your profile'),
+            h('div', { style: { fontSize: 13.5, color: '#BDBDBD' } }, [app.enr ? 'Enrolment ' + app.enr : '', app.city, 'Ref ' + app.id].filter(Boolean).join(' · ')),
+            h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, dChip(stChip[0], stChip[3], stChip[4]), on ? (paid ? dChip('Listing fee paid', 'rgba(255,255,255,.12)', '#fff') : dChip('Fee pending', 'rgba(255,200,60,.2)', '#FFD666')) : null, submitted ? dChip('Submitted ' + submitted, 'rgba(255,255,255,.12)', '#fff') : null))),
+        h('div', { className: 'lsd-float', style: { position: 'relative', display: 'flex', alignItems: 'center', gap: 14 } },
+          h('svg', { width: 92, height: 92, viewBox: '0 0 92 92', role: 'img', 'aria-label': 'Profile checklist ' + pct + ' percent complete' },
+            h('circle', { cx: 46, cy: 46, r: RING_R, fill: 'none', stroke: 'rgba(255,255,255,.14)', strokeWidth: 7 }),
+            h('circle', { className: 'lsd-ringfill', cx: 46, cy: 46, r: RING_R, fill: 'none', stroke: pct === 100 ? '#4ADE80' : '#fff', strokeWidth: 7, strokeLinecap: 'round', transform: 'rotate(-90 46 46)', style: { '--c': RING_C, '--o': RING_C * (1 - pct / 100) } }),
+            h('text', { x: 46, y: 52, textAnchor: 'middle', fontSize: 20, fontWeight: 700, fill: '#fff' }, pct + '%')),
+          h('div', { style: { fontSize: 12.5, color: '#C9C9C9', lineHeight: 1.45 } }, h('b', { style: { color: '#fff', fontSize: 14 } }, 'Profile checklist'), h('br'), doneN + ' of ' + track.length + ' steps done')),
+        h('div', { style: { position: 'relative', display: 'flex', gap: 10, flexWrap: 'wrap', width: '100%' } }, ...heroActions)),
+      docBox,
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,210px),1fr))', gap: 14 } },
+        dTile('Verification', status === 'verified' ? 'Verified' : status === 'rejected' ? 'Not approved' : status === 'info' ? 'Needs attention' : bothUp ? 'In progress' : 'Not started', status === 'verified' ? 'Blue tick active' : bothUp ? 'Checked automatically' : 'Upload your documents', status === 'verified' ? GREEN : (status === 'rejected' || status === 'info') ? RED : null, 'v'),
+        dTile('Listing fee', paid ? 'Paid' : on ? '₹49' : '—', paid ? 'Lifetime · no renewal' : on ? 'Due once, never renewed' : 'Not charged in this preview', paid ? GREEN : null, 'f'),
+        dTile('Profile', visVal, stat0.visibility, visVal === 'Live' ? GREEN : visVal === 'Hidden' || visVal === 'Not published' ? RED : null, 'p'),
+        dTile('Contact requests', String(nLeads), stat0.requests, null, 'c')),
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,400px),1fr))', gap: 18, alignItems: 'start' } },
+        h('section', { style: { ...card, gap: 0, padding: '22px 24px' } },
+          h('div', { style: { fontWeight: 600, fontSize: 17, marginBottom: 16 } }, 'Verification progress'),
+          ...track.map((x, i) => h('div', { key: i, className: 'lsd-rise', style: { display: 'flex', gap: 14, animationDelay: (350 + i * 130) + 'ms' } },
+            h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: 24 } }, h('div', { className: x.dot.background === '#E3E3E2' ? 'lsd-pulse' : '', style: x.dot }, x.mark), i < track.length - 1 ? h('div', { className: 'lsd-line', style: { flex: 1, width: 1, background: '#E5E5E5', minHeight: 16, animationDelay: (450 + i * 130) + 'ms' } }) : null),
+            h('div', { style: { paddingBottom: 18, minWidth: 0 } }, h('div', { style: { fontWeight: 600, fontSize: 14.5 } }, x.t), h('div', { style: { fontSize: 13.5, color: '#5E5E5E', lineHeight: 1.5 } }, x.d))))),
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 } }, photoBox,
+          h('section', { style: { ...card, gap: 6 } }, h('div', { style: { fontWeight: 600, fontSize: 16 } }, 'Practice software'), h('div', { style: { fontSize: 13.5, color: '#5E5E5E', lineHeight: 1.5 } }, 'Run your chamber on Legal Staff: cases, hearings, clients, invoices and team chat in one workspace. Not included with the directory listing.'), h('a', { href: 'index.html#pricing', style: { fontSize: 14, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, color: '#0A0A0A' } }, 'See plans')))),
+      leadsBox);
     const stat = {
-      has: !!app,
+      has: !!app, none: !app, dash,
       title: !app ? (S.statusErr ? 'Your application could not be loaded' : 'No application found') : { pending: bothUp ? 'Your documents are being checked' : 'Upload your documents to get verified', info: 'We could not verify your documents yet', verified: isLive ? 'Your profile is verified and live' : 'Verified. Pay ₹49 to go live', rejected: 'Your application was not approved' }[status],
       sub: !app ? (S.statusErr ? 'The server could not be reached, so the status of your application is not shown. Try again in a moment.' : on ? 'This browser does not remember a directory application. Apply for a profile, or look up an existing application with its reference and enrolment number.' : '') || 'There is no directory application saved in this browser. Apply for a profile, or look up an existing application by its reference or enrolment number.'
         : 'Reference ' + app.id + (app.name ? ' · ' + app.name : '') + (app.date ? ' · submitted ' + app.date : '') + '. ' + { pending: bothUp ? 'Your documents are read automatically, usually within a minute. Press Refresh status in a moment.' : 'Your profile is not verified yet. Upload your enrolment certificate and photo ID below as soon as possible and they are checked automatically.', info: 'Your profile can stay listed, but it will not show the blue tick until the documents are verified.', verified: isLive ? 'Your profile is listed with the blue tick.' : 'Your documents are verified. Pay the one-time ₹49 fee and your profile is listed at once.', rejected: 'Your documents could not be verified after several attempts, so the profile is no longer listed. You can start a new application with correct documents.' }[status],
