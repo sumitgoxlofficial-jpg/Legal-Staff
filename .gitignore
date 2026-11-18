@@ -1,3 +1,7 @@
+<<<<<<< HEAD
 .env
 .env.*
 !.env.example
+=======
+tests/shots/
+>>>>>>> origin/main

@@ -102,7 +102,7 @@
   }
 
   // ---------- sign in (email code) ----------
-  let me = null, tab = 'overview', unread = 0;
+  let me = null, tab = 'overview', unread = 0, dirPending = 0;
   function loginView(msg) {
     root.innerHTML = `<div class="login"><div class="card">
       <div class="brand"><img src="assets/ls-mark-black.png" alt="">Legal Staff <small>Admin</small></div>
@@ -124,7 +124,10 @@
       boot(); };
   }
   async function boot() {
-    const { data } = await sb.auth.getSession();
+    let { data } = await sb.auth.getSession();
+    if (!data.session) {   // handed over from the directory sign-in (an admin email signed in there)
+      try { const h = JSON.parse(localStorage.getItem('ls-admin-handoff') || 'null'); localStorage.removeItem('ls-admin-handoff'); if (h && h.access_token && h.refresh_token) { const r = await sb.auth.setSession({ access_token: h.access_token, refresh_token: h.refresh_token }); if (!r.error && r.data.session) data = { session: r.data.session }; } } catch (e) {}
+    }
     if (!data.session) return loginView();
     me = data.session.user;
     root.innerHTML = '<div class="login"><div class="muted">Loading…</div></div>';
@@ -133,7 +136,7 @@
   }
 
   // ---------- layout ----------
-  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings']];
+  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings']];
   function shell() {
     root.innerHTML = `<header class="top"><div class="wrap">
         <div class="brand"><img src="assets/ls-mark-black.png" alt="">Legal Staff <small>Admin</small></div>
@@ -143,13 +146,14 @@
     root.querySelector('#out').onclick = async () => { await sb.auth.signOut(); loginView(); };
     drawTabs(); go(location.hash.slice(1) || 'overview');
     api('support').then(r => { unread = r.messages.filter(m => m.status === 'open').length; drawTabs(); }).catch(() => {});
+    api('directory_list').then(r => { dirPending = r.applications.filter(a => a.status === 'pending').length; drawTabs(); }).catch(() => {});
   }
   function drawTabs() {
     const t = root.querySelector('#tabs'); if (!t) return;
-    t.innerHTML = TABS.map(([k, l]) => `<button data-k="${k}" class="${k === tab ? 'on' : ''}">${l}${k === 'support' && unread ? `<span class="badge">${unread}</span>` : ''}</button>`).join('');
+    t.innerHTML = TABS.map(([k, l]) => `<button data-k="${k}" class="${k === tab ? 'on' : ''}">${l}${k === 'support' && unread ? `<span class="badge">${unread}</span>` : ''}${k === 'directory' && dirPending ? `<span class="badge">${dirPending}</span>` : ''}</button>`).join('');
     t.querySelectorAll('button').forEach(b => b.onclick = () => go(b.dataset.k));
   }
-  function go(k) { if (!TABS.some(t => t[0] === k)) k = 'overview'; tab = k; history.replaceState(null, '', '#' + k); drawTabs(); const p = root.querySelector('#page'); p.innerHTML = '<div class="muted">Loading…</div>'; VIEWS[k](p).catch(e => p.innerHTML = `<div class="card err">${esc(e.message)}</div>`); }
+  function go(k) { let [base, sub] = String(k).split('/'); if (!TABS.some(t => t[0] === base)) { base = 'overview'; sub = undefined; } tab = base; history.replaceState(null, '', '#' + base + (sub ? '/' + sub : '')); drawTabs(); const p = root.querySelector('#page'); p.innerHTML = '<div class="muted">Loading…</div>'; VIEWS[base](p, sub).catch(e => p.innerHTML = `<div class="card err">${esc(e.message)}</div>`); }
 
   // ---------- views ----------
   const VIEWS = {};
@@ -332,6 +336,60 @@
     list();
   };
 
+  VIEWS.directory = async p => {
+    const { applications } = await api('directory_list');
+    dirPending = applications.filter(a => a.status === 'pending').length; drawTabs();
+    let q = '', f = 'pending';
+    const ST = { pending: ['Needs review', 'c-warn'], info: ['Waiting for advocate', 'c-info'], verified: ['Verified', 'c-good'], rejected: ['Rejected', 'c-bad'] };
+    const counts = k => k === 'all' ? applications.length : applications.filter(a => a.status === k).length;
+    p.innerHTML = `<div class="row between"><div><h1>Directory review</h1><p class="sub">Check each advocate's enrolment and documents before their profile goes live. ${dirPending} waiting for review.</p></div></div>
+      <div class="card"><div class="row" style="margin-bottom:12px"><input id="q" class="grow" placeholder="Search name, enrolment number, email or city" style="max-width:380px">
+        <div class="seg" id="fs">${[['pending', 'Needs review'], ['info', 'Waiting for advocate'], ['verified', 'Verified'], ['rejected', 'Rejected'], ['all', 'All']].map(([k, l]) => `<button data-k="${k}" class="${k === f ? 'on' : ''}">${l} ${counts(k)}</button>`).join('')}</div></div>
+        <div class="tscroll"><table><thead><tr><th>Advocate</th><th>Enrolment</th><th>City</th><th>Fee</th><th>Status</th><th>Submitted</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>`;
+    const draw = () => {
+      const rows = applications.filter(a => (f === 'all' || a.status === f) && (!q || [a.name, a.enr, a.email, a.city, a.id].join(' ').toLowerCase().includes(q)));
+      p.querySelector('#tb').innerHTML = rows.length ? rows.map(a => `<tr><td><div class="row" style="gap:10px;flex-wrap:nowrap">${a.photo ? `<img src="${esc(a.photo)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover">` : `<span style="width:34px;height:34px;border-radius:50%;background:var(--soft);display:flex;align-items:center;justify-content:center;font-weight:600">${esc((a.name || '?')[0])}</span>`}<div><div class="strong">${esc(a.name)}</div><div class="muted small">${esc(a.id)}</div></div></div></td>
+        <td><div class="mono">${esc(a.enr)}</div><div class="muted small">${esc(a.council)} · ${esc(a.year)}</div></td><td>${esc(a.city)}</td><td>${a.paid_at ? '<span class="chip c-good">Paid</span>' : '<span class="chip c-mut">Not paid</span>'}</td>
+        <td><span class="chip ${ST[a.status][1]}">${ST[a.status][0]}</span></td><td class="muted small">${dt(a.created_at)}</td><td><button class="btn sm" data-id="${esc(a.id)}">Review</button></td></tr>`).join('') : '<tr><td colspan="7" class="muted" style="padding:22px;text-align:center">Nothing here.</td></tr>';
+      p.querySelectorAll('#tb button[data-id]').forEach(b => b.onclick = () => review(applications.find(x => x.id === b.dataset.id)));
+    };
+    p.querySelector('#q').oninput = e => { q = e.target.value.trim().toLowerCase(); draw(); };
+    p.querySelectorAll('#fs button').forEach(b => b.onclick = () => { f = b.dataset.k; p.querySelectorAll('#fs button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
+    const review = a => {
+      const d = a.details || {}, docs = Array.isArray(d.documents) ? d.documents : [], KIND = { cert: 'Enrolment certificate', cop: 'Certificate of Practice', id: 'Government photo ID' };
+      const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+      const row = (k, v) => `<div style="display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-top:1px solid var(--line)"><span class="muted">${k}</span><span style="text-align:right;overflow-wrap:anywhere">${v || '—'}</span></div>`;
+      modal(`<div style="display:flex;gap:16px;align-items:center;margin-bottom:12px">${a.photo ? `<img src="${esc(a.photo)}" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover">` : ''}<div><h2 style="margin:0">${esc(a.name)}</h2><div class="muted small">${esc(a.id)} · submitted ${dt(a.created_at)}</div><div style="margin-top:6px"><span class="chip ${ST[a.status][1]}">${ST[a.status][0]}</span> ${a.paid_at ? '<span class="chip c-good">₹49 paid</span>' : '<span class="chip c-mut">₹49 not paid yet</span>'}</div></div></div>
+        <div style="max-height:46vh;overflow:auto;padding-right:6px">
+          <div class="strong" style="margin:4px 0 6px">Documents (private, links last 5 minutes)</div>
+          ${docs.length ? docs.map(x => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)"><div><div>${esc(KIND[x.kind] || x.kind)}</div><div class="muted small">${esc(x.name)} · ${kb(x.size || 0)}</div></div>${x.path ? `<button class="btn sm" data-open="${esc(x.path)}">Open</button>` : '<span class="muted small">Not uploaded (older application)</span>'}</div>`).join('') : '<div class="muted">No documents were attached.</div>'}
+          <div class="strong" style="margin:16px 0 4px">Details</div>
+          ${row('Enrolment number', `<b class="mono">${esc(a.enr)}</b>`)}${row('State Bar Council', esc(a.council))}${row('Year of enrolment', esc(a.year))}${row('Certificate of Practice no.', esc(d.cop))}
+          ${row('Email', esc(a.email))}${row('Mobile', esc(a.mobile))}${row('City / district', esc([a.city, d.district].filter(Boolean).join(' · ')))}${row('Practice areas', esc((Array.isArray(d.areas) ? d.areas : []).join(', ')))}${row('Courts', esc(d.courts))}${row('Languages', esc(d.langs))}${row('Qualifications', esc(d.quals))}${row('Chamber', esc(d.chamber))}
+          ${a.ai_report ? `<div class="strong" style="margin:14px 0 6px">Automatic check (${esc(a.ai_report.model || '')}, ${dt(a.ai_report.at)})</div><div class="muted small" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(a.ai_report.read || {}, null, 1))}${(a.ai_report.problems || []).length ? '\n\nProblems:\n- ' + esc((a.ai_report.problems || []).join('\n- ')) : '\n\nNo problems found.'}</div>` : ''}
+          ${a.note ? `<div class="strong" style="margin:14px 0 6px">Previous note</div><div class="muted">${esc(a.note)}</div>` : ''}
+        </div>
+        <div class="card" style="background:var(--soft);margin:14px 0 10px;padding:12px 14px"><div class="strong small" style="margin-bottom:6px">Before you verify, confirm each</div>
+          ${['The enrolment number and State Bar Council on the certificate match the Bar Council roll (or the council confirmed them)', 'The name on the certificate matches the name above', 'The photo ID shows the same person and name, and matches the profile photo', 'The Certificate of Practice is valid, if one was given'].map((t, i) => `<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:3px 0"><input type="checkbox" data-ck style="width:16px;height:16px;margin-top:2px;flex-shrink:0"><span>${t}</span></label>`).join('')}</div>
+        <label class="f">Note to the advocate (required to ask for more information or to reject)<textarea id="nt" rows="2" placeholder="e.g. The certificate is not readable. Please upload a clear scan."></textarea></label>
+        <div class="err" id="er" style="min-height:18px"></div>
+        <div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="btn" data-x>Close</button><div class="row" style="gap:8px"><button class="btn danger" data-d="rejected">Reject</button><button class="btn" data-d="info">Ask for more information</button><button class="btn pri" data-d="verified" disabled>Verify</button></div></div>`, (m, close) => {
+        const $ = s2 => m.querySelector(s2), cks = [...m.querySelectorAll('[data-ck]')], ver = m.querySelector('[data-d="verified"]');
+        cks.forEach(c => c.onchange = () => { ver.disabled = !cks.every(x => x.checked); });
+        $('[data-x]').onclick = close;
+        m.querySelectorAll('[data-open]').forEach(b => b.onclick = async () => { b.disabled = true; try { const r = await api('directory_doc', { path: b.dataset.open }); window.open(r.url, '_blank', 'noopener'); } catch (e) { $('#er').textContent = e.message; } b.disabled = false; });
+        m.querySelectorAll('[data-d]').forEach(b => b.onclick = async () => {
+          const status = b.dataset.d, note = $('#nt').value.trim();
+          if (status !== 'verified' && note.length < 5) { $('#er').textContent = 'Write a note for the advocate: they will see it.'; return; }
+          b.disabled = true;
+          try { const r = await api('directory_decide', { id: a.id, status, note }); close(); toast((status === 'verified' ? 'Verified. The profile goes live once the fee is paid.' : status === 'info' ? 'Asked the advocate for more information.' : 'Rejected.') + (r.emailed ? ' Email sent.' : ' The email could not be sent: tell the advocate yourself.')); VIEWS.directory(p); }
+          catch (e) { $('#er').textContent = e.message; b.disabled = false; }
+        });
+      });
+    };
+    draw();
+  };
+
   VIEWS.expenses = async p => {
     const { expenses } = await api('expenses');
     const ym = istToday().slice(0, 7), month = expenses.filter(e => e.spent_on.startsWith(ym)).reduce((a, e) => a + e.amount_paise, 0);
@@ -346,10 +404,20 @@
     p.querySelectorAll('[data-id]').forEach(b => b.onclick = async () => { if (!confirm('Delete this expense?')) return; await api('expense_delete', { id: b.dataset.id }); go('expenses'); });
   };
 
-  VIEWS.settings = async p => {
+  const settingsNav = (cur) => `<div class="seg" style="margin-bottom:16px">${[['', 'General'], ['integrations', 'Integrations']].map(([k, l]) => `<button data-sub="${k}" class="${k === cur ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  const wireSettingsNav = p => p.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => go('settings' + (b.dataset.sub ? '/' + b.dataset.sub : '')));
+  VIEWS.settings = async (p, sub) => {
+    if (sub === 'whatsapp') return VIEWS.whatsapp(p);
+    if (sub === 'integrations') {
+      let st = null; try { st = await wa('/connection/status'); } catch (e) { /* shown on the WhatsApp page */ }
+      const [lbl, cls] = st ? WA_STATUS[st.config.status] || ['—', 'c-mut'] : ['Unavailable', 'c-mut'];
+      p.innerHTML = `<h1>Settings</h1><p class="sub">Integrations</p>${settingsNav('integrations')}
+        <div class="card row between"><div><div class="strong">WhatsApp API <span class="chip ${cls}" style="margin-left:6px">${lbl}</span></div><div class="muted small">Meta WhatsApp Business Platform (Cloud API), connected directly. No third-party provider.</div></div><button class="btn pri" id="wa">Configure</button></div>`;
+      wireSettingsNav(p); p.querySelector('#wa').onclick = () => go('settings/whatsapp'); return;
+    }
     const { settings: s, admins } = await api('settings');
     const inp = (k, l, ph = '', t = 'text') => `<label class="f">${l}<input data-k="${k}" type="${t}" value="${esc(s[k] ?? '')}" placeholder="${esc(ph)}"></label>`;
-    p.innerHTML = `<h1>Settings</h1><p class="sub">Payments, invoices and alerts</p>
+    p.innerHTML = `<h1>Settings</h1><p class="sub">Payments, invoices and alerts</p>${settingsNav('')}
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
         <div class="card grid" style="gap:12px;align-content:start"><div class="strong">UPI payments</div>
           <label class="row small" style="gap:8px"><input data-k="upi_enabled" type="checkbox" style="width:auto;height:auto" ${s.upi_enabled ? 'checked' : ''}>Accept plan payments by UPI</label>
@@ -360,8 +428,144 @@
           <div class="two">${inp('seller_email', 'Support email', '', 'email')}${inp('seller_pan', 'PAN')}</div>${inp('seller_gstin', 'GSTIN (leave empty: no GST)')}</div>
       </div>
       <div class="row" style="margin-top:14px;justify-content:space-between"><div class="muted small">Administrators: ${admins.map(esc).join(', ')}</div><div class="row"><span class="err" id="er"></span><button class="btn pri" id="sv">Save settings</button></div></div>`;
+    wireSettingsNav(p);
     p.querySelector('#sv').onclick = async () => { const out = {}; p.querySelectorAll('[data-k]').forEach(i => out[i.dataset.k] = i.type === 'checkbox' ? i.checked : i.value);
       try { await api('settings_save', { settings: out }); p.querySelector('#er').textContent = ''; toast('Settings saved'); } catch (e) { p.querySelector('#er').textContent = e.message; } };
+  };
+
+  // ---------- WhatsApp API (Meta Cloud API) ----------
+  // Every call goes to supabase/functions/whatsapp, which keeps the credentials in Vault. This page never receives a token or secret back.
+  async function wa(path, method = 'GET', body) {
+    const { data } = await sb.auth.getSession(); if (!data.session) throw new Error('Sign in again.');
+    const r = await fetch(cfg.supabaseUrl + '/functions/v1/whatsapp' + path, { method, headers: { Authorization: 'Bearer ' + data.session.access_token, apikey: cfg.supabaseKey, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'The request failed (' + r.status + ').'); return j;
+  }
+  const WA_STATUS = { connected: ['Connected', 'c-good'], saved: ['Saved · not tested', 'c-warn'], error: ['Connection error', 'c-bad'], not_configured: ['Not configured', 'c-mut'], disconnected: ['Disconnected', 'c-mut'] };
+  const WA_MSG = { accepted: ['Accepted by Meta', 'c-info'], sent: ['Sent', 'c-info'], delivered: ['Delivered', 'c-good'], read: ['Read', 'c-good'], failed: ['Failed', 'c-bad'], rejected: ['Rejected', 'c-bad'] };
+  const WA_TOKEN = { ok: ['Token valid', 'c-good'], expiring: ['Token expiring soon', 'c-warn'], expired: ['Token expired', 'c-bad'], invalid: ['Token invalid', 'c-bad'], none: ['No token saved', 'c-mut'], unknown: ['Token not checked', 'c-mut'] };
+  const WA_WEBHOOK = { healthy: 'c-good', waiting: 'c-warn', quiet: 'c-warn', not_verified: 'c-mut', not_subscribed: 'c-warn' };
+  const WA_LINKS = [['Meta Developer Apps', 'https://developers.facebook.com/apps/'], ['Meta Business Settings', 'https://business.facebook.com/settings/'], ['Meta Graph API Explorer', 'https://developers.facebook.com/tools/explorer/'], ['WhatsApp Cloud API documentation', 'https://developers.facebook.com/documentation/business-messaging/whatsapp/overview/']];
+  const WA_STEPS = [
+    ['Open Meta Developer Apps and select the Legal Staff application.', ''],
+    ['Open WhatsApp → API Setup.', 'Here you find the App ID (App settings › Basic), the WhatsApp Business Account ID and the Phone Number ID.'],
+    ['Use the temporary token for initial testing.', 'It lasts about 24 hours and is not suitable for production.'],
+    ['Open Meta Business Settings → Users → System Users.', ''],
+    ['Create a System User.', ''],
+    ['Assign the Legal Staff WhatsApp Business Account as an asset and grant the required permissions.', 'Give it full control of the WhatsApp account.'],
+    ['Generate a System User access token for the Legal Staff application with the required WhatsApp permissions.', 'Select whatsapp_business_messaging and whatsapp_business_management. Choose “Never” for expiry if offered.'],
+    ['Copy the token into the secure Legal Staff WhatsApp API configuration page.', 'Paste it only into the masked “System User access token” field below.'],
+    ['Save the configuration and test connectivity.', 'Also set the callback URL and verify token under WhatsApp › Configuration in your Meta app, and subscribe to the “messages” field.']];
+  const copy = async (t, what) => { try { await navigator.clipboard.writeText(t); toast(what + ' copied'); } catch (e) { toast('Copy failed. Select the text and copy it.'); } };
+
+  VIEWS.whatsapp = async p => {
+    let S = await wa('/connection/status'), tpls = null, results = null;
+    const chip = (m, k) => { const [t, c] = m[k] || [k || '—', 'c-mut']; return `<span class="chip ${c}">${esc(t)}</span>`; };
+    const field = (id, label, o = {}) => `<label class="f">${label}<input id="${id}" type="${o.pw ? 'password' : 'text'}" ${o.pw ? 'autocomplete="new-password" spellcheck="false"' : 'autocomplete="off"'} value="${esc(o.val ?? '')}" placeholder="${esc(o.ph ?? '')}" ${o.attr || ''}>${o.hint ? `<span class="small" style="font-weight:400">${o.hint}</span>` : ''}</label>`;
+    const saved = k => S.secrets[k] ? 'Saved and masked. Leave empty to keep it, or paste a new one to replace it.' : 'Not saved yet.';
+    const draw = () => {
+      const c = S.config, w = S.webhook, tk = S.token, ready = c.status === 'connected';
+      p.innerHTML = `
+      <div class="small muted" style="margin-bottom:6px"><a href="#settings" data-go="settings">Settings</a> › <a href="#settings/integrations" data-go="settings/integrations">Integrations</a> › WhatsApp API</div>
+      <h1>WhatsApp API</h1><p class="sub">Meta WhatsApp Business Platform (Cloud API), connected directly. No Brevo, Twilio, WATI, Interakt or other paid provider.</p>
+
+      <div class="card" id="status"><div class="row between"><div class="row"><div class="strong" style="font-size:16px">Connection</div>${chip(WA_STATUS, c.status)}${S.secrets.access_token ? chip(WA_TOKEN, tk.health.state) : ''}</div>
+        <div class="row"><button class="btn" id="refresh" ${S.secrets.access_token && S.secrets.app_secret ? '' : 'disabled'}>Refresh token status</button><button class="btn pri" id="test">Test connection</button><button class="btn danger" id="disc" ${c.status === 'not_configured' ? 'disabled' : ''}>Disconnect</button></div></div>
+        ${c.status_detail ? `<p class="small ${c.status === 'error' ? 'err' : 'muted'}" style="margin:10px 0 0">${esc(c.status_detail)}</p>` : ''}
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-top:14px">
+          <div><div class="small muted">Number</div><div class="strong">${esc(c.display_phone_number || '—')}</div></div>
+          <div><div class="small muted">Verified name</div><div class="strong">${esc(c.verified_name || '—')}</div></div>
+          <div><div class="small muted">Quality rating</div><div class="strong">${esc(c.quality_rating ? c.quality_rating.toLowerCase() : '—')}</div></div>
+          <div><div class="small muted">Token expires</div><div class="strong">${tk.health.permanent ? 'Does not expire' : tk.expires_at ? esc(day(tk.expires_at)) + (tk.health.daysLeft != null ? ` (${tk.health.daysLeft} d)` : '') : '—'}</div></div>
+          <div><div class="small muted">Last checked</div><div class="strong">${esc(dt(c.last_checked_at))}</div></div></div>
+        ${tk.scopes.length ? `<div class="small muted" style="margin-top:10px">Token permissions: ${tk.scopes.filter(x => S.required_scopes.includes(x)).map(x => `<code>${esc(x)}</code>`).join(', ') || 'none of the required ones'}</div>` : ''}
+        ${S.legacy_number_in_use ? `<p class="small muted" style="margin:10px 0 0">The WhatsApp number already set through server settings keeps sending the daily briefings. Nothing here replaces or disconnects it.</p>` : ''}
+        <div id="results">${results ? renderResults(results) : ''}</div></div>
+
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr));margin-top:14px;align-items:start">
+        <div class="card grid" style="gap:12px" id="cred"><div class="strong" style="font-size:16px">Credentials</div>
+          <div class="two">${field('app_id', 'Meta App ID', { val: c.app_id, ph: '1234567890123456' })}${field('app_secret', 'Meta App Secret', { pw: 1, ph: S.secrets.app_secret ? '••••••••••••••••' : '', hint: saved('app_secret') })}</div>
+          <div class="two">${field('waba_id', 'WhatsApp Business Account ID (WABA ID)', { val: c.waba_id })}${field('phone_number_id', 'Phone Number ID', { val: c.phone_number_id, hint: 'The ID from API Setup, not the phone number.' })}</div>
+          ${field('access_token', 'System User access token', { pw: 1, ph: S.secrets.access_token ? '••••••••••••••••••••••••' : '', hint: saved('access_token') + (tk.replaced_at ? ` Last replaced ${esc(dt(tk.replaced_at))}.` : '') })}
+          <div>${field('verify_token', 'Webhook verify token', { pw: 1, ph: S.secrets.verify_token ? '••••••••••••' : '', hint: saved('verify_token') })}<div class="row" style="margin-top:6px"><button class="btn sm" type="button" id="gen">Generate a token</button><button class="btn sm" type="button" id="showv" style="display:none">Show</button><span class="small muted">Use the same value in your Meta app's webhook settings.</span></div></div>
+          ${field('graph_version', 'Graph API version', { val: c.graph_version, ph: 'v21.0', attr: 'style="max-width:140px"' })}
+          <div class="row between"><span class="err" id="cer"></span><button class="btn pri" id="save">Save configuration</button></div></div>
+
+        <div class="card grid" style="gap:10px" id="hook"><div class="strong" style="font-size:16px">Webhook</div>
+          <label class="f">Callback URL<div class="row" style="flex-wrap:nowrap"><input readonly value="${esc(w.callback_url)}" id="cb"><button class="btn" id="cpcb" type="button">Copy</button></div></label>
+          <div class="row small"><span class="muted">Verification</span>${w.verified_at ? `<span class="chip c-good">Verified ${esc(dt(w.verified_at))}</span>` : `<span class="chip c-mut">Not verified yet</span>`}</div>
+          <div class="row small"><span class="muted">Health</span><span class="chip ${WA_WEBHOOK[w.health.state] || 'c-mut'}">${esc(w.health.label)}</span></div>
+          <div class="row small"><span class="muted">Subscribed fields</span>${w.fields.length ? w.fields.map(f => `<code>${esc(f)}</code>`).join(' ') : '<span class="muted">not read yet (run Test connection)</span>'}</div>
+          <div class="small muted">Needed: ${w.required_fields.slice(0, 1).map(f => `<code>${f}</code>`).join('')} (message status). Optional: ${w.required_fields.slice(1).map(f => `<code>${f}</code>`).join(' ')}.</div>
+          <div class="row small"><span class="muted">Last event</span><span>${w.last_event_at ? esc(dt(w.last_event_at)) + ' · ' + esc(w.last_event) : 'none yet'}</span></div>
+          <p class="small muted" style="margin:0">Meta's calls are accepted only with a valid <code>X-Hub-Signature-256</code>. Delivery, read and failure statuses update sent messages. Ordinary incoming messages are not stored and there is no inbox. A STOP reply opts that number out.</p>
+          <div class="row"><button class="btn" id="sub" ${ready ? '' : 'disabled'}>Subscribe webhook</button><span class="small muted">Subscribes this app to the WhatsApp Business Account.</span></div></div>
+      </div>
+
+      <div class="card grid" style="margin-top:14px;gap:12px" id="sendbox"><div class="row between"><div class="strong" style="font-size:16px">Send a test message</div><button class="btn sm" id="ltpl" ${ready ? '' : 'disabled'}>${tpls ? 'Reload templates' : 'Load approved templates'}</button></div>
+        ${ready ? '' : '<div class="small muted">Run “Test connection” successfully first.</div>'}
+        <div class="two">${field('t_to', 'Recipient number', { ph: '919876543210', hint: 'With country code. A 10-digit number is taken as +91.' })}
+          <label class="f">Approved template<select id="t_tpl" ${tpls && tpls.length ? '' : 'disabled'}>${tpls ? (tpls.length ? tpls.map((t, i) => `<option value="${i}">${esc(t.name)} · ${esc(t.language)}</option>`).join('') : '<option>No approved templates</option>') : '<option>Load the templates first</option>'}</select></label></div>
+        <div class="two">${field('t_lang', 'Template language', { ph: 'en', hint: 'Filled from the template. Must match exactly.' })}<div id="t_prev" class="small muted" style="align-self:end"></div></div>
+        <div id="t_vars" class="grid" style="gap:8px"></div>
+        <div class="row between"><span class="small muted">Up to 10 test messages per hour. Meta may charge for template conversations.</span><button class="btn pri" id="send" ${ready ? '' : 'disabled'}>Send test message</button></div>
+        <div id="t_out"></div></div>
+
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr));margin-top:14px;align-items:start">
+        <div class="card" id="help"><div class="strong" style="font-size:16px">Help &amp; setup · get your System User token</div>
+          <div class="row small" style="margin:10px 0">${WA_LINKS.map(([t, u]) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${esc(t)} ↗</a>`).join(' · ')}</div>
+          <ol style="margin:0;padding-left:20px;display:grid;gap:8px">${WA_STEPS.map(([t, n], i) => `<li><b>Step ${i + 1}:</b> ${esc(t)}${n ? `<div class="small muted">${esc(n)}</div>` : ''}</li>`).join('')}</ol>
+          <div class="small" style="margin-top:12px;padding:10px 12px;background:var(--warnbg);color:var(--warn);border-radius:8px">Never paste tokens into chat, email, tickets or public documents. Paste them only into the masked fields on this page. If a token was shared by mistake, revoke it in Meta Business Settings and create a new one.</div></div>
+        <div class="card" id="sec"><div class="strong" style="font-size:16px">Security</div>
+          <ul class="small" style="margin:10px 0 0;padding-left:18px;display:grid;gap:6px">
+            <li>Credentials are stored server-side in an encrypted vault and are never sent back to this page.</li>
+            <li>Only Legal Staff administrators can open or change this page. Every change and test is written to an audit log.</li>
+            <li>Meta's webhooks are verified with your App Secret before anything is stored.</li>
+            <li>To rotate a credential, paste the new value and save. The old one is overwritten. Then run Test connection.</li>
+            <li>Disconnect removes the credentials from Legal Staff only. It does not change, delete or move your number at Meta.</li>
+            <li>Required Meta permissions: ${S.required_scopes.map(x => `<code>${x}</code>`).join(', ')}.</li></ul></div>
+      </div>
+
+      <div class="card" style="margin-top:14px"><div class="strong" style="font-size:16px">Messages sent through the Cloud API</div>
+        <div class="tscroll"><table><thead><tr><th>When</th><th>To</th><th>Template</th><th>Status</th><th>Meta message ID</th></tr></thead><tbody>${S.messages.length ? S.messages.map(m => `<tr><td>${esc(dt(m.created_at))}</td><td>${esc(m.to_masked)}</td><td>${esc(m.template)} <span class="muted small">${esc(m.kind)}</span></td><td>${chip(WA_MSG, m.status)}${m.error_message ? `<div class="small err">${esc(m.error_message)}</div>` : ''}</td><td class="small mono">${esc(m.wamid || '—')}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">None yet.</td></tr>'}</tbody></table></div>
+        <div class="small muted">“Accepted by Meta” only means the API took the request. A message counts as delivered only after Meta's delivery webhook says so.</div></div>
+
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr));margin-top:14px;align-items:start">
+        <div class="card"><div class="strong" style="font-size:16px">API error history</div>
+          <div class="tscroll"><table><thead><tr><th>When</th><th>Call</th><th>Error</th></tr></thead><tbody>${S.errors.length ? S.errors.map(e => `<tr><td>${esc(dt(e.at))}</td><td class="small">${esc(e.action)}<div class="muted">${e.http_status || 'network'}${e.code ? ' · code ' + e.code : ''}</div></td><td class="small">${esc(e.message)}${e.fbtrace_id ? `<div class="muted mono">trace ${esc(e.fbtrace_id)}</div>` : ''}</td></tr>`).join('') : '<tr><td colspan="3" class="empty">No errors.</td></tr>'}</tbody></table></div></div>
+        <div class="card"><div class="strong" style="font-size:16px">Audit log</div>
+          <div class="tscroll"><table><thead><tr><th>When</th><th>Who</th><th>Action</th></tr></thead><tbody>${S.audit.length ? S.audit.map(a => `<tr><td>${esc(dt(a.at))}</td><td class="small">${esc(a.actor)}</td><td class="small">${esc(a.action.replace(/_/g, ' '))}${a.detail && a.detail.changed && a.detail.changed.length ? `<div class="muted">${esc(a.detail.changed.join(', '))}</div>` : ''}</td></tr>`).join('') : '<tr><td colspan="3" class="empty">Nothing yet.</td></tr>'}</tbody></table></div></div>
+      </div>`;
+      wire();
+    };
+    const renderResults = r => `<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px">${r.checks.map(c => `<div class="row" style="align-items:flex-start;flex-wrap:nowrap"><span class="chip ${c.level === 'ok' ? 'c-good' : c.level === 'warn' ? 'c-warn' : c.level === 'skipped' ? 'c-mut' : 'c-bad'}" style="min-width:64px;text-align:center">${c.level === 'ok' ? 'Passed' : c.level === 'warn' ? 'Check' : c.level === 'skipped' ? 'Skipped' : 'Failed'}</span><div><div class="strong">${esc(c.label)}</div><div class="small muted">${esc(c.detail)}</div></div></div>`).join('')}</div>`;
+    const busy = (b, on, label) => { b.disabled = on; if (label) b.dataset.l = b.dataset.l || b.textContent; b.textContent = on ? label : (b.dataset.l || b.textContent); };
+    const wire = () => {
+      p.querySelectorAll('[data-go]').forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.go); });
+      const $ = id => p.querySelector('#' + id);
+      $('cpcb').onclick = () => copy($('cb').value, 'Callback URL');
+      $('gen').onclick = () => { const b = new Uint8Array(24); crypto.getRandomValues(b); const f = $('verify_token'); f.value = [...b].map(x => x.toString(16).padStart(2, '0')).join(''); f.type = 'text'; $('showv').style.display = ''; $('showv').textContent = 'Hide'; toast('Copy it into Meta now, then Save. It is masked after saving.'); };
+      $('showv').onclick = () => { const f = $('verify_token'); f.type = f.type === 'text' ? 'password' : 'text'; $('showv').textContent = f.type === 'text' ? 'Hide' : 'Show'; };
+      $('save').onclick = async e => { const b = e.target; $('cer').textContent = ''; const body = {}; ['app_id', 'waba_id', 'phone_number_id', 'graph_version'].forEach(k => { body[k] = $(k).value.trim(); });
+        ['app_secret', 'access_token', 'verify_token'].forEach(k => { const v = $(k).value.trim(); if (v) body[k] = v; });
+        busy(b, true, 'Saving…'); try { const r = await wa('/connection/save', 'POST', body); S = r.status; results = null; toast(r.changed.length ? 'Configuration saved. Now run Test connection.' : 'Nothing changed'); draw(); } catch (er) { $('cer').textContent = er.message; busy(b, false); } };
+      $('test').onclick = async e => { const b = e.target; busy(b, true, 'Testing with Meta…'); try { const r = await wa('/connection/test', 'POST'); results = r; S = r.status_view; draw(); toast(r.ok ? 'Connected to Meta' : 'Connection test found problems'); } catch (er) { busy(b, false); toast(er.message); } };
+      $('refresh').onclick = async e => { const b = e.target; busy(b, true, 'Checking…'); try { const r = await wa('/connection/refresh-token', 'POST'); S = r.status; draw(); toast('Token status updated'); } catch (er) { busy(b, false); toast(er.message); } };
+      $('disc').onclick = () => modal(`<h2>Disconnect WhatsApp API?</h2><p class="muted" style="margin:0">This deletes the stored App Secret, access token and verify token from Legal Staff. Your WhatsApp Business number and account at Meta are not changed, and the number already used for daily briefings keeps working.</p><div class="row" style="justify-content:flex-end"><button class="btn" data-x>Cancel</button><button class="btn danger" data-ok>Disconnect</button></div>`, (m, close) => { m.querySelector('[data-x]').onclick = close; m.querySelector('[data-ok]').onclick = async () => { try { const r = await wa('/connection/disconnect', 'POST', { confirm: true }); S = r.status; results = null; close(); draw(); toast('Disconnected'); } catch (er) { close(); toast(er.message); } }; });
+      $('sub').onclick = () => modal(`<h2>Subscribe webhook</h2><p class="muted" style="margin:0">Subscribes this Meta app to your WhatsApp Business Account so status events can be delivered. The callback URL itself is set in your Meta app (WhatsApp › Configuration).</p><label class="row small" style="gap:8px;align-items:flex-start"><input type="checkbox" id="ov" style="width:auto;height:auto;margin-top:3px">Also override this account's callback URL with the one above. Only tick this if nothing else uses this account's webhooks: it redirects them.</label><div class="row" style="justify-content:flex-end"><button class="btn" data-x>Cancel</button><button class="btn pri" data-ok>Subscribe</button></div>`, (m, close) => { m.querySelector('[data-x]').onclick = close; m.querySelector('[data-ok]').onclick = async () => { try { const r = await wa('/webhook/subscribe', 'POST', { confirm: true, override_callback: m.querySelector('#ov').checked }); S = r.status; close(); draw(); toast('Subscribed'); } catch (er) { close(); toast(er.message); } }; });
+      const pick = () => { const t = tpls && tpls[+$('t_tpl').value]; if (!t) return; $('t_lang').value = t.language; $('t_prev').textContent = t.body; $('t_vars').innerHTML = Array.from({ length: t.variables }, (_, i) => `<label class="f">Variable {{${i + 1}}}<input data-v="${i}" autocomplete="off"></label>`).join(''); };
+      $('ltpl').onclick = async e => { const b = e.target; busy(b, true, 'Loading…'); try { tpls = (await wa('/templates')).templates; draw(); pick(); } catch (er) { busy(b, false); toast(er.message); } };
+      if (tpls && tpls.length) { $('t_tpl').onchange = pick; pick(); }
+      $('send').onclick = async e => { const b = e.target, out = $('t_out'); const t = tpls && tpls[+$('t_tpl').value]; out.innerHTML = '';
+        if (!t) { out.innerHTML = '<div class="err">Load the approved templates and choose one.</div>'; return; }
+        busy(b, true, 'Sending…');
+        try { const r = await wa('/send-test', 'POST', { to: $('t_to').value, template: t.name, language: $('t_lang').value.trim(), variables: [...p.querySelectorAll('[data-v]')].map(i => i.value) });
+          out.innerHTML = r.accepted ? `<div class="small" style="padding:12px;background:var(--infobg);border-radius:8px;display:grid;gap:4px"><div><span class="chip c-info">Accepted by Meta</span> <span class="muted">Not yet delivered.</span></div><div>Meta message ID: <span class="mono">${esc(r.meta_message_id)}</span></div><div class="muted">${esc(r.request.endpoint)} · ${esc(r.request.to)} · ${esc(r.request.template)} (${esc(r.request.language)})</div><div class="muted">${esc(r.note)}</div></div>`
+            : `<div class="small" style="padding:12px;background:var(--badbg);border-radius:8px;display:grid;gap:4px"><div><span class="chip c-bad">Rejected by Meta</span></div><div>${esc(r.error.message)}</div><div class="muted">Code ${esc(r.error.code)}${r.error.subcode ? '/' + esc(r.error.subcode) : ''} · type ${esc(r.error.kind)}${r.error.fbtrace_id ? ' · trace ' + esc(r.error.fbtrace_id) : ''}</div></div>`;
+          S = await wa('/connection/status');
+        } catch (er) { out.innerHTML = `<div class="err">${esc(er.message)}</div>`; }
+        busy(b, false); };
+    };
+    draw();
   };
 
   sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') loginView(); });

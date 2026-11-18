@@ -18,6 +18,8 @@ class Q {
   eq(c, v) { this.f.push(r => cmp(get(r, c), 'eq', v)); return this; } neq(c, v) { this.f.push(r => cmp(get(r, c), 'neq', v)); return this; }
   gt(c, v) { this.f.push(r => cmp(get(r, c), 'gt', v)); return this; } gte(c, v) { this.f.push(r => cmp(get(r, c), 'gte', v)); return this; }
   lt(c, v) { this.f.push(r => cmp(get(r, c), 'lt', v)); return this; } lte(c, v) { this.f.push(r => cmp(get(r, c), 'lte', v)); return this; }
+  like(c, pat) { const pre = String(pat).replace(/%$/, ''); this.f.push(r => String(get(r, c) ?? '').startsWith(pre)); return this; }
+  range(a, b) { this.from = a; this.to = b; return this; }
   in(c, v) { this.f.push(r => v.includes(get(r, c))); return this; } not(c, _o, _v) { this.f.push(r => get(r, c) != null); return this; }
   order(c, o) { this.ord = [c, !(o && o.ascending === false)]; return this; } limit(n) { this.lim = n; return this; }
   single() { this.one = 'single'; return this; } maybeSingle() { this.one = 'maybe'; return this; }
@@ -37,6 +39,7 @@ class Q {
         if (this.t === 'legal_cases') { const dup = rows.find(x => x.firm_id === r.firm_id && x.record_id === r.record_id); if (dup) return { data: null, error: { message: 'duplicate' } };
           Object.assign(r, { verification_status: 'PENDING', verification_note: '', attempts: 0, state: 'active', next_check_at: new Date(db.now()).toISOString(), last_checked_at: null, last_verified_at: null, last_changed_at: null, source_provider: '', tribunal: '', ...r0 }); }
         if (this.t === 'case_snapshots') r.taken_at = new Date(db.now() + rows.length).toISOString();
+        if (r.created_at === undefined && ['notifications', 'notification_events', 'verification_logs', 'api_usage_logs'].includes(this.t)) r.created_at = new Date(db.now()).toISOString();
         rows.push(r); out.push(r);
       }
       return this.fin(out);
@@ -45,7 +48,7 @@ class Q {
     if (this.op === 'update') { m.forEach(r => Object.assign(r, this.patch)); return this.fin(m); }
     if (this.op === 'delete') { m.forEach(r => rows.splice(rows.indexOf(r), 1)); return this.fin(m); }
     if (this.ord) { const [c, asc] = this.ord; m = m.slice().sort((a, b) => (String(get(a, c)) < String(get(b, c)) ? -1 : 1) * (asc ? 1 : -1)); }
-    const total = m.length; m = m.slice(0, this.lim);
+    const total = m.length; if (this.from != null) m = m.slice(this.from, this.to + 1); m = m.slice(0, this.lim);
     if (this.head) return { data: null, error: null, count: total };
     return this.fin(m, total);
   }
