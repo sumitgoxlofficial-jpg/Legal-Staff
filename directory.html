@@ -972,6 +972,70 @@ class Component extends DCLogic {
     this.loadProfiles();
   }
 
+  /* ---------- crop tool: drag and zoom inside a square, saved as a 400px JPEG ---------- */
+  cropGeom(c) { const s0 = c.V / Math.min(c.w, c.h); return { s0, sc: s0 * c.zoom }; }
+  cropFit(c, zoom, ox, oy) {
+    const sc = c.V / Math.min(c.w, c.h) * zoom;
+    return { ...c, zoom, ox: Math.min(0, Math.max(c.V - c.w * sc, ox)), oy: Math.min(0, Math.max(c.V - c.h * sc, oy)) };
+  }
+  startCrop(id, srcOrFile) {
+    const isFile = typeof srcOrFile !== 'string';
+    if (isFile) {
+      const f = srcOrFile; if (!f) return;
+      if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { this.setState({ photoMsg: 'Choose a JPG, PNG or WebP picture.' }); return; }
+      if (f.size > 10 * 1048576) { this.setState({ photoMsg: 'That picture is larger than 10 MB. Choose a smaller one.' }); return; }
+    }
+    const src = isFile ? URL.createObjectURL(srcOrFile) : srcOrFile, img = new Image();
+    img.onload = () => {
+      const V = 240, c = { id, src, w: img.width, h: img.height, V, zoom: 1, ox: 0, oy: 0 }, sc = V / Math.min(c.w, c.h);
+      this.setState({ crop: this.cropFit(c, 1, (V - c.w * sc) / 2, (V - c.h * sc) / 2), photoMsg: '' });
+    };
+    img.onerror = () => { if (isFile) URL.revokeObjectURL(src); this.setState({ photoMsg: 'That picture could not be read. Try another one.' }); };
+    img.src = src;
+  }
+  cropZoom(z) {
+    const c = this.state.crop; if (!c) return;
+    const { sc } = this.cropGeom(c), cx = (c.V / 2 - c.ox) / sc, cy = (c.V / 2 - c.oy) / sc, nsc = c.V / Math.min(c.w, c.h) * z;   // keep the centre of the square fixed
+    this.setState({ crop: this.cropFit(c, z, c.V / 2 - cx * nsc, c.V / 2 - cy * nsc) });
+  }
+  cropDown(e) { const c = this.state.crop; if (!c) return; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {} this._cd = { x: e.clientX, y: e.clientY, ox: c.ox, oy: c.oy }; }
+  cropMove(e) { const c = this.state.crop, d = this._cd; if (!c || !d) return; this.setState({ crop: this.cropFit(c, c.zoom, d.ox + e.clientX - d.x, d.oy + e.clientY - d.y) }); }
+  cropUp() { this._cd = null; }
+  cropCancel() { const c = this.state.crop; if (c && /^blob:/.test(c.src)) URL.revokeObjectURL(c.src); this.setState({ crop: null }); }
+  async cropSave() {
+    const c = this.state.crop; if (!c || this._cropBusy) return;
+    this._cropBusy = true; this.setState({ crop: { ...c, busy: true } });
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bad image')); i.src = c.src; });
+      const { sc } = this.cropGeom(c), N = 400, cv = document.createElement('canvas'); cv.width = cv.height = N;
+      const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, N, N);
+      ctx.drawImage(img, -c.ox / sc, -c.oy / sc, c.V / sc, c.V / sc, 0, 0, N, N);
+      let q = 0.88, out = cv.toDataURL('image/jpeg', q);
+      while (out.length > 140000 && q > 0.4) { q -= 0.08; out = cv.toDataURL('image/jpeg', q); }
+      await this.savePhoto(c.id, out);
+    } catch (e) { this.setState({ photoMsg: 'That picture could not be processed. Try another one.' }); }
+    if (/^blob:/.test(c.src)) URL.revokeObjectURL(c.src);
+    this._cropBusy = false; this.setState({ crop: null });
+  }
+
+  /* ---------- edit profile details: contact and practice details, any time (name, enrolment and documents stay locked) ---------- */
+  startEdit(app, det) {
+    const d = det || {};
+    this.setState({ pe: { id: app.id, city: app.city || d.city || '', email: d.email || '', mobile: d.mobile || '', courts: d.courts || '', district: d.district || '', langs: d.langs || '', quals: d.quals || '', chamber: d.chamber || '' }, peErr: '', peMsg: '' });
+    setTimeout(() => { const el = document.getElementById('pe-card'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
+  }
+  async saveProfile() {
+    const S = this.state, p = S.pe, sb = this.sb(); if (!p || S.peBusy || !sb) return;
+    if (!p.city.trim()) { this.setState({ peErr: 'Enter your city.' }); return; }
+    if (p.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim())) { this.setState({ peErr: 'Enter a valid email address.' }); return; }
+    this.setState({ peBusy: true, peErr: '' });
+    const r = await this.call(sb.rpc('directory_update_profile', { p_ref: p.id, p_city: p.city.trim(), p_email: p.email.trim(), p_mobile: p.mobile.trim(), p_details: { courts: p.courts.trim(), district: p.district.trim(), langs: p.langs.trim(), quals: p.quals.trim(), chamber: p.chamber.trim() } }));
+    if (r.error || r.data !== true) { this.setState({ peBusy: false, peErr: 'Your changes could not be saved (' + this.errText(r.error || { message: 'not allowed' }) + ').' }); return; }
+    await this.refreshStatus();
+    this.setState({ peBusy: false, pe: null, peMsg: 'Profile updated. Your public profile shows the new details.' });
+    this.loadProfiles();
+  }
+
   /* backend on: a signed-in advocate sees their own applications and leads; otherwise the references this browser remembers */
   async refreshStatus() {
     const sb = this.sb(); if (!sb) return;
@@ -1675,9 +1739,37 @@ class Component extends DCLogic {
       avatar(app.photo, (app.name || 'A').trim()[0].toUpperCase(), 72, 26, app.name, status === 'verified' && isLive),
       h('div', { style: { flex: '1 1 220px', minWidth: 0 } }, h('div', { style: { fontWeight: 600, fontSize: 16 } }, 'Profile photo'), h('div', { style: { fontSize: 13.5, color: '#5E5E5E' } }, S.photoMsg || 'Shown on your card in search results and on your profile page. You can change it at any time.')),
       h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
-        h('input', { id: 'st-photo', type: 'file', accept: 'image/jpeg,image/png,image/webp', style: { display: 'none' }, onChange: e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; this.takePhoto(f, (data, err) => data ? this.savePhoto(app.id, data) : this.setState({ photoMsg: err })); } }),
+        h('input', { id: 'st-photo', type: 'file', accept: 'image/jpeg,image/png,image/webp', style: { display: 'none' }, onChange: e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; this.startCrop(app.id, f); } }),
         act(app.photo ? 'Change photo' : 'Add photo', () => { const el = document.getElementById('st-photo'); if (el) el.click(); }, false, 'cp'),
+        app.photo ? act('Adjust crop', () => this.startCrop(app.id, app.photo), false, 'ac') : null,
         app.photo ? act('Remove', () => this.savePhoto(app.id, ''), false, 'rp') : null)) : null;
+    const cr = S.crop && app && S.crop.id === app.id ? S.crop : null, crG = cr ? this.cropGeom(cr) : null;
+    const cropBox = !cr ? null : h('section', { className: 'lsd-rise', style: { ...card, gap: 14 } },
+      h('div', { style: { fontWeight: 600, fontSize: 16 } }, 'Crop your photo'),
+      h('div', { style: { fontSize: 13.5, color: '#5E5E5E', lineHeight: 1.5 } }, 'Drag the picture to position it and use the slider to zoom. The circle is what clients see on your card.'),
+      h('div', { style: { display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'center' } },
+        h('div', { onPointerDown: e => this.cropDown(e), onPointerMove: e => this.cropMove(e), onPointerUp: () => this.cropUp(), onPointerCancel: () => this.cropUp(), style: { width: cr.V, height: cr.V, position: 'relative', overflow: 'hidden', borderRadius: 12, background: '#EDEDED', touchAction: 'none', cursor: 'grab', flexShrink: 0, userSelect: 'none' } },
+          h('img', { src: cr.src, alt: '', draggable: false, style: { position: 'absolute', left: 0, top: 0, maxWidth: 'none', width: cr.w * crG.sc, height: cr.h * crG.sc, transform: 'translate(' + cr.ox + 'px,' + cr.oy + 'px)', pointerEvents: 'none' } }),
+          h('div', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, borderRadius: '50%', boxShadow: '0 0 0 999px rgba(255,255,255,.62)', border: '2px solid #fff', pointerEvents: 'none' } })),
+        h('div', { style: { flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 } },
+          h('label', { style: { fontSize: 13, color: '#5E5E5E', display: 'flex', flexDirection: 'column', gap: 6 } }, 'Zoom', h('input', { type: 'range', min: 1, max: 3, step: 0.01, value: cr.zoom, onChange: e => this.cropZoom(+e.target.value), 'aria-label': 'Zoom' })),
+          h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, act(cr.busy ? 'Saving…' : 'Save photo', () => this.cropSave(), true, 'cs'), act('Cancel', () => this.cropCancel(), false, 'cc')))));
+    const photoShown = cropBox || photoBox;
+    /* ----- edit profile card ----- */
+    const pe = S.pe && app && S.pe.id === app.id ? S.pe : null, dd = det || {};
+    const peIn = (k, label, ph, o) => h('label', { key: k, style: { fontSize: 13, color: '#5E5E5E', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 } }, label,
+      h('input', { value: pe[k], placeholder: ph, type: o && o.type || 'text', onChange: e => this.setState({ pe: { ...this.state.pe, [k]: e.target.value }, peErr: '' }), style: { height: 42, border: '1px solid #D4D4D4', borderRadius: 10, padding: '0 12px', fontSize: 14, fontFamily: 'inherit', color: '#0A0A0A', minWidth: 0 } }));
+    const dRow = (k, v, lock) => h('div', { key: k, style: { display: 'flex', justifyContent: 'space-between', gap: 14, padding: '9px 0', borderTop: '1px solid #F0F0EF', fontSize: 13.5 } }, h('span', { style: { color: '#5E5E5E', flexShrink: 0 } }, k + (lock ? ' 🔒' : '')), h('span', { style: { textAlign: 'right', overflowWrap: 'anywhere', color: v ? '#0A0A0A' : '#A3A3A3' } }, v || 'Not added'));
+    const peBox = !(on && S.user && app) ? null : h('section', { id: 'pe-card', style: { ...card, gap: 4, padding: '22px 24px' } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 } }, h('div', { style: { fontWeight: 600, fontSize: 17 } }, 'Profile details'), pe ? null : act('Edit details', () => this.startEdit(app, det), false, 'ed')),
+      S.peMsg && !pe ? h('div', { role: 'status', style: { fontSize: 13, color: '#137333', background: '#E7F6EC', borderRadius: 8, padding: '8px 12px', marginBottom: 6 } }, S.peMsg) : null,
+      pe ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+          h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,200px),1fr))', gap: 12 } }, peIn('city', 'City', 'New Delhi'), peIn('mobile', 'Mobile', '+91', { type: 'tel' }), peIn('email', 'Email', 'you@example.com', { type: 'email' }), peIn('district', 'District', 'e.g. South')),
+          peIn('courts', 'Courts', 'Delhi High Court, Saket District Courts'), peIn('langs', 'Languages', 'Hindi, English'), peIn('quals', 'Qualifications', 'B.A. LL.B.'), peIn('chamber', 'Chamber address', ''),
+          h('div', { style: { fontSize: 12.5, color: '#5E5E5E', lineHeight: 1.5 } }, 'Your name, enrolment number, State Bar Council and year were matched to your certificate, so they cannot be changed here. Everything above updates your public profile straight away and does not affect your verification.'),
+          S.peErr ? h('div', { role: 'alert', style: { fontSize: 13, color: '#B42318' } }, S.peErr) : null,
+          h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, act(S.peBusy ? 'Saving…' : 'Save changes', () => this.saveProfile(), true, 'sp'), act('Cancel', () => this.setState({ pe: null, peErr: '' }), false, 'cp2')))
+        : h('div', { style: { display: 'flex', flexDirection: 'column' } }, dRow('Name', app.name, true), dRow('Enrolment', app.enr, true), dRow('City', app.city || dd.city), dRow('District', dd.district), dRow('Courts', dd.courts), dRow('Languages', dd.langs), dRow('Qualifications', dd.quals), dRow('Chamber', dd.chamber), dRow('Mobile', dd.mobile), dRow('Email', dd.email)));
     const fmtLead = l => { const d = new Date(l.created_at); return isNaN(d) ? '' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); };
     const leadsBox = !(on && S.user && app) ? null : !paid ? h('section', { style: { border: '1.5px dashed #C4C4C4', borderRadius: 14, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 6 } }, h('div', { style: { fontWeight: 600, fontSize: 16 } }, 'Your lead inbox'), h('div', { style: { fontSize: 14, color: '#5E5E5E' } }, 'Contact requests from clients appear here once your profile is live. Pay the one-time ₹49 to unlock it.'))
       : h('section', { style: { ...card, gap: 14 } },
@@ -1798,7 +1890,7 @@ class Component extends DCLogic {
     const stChipD = { verified: ['rgba(74,222,128,.18)', '#7CF0A6'], pending: ['rgba(255,200,60,.2)', '#FFD666'], info: ['rgba(255,120,110,.2)', '#FF9C94'], rejected: ['rgba(255,120,110,.2)', '#FF9C94'] }[status || 'pending'];
     stChip.push(stChipD[0], stChipD[1]);
     const doneN = track.filter(x => x.mark).length, pct = track.length ? Math.round(doneN / track.length * 100) : 0, RING_R = 38, RING_C = Math.round(2 * Math.PI * RING_R * 10) / 10;
-    const heroActions = actions.map(el => { const d = el.props.style && el.props.style.background === '#0A0A0A'; return React.cloneElement(el, { className: 'ls-press', style: { ...el.props.style, background: d ? '#fff' : 'transparent', color: d ? '#0A0A0A' : '#fff', border: d ? 0 : '1px solid rgba(255,255,255,.35)' } }); });
+    const heroActions = (on && S.user ? actions.concat([act('Edit profile', () => this.startEdit(app, det), false, 'ep')]) : actions).map(el => { const d = el.props.style && el.props.style.background === '#0A0A0A'; return React.cloneElement(el, { className: 'ls-press', style: { ...el.props.style, background: d ? '#fff' : 'transparent', color: d ? '#0A0A0A' : '#fff', border: d ? 0 : '1px solid rgba(255,255,255,.35)' } }); });
     const ico = d => h('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d }));
     const DICO = { v: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3zM9 12l2 2 4-4', f: 'M3 7h18v11H3zM3 11h18M7 15h3', p: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 100 6 3 3 0 000-6', c: 'M4 5h16v11H8l-4 4V5z' };
     /* decorative backdrop for the dashboard: soft tinted glows, a fading dot grid and large outlined court graphics */
@@ -1845,7 +1937,7 @@ class Component extends DCLogic {
           ...track.map((x, i) => h('div', { key: i, className: 'lsd-rise', style: { display: 'flex', gap: 14, animationDelay: (350 + i * 130) + 'ms' } },
             h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: 24 } }, h('div', { className: x.dot.background === '#E3E3E2' ? 'lsd-pulse' : '', style: x.dot }, x.mark), i < track.length - 1 ? h('div', { className: 'lsd-line', style: { flex: 1, width: 1, background: '#E5E5E5', minHeight: 16, animationDelay: (450 + i * 130) + 'ms' } }) : null),
             h('div', { style: { paddingBottom: 18, minWidth: 0 } }, h('div', { style: { fontWeight: 600, fontSize: 14.5 } }, x.t), h('div', { style: { fontSize: 13.5, color: '#5E5E5E', lineHeight: 1.5 } }, x.d))))),
-        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 } }, photoBox,
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 } }, photoShown, peBox,
           h('section', { style: { ...card, gap: 6 } }, h('div', { style: { fontWeight: 600, fontSize: 16 } }, 'Practice software'), h('div', { style: { fontSize: 13.5, color: '#5E5E5E', lineHeight: 1.5 } }, 'Run your chamber on Legal Staff: cases, hearings, clients, invoices and team chat in one workspace. Not included with the directory listing.'), h('a', { href: 'index.html#pricing', style: { fontSize: 14, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, color: '#0A0A0A' } }, 'See plans')))),
       leadsBox);
     const stat = {
