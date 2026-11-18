@@ -1826,28 +1826,37 @@ class Component extends DCLogic {
         h('div', { style: { fontSize: 14.5, color: '#363636', maxWidth: 380 } }, 'Your one-time ₹49 listing fee is paid, so you never pay again. Your profile is now listed. Upload your enrolment certificate and photo ID as soon as possible if you have not yet: they are checked automatically and the blue tick appears once everything matches.'),
         pay.x && pay.x.utr ? h('div', { style: { fontSize: 12, color: '#8A8A8A' } }, (pay.x.method === 'razorpay' ? 'Razorpay payment ID ' : 'UPI reference ') + pay.x.utr + ' · order ' + (r && r.order_no || '')) : null,
         dark('View my application', () => this.nav({ screen: 'status', viewId: pay.id }), 'v'))
-      else if (pay.phase === 'expired') right = h('div', { style: { ...card, alignItems: 'flex-start' } }, h('div', { style: { fontSize: 20, fontWeight: 600 } }, 'This payment window has closed'), h('div', { style: { fontSize: 14, color: '#363636' } }, 'If you already paid ' + amt + ', it is still confirmed automatically within 24 hours and your profile unlocks by itself. If you have not paid, start again.'), h('div', { style: { fontSize: 12, color: '#8A8A8A' } }, 'Order ' + (r && r.order_no || '')), h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, dark('Start again', () => this.startPay(pay.id), 's'), light('Back to my status', () => this.nav({ screen: 'status' }), 'b')));
-      else right = h('div', { style: { ...card, alignItems: 'center', textAlign: 'center', gap: 14, animation: 'lsRise .4s cubic-bezier(.2,.7,.2,1)' } },
-        h('div', null, h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' } }, 'Pay exactly'), h('div', { style: { fontSize: 40, fontWeight: 700, letterSpacing: '-.03em' } }, amt)),
+      else {
+        const saveP = Math.max(0, rzpTotal - Math.floor(r.amount / 100) * 100);
+        const mcard = (key, title, price, tag, ...kids) => h('div', { key, style: { border: '1.5px solid #0A0A0A', borderRadius: 14, padding: '22px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 12, background: '#fff' } },
+          h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' } }, title),
+          h('div', { style: { fontSize: 38, fontWeight: 700, letterSpacing: '-.03em', lineHeight: 1.1 } }, price),
+          tag ? h('div', { style: { fontSize: 12.5, fontWeight: 600, color: '#137333', background: '#E7F6EC', borderRadius: 99, padding: '4px 12px' } }, tag) : h('div', { style: { height: 24 } }), ...kids);
+        const upiCard = mcard('upi', 'Pay by UPI', amt, saveP ? 'Best price · you save ' + rupee(saveP) : 'Direct to our UPI ID',
         h('div', { style: { position: 'relative', width: 232, height: 232, border: '1px solid #E5E5E5', borderRadius: 16, padding: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', overflow: 'hidden' } },
           pay.qr === 'failed' ? h('div', { style: { fontSize: 13, color: '#5E5E5E', padding: 12 } }, 'The QR code could not load. Use the button below on your phone, or pay to the UPI ID shown.') : pay.qr ? h('div', { style: { width: '100%', height: '100%' }, dangerouslySetInnerHTML: { __html: pay.qr.replace('<svg ', '<svg width="100%" height="100%" ') } }) : h('span', { className: 'lsd-spin' }),
           pay.qr && pay.qr !== 'failed' ? h('div', { 'aria-hidden': true, style: { position: 'absolute', left: 0, right: 0, height: 36, background: 'linear-gradient(180deg,transparent,rgba(10,10,10,.12),transparent)', animation: 'ls-scan 2.8s ease-in-out infinite' } }) : null),
-        h('div', { style: { fontSize: 12.5, fontWeight: 600, color: '#137333', background: '#E7F6EC', borderRadius: 99, padding: '4px 12px' } }, '₹5 off when you pay by UPI here · ' + rupee(rzpTotal) + ' with Razorpay'),
-        h('div', { style: { fontSize: 14, color: '#363636' } }, 'Scan with any UPI app: GPay, PhonePe, Paytm, BHIM'),
+          h('div', { style: { fontSize: 13.5, color: '#363636' } }, 'Scan with any UPI app: GPay, PhonePe, Paytm, BHIM'),
         h('a', { href: r.link, className: 'lsd-a lsd-cta', style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 46, padding: '0 22px', background: '#0A0A0A', color: '#fff', borderRadius: 10, fontSize: 15, fontWeight: 600 } }, 'Open UPI app (on your phone)'),
         h('div', { style: { fontSize: 12.5, color: '#5E5E5E' } }, 'Paying ' + r.payee + ' · ' + r.upi_id),
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', maxWidth: 360, fontSize: 12, color: '#8A8A8A' } }, h('span', { style: { flex: 1, height: 1, background: '#E5E5E5' } }), 'or', h('span', { style: { flex: 1, height: 1, background: '#E5E5E5' } })),
+          h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, 'Pay the exact amount, paise included, so it is matched to order ' + r.order_no));
+        const rzCard = mcard('rzp', 'Pay with Razorpay', rupee(rzpTotal), 'Instant confirmation',
+          h('div', { style: { fontSize: 13.5, color: '#363636', maxWidth: 260 } }, 'Card, UPI, netbanking or wallets in Razorpay\'s secure window. No QR code or exact amount to match.'),
         h('button', { type: 'button', onClick: () => this.payRazorpay(pay.id), className: 'ls-press', style: { height: 46, padding: '0 22px', border: '1px solid #0A0A0A', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 15, fontWeight: 600 } }, 'Pay ' + rupee(rzpTotal) + ' with Razorpay'),
-        h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, 'Card · UPI · netbanking · wallets, confirmed instantly (no discount)'),
-        h('div', { style: { width: '100%', maxWidth: 360, borderTop: '1px solid #E5E5E5', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' } },
+          h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, saveP ? 'UPI on the left is ' + rupee(saveP) + ' cheaper' : 'Same price as UPI with your code'));
+        right = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14, animation: 'lsRise .4s cubic-bezier(.2,.7,.2,1)' } },
+          h('div', { style: { ...card, gap: 8 } }, h('div', { style: { fontWeight: 600, fontSize: 15 } }, 'Choose how you want to pay'), h('div', { style: { fontSize: 13.5, color: '#5E5E5E' } }, 'Pay by UPI directly to us and get ₹5 off, or use Razorpay. Have a promo code? Apply it first and both prices update.'),
+        h('div', { style: { width: '100%', display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' } },
           pay.promo
             ? h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#E7F6EC', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: '#137333' } }, h('span', null, h('b', null, pay.promo.code), ' applied · ' + pay.promo.label), h('button', { type: 'button', onClick: () => this.removePromo(pay.id), style: { border: 0, background: 'none', color: '#137333', textDecoration: 'underline', fontSize: 12.5, padding: 0 } }, 'Remove'))
             : h('div', { style: { display: 'flex', gap: 8 } },
                 h('input', { value: S.promoIn || '', placeholder: 'Promo code', 'aria-label': 'Promo code', onChange: e => this.setState({ promoIn: e.target.value.toUpperCase(), promoErr: '' }), onKeyDown: e => { if (e.key === 'Enter') this.applyPromo(pay.id); }, style: { flex: 1, minWidth: 0, height: 42, border: '1px solid #D4D4D4', borderRadius: 10, padding: '0 12px', fontSize: 14, fontFamily: 'inherit' } }),
                 h('button', { type: 'button', onClick: () => this.applyPromo(pay.id), disabled: !!S.promoBusy, className: 'ls-press', style: { height: 42, padding: '0 16px', border: '1px solid #0A0A0A', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 14, fontWeight: 600 } }, S.promoBusy ? 'Checking…' : 'Apply')),
-          S.promoErr ? h('div', { role: 'alert', style: { fontSize: 12.5, color: '#B42318' } }, S.promoErr) : null),
+          S.promoErr ? h('div', { role: 'alert', style: { fontSize: 12.5, color: '#B42318' } }, S.promoErr) : null)),
+          h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,270px),1fr))', gap: 14, alignItems: 'stretch' } }, upiCard, rzCard),
         h('div', { role: 'status', style: { display: 'flex', gap: 10, alignItems: 'center', fontSize: 14, color: '#363636' } }, h('span', { className: 'lsd-spin' }), 'Waiting for your payment… ' + mm),
         h('div', { style: { fontSize: 12, color: '#8A8A8A', maxWidth: 360 } }, 'Keep this page open. It updates by itself as soon as the payment arrives. Pay the exact amount shown, including paise, so it is matched to your order ' + r.order_no + '.'));
+      }
       const left = h('div', { style: { background: '#0A0A0A', color: '#fff', borderRadius: 20, padding: 'clamp(24px,4vw,36px)', display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', overflow: 'hidden' } },
         orb({ width: 300, height: 300, background: '#4B4B4B', top: -110, right: -100 }),
         h('div', { style: { position: 'relative', fontSize: 12, color: '#C9C9C9', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' } }, 'Last step'),
