@@ -1,10 +1,13 @@
 /* Legal Staff admin: Email Marketing module. Loaded by admin.html; talks only to the email-marketing function (no keys in the browser). */
 (window.LSAdminExtensions = window.LSAdminExtensions || []).push(function (A) {
   const { sb, esc, dt, day, toast, modal, VIEWS, TABS } = A;
-  TABS.push(['email', 'Email Marketing']);
+  
 
   const SUBS = [['overview', 'Overview'], ['contacts', 'Contact Database'], ['sheets', 'Google Sheets Integration'], ['new', 'New Email Campaigns'], ['reminders', 'Reminder Campaigns'], ['templates', 'Email Templates'],
     ['queue', 'Sending Queue'], ['history', 'Email History'], ['unsub', 'Unsubscribed Contacts'], ['analytics', 'Campaign Analytics'], ['settings', 'Automation Settings']];
+  // the main sidebar shows these as grouped sub-options under Email Marketing
+  const SUB_GROUPS = [[null, ['overview']], ['Audience', ['contacts', 'sheets', 'unsub']], ['Campaigns', ['new', 'reminders', 'templates']], ['Delivery', ['queue', 'history', 'analytics']], ['Setup', ['settings']]];
+  TABS.push(['email', 'Email Marketing', SUB_GROUPS.map(([g, keys]) => [g, keys.map(k => SUBS.find(x => x[0] === k))])]);
   const n = v => Number(v || 0).toLocaleString('en-IN');
   const cs = {};   // remembered filters / page per screen
   async function api(action, body = {}) {
@@ -37,22 +40,19 @@
 
   // ---------- layout: sidebar with the eleven submenus ----------
   function shell(p, sub, render) {
-    p.innerHTML = `<div class="em"><aside class="em-nav"><div class="em-h">EMAIL MARKETING</div>${SUBS.map(([k, l]) => `<a href="#email/${k}" data-s="${k}" class="${k === sub ? 'on' : ''}">${l}</a>`).join('')}</aside><section class="em-main" id="em-main"><div class="muted">Loading…</div></section></div>`;
-    p.querySelectorAll('.em-nav a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); location.hash = 'email/' + a.dataset.s; }));
+    p.innerHTML = `<div class="em"><section class="em-main" id="em-main"><div class="skel-block"><i></i><i></i><i></i></div></section></div>`;
     const m = p.querySelector('#em-main');
-    const run = () => render(m).catch(e => { m.innerHTML = `<div class="card err">${esc(e.message)} <button class="btn sm" id="retry" style="margin-left:10px">Try again</button></div>`; m.querySelector('#retry').onclick = () => { m.innerHTML = '<div class="muted">Loading…</div>'; run(); }; });
+    const run = () => render(m).catch(e => { m.innerHTML = `<div class="card err">${esc(e.message)} <button class="btn sm" id="retry" style="margin-left:10px">Try again</button></div>`; m.querySelector('#retry').onclick = () => { m.innerHTML = '<div class="skel-block"><i></i><i></i><i></i></div>'; run(); }; });
     run();
   }
   const style = document.createElement('style');
-  style.textContent = `.em{display:grid;grid-template-columns:230px 1fr;gap:0;background:#fff;border:1px solid var(--line);border-radius:12px;min-height:560px}
-  .em-nav{border-right:1px solid var(--line);padding:16px 10px;display:flex;flex-direction:column;gap:2px;background:#fff;border-radius:12px 0 0 12px}.em-h{font-size:11px;letter-spacing:.1em;font-weight:700;color:#0A0A0A;padding:4px 10px 12px}
-  .em-nav a{padding:8px 10px;border-radius:8px;color:var(--mut);text-decoration:none;font-weight:500;font-size:13.5px}.em-nav a:hover{background:var(--soft);color:var(--ink)}.em-nav a.on{background:var(--ink);color:#fff}
-  .em-main{padding:22px;min-width:0;background:#fff;border-radius:0 12px 12px 0}.em-main .card{box-shadow:none}.em-main h1{margin-bottom:2px}
+  style.textContent = `.em{display:block}
+  .em-main{min-width:0}.em-main .card{box-shadow:none}.em-main h1{margin-bottom:2px}
   .banner{border:1px solid;border-radius:10px;padding:12px 14px;font-size:13.5px;margin-bottom:14px}.banner.warn{background:var(--warnbg);border-color:#F6D6A8;color:#7A3A06}.banner.ok{background:var(--goodbg);border-color:#BFE3CB;color:#0E5A28}.banner.bad{background:var(--badbg);border-color:#F3C3BE;color:var(--bad)}
   .banner ul{margin:6px 0 0 18px;padding:0}.em .k3{grid-template-columns:repeat(3,minmax(0,1fr))}.em .k6{grid-template-columns:repeat(6,minmax(0,1fr))}
   .frame{border:1px solid var(--line);border-radius:10px;background:#fff;width:100%;height:520px}.tpl-item{padding:12px 14px;border-bottom:1px solid #EFEFEE;cursor:pointer}.tpl-item.on{background:var(--soft)}
   .switch{display:flex;gap:8px;align-items:center}.switch input{width:auto;height:auto}.mono{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
-  @media (max-width:900px){.em{grid-template-columns:1fr}.em-nav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);border-radius:12px 12px 0 0}.em-h{display:none}.em-nav a{white-space:nowrap}.em .k3,.em .k6{grid-template-columns:repeat(2,minmax(0,1fr))}.em-main{padding:14px}}`;
+  @media (max-width:900px){.em .k3,.em .k6{grid-template-columns:repeat(2,minmax(0,1fr))}}`;
   document.head.appendChild(style);
 
   VIEWS.email = async (p, sub) => {
