@@ -7,7 +7,8 @@
 //  * all match -> 'verified' (blue tick); anything else -> 'info' with a plain note on what to fix, and the advocate can try again;
 //  * the 6th failing attempt -> 'rejected' (profile unlisted) with the reasons; a certificate image already verified on another
 //    profile never passes;
-//  * if the AI service is down the application just stays 'pending' and a scheduled sweep (every 3 minutes) retries it.
+//  * if the AI service is down the application just stays 'pending' and a scheduled sweep (every 3 minutes) retries it;
+//  * an advocate who has not uploaded documents is emailed a reminder after 24 hours, then every 3 days, at most 3 times.
 // It never checks the Bar Council roll, so the tick means "documents read and consistent", not "roll checked".
 // Callers: the signed-in owner of the application ({ application_id }), or the scheduled sweep ({ action: "sweep" } with x-cron-secret).
 // Deploy with JWT verification off; it checks the caller itself.
@@ -126,6 +127,19 @@ ${lines.map((l) => `<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#0A0A0
 <p style="margin:20px 0 0"><a href="${url}" style="display:inline-block;background:#0A0A0A;color:#fff;text-decoration:none;font:600 15px/1 ${FONT};padding:14px 22px;border-radius:10px">${esc(label)}</a></p></td></tr></table></td></tr></table></body></html>`;
   return { subject, text, html };
 }
+function reminderEmail(name: string, n: number) {
+  const first = (name || "").split(/\s+/)[0] || "", url = `${SITE}/directory#status`;
+  const subject = n === 0 ? "Upload your documents to get the verified tick on your profile" : "Reminder: upload your documents to get the verified tick";
+  const lines = ["Your Legal Staff Directory profile is listed, but it shows “Not verified yet” because your enrolment certificate and photo ID have not been uploaded.", "Please upload them as soon as possible. They are checked automatically in about a minute, and your profile then gets the blue verified tick that clients look for."];
+  const text = `Hello ${first},\n\n${lines.join("\n\n")}\n\nUpload my documents: ${url}\n\nLegal Staff Directory`;
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#F4F4F2"><table role="presentation" width="100%" style="background:#F4F4F2"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" style="max-width:600px"><tr><td style="background:#fff;border:1px solid #E5E5E5;border-radius:12px;padding:28px 30px">
+<div style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#6B6B6B;padding-bottom:8px">Legal Staff Directory</div>
+<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#363636">Hello${first ? " " + esc(first) : ""},</p>
+${lines.map((l) => `<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#0A0A0A">${esc(l)}</p>`).join("")}
+<p style="margin:20px 0 0"><a href="${url}" style="display:inline-block;background:#0A0A0A;color:#fff;text-decoration:none;font:600 15px/1 ${FONT};padding:14px 22px;border-radius:10px">Upload my documents</a></p></td></tr></table></td></tr></table></body></html>`;
+  return { subject, text, html };
+}
+const hasDocs = (a: any) => { const d: any[] = Array.isArray(a.details?.documents) ? a.details.documents : []; const ok = (k: string) => d.some((x) => x.kind === k && (x.preview || x.path)); return ok("cert") && ok("id"); };
 async function sendEmail(to: string, subject: string, text: string, html: string) {
   const key = Deno.env.get("RESEND_API_KEY"), from = Deno.env.get("EMAIL_FROM"); if (!key || !from) return false;
   const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [to], subject, text, html }) });
@@ -180,9 +194,14 @@ Deno.serve(async (req: Request) => {
     if (body.action === "sweep") {   // every few minutes: settle applications whose automatic check could not run earlier
       const { data: okSecret } = await admin.rpc("cron_secret_ok", { s: req.headers.get("x-cron-secret") ?? "" });
       if (okSecret !== true) return json({ error: "Not allowed." }, 403);
-      const { data: list } = await admin.from("directory_applications").select(APP_COLS).eq("status", "pending").lt("created_at", new Date(Date.now() - 4 * 60e3).toISOString()).lt("ai_checks", MAX_CHECKS).order("created_at").limit(8);
-      let done = 0; for (const a of list ?? []) { try { await runCheck(admin, a); done++; } catch (e) { if (!(e instanceof Fail)) console.error("sweep", e); } }
-      return json({ checked: (list ?? []).length, done });
+      const { data: pend } = await admin.from("directory_applications").select(APP_COLS + ",doc_reminders,last_reminder_at,created_at").eq("status", "pending").lt("created_at", new Date(Date.now() - 4 * 60e3).toISOString()).lt("ai_checks", MAX_CHECKS).order("created_at").limit(60);
+      const ready = (pend ?? []).filter(hasDocs).slice(0, 8);
+      let done = 0; for (const a of ready) { try { await runCheck(admin, a); done++; } catch (e) { if (!(e instanceof Fail)) console.error("sweep", e); } }
+      let reminded = 0;   // no documents yet: remind after 24 hours, then every 3 days, at most 3 times
+      for (const a of (pend ?? []).filter((x: any) => !hasDocs(x) && x.email && (x.doc_reminders ?? 0) < 3 && Date.parse(x.created_at) < Date.now() - 864e5 && (!x.last_reminder_at || Date.parse(x.last_reminder_at) < Date.now() - 3 * 864e5)).slice(0, 10)) {
+        try { const m = reminderEmail(a.name, a.doc_reminders ?? 0); if (await sendEmail(a.email, m.subject, m.text, m.html)) { await admin.from("directory_applications").update({ doc_reminders: (a.doc_reminders ?? 0) + 1, last_reminder_at: new Date().toISOString() }).eq("id", a.id); reminded++; } } catch (e) { console.error("reminder", e); }
+      }
+      return json({ checked: ready.length, done, reminded });
     }
     const asUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
     const { data: { user } } = await asUser.auth.getUser();

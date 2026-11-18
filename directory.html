@@ -657,6 +657,7 @@ table tbody tr:hover{background:#FAFAF9}
       <p style="margin:8px 0 0;color:#5E5E5E">{{ stat.sub }}</p>
     </div>
     {{ stat.noteBox }}
+    {{ stat.docBox }}
     {{ stat.actions }}
     <sc-if value="{{ stat.has }}" hint-placeholder-val="{{ true }}">
     <section style="border:1px solid #E5E5E5;border-radius:14px;padding:28px 30px;display:flex;flex-direction:column">
@@ -703,7 +704,7 @@ class Component extends DCLogic {
     cf: this.blankContact(), cfErr: {}, enquiries: [],
     app: this.blankApp(), appErr: {}, editingId: null, apps: [], mine: {}, viewId: null,
     profiles: [], pState: 'idle', pErr: '', busy: '', statusErr: '', lookupEnr: '', modal: null, more: {}, lookup: '', lookupMsg: '', rf: { profile: '', reason: '', details: '', email: '' }, rfErr: {}, rfDone: null,
-    vq: '', user: null, authErr: '', authBusy: false, pay: null, leads: [], photoMsg: '',
+    vq: '', late: {}, lateErr: '', user: null, authErr: '', authBusy: false, pay: null, leads: [], photoMsg: '',
     compare: [], compareMsg: '', stats: {}, revSum: {}, reviews: [], rv: { rating: 0, body: '', name: '', msg: '', done: {} }
   };
   K = { apps: 'ls.directory.applications', mine: 'ls.directory.myApplications', enq: 'ls.directory.enquiries', rep: 'ls.directory.reports' };
@@ -861,6 +862,31 @@ class Component extends DCLogic {
     const cur = this.state.pay; if (!cur || cur.phase !== 'waiting' || cur.r !== p.r) return;
     if (!r.error && r.data && r.data.status === 'paid') { this.stopPay(); this.setState({ pay: { ...cur, phase: 'paid', x: r.data } }); this.refreshStatus(); }
     else if (Date.now() > cur.end) { this.stopPay(); this.setState({ pay: { ...cur, phase: 'expired' } }); }
+  }
+  /* documents chosen on the status page (an advocate who skipped them at signup) */
+  pickLate(k) {
+    return e => {
+      const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+      if (!/\.(pdf|jpe?g|png)$/i.test(f.name)) { this.setState({ lateErr: 'Choose a PDF, JPG or PNG file.' }); return; }
+      if (f.size > 5 * 1048576) { this.setState({ lateErr: 'That file is larger than 5 MB.' }); return; }
+      (this._files = this._files || {})[k] = f;
+      this.setState({ late: { ...this.state.late, [k]: { name: f.name, size: f.size } }, lateErr: '' });
+    };
+  }
+  async submitLate(id) {
+    const S = this.state, sb = this.sb(); if (S.busy || !sb) return;
+    const have = S.mine[id] && S.mine[id].docs || {}, docs = { ...Object.fromEntries(Object.entries(have).filter(([, f]) => f && f.path)), ...S.late };
+    if (!docs.cert || !docs.id) { this.setState({ lateErr: 'Choose both the enrolment certificate and the photo ID.' }); return; }
+    this.setState({ busy: 'verify', lateErr: '' });
+    const up = await this.uploadDocs(id, docs);
+    if (up.error) { this.setState({ busy: '', lateErr: up.error }); return; }
+    const documents = Object.keys(up.docs).map(k => ({ kind: k, name: up.docs[k].name, size: up.docs[k].size, path: up.docs[k].path || '', preview: up.docs[k].preview || '' }));
+    const r = await this.call(sb.rpc('directory_set_documents', { p_ref: id, p_documents: documents }));
+    if (r.error || r.data !== true) { this.setState({ busy: '', lateErr: 'Your documents could not be saved (' + this.errText(r.error || { message: 'not allowed' }) + '). Please try again.' }); return; }
+    this._files = {};
+    await this.fnCall('directory-verify', { application_id: id }, 60000);
+    await this.refreshStatus();
+    this.setState({ busy: '', late: {}, lateErr: '' });
   }
   /* run the automatic document check again (for an application whose check could not run) */
   async recheck(id) {
@@ -1171,11 +1197,7 @@ class Component extends DCLogic {
       if (!a.langs.trim()) err.langs = 'List at least one language.';
       if (!a.quals.trim()) err.quals = 'Enter your law degree.';
     } else if (i === 3) {
-      const stored = k => !this.sb() || (a.docs[k] && a.docs[k].path) || (this._files && this._files[k]);   // older applications only kept a file name
-      if (!a.docs.cert) err.cert = 'Your enrolment certificate is required.';
-      else if (!stored('cert')) err.cert = 'Upload the enrolment certificate again: the earlier file was not stored.';
-      if (!a.docs.id) err.id = 'A government photo ID is required.';
-      else if (!stored('id')) err.id = 'Upload the photo ID again: the earlier file was not stored.';
+      /* documents can be added later from the status page, but the verified tick needs them */
     } else if (i === 4) {
       if (!a.confirm) err.confirm = 'Please confirm that the details are accurate.';
     }
@@ -1214,7 +1236,7 @@ class Component extends DCLogic {
       }
       this._files = {};
       this.setState({ busy: 'verify' });
-      await this.fnCall('directory-verify', { application_id: id }, 60000);   // reads the documents; the result shows on the status page
+      if (up.docs.cert && up.docs.id && up.docs.cert.path && up.docs.id.path) await this.fnCall('directory-verify', { application_id: id }, 60000);   // reads the documents; the result shows on the status page
       await this.refreshStatus();
       const row = this.state.apps.find(x => x.id === id);
       this.setState({ busy: '', app: this.blankApp(), appErr: {}, step: 0, editingId: null });
@@ -1241,7 +1263,7 @@ class Component extends DCLogic {
   editApp(id) {
     const S = this.state, x = S.apps.find(a => a.id === id), d = S.mine[id] || {};
     if (!x) return;
-    this.nav({ screen: 'register', step: 0, editingId: id, appErr: {}, app: { ...this.blankApp(), name: x.name || '', enr: x.enr || '', council: x.council || '', year: String(x.year || ''), city: x.city || '', email: d.email || '', mobile: d.mobile || '', cop: d.cop || '', areas: d.areas || [], courts: d.courts || '', district: d.district || '', langs: d.langs || '', quals: d.quals || '', chamber: d.chamber || '', docs: d.docs || {}, photo: d.photo || x.photo || '' } });
+    this.nav({ screen: 'register', step: 0, editingId: id, appErr: {}, app: { ...this.blankApp(), name: x.name || '', enr: x.enr || '', council: x.council || '', year: String(x.year || ''), city: x.city || '', email: d.email || '', mobile: d.mobile || '', cop: d.cop || '', areas: d.areas || [], courts: d.courts || '', district: d.district || '', langs: d.langs || '', quals: d.quals || '', chamber: d.chamber || '', docs: Object.fromEntries(Object.entries(d.docs || {}).filter(([, f]) => f && f.path)), photo: d.photo || x.photo || '' } });
   }
   currentApp() {
     const S = this.state;
@@ -1562,11 +1584,12 @@ class Component extends DCLogic {
     const status = app ? (['pending', 'info', 'verified', 'rejected'].indexOf(app.status) >= 0 ? app.status : 'pending') : null;
     const T = { pending: ['done', 'now', 'todo', 'todo'], info: ['done', 'now', 'todo', 'todo'], verified: ['done', 'done', 'done', 'done'], rejected: ['done', 'done', 'done', 'done'] }[status || 'pending'];
     const submitted = app ? ((det && fmtDate(det.submittedAt)) || fmtDate(app.created_at) || (app.date || '')) : '';
+    const bothUp = !on || !!(det && det.docs && det.docs.cert && det.docs.cert.path && det.docs.id && det.docs.id.path);   // both documents are stored
     const paid = !!(app && app.paid), isLive = (on && paid && status !== 'rejected') || !on;
     const track = !app ? [] : [
       ['Application submitted', submitted || 'Received', T[0]],
       on ? [paid ? 'Listing fee paid' : 'Listing fee: ₹49, one time', paid ? 'One-time payment received. Your profile is yours for life.' : 'Pay once by UPI to publish your profile. Review carries on in the meantime.', paid ? 'done' : (status === 'rejected' ? 'todo' : 'now')] : null,
-      [status === 'info' ? 'Documents could not be verified yet' : 'Documents checked', status === 'info' ? 'We read your documents but something did not match or was unclear. See the note above, then update your application.' : (T[1] === 'done' ? 'Your enrolment certificate and photo ID were read and checked automatically' : 'Your enrolment certificate and photo ID are checked automatically, usually within a minute'), T[1]],
+      [status === 'info' ? 'Documents could not be verified yet' : 'Documents checked', status === 'info' ? 'We read your documents but something did not match or was unclear. See the note above, then update your application.' : (T[1] === 'done' ? 'Your enrolment certificate and photo ID were read and checked automatically' : (bothUp ? 'Your enrolment certificate and photo ID are checked automatically, usually within a minute' : 'Waiting for your documents: upload them to get the blue tick')), T[1]],
       ['Details matched', (T[2] === 'done' ? 'The name, enrolment number ' + app.enr + ', State Bar Council and year on your certificate match your profile' : 'The name, enrolment number, State Bar Council and year on your certificate are matched to your profile'), T[2]],
       ['Decision', status === 'verified' ? 'Verified. Your profile carries the blue tick.' : status === 'rejected' ? 'Not approved. See the note above.' : 'Verified, or a note on what to fix', T[3]]
     ].filter(Boolean).map(([t, d, st], i) => ({ t, d, delay: i * 120, mark: st === 'done' ? (status === 'rejected' && t === 'Decision' ? '×' : '✓') : '', dot: { width: 22, height: 22, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, marginTop: 1, flexShrink: 0,
@@ -1577,7 +1600,7 @@ class Component extends DCLogic {
     else {
       if (on && !paid && status !== 'rejected') actions.push(act('Pay ₹49 to go live', () => this.openPay(), true, 'p'));
       if (isLive && status !== 'rejected') actions.push(act('View your profile', () => this.openProfile(app.id), true, 'v'));
-      if (on && status === 'pending') actions.push(act(S.busy === 'verify' ? 'Checking…' : 'Check my documents again', () => this.recheck(app.id), true, 'ck'));
+      if (on && status === 'pending' && bothUp) actions.push(act(S.busy === 'verify' ? 'Checking…' : 'Check my documents again', () => this.recheck(app.id), true, 'ck'));
       if (status === 'info' && det) actions.push(act('Update and resubmit', () => this.editApp(app.id), true, 'e'));
       if (status === 'rejected') actions.push(act('Start a new application', () => this.startApply(), true, 'n'));
       actions.push(act(S.busy === 'status' ? 'Refreshing…' : 'Refresh status', () => this.loadStore(), false, 'r'));
@@ -1670,7 +1693,7 @@ class Component extends DCLogic {
       else if (pay.phase === 'paid') right = h('div', { style: { ...card, alignItems: 'center', textAlign: 'center', padding: '40px 28px', gap: 14 } },
         h('div', { style: { position: 'relative', width: 76, height: 76, margin: '34px 0 22px' } }, h('span', { 'aria-hidden': true, style: { position: 'absolute', inset: 0, borderRadius: '50%', background: '#16A34A', opacity: .3, animation: 'lsdRing 1.6s ease-out 2' } }), h('div', { style: { position: 'relative', width: 76, height: 76, borderRadius: '50%', background: '#16A34A', color: '#fff', fontSize: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'lsdPop .6s cubic-bezier(.34,1.56,.64,1)' } }, '✓')),
         h('div', { style: { fontSize: 24, fontWeight: 600, letterSpacing: '-.02em' } }, 'Payment received'),
-        h('div', { style: { fontSize: 14.5, color: '#363636', maxWidth: 380 } }, 'Your one-time ₹49 listing fee is paid, so you never pay again. Your profile is now listed. Your documents are checked automatically and the blue tick appears once everything matches.'),
+        h('div', { style: { fontSize: 14.5, color: '#363636', maxWidth: 380 } }, 'Your one-time ₹49 listing fee is paid, so you never pay again. Your profile is now listed. Upload your enrolment certificate and photo ID as soon as possible if you have not yet: they are checked automatically and the blue tick appears once everything matches.'),
         pay.x && pay.x.utr ? h('div', { style: { fontSize: 12, color: '#8A8A8A' } }, 'UPI reference ' + pay.x.utr + ' · order ' + (r && r.order_no || '')) : null,
         dark('View my application', () => this.nav({ screen: 'status', viewId: pay.id }), 'v'))
       else if (pay.phase === 'expired') right = h('div', { style: { ...card, alignItems: 'flex-start' } }, h('div', { style: { fontSize: 20, fontWeight: 600 } }, 'This payment window has closed'), h('div', { style: { fontSize: 14, color: '#363636' } }, 'If you already paid ' + amt + ', it is still confirmed automatically within 24 hours and your profile unlocks by itself. If you have not paid, start again.'), h('div', { style: { fontSize: 12, color: '#8A8A8A' } }, 'Order ' + (r && r.order_no || '')), h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, dark('Start again', () => this.startPay(pay.id), 's'), light('Back to my status', () => this.nav({ screen: 'status' }), 'b')));
@@ -1694,12 +1717,28 @@ class Component extends DCLogic {
       payView = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,340px),1fr))', gap: 20, alignItems: 'stretch' } }, left, right);
     }
 
+    /* documents still to upload: a banner and the upload card */
+    const haveDocs = det && det.docs ? det.docs : {}, stored = k => !!(haveDocs[k] && haveDocs[k].path && haveDocs[k].preview);
+    const needDocs = !!(on && S.user && app && status !== 'rejected' && status !== 'verified' && !(stored('cert') && stored('id')));
+    const slot = (k, title, hint) => { const f = S.late[k] || (haveDocs[k] && haveDocs[k].path ? haveDocs[k] : null);
+      return h('div', { key: k, style: { border: '1.5px dashed #D9B44A', borderRadius: 12, padding: 16, background: '#fff', display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' } },
+        h('div', { style: { fontWeight: 600 } }, title), h('div', { style: { fontSize: 13, color: '#5E5E5E' } }, hint),
+        h('input', { id: 'late-' + k, type: 'file', accept: '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png', style: { display: 'none' }, onChange: this.pickLate(k) }),
+        f ? h('div', { style: { fontSize: 13, fontWeight: 500, overflowWrap: 'anywhere' } }, '✓ ' + f.name) : null,
+        h('button', { type: 'button', onClick: () => { const el = document.getElementById('late-' + k); if (el) el.click(); }, style: { height: 36, padding: '0 14px', border: '1px solid #0A0A0A', background: '#fff', borderRadius: 8, fontSize: 13 } }, f ? 'Replace' : 'Upload PDF or image')); };
+    const docBox = !needDocs ? null : h('section', { role: 'note', style: { background: '#FFF8E6', border: '1px solid #F3DFA2', borderRadius: 14, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 14 } },
+      h('div', null, h('div', { style: { fontWeight: 700, fontSize: 18, color: '#5C3F00' } }, status === 'info' ? 'Upload corrected documents to get the verified tick' : 'Upload your documents now to get the verified tick'),
+        h('div', { style: { fontSize: 14, color: '#6B4A00', marginTop: 4 } }, 'Do this as soon as possible. Until your enrolment certificate and photo ID are checked, your profile is listed as “Not verified yet” and clients may choose someone with the tick. The check takes about a minute and is automatic.')),
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 } }, slot('cert', 'Enrolment certificate', 'Issued by your State Bar Council · required'), slot('id', 'Government photo ID', 'Aadhaar (masked), PAN or passport · required'), slot('cop', 'Certificate of Practice', 'If issued · optional')),
+      S.lateErr ? h('div', { role: 'alert', style: { fontSize: 13, color: '#B42318' } }, S.lateErr) : null,
+      h('div', null, h('button', { type: 'button', disabled: S.busy === 'verify', onClick: () => this.submitLate(app.id), className: 'ls-press', style: { height: 46, padding: '0 22px', border: 0, borderRadius: 10, background: '#0A0A0A', color: '#fff', fontSize: 15, fontWeight: 600 } }, S.busy === 'verify' ? 'Checking your documents…' : 'Upload and verify')));
     const nReq = app ? S.enquiries.filter(e => e.advocateId === app.id).length : 0;
     const stat = {
       has: !!app,
-      title: !app ? (S.statusErr ? 'Your application could not be loaded' : 'No application found') : { pending: 'Your documents are being checked', info: 'We could not verify your documents yet', verified: isLive ? 'Your profile is verified and live' : 'Verified. Pay ₹49 to go live', rejected: 'Your application was not approved' }[status],
+      title: !app ? (S.statusErr ? 'Your application could not be loaded' : 'No application found') : { pending: bothUp ? 'Your documents are being checked' : 'Upload your documents to get verified', info: 'We could not verify your documents yet', verified: isLive ? 'Your profile is verified and live' : 'Verified. Pay ₹49 to go live', rejected: 'Your application was not approved' }[status],
       sub: !app ? (S.statusErr ? 'The server could not be reached, so the status of your application is not shown. Try again in a moment.' : on ? 'This browser does not remember a directory application. Apply for a profile, or look up an existing application with its reference and enrolment number.' : '') || 'There is no directory application saved in this browser. Apply for a profile, or look up an existing application by its reference or enrolment number.'
-        : 'Reference ' + app.id + (app.name ? ' · ' + app.name : '') + (app.date ? ' · submitted ' + app.date : '') + '. ' + { pending: 'Your documents are read automatically, usually within a minute. Press Refresh status in a moment.', info: 'Your profile can stay listed, but it will not show the blue tick until the documents are verified.', verified: isLive ? 'Your profile is listed with the blue tick.' : 'Your documents are verified. Pay the one-time ₹49 fee and your profile is listed at once.', rejected: 'Your documents could not be verified after several attempts, so the profile is no longer listed. You can start a new application with correct documents.' }[status],
+        : 'Reference ' + app.id + (app.name ? ' · ' + app.name : '') + (app.date ? ' · submitted ' + app.date : '') + '. ' + { pending: bothUp ? 'Your documents are read automatically, usually within a minute. Press Refresh status in a moment.' : 'Your profile is not verified yet. Upload your enrolment certificate and photo ID below as soon as possible and they are checked automatically.', info: 'Your profile can stay listed, but it will not show the blue tick until the documents are verified.', verified: isLive ? 'Your profile is listed with the blue tick.' : 'Your documents are verified. Pay the one-time ₹49 fee and your profile is listed at once.', rejected: 'Your documents could not be verified after several attempts, so the profile is no longer listed. You can start a new application with correct documents.' }[status],
+      docBox,
       noteBox: S.statusErr ? h('div', { role: 'alert', style: { background: '#FDECEA', borderRadius: 8, padding: '14px 16px', fontSize: 14, color: '#B42318', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' } }, h('span', null, (app ? 'The latest status could not be loaded (' : 'Status check failed (') + S.statusErr + ').'), h('button', { type: 'button', onClick: () => { this.setState({ statusErr: '' }); this.loadStore(); }, style: { height: 36, padding: '0 14px', border: '1px solid #B42318', background: '#FFFFFF', borderRadius: 8, fontSize: 13, color: '#B42318' } }, 'Try again')) : app && app.note ? h('div', { style: { background: '#F0F0EF', border: '1px solid #E3E3E2', borderRadius: 8, padding: '14px 16px', fontSize: 14, color: '#2B2B2B', display: 'flex', flexDirection: 'column', gap: 4 } }, h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600 } }, 'Note from the moderator'), h('div', { style: { overflowWrap: 'anywhere' } }, String(app.note))) : null,
       actions: h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, ...actions),
       visibility: status === 'rejected' ? 'Not published' : !paid && on ? 'Hidden until the ₹49 fee is paid' : status === 'verified' ? 'Listed with the blue tick' : 'Listed, no blue tick until verified',
@@ -1748,13 +1787,13 @@ class Component extends DCLogic {
         foot: 'Legal Staff does not assign matters or take part in fee arrangements. ' + (enq.remote ? 'Removing it below only clears this confirmation from your browser; to withdraw the request itself, contact Legal Staff.' : 'You can withdraw your request and consent at any time.'), summary: `${enq.name} · ${enq.contact} · ${enq.category} · saved ${fmtDate(enq.at)}`,
         note: enq.remote ? 'Your request has been recorded for the Legal Staff team to pass on to the advocate. There is no automatic email to the advocate yet.' : 'Your request is saved in this browser. There is no server behind this site yet, so no email or message is sent to the advocate.' } : { head: '', withdraw: '', foot: '', summary: '', note: '' },
       regTitle: S.editingId ? 'Update your application' : on ? 'Create your lifetime directory profile' : 'Apply for a directory profile',
-      docNote: on ? 'PDF, JPG or PNG, up to 5 MB each. Files are stored privately: only you and Legal Staff can open them, and they are never shown on your profile.' : 'PDF, JPG or PNG, up to 5 MB each. Files are not uploaded to a server: only the file name and size are recorded.',
+      docNote: on ? 'You can upload these now or later, but upload them as soon as possible: your profile gets the verified tick only after your enrolment certificate and photo ID are checked, which takes about a minute. PDF, JPG or PNG, up to 5 MB each. Files are stored privately: only you and Legal Staff can open them, and they are never shown on your profile.' : 'PDF, JPG or PNG, up to 5 MB each. Files are not uploaded to a server: only the file name and size are recorded.',
       regSub: on ? 'Takes about five minutes. Your profile is listed as soon as the one-time ₹49 fee is paid. It earns the blue tick when your documents are verified. A directory profile does not include the Legal Staff practice software.' : "Your profile is published only after your enrolment is verified. A directory profile doesn't include the Legal Staff practice software.",
       showForm: !on || !!S.user, gateBox, feeNote, authArea, payView, areaMarquee,
       steps, stepTitle: cur[1], stepFields: cur[2], isForm: S.step < 3, isDocs: S.step === 3, isReview: S.step === 4, docSlots,
       reviewRows: [{ k: 'Name', v: A.name.trim() || '—' }, { k: 'Contact', v: [A.email.trim(), A.mobile.trim(), A.city.trim()].filter(Boolean).join(' · ') || '—' }, { k: 'Enrolment', v: [A.enr.trim().toUpperCase(), A.council, A.year.trim()].filter(Boolean).join(' · ') || '—' },
         { k: 'Practice areas', v: A.areas.join(', ') || '—' }, { k: 'Courts', v: A.courts.trim() || '—' }, { k: 'District', v: A.district.trim() || '—' }, { k: 'Languages', v: A.langs.trim() || '—' }, { k: 'Qualifications', v: A.quals.trim() || '—' },
-        { k: 'Photo', v: A.photo ? 'Added' : 'None (optional)' }, { k: 'Documents', v: nDocs ? nDocs + ' attached: ' + Object.keys(A.docs).map(k => A.docs[k].name).join(', ') : 'None attached' }],
+        { k: 'Photo', v: A.photo ? 'Added' : 'None (optional)' }, { k: 'Documents', v: nDocs ? nDocs + ' attached: ' + Object.keys(A.docs).map(k => A.docs[k].name).join(', ') : 'None yet: upload them from your dashboard as soon as possible to get the verified tick' }],
       confirmOn: A.confirm, toggleConfirm: () => setApp('confirm', !A.confirm), stepErr, stepBad: !!stepErr,
       back: () => { if (S.step > 0) { this.setState({ step: S.step - 1, appErr: {} }); window.scrollTo(0, 0); } else if (S.editingId) this.nav({ screen: 'status' }); else this.go('home'); },
       backLabel: S.step > 0 ? 'Back' : 'Cancel', next: () => this.nextStep(),
