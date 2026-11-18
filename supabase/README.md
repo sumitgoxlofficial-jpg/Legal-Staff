@@ -23,6 +23,7 @@
 | `functions/auth-email` | Supabase Auth "Send Email" hook: sign-in codes, sign-up confirmations, invites, email changes and security notices in the Legal Staff design, sent through Resend (deploy with JWT verification off; it checks the hook signature) |
 | `functions/ai` | Real AI for AI Case Brain, AI Legal Research and AI Drafting Studio through Groq; picks the best model from Groq's live list; counts AI credits per firm per month by plan (deploy with JWT verification off; it checks the caller itself) |
 | `functions/upi-pay` | Pay by UPI straight to the operator's UPI ID, no gateway: creates orders with a unique amount, confirms them automatically by Paytm for Business order status, bank 'credited' SMS from an SMS-forwarder phone, or forwarded bank alert emails, applies promo codes, then activates the plan (deploy with JWT verification off; it checks every caller itself) |
+| `functions/razorpay` | Razorpay Standard Checkout (card, UPI, netbanking, wallets): `create-order` makes the Razorpay order for a plan, `verify-payment` checks the HMAC-SHA256 signature and only then marks the payment paid, activates the plan and issues the invoice. Needs secrets `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` (deploy with JWT verification off; it checks every caller itself) |
 | `functions/upi-pay` (directory) | Also takes the Rs 49 directory listing fee: actions `dir_create` / `dir_status`, confirmed by the same Paytm / SMS / email routes as plan payments. Redeploy it after applying migration 0026 |
 | `functions/billing` | Invoices for plan payments: numbers them, emails the PDF to the buyer, lists, downloads and re-sends them (deploy with JWT verification off) |
 | `functions/drive` | Encrypted storage in each user's own Google Drive: uploads and nightly backups, encrypted with AES-256-GCM (a key per firm) and kept in the Drive's hidden app folder (deploy with JWT verification off; it checks the caller itself) |
@@ -42,6 +43,7 @@ Project `legal-staff` (`ihbbfgzzbpxznbpspyam`, Mumbai). Migrations 0001 to 0010 
 | Secret | For |
 | --- | --- |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Email, e.g. `Legal Staff <briefing@yourdomain.in>` on a verified domain |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Razorpay checkout (`functions/razorpay`). Use `rzp_test_` keys to test, live keys for production |
 | `APP_URL` (optional) | Site address used in trial reminder links; defaults to `https://legalstaff.in` |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE` | WhatsApp. The template must be approved and have one body variable |
 | `WHATSAPP_ALERT_TEMPLATE` (optional) | A second approved template (one body variable) for court-record alerts. Without it alerts use `WHATSAPP_TEMPLATE`. Also `WHATSAPP_TEMPLATE_LANG` (default `en`) |
