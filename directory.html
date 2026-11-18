@@ -500,7 +500,7 @@ class Component extends DCLogic {
   search(patch) { this.nav({ screen: 'results', page: 1, fDistrict: [], fCourt: [], fLang: [], fYears: [], ...patch }); }
   searchAll() { this.search({ q: '', loc: '', district: '', area: '', court: '' }); }
   openProfile(id) { this.nav({ screen: 'profile', profileId: id, cf: this.blankContact(), cfErr: {} }); }
-  startApply() { this.nav({ screen: 'register', step: 0, app: this.blankApp(), appErr: {}, editingId: null }); }
+  startApply() { try { window.LSEmailAttribution && window.LSEmailAttribution.registrationStarted(); } catch (e) {} this.nav({ screen: 'register', step: 0, app: this.blankApp(), appErr: {}, editingId: null }); }
   browse() {
     this.nav({ screen: 'home' }, { keepScroll: true });
     setTimeout(() => { const el = document.getElementById('browse'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 60);
@@ -1013,5 +1013,6 @@ class Component extends DCLogic {
 }
 </script>
 <script src="/static/consent.js" defer></script>
+<script src="/static/email-attribution.js" defer></script>
 </body>
 </html>

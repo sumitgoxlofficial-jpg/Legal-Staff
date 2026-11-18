@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
+<script src="admin-email.js"></script>
 <style>
   :root { --bg:#F4F4F2; --card:#FFFFFF; --ink:#0A0A0A; --txt:#363636; --mut:#6B6B6B; --line:#E5E5E5; --soft:#F5F5F4; --rev:#2a78d6; --exp:#eb6834;
     --good:#137333; --goodbg:#E7F6EC; --warn:#B54708; --warnbg:#FEF3E2; --bad:#B42318; --badbg:#FDECEA; --info:#1D4ED8; --infobg:#E8EEFD; }
@@ -149,7 +150,7 @@
     t.innerHTML = TABS.map(([k, l]) => `<button data-k="${k}" class="${k === tab ? 'on' : ''}">${l}${k === 'support' && unread ? `<span class="badge">${unread}</span>` : ''}</button>`).join('');
     t.querySelectorAll('button').forEach(b => b.onclick = () => go(b.dataset.k));
   }
-  function go(k) { if (!TABS.some(t => t[0] === k)) k = 'overview'; tab = k; history.replaceState(null, '', '#' + k); drawTabs(); const p = root.querySelector('#page'); p.innerHTML = '<div class="muted">Loading…</div>'; VIEWS[k](p).catch(e => p.innerHTML = `<div class="card err">${esc(e.message)}</div>`); }
+  function go(k) { const base = k.split('/')[0]; if (!TABS.some(t => t[0] === base)) k = base = 'overview'; tab = base; history.replaceState(null, '', '#' + k); drawTabs(); const p = root.querySelector('#page'); p.innerHTML = '<div class="muted">Loading…</div>'; VIEWS[base](p, k.split('/')[1]).catch(e => p.innerHTML = `<div class="card err">${esc(e.message)}</div>`); }
 
   // ---------- views ----------
   const VIEWS = {};
@@ -364,6 +365,9 @@
       try { await api('settings_save', { settings: out }); p.querySelector('#er').textContent = ''; toast('Settings saved'); } catch (e) { p.querySelector('#er').textContent = e.message; } };
   };
 
+  // extensions (admin-email.js adds the Email Marketing tab); hash links such as #email/contacts move inside a tab
+  window.addEventListener('hashchange', () => { const k = location.hash.slice(1); if (me && k) go(k); });
+  (window.LSAdminExtensions || []).forEach(f => f({ sb, esc, dt, day, toast, modal, VIEWS, TABS, fnUrl: name => cfg.supabaseUrl.replace(/\/$/, '') + '/functions/v1/' + name }));
   sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') loginView(); });
   boot();
 })();

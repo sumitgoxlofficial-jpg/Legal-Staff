@@ -10,6 +10,16 @@ Nothing here is deployed.
 | `node tests/court-engine.test.mjs` | The real `supabase/functions/court-sync` code, run against an in-memory database and a **local mock** of the eCourtsIndia API that fails in every way: caching, shared cache, duplicate-request block, budget and override, wrong-CNR rejection, bad key, no credits, 429, 500, timeout, change detection, scheduler, permissions, admin actions, key rotation, secrets never in output. Needs `tsc` on the PATH. |
 | `bash tests/court-db/run.sh` | Migration `0022_court_intelligence.sql` on a real PostgreSQL 16 (Supabase pieces stubbed): re-runnable, atomic budget reserve, duplicate-claim lock, append-only audit, Vault key rotation, row level security. Needs PostgreSQL 16 binaries. |
 
+## Email marketing
+
+| Command | What it proves |
+| --- | --- |
+| `node tests/email-logic.test.mjs` | Pure rules: the ten pre-send checks, reminders and caps, production switches, IST schedule, sheet mapping, templates, signed links, Brevo payload and event mapping, Google JWT, CSV safety, secret scrubbing. |
+| `node tests/email-engine.test.mjs` | The real `supabase/functions/email-marketing` code against an in-memory database, a mock Brevo and a mock Google Sheets with 10,000 rows: import, consent, dry run, queues and caps, duplicates and concurrency, unsubscribe, bounces and complaints, reminders, kill switch, rate limits, attribution, dashboard totals, audit. Needs `tsc` on the PATH. |
+| `bash tests/email-db/run.sh` | Migration `0024_email_marketing.sql` on a real PostgreSQL 16: re-runnable, import function at 10,000 rows, consent and suppression rules, conversions, append-only audit, row level security. |
+
+Nothing here talks to the real Brevo or Google. See `docs/email-marketing.md` for what remains untested.
+
 ### Integration: what was tested against the real eCourtsIndia API
 
 Run on 17 Nov 2026 with a real key (never stored in the repository), by hand with `curl`, then offline with the saved responses (anonymised copies are in `tests/fixtures/` and the unit tests read them):
