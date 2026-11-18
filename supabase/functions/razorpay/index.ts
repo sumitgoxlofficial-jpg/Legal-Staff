@@ -45,6 +45,20 @@ function promoProblem(c: any, plan: string, cycle: string, now = Date.now()) {
   return "";
 }
 
+/** The promo code row for a directory listing fee, checked as plan "Directory" / cycle "once" (codes limited to other plans do not apply); null when none was given. */
+async function dirPromo(admin: any, raw: unknown, userId: string) {
+  const code = String(raw ?? "").trim().toUpperCase();
+  if (!code) return null;
+  const { data: c } = await admin.from("promo_codes").select("*").eq("code", code).maybeSingle();
+  const why = promoProblem(c, "Directory", "once");
+  if (why) throw new Fail(why);
+  if (c.once_per_firm) {
+    const { data: used } = await admin.from("directory_orders").select("id").eq("user_id", userId).eq("promo_code", code).eq("status", "paid").limit(1);
+    if (used?.length) throw new Fail("You have already used that promo code.");
+  }
+  return c;
+}
+
 /** HMAC-SHA256(order_id + "|" + payment_id, secret) as lowercase hex. */
 async function sign(orderId: string, paymentId: string, secret: string) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -102,12 +116,14 @@ Deno.serve(async (req: Request) => {
     if (action === "dir-create-order" || action === "dir-verify-payment") {
       const { data: app } = await admin.from("directory_applications").select("id,user_id,paid_at").eq("id", String(body.application_id ?? "")).maybeSingle();
       if (!app || app.user_id !== user.id) throw new Fail("Application not found.", 404);
-      const expected = DIR_FEE_PAISE;
       if (action === "dir-create-order") {
         if (app.paid_at) return json({ paid: true });
+        const promo = await dirPromo(admin, body.promo, user.id);
+        const expected = priceFor(DIR_FEE_PAISE / 100, promo).total;
+        if (expected < MIN_PAISE) throw new Fail("This code makes the listing free. Apply it on the UPI option.");
         const receipt = "LD" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
         const r = await fetch("https://api.razorpay.com/v1/orders", { method: "POST", signal: AbortSignal.timeout(15000), headers: { Authorization: auth, "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: expected, currency: "INR", receipt, notes: { kind: "directory", application_id: app.id, user_id: user.id } }) });
+          body: JSON.stringify({ amount: expected, currency: "INR", receipt, notes: { kind: "directory", application_id: app.id, user_id: user.id, promo: promo?.code ?? "" } }) });
         const order = await r.json().catch(() => ({}));
         if (r.status === 401) { console.error("razorpay auth failed"); throw new Fail("Razorpay rejected our credentials. The payment gateway needs to be reconfigured.", 401); }
         if (!r.ok || !order.id) { console.error("razorpay dir order", r.status, JSON.stringify(order)); throw new Fail("Razorpay could not create the order. Please try again.", 500); }
@@ -116,14 +132,16 @@ Deno.serve(async (req: Request) => {
       const orderId = String(body.razorpay_order_id ?? ""), paymentId = String(body.razorpay_payment_id ?? ""), signature = String(body.razorpay_signature ?? "");
       if (!orderId || !paymentId || !signature) throw new Fail("Missing payment details.");
       if (!safeEqual(await sign(orderId, paymentId, keySecret), signature.toLowerCase())) throw new Fail("Payment verification failed. If money was deducted, it will be refunded; contact support.", 400);
-      // The signature proves this payment is for this order; the order itself (made by us) proves what it was for and how much.
+      // The signature proves this payment is for this order; the order itself (made by us) proves what it was for, its promo code and how much.
       const g = await fetch("https://api.razorpay.com/v1/orders/" + encodeURIComponent(orderId), { headers: { Authorization: auth }, signal: AbortSignal.timeout(15000) });
       const order = await g.json().catch(() => ({}));
-      if (!g.ok || order.notes?.kind !== "directory" || order.notes?.application_id !== app.id || order.notes?.user_id !== user.id || order.amount !== expected || order.amount_paid !== expected) throw new Fail("Payment verification failed. If money was deducted, it will be refunded; contact support.", 400);
+      if (!g.ok || order.notes?.kind !== "directory" || order.notes?.application_id !== app.id || order.notes?.user_id !== user.id || !(order.amount >= MIN_PAISE && order.amount <= DIR_FEE_PAISE) || order.amount_paid !== order.amount) throw new Fail("Payment verification failed. If money was deducted, it will be refunded; contact support.", 400);
       if (!app.paid_at) {
         const now = new Date().toISOString();
-        await admin.from("directory_orders").insert({ application_id: app.id, user_id: user.id, order_no: orderId, amount_paise: expected, status: "paid", utr: paymentId, confirmed_by: "razorpay", paid_at: now });
-        await admin.from("directory_applications").update({ paid_at: now, order_no: orderId }).eq("id", app.id).is("paid_at", null);
+        const code = String(order.notes?.promo ?? "");   // set by us when the order was made
+        await admin.from("directory_orders").insert({ application_id: app.id, user_id: user.id, order_no: orderId, amount_paise: order.amount, status: "paid", utr: paymentId, confirmed_by: "razorpay", paid_at: now, promo_code: code || null, discount_paise: DIR_FEE_PAISE - order.amount });
+        const { data: marked } = await admin.from("directory_applications").update({ paid_at: now, order_no: orderId }).eq("id", app.id).is("paid_at", null).select("id");
+        if (code && marked?.length) await admin.rpc("promo_use", { c: code });
       }
       return json({ success: true, order_no: orderId, utr: paymentId });
     }

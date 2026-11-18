@@ -843,17 +843,29 @@ class Component extends DCLogic {
     if (!this.sb()) return;
     this.stopPay();
     this.setState({ pay: { phase: 'creating', id } });
-    const r = await this.fnCall('upi-pay', { action: 'dir_create', application_id: id });
+    const r = await this.fnCall('upi-pay', { action: 'dir_create', application_id: id, promo: this._promo ? this._promo.code : '' });
     if (this.state.screen !== 'pay') return;
     if (r.error) { this.setState({ pay: { phase: 'error', id, msg: r.error } }); return; }
     const d = r.data || {};
-    if (d.paid) { this.setState({ pay: { phase: 'paid', id, r: {}, x: {} } }); this.refreshStatus(); return; }
+    if (d.paid || d.free) { this.setState({ pay: { phase: 'paid', id, r: { order_no: d.order_no }, x: d.free ? { method: 'promo' } : {} } }); this.refreshStatus(); return; }
     const end = Date.parse(d.expires_at), left = () => Math.max(0, Math.round((end - Date.now()) / 1000));
-    this.setState({ pay: { phase: 'waiting', id, r: d, end, left: left(), qr: '' } });
+    this.setState({ pay: { phase: 'waiting', id, r: d, end, left: left(), qr: '', promo: this._promo || null } });
     this.loadQr().then(() => { const q = window.qrcode(0, 'M'); q.addData(d.link); q.make(); const p = this.state.pay; if (p && p.r === d) this.setState({ pay: { ...p, qr: q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }) } }); }).catch(() => { const p = this.state.pay; if (p && p.r === d) this.setState({ pay: { ...p, qr: 'failed' } }); });
     this._payTick = setInterval(() => { const p = this.state.pay; if (p && p.phase === 'waiting') this.setState({ pay: { ...p, left: left() } }); }, 1000);
     this._payPoll = setInterval(() => this.checkPay(), 4000);
   }
+  /* promo code on the listing fee: checked on the server, then the order is made again at the new price */
+  async applyPromo(id) {
+    const code = String(this.state.promoIn || '').trim(); if (!code) { this.setState({ promoErr: 'Enter a promo code.' }); return; }
+    if (this.state.promoBusy) return;
+    this.setState({ promoBusy: true, promoErr: '' });
+    const r = await this.fnCall('upi-pay', { action: 'dir_promo', application_id: id, promo: code });
+    if (r.error) { this.setState({ promoBusy: false, promoErr: r.error }); return; }
+    this._promo = { code: r.data.code, label: r.data.label, upi: r.data.upi.total, rzp: r.data.rzp.total };
+    this.setState({ promoBusy: false, promoIn: '', promoErr: '' });
+    this.startPay(id);
+  }
+  removePromo(id) { this._promo = null; this.setState({ promoErr: '' }); this.startPay(id); }
   /* Pay the listing fee through Razorpay instead (full Rs 49; the direct UPI route is Rs 5 cheaper): leaves the UPI screen, opens Razorpay's window, verifies on the server. */
   loadRazorpay() { return window.Razorpay ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://checkout.razorpay.com/v1/checkout.js'; sc.onload = res; sc.onerror = () => rej(new Error('Could not load Razorpay checkout. Check your connection and try again.')); document.head.appendChild(sc); }); }
   async payRazorpay(id) {
@@ -861,7 +873,7 @@ class Component extends DCLogic {
     this.stopPay(); this._rzDone = false;
     this.setState({ pay: { phase: 'creating', id } });
     const fail = msg => { if (this.state.screen === 'pay') this.setState({ pay: { phase: 'error', id, msg } }); };
-    const [r] = await Promise.all([this.fnCall('razorpay', { action: 'dir-create-order', application_id: id }), this.loadRazorpay().catch(e => ({ error: e.message }))]);
+    const [r] = await Promise.all([this.fnCall('razorpay', { action: 'dir-create-order', application_id: id, promo: this._promo ? this._promo.code : '' }), this.loadRazorpay().catch(e => ({ error: e.message }))]);
     if (this.state.screen !== 'pay') return;
     if (r.error) return fail(r.error);
     const d = r.data || {};
@@ -925,6 +937,7 @@ class Component extends DCLogic {
     this.setState({ busy: '' });
   }
   openPay() {
+    this._promo = null;
     const app = this.currentApp();
     if (!app || app.paid) { this.nav({ screen: 'status' }); return; }
     this.nav({ screen: 'pay', viewId: app.id, pay: null });
@@ -1711,7 +1724,7 @@ class Component extends DCLogic {
     let payView = null;
     if (s.pay) {
       const pay = S.pay, pa = S.apps.find(a => a.id === (pay && pay.id)) || app, r = pay && pay.r;
-      const amt = r && r.amount ? '₹' + (r.amount / 100).toFixed(2) : '₹49', mm = pay && pay.left != null ? String(Math.floor(pay.left / 60)).padStart(2, '0') + ':' + String(pay.left % 60).padStart(2, '0') : '';
+      const rupee = p => '₹' + (p / 100).toFixed(p % 100 ? 2 : 0), rzpTotal = pay && pay.promo ? pay.promo.rzp : 4900, amt = r && r.amount ? '₹' + (r.amount / 100).toFixed(2) : '₹49', mm = pay && pay.left != null ? String(Math.floor(pay.left / 60)).padStart(2, '0') + ':' + String(pay.left % 60).padStart(2, '0') : '';
       const dark = (label, onClick, key) => h('button', { key, type: 'button', onClick, className: 'ls-press', style: { height: 46, padding: '0 20px', border: 0, borderRadius: 10, background: '#0A0A0A', color: '#fff', fontSize: 15, fontWeight: 600 } }, label);
       const light = (label, onClick, key) => h('button', { key, type: 'button', onClick, className: 'ls-press', style: { height: 46, padding: '0 20px', border: '1px solid #E5E5E5', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 15 } }, label);
       let right;
@@ -1730,13 +1743,20 @@ class Component extends DCLogic {
         h('div', { style: { position: 'relative', width: 232, height: 232, border: '1px solid #E5E5E5', borderRadius: 16, padding: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', overflow: 'hidden' } },
           pay.qr === 'failed' ? h('div', { style: { fontSize: 13, color: '#5E5E5E', padding: 12 } }, 'The QR code could not load. Use the button below on your phone, or pay to the UPI ID shown.') : pay.qr ? h('div', { style: { width: '100%', height: '100%' }, dangerouslySetInnerHTML: { __html: pay.qr.replace('<svg ', '<svg width="100%" height="100%" ') } }) : h('span', { className: 'lsd-spin' }),
           pay.qr && pay.qr !== 'failed' ? h('div', { 'aria-hidden': true, style: { position: 'absolute', left: 0, right: 0, height: 36, background: 'linear-gradient(180deg,transparent,rgba(10,10,10,.12),transparent)', animation: 'ls-scan 2.8s ease-in-out infinite' } }) : null),
-        h('div', { style: { fontSize: 12.5, fontWeight: 600, color: '#137333', background: '#E7F6EC', borderRadius: 99, padding: '4px 12px' } }, '₹5 off when you pay by UPI here · ₹49 with Razorpay'),
+        h('div', { style: { fontSize: 12.5, fontWeight: 600, color: '#137333', background: '#E7F6EC', borderRadius: 99, padding: '4px 12px' } }, '₹5 off when you pay by UPI here · ' + rupee(rzpTotal) + ' with Razorpay'),
         h('div', { style: { fontSize: 14, color: '#363636' } }, 'Scan with any UPI app: GPay, PhonePe, Paytm, BHIM'),
         h('a', { href: r.link, className: 'lsd-a lsd-cta', style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 46, padding: '0 22px', background: '#0A0A0A', color: '#fff', borderRadius: 10, fontSize: 15, fontWeight: 600 } }, 'Open UPI app (on your phone)'),
         h('div', { style: { fontSize: 12.5, color: '#5E5E5E' } }, 'Paying ' + r.payee + ' · ' + r.upi_id),
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', maxWidth: 360, fontSize: 12, color: '#8A8A8A' } }, h('span', { style: { flex: 1, height: 1, background: '#E5E5E5' } }), 'or', h('span', { style: { flex: 1, height: 1, background: '#E5E5E5' } })),
-        h('button', { type: 'button', onClick: () => this.payRazorpay(pay.id), className: 'ls-press', style: { height: 46, padding: '0 22px', border: '1px solid #0A0A0A', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 15, fontWeight: 600 } }, 'Pay ₹49 with Razorpay'),
+        h('button', { type: 'button', onClick: () => this.payRazorpay(pay.id), className: 'ls-press', style: { height: 46, padding: '0 22px', border: '1px solid #0A0A0A', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 15, fontWeight: 600 } }, 'Pay ' + rupee(rzpTotal) + ' with Razorpay'),
         h('div', { style: { fontSize: 12, color: '#5E5E5E' } }, 'Card · UPI · netbanking · wallets, confirmed instantly (no discount)'),
+        h('div', { style: { width: '100%', maxWidth: 360, borderTop: '1px solid #E5E5E5', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' } },
+          pay.promo
+            ? h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#E7F6EC', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: '#137333' } }, h('span', null, h('b', null, pay.promo.code), ' applied · ' + pay.promo.label), h('button', { type: 'button', onClick: () => this.removePromo(pay.id), style: { border: 0, background: 'none', color: '#137333', textDecoration: 'underline', fontSize: 12.5, padding: 0 } }, 'Remove'))
+            : h('div', { style: { display: 'flex', gap: 8 } },
+                h('input', { value: S.promoIn || '', placeholder: 'Promo code', 'aria-label': 'Promo code', onChange: e => this.setState({ promoIn: e.target.value.toUpperCase(), promoErr: '' }), onKeyDown: e => { if (e.key === 'Enter') this.applyPromo(pay.id); }, style: { flex: 1, minWidth: 0, height: 42, border: '1px solid #D4D4D4', borderRadius: 10, padding: '0 12px', fontSize: 14, fontFamily: 'inherit' } }),
+                h('button', { type: 'button', onClick: () => this.applyPromo(pay.id), disabled: !!S.promoBusy, className: 'ls-press', style: { height: 42, padding: '0 16px', border: '1px solid #0A0A0A', borderRadius: 10, background: '#fff', color: '#0A0A0A', fontSize: 14, fontWeight: 600 } }, S.promoBusy ? 'Checking…' : 'Apply')),
+          S.promoErr ? h('div', { role: 'alert', style: { fontSize: 12.5, color: '#B42318' } }, S.promoErr) : null),
         h('div', { role: 'status', style: { display: 'flex', gap: 10, alignItems: 'center', fontSize: 14, color: '#363636' } }, h('span', { className: 'lsd-spin' }), 'Waiting for your payment… ' + mm),
         h('div', { style: { fontSize: 12, color: '#8A8A8A', maxWidth: 360 } }, 'Keep this page open. It updates by itself as soon as the payment arrives. Pay the exact amount shown, including paise, so it is matched to your order ' + r.order_no + '.'));
       const left = h('div', { style: { background: '#0A0A0A', color: '#fff', borderRadius: 20, padding: 'clamp(24px,4vw,36px)', display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', overflow: 'hidden' } },
