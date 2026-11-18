@@ -142,7 +142,7 @@ Applicants pay **after applying**, from their application-status screen on `/dir
 * A paid listing is an email-campaign conversion (`payment_success`) through the applicant's email, so reminders stop.
 * The card is hidden when UPI is not switched on in `pay_settings`, and for rejected applications.
 
-**Not included for the UPI route:** an invoice or receipt email, and a "Paid" badge in the moderator's queue in `app.html`.
+**Moderator queue:** each application in Directory moderation shows a green "₹49 listing fee paid" badge when a paid `directory_payments` row exists (read through the existing platform-admin policy; an older database without the table just shows no badge). It does not change who can be verified. **Not included:** an invoice or receipt email.
 
 ### Razorpay (second way to pay the ₹49)
 
@@ -154,7 +154,7 @@ Applicants pay **after applying**, from their application-status screen on `/dir
 
 How it is made safe: the server creates the order at exactly ₹49.00; after Checkout it verifies the signature (HMAC-SHA256 of `order_id|payment_id`), then **reads the payment from Razorpay** and accepts it only for that order, ₹49, INR, captured; the browser's word is never enough. A signature or webhook that fails verification changes nothing. A payment for an already-paid listing (for example paid by UPI too) is **not** confirmed: its payment id is stored on the leftover row (`status='created'` with a `gateway_payment_id`), so you can find it and refund it in the Razorpay dashboard. Razorpay's fee (around 2 % plus GST at the time of writing: check your plan) comes out of the ₹49.
 
-**Not included:** an invoice or receipt email (Razorpay emails its own receipt if enabled in its settings; billing here is built around firm plans), a "Paid" badge in the moderator's queue in `app.html`, automatic refunds, and a way to pay by something other than UPI/Razorpay. Not tested against real Razorpay (only a local mock): do one live ₹49 payment before announcing.
+**Not included:** an invoice or receipt email (Razorpay emails its own receipt if enabled in its settings; billing here is built around firm plans), automatic refunds, and a way to pay by something other than UPI/Razorpay. Not tested against real Razorpay (only a local mock): do one live ₹49 payment before announcing.
 
 Tests: `node tests/razorpay.test.mjs` (19 checks: signature rules, forged and mismatched payments, capture, webhook, duplicates, switched off, key never leaked) and the 0027 checks in `bash tests/email-db/run.sh`.
 

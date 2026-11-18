@@ -238,7 +238,11 @@
     courtAdmin: (action, payload) => B.fn('court-sync', Object.assign({ action }, payload || {})),
     /* ---- directory moderation ---- */
     async isAdmin() { return !!ok(await sb.rpc('is_platform_admin')); },
-    async queue() { return ok(await sb.from('directory_applications').select('*').order('created_at', { ascending: true })).map(a => Object.assign({}, a, { date: new Date(a.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) })); },
+    async queue() {
+      const paid = new Set();   // applications whose Rs 49 listing fee is paid (directory_payments, migration 0026); an older database without it just shows no badge
+      try { const r = await sb.from('directory_payments').select('application_id').eq('status', 'paid'); (r.data || []).forEach(x => paid.add(x.application_id)); } catch (e) {}
+      return ok(await sb.from('directory_applications').select('*').order('created_at', { ascending: true })).map(a => Object.assign({}, a, { paid: paid.has(a.id), date: new Date(a.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) })); },
+
     async decide(id, status, note) { ok(await sb.rpc('directory_decide', { p_ref: id, p_status: status, p_note: note || '' })); }
   };
   window.LSB = B;

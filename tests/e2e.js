@@ -417,6 +417,12 @@ async function persistence(o) {
     await o.go('#/evidence'); await o.see('Ex. P-1');
     if (SERVER) { const kinds = await o.fake(() => [...new Set(__fakeAdmin.records().map(r => r.kind))].sort().join(',')); for (const k of ['case', 'client', 'deadline', 'doc', 'hearing', 'limitation', 'log', 'order', 'task']) assert(kinds.split(',').includes(k), 'server has ' + k + ' records: ' + kinds); }
   });
+  await step('moderation queue: a directory application with a paid Rs 49 listing fee shows the Paid badge, an unpaid one does not', async () => {
+    await o.ls(() => localStorage.setItem('ls.directory.applications', JSON.stringify([{ id: 'A-1', name: 'Paid Pat', enr: 'BR/1/2020', council: 'Bar Council', status: 'pending', paid: true, date: '1 Jan' }, { id: 'A-2', name: 'Unpaid Una', enr: 'BR/2/2020', council: 'Bar Council', status: 'pending', date: '1 Jan' }])));
+    await o.page.reload(); await waitIn(o); await o.go('#/admin'); await o.see('Paid Pat'); await o.see('Unpaid Una');
+    const n = await o.page.locator('text=\u20b949 listing fee paid').locator('visible=true').count(); eq(n, 1, 'one visible Paid badge');
+    await o.ls(() => localStorage.removeItem('ls.directory.applications'));
+  });
 }
 
 async function paging(o) {
