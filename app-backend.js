@@ -55,13 +55,15 @@
     d.sub = { aiUsed: au ? au.used : 0, plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', seats: s ? s.seats || null : null, since: s ? s.since : '', renews: s ? s.renews : '', trialEnds: s && s.trial_ends ? s.trial_ends : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
   }
 
+  /* An administrator who signs in here is sent to the admin console, and only that (needs migration 0029; harmless without it). */
+  const toAdmin = async () => { try { const r = await sb.rpc('is_super_admin'); if (r.data === true) { location.replace('/admin'); return true; } } catch (e) {} return false; };
   const B = {
     on, client: sb,
-    async session() { const s = ok(await sb.auth.getSession()).session; uid = s ? s.user.id : ''; return s; },
-    async signInGoogle(token, nonce) { const d = ok(await sb.auth.signInWithIdToken({ provider: 'google', token, nonce })); uid = d.user.id; return d.session; },
+    async session() { const s = ok(await sb.auth.getSession()).session; uid = s ? s.user.id : ''; if (s && await toAdmin()) return new Promise(() => {}); return s; },
+    async signInGoogle(token, nonce) { const d = ok(await sb.auth.signInWithIdToken({ provider: 'google', token, nonce })); uid = d.user.id; if (await toAdmin()) return new Promise(() => {}); return d.session; },
     /* Email sign-in: Supabase emails a one-time code (and a sign-in link that opens /app). */
     async sendOtp(email) { ok(await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + '/app' } })); },
-    async verifyOtp(email, token) { const d = ok(await sb.auth.verifyOtp({ email, token, type: 'email' })); uid = d.user.id; return d.session; },
+    async verifyOtp(email, token) { const d = ok(await sb.auth.verifyOtp({ email, token, type: 'email' })); uid = d.user.id; if (await toAdmin()) return new Promise(() => {}); return d.session; },
     async signOut() { firmId = ''; uid = ''; snap = {}; try { await sb.auth.signOut(); } catch (e) {} },
     async firms() { return ok(await sb.rpc('my_firms')); },
     async createFirm(v) { return ok(await sb.rpc('create_firm', { p_name: v.firm, p_city: v.city, p_address: v.address || v.city, p_user_name: v.name, p_role: v.role })); },
