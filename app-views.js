@@ -1553,23 +1553,16 @@
 
   /* ---------- Pay by card, UPI, netbanking or wallet: Razorpay Standard Checkout (functions/razorpay) ---------- */
   const loadRazorpay = () => window.Razorpay ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay checkout. Check your connection and try again.')); document.head.appendChild(s); });
-  /* Razorpay shows the registered account holder as the receiver, not "Legal Staff": tell the customer before they pay. */
-  const PAYEE_NAME = 'Abhijeet Kumar', UDYAM = 'UDYAM-BR-26-0259961';
-  function PayeeNotice() {
-    return h('div', { style: { border: '1px solid #F3D9A4', background: '#FFFCF5', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: K.txt, lineHeight: 1.55, textAlign: 'left' } },
-      h('div', { style: { fontWeight: 600, marginBottom: 2 } }, 'Your payment is to Legal Staff'),
-      `On the payment screen, your UPI app or bank may show the receiver as “${PAYEE_NAME.toUpperCase()}”. That is the founder and proprietor of Legal Staff, a Udyam-registered MSME (${UDYAM}), so it is the correct receiver. The payment is processed securely by Razorpay.`);
-  }
   function razorpayPay(app, o) {
     const Body = () => {
-      const [st, setSt] = useState({ phase: 'notice' });
+      const [st, setSt] = useState({ phase: 'creating' });
       const start = () => {
         setSt({ phase: 'creating' });
         Promise.all([LSB.razorpay.createOrder(o.plan, o.cycle, o.gstin, o.promo, o.users), loadRazorpay()]).then(([ord]) => {
           if (ord.free) { setSt({ phase: 'paid', ord: { amount: 0 }, v: { order_no: ord.order_no }, free: true }); LSB.refreshSub(app.db).then(() => app.setState(x => ({ rev: x.rev + 1 }))).catch(() => {}); return; }
           const me = app.db.user || {};
           const rz = new window.Razorpay({
-            key: ord.key_id, order_id: ord.order_id, amount: ord.amount, currency: ord.currency, name: 'Legal Staff', description: `${o.name} plan · ${o.cycleLabel} (receiver may show ${PAYEE_NAME}, proprietor of Legal Staff)`,
+            key: ord.key_id, order_id: ord.order_id, amount: ord.amount, currency: ord.currency, name: 'Legal Staff', description: `${o.name} plan · ${o.cycleLabel}`,
             prefill: { name: me.name || '', email: me.email || '', contact: me.phone || '' }, theme: { color: '#0A0A0A' },
             handler: resp => {
               setSt({ phase: 'verifying', ord });
@@ -1582,11 +1575,10 @@
           setSt({ phase: 'open', ord }); rz.open();
         }).catch(e => setSt({ phase: 'error', msg: e.message }));
       };
+      React.useEffect(start, []);
       const col = { display: 'flex', flexDirection: 'column', gap: 12 }, amt = st.ord ? L.inr(st.ord.amount / 100) : '';
-      if (st.phase === 'notice') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt } }, `${o.name} plan · ${o.cycleLabel}`), h(PayeeNotice),
-        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'), h(Btn, { primary: true, onClick: start }, 'Continue to payment')));
       if (st.phase === 'creating') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Preparing your payment…' }));
-      if (st.phase === 'open') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `Complete the payment of ${amt} in the Razorpay window.`), h(PayeeNotice));
+      if (st.phase === 'open') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `Complete the payment of ${amt} in the Razorpay window.`));
       if (st.phase === 'verifying') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Verifying your payment…' }));
       if (st.phase === 'cancelled') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, 'You closed the payment window. Nothing was charged.'),
         h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close'), h(Btn, { primary: true, onClick: start }, 'Try again')));
@@ -1825,6 +1817,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { CourtAdmin, VerificationPanel, verifyBadge, verifyNow, portalBox, autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, razorpayPay, PayeeNotice, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { CourtAdmin, VerificationPanel, verifyBadge, verifyNow, portalBox, autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, razorpayPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();

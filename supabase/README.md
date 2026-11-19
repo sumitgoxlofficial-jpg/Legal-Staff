@@ -124,10 +124,7 @@ Plan payments and the ₹49 directory listing fee go only through Razorpay Check
 code and no bank-SMS or email matching any more (migration 0038 switches the old UPI sweep off and keeps old UPI rows as history).
 Promo codes (`promo` / `dir-promo`) and 100%-off orders are handled by the same function.
 
-Set the live `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` as function secrets. Razorpay shows the **registered account holder** as
-the receiver in the customer's UPI app or bank (the proprietor's name, not "Legal Staff"), so the app tells customers before they
-pay (checkout step, directory fee page, the Razorpay description, the payment email, legal pages) that "ABHIJEET KUMAR" is the
-founder and proprietor of Legal Staff. To change what the bank shows, change the business/display name on the Razorpay account.
+Set the live `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` as function secrets. Razorpay shows the account holder's registered name as the receiver in the customer's UPI app or bank; to change that, change the business/display name on the Razorpay account.
 
 ### Invoices
 

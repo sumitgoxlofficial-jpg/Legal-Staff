@@ -139,7 +139,7 @@ function privacy() {
     ['Supabase', 'Database, authentication and private file storage for accounts and practice data.', 'Mumbai, India (ap-south-1 region)'],
     ['Vercel', 'Hosting and content delivery for the website and app files; security logs.', 'Global edge network'],
     ['Google', 'Google sign-in; web fonts for the site; Google Drive, only for members who turn on Google Drive backup (files are encrypted before they reach Google).', 'Global'],
-    ['Razorpay', 'Plan and directory fees are processed by Razorpay Software Private Limited, which collects your payment details on its own checkout page. Your UPI app or bank may show the receiver as the proprietor of Legal Staff, Abhijeet Kumar.', 'India'],
+    ['Razorpay', 'Plan and directory fees are processed by Razorpay Software Private Limited, which collects your payment details on its own checkout page.', 'India'],
     ['Resend', 'Sending email reminders and notices, once email is connected.', 'May be outside India'],
     ['Meta (WhatsApp Business API)', 'Sending WhatsApp reminders, only once your firm connects WhatsApp.', 'May be outside India'],
     ['A court-data provider', 'Fetching case status by CNR, only if your firm connects one.', 'Depends on the provider']
@@ -282,7 +282,7 @@ function terms() {
     { id: 'fees', title: 'Plans, fees and taxes', html: `<ul>
         <li>Paid plans (Solo, Professional, Firm and Enterprise) are billed monthly or annually in Indian rupees at the prices shown when you subscribe.</li>
         <li>Prices are subject to GST and other applicable taxes, which we show on the invoice. Give your GSTIN at checkout to get a GST invoice in your firm’s name.</li>
-        <li>Plan fees are paid through Razorpay (UPI, cards or netbanking). We never see or store your UPI PIN, card number or bank login; we keep only the amount and the Razorpay payment ID. Your UPI app or bank may show the receiver as Abhijeet Kumar, the proprietor of Legal Staff.</li>
+        <li>Plan fees are paid through Razorpay (UPI, cards or netbanking). We never see or store your UPI PIN, card number or bank login; we keep only the amount and the Razorpay payment ID.</li>
         <li>Unless you cancel, a plan renews for the same period at the end of each billing period where your payment method supports renewal; otherwise you will be asked to pay to renew.</li>
         <li>We may change prices for future periods with reasonable notice before they apply to you.</li>
       </ul>` },
