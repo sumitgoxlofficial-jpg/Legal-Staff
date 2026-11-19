@@ -1,0 +1,35 @@
+Dear Advocate {{advocate_name}},
+
+Get new clients by creating your profile on Legal Staff.
+
+People look for an advocate online every day. Legal Staff is a dedicated online directory for advocates, so people who need legal help can find your profile and contact you directly.
+
+Your profile shows what clients want to know:
+
+- Your name and professional photograph
+- Bar Council enrolment details
+- Courts where you practise
+- Areas of legal practice
+- Languages you speak
+- Document verification and profile status
+
+HOW IT WORKS
+1. Create your profile.
+2. People searching for an advocate find you.
+3. Clients contact you directly. No commission on your fees.
+
+SPECIAL LIFETIME LISTING: JUST ₹49 (ONE-TIME PAYMENT).
+No monthly subscription.
+No annual renewal.
+No commission on your professional fees.
+
+Create My Profile:
+https://legalstaff.in/directory#apply
+
+Let your next client find you on Legal Staff.
+
+Regards,
+Team Legal Staff
+https://legalstaff.in
+
+Unsubscribe: {{unsubscribe_url}}
