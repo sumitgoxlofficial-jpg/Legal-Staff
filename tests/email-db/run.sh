@@ -15,4 +15,5 @@ $P -v ON_ERROR_STOP=1 -c "create table public.directory_orders (id uuid primary 
 $P -v ON_ERROR_STOP=1 -f "$D/mig.sql" >/dev/null && echo "migration applies"
 $P -v ON_ERROR_STOP=1 -f "$D/mig.sql" >/dev/null && echo "migration re-applies"
 $P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0036_email_directory_fee_hook.sql" >/dev/null && $P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0036_email_directory_fee_hook.sql" >/dev/null && echo "migration 0036 applies and re-applies"
+$P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0037_email_public_record_basis.sql" >/dev/null && $P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0037_email_public_record_basis.sql" >/dev/null && echo "migration 0037 applies and re-applies"
 $P -v ON_ERROR_STOP=1 -f "$HERE/email-db.test.sql" 2>&1 | grep -v '^$'

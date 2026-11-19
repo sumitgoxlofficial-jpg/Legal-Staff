@@ -68,6 +68,7 @@ export const remainingToday = (limit, doneToday) => Math.max(0, Number(limit || 
 // (with freshly read data), so a change made in between is honoured.
 export const REASONS = {
   NO_CONSENT: "No documented marketing permission",
+  PUBLIC_RECORD_OFF: "Emailing public-record contacts is not switched on",
   NOT_VERIFIED: "Email address not verified",
   LEGAL: "Legal approval of the campaign model is not recorded",
   PROVIDER: "Email provider is not approved or not configured",
@@ -87,7 +88,7 @@ export const REASONS = {
   SUPPRESSED: "Address is on the suppression list",
 };
 /** Reasons that mean "hold everything" (an administrator switch), not "skip this contact". */
-export const GLOBAL = new Set(["LEGAL", "PROVIDER", "SYSTEM", "KILL", "TEMPLATE"]);
+export const GLOBAL = new Set(["LEGAL", "PROVIDER", "SYSTEM", "KILL", "TEMPLATE", "PUBLIC_RECORD_OFF"]);
 
 /**
  * @param {object} i
@@ -106,8 +107,10 @@ export function evaluateEligibility(i) {
   if (!s.legal_approval) r.push("LEGAL");
   if (!s.provider_approved || !i.provider?.configured) r.push("PROVIDER");
   if (!isValidEmail(c.email_normalized)) r.push("INVALID_EMAIL");
-  if (c.consent_status !== "GRANTED" || !i.hasConsentRecord) r.push("NO_CONSENT");
-  if (!c.consent_verified_at) r.push("NOT_VERIFIED");
+  const pub = c.consent_status === "PUBLIC_RECORD";   // listed in an official government record; never an opt-in, so it has its own switch
+  if ((c.consent_status !== "GRANTED" && !pub) || !i.hasConsentRecord) r.push("NO_CONSENT");
+  else if (pub && !s.allow_public_record) r.push("PUBLIC_RECORD_OFF");
+  if (!c.consent_verified_at && !pub) r.push("NOT_VERIFIED");
   if (c.unsubscribe_status === "UNSUBSCRIBED") r.push("UNSUBSCRIBED");
   if (i.suppressed) r.push("SUPPRESSED");
   if (c.hard_bounced) r.push("HARD_BOUNCE");
@@ -146,6 +149,7 @@ export function productionBlockers(s, provider) {
 /** Enabling the system needs both approvals, each with a documented reference. Returns an error string or "". */
 export function settingsProblem(next) {
   if (next.system_enabled && !(next.legal_approval && next.provider_approved)) return "Automation cannot be enabled until legal approval and provider approval are both recorded.";
+  if (next.allow_public_record && !(next.legal_approval && String(next.public_record_ref || "").trim())) return "Emailing public-record contacts needs legal approval recorded and a reference saying where that basis is documented.";
   if (next.legal_approval && !String(next.legal_approval_ref || "").trim()) return "Record where the legal approval is documented (reference) before turning it on.";
   if (next.provider_approved && !String(next.provider_approval_ref || "").trim()) return "Record where the provider approval is documented (reference) before turning it on.";
   return "";
