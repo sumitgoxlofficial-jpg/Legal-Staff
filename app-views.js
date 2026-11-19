@@ -1241,7 +1241,8 @@
           h('div', { style: { flex: 1, minWidth: 180 } }, h('div', { style: { fontSize: 13.5 } }, d.photo ? 'Your team sees this photo next to your name.' : 'Add a photo for your team to see next to your name.'), h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 2 } }, 'JPG or PNG. You can move and zoom it before saving.')),
           h('div', { style: { display: 'flex', gap: 8 } }, h(Btn, { small: true, onClick: () => editPhoto(app) }, d.photo ? 'Change photo' : 'Upload photo'), d.photo && h(Btn, { small: true, danger: true, onClick: () => removePhoto(app) }, 'Remove')))),
         formCard('Your profile', d.user, [{ k: 'name', label: 'Full name', req: true, half: true }, owner ? { k: 'role', label: 'Designation', req: true, half: true } : { k: 'role', label: 'Designation (set by the firm owner)', ro: true, roNote: 'Only the firm owner can change designations', half: true }, { k: 'email', label: 'Email (from sign-in)', ro: true, roNote: 'This is the address you sign in with', half: true }, { k: 'phone', label: 'Mobile (WhatsApp)', type: 'tel', half: true }], 'user'),
-        h(Card, { title: 'Notifications' }, row('WhatsApp', 'The morning briefing on WhatsApp, to the mobile in Your profile, once WhatsApp is connected for Legal Staff', h(Toggle, { on: s.whatsapp, label: 'WhatsApp notifications', onChange: v => set('whatsapp', v) })), row('Email', 'The morning briefing email, sent automatically every day at your chosen time', h(Toggle, { on: s.email, label: 'Email notifications', onChange: v => set('email', v) })), row('In-app alerts', 'The Alerts menu in the top bar', h(Toggle, { on: s.inapp, label: 'In-app alerts', onChange: v => set('inapp', v) })), row('Morning briefing time', 'IST. Briefings go out on the half hour, once a day.', h(Select, { value: briefAt(s), onChange: v => set('briefingTime', v), options: BRIEF_TIMES.map(t => [t, L.t12ap(t)]), style: { minWidth: 130 } })), row('Hearing reminder', `The briefing lists hearings today and ${plural(+s.remindDays || 2, 'day')} ahead`, h(Select, { value: String(s.remindDays), onChange: v => set('remindDays', +v), options: [['1', '1 day'], ['2', '2 days'], ['3', '3 days'], ['7', '7 days']], style: { minWidth: 130 } })), window.LSB && LSB.on ? row('Send today\'s briefing now', 'To you only, now: hearings today and in ' + plural(+s.remindDays || 2, 'day') + ', deadlines and limitation dates, overdue tasks. Email and WhatsApp only once those services are connected.', h(Btn, { small: true, onClick: () => { app.toast('Sending…'); LSB.notify().then(r => { const rs = (r && r.results) || [], okN = rs.filter(x => x.ok).length, sk = rs.find(x => x.skipped), er = rs.find(x => x.error); app.toast(okN ? `Briefing sent (${rs.filter(x => x.ok).map(x => x.channel).join(' and ')})` : (er ? 'Sending failed: ' + er.error : (sk ? sk.skipped : 'Nothing was sent. Check your email and WhatsApp number in Your profile.'))); }).catch(e => app.toast(e.message)); } }, 'Send')) : h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 10, lineHeight: 1.5 } }, 'Preferences are saved on this device. Briefing emails and WhatsApp messages need the server to be connected; until then, alerts show in the Alerts menu when you open the app.')),
+        h(Card, { title: 'Notifications' }, row('WhatsApp', 'The morning briefing and court-record alerts on WhatsApp, to the mobile in Your profile, once WhatsApp is connected for Legal Staff', h(Toggle, { on: s.whatsapp, label: 'WhatsApp notifications', onChange: v => set('whatsapp', v) })),
+          row('Court-record alerts', 'A moved hearing, a new order or judgment, or a disposal found by the court-record check, for the cases you are on (by WhatsApp and email, between 7 AM and 10 PM)', h(Toggle, { on: s.courtAlerts !== false, label: 'Court-record alerts', onChange: v => set('courtAlerts', v) })), row('Email', 'The morning briefing email, sent automatically every day at your chosen time', h(Toggle, { on: s.email, label: 'Email notifications', onChange: v => set('email', v) })), row('In-app alerts', 'The Alerts menu in the top bar', h(Toggle, { on: s.inapp, label: 'In-app alerts', onChange: v => set('inapp', v) })), row('Morning briefing time', 'IST. Briefings go out on the half hour, once a day.', h(Select, { value: briefAt(s), onChange: v => set('briefingTime', v), options: BRIEF_TIMES.map(t => [t, L.t12ap(t)]), style: { minWidth: 130 } })), row('Hearing reminder', `The briefing lists hearings today and ${plural(+s.remindDays || 2, 'day')} ahead`, h(Select, { value: String(s.remindDays), onChange: v => set('remindDays', +v), options: [['1', '1 day'], ['2', '2 days'], ['3', '3 days'], ['7', '7 days']], style: { minWidth: 130 } })), window.LSB && LSB.on ? row('Send today\'s briefing now', 'To you only, now: hearings today and in ' + plural(+s.remindDays || 2, 'day') + ', deadlines and limitation dates, overdue tasks. Email and WhatsApp only once those services are connected.', h(Btn, { small: true, onClick: () => { app.toast('Sending…'); LSB.notify().then(r => { const rs = (r && r.results) || [], okN = rs.filter(x => x.ok).length, sk = rs.find(x => x.skipped), er = rs.find(x => x.error); app.toast(okN ? `Briefing sent (${rs.filter(x => x.ok).map(x => x.channel).join(' and ')})` : (er ? 'Sending failed: ' + er.error : (sk ? sk.skipped : 'Nothing was sent. Check your email and WhatsApp number in Your profile.'))); }).catch(e => app.toast(e.message)); } }, 'Send')) : h('div', { style: { fontSize: 12.5, color: K.mut, marginTop: 10, lineHeight: 1.5 } }, 'Preferences are saved on this device. Briefing emails and WhatsApp messages need the server to be connected; until then, alerts show in the Alerts menu when you open the app.')),
         h(Card, { title: 'Court orders' }, row('Add the next date automatically', 'When an order you add has a future next date, it goes straight to the calendar. Switch off to confirm each one yourself.', h(Toggle, { on: s.autoOrders !== false, label: 'Automatic next dates', onChange: v => set('autoOrders', v) })),
           server ? row('Check the court record', 'Every few hours the app asks your court-data provider about each open case with a CNR and adds new next dates and orders.' + (s.lastCheck ? ' Last checked ' + L.fmt(s.lastCheck.slice(0, 10)) + '.' : ''), h(Toggle, { on: s.autoCheck !== false, label: 'Automatic court checks', onChange: v => set('autoCheck', v) })) : row('Check the court record', 'Needs the server and a court-data provider, so it is not available in this browser-only copy.', null),
           server ? row('Check all cases now', null, h(Btn, { small: true, onClick: () => autoCheck(app, true) }, 'Check now')) : null),
@@ -1269,7 +1270,6 @@
     return h(Page, { art: 'order', kicker: 'Practice', title: 'Court Orders', sub: `${rows.length} orders · ${need} awaiting your confirmation`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addOrder(app) }, '+ Add court order')] },
       h(Table, { onRow: o => app.go('order', o.id), min: 860, cols: [{ label: 'Case', w: 'minmax(220px,1.6fr)', get: o => h('span', null, caseOf(d, o.caseId).title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, caseOf(d, o.caseId).no)) }, { label: 'Order dated', w: '110px', get: o => L.dmy(o.date) }, { label: 'Summary', w: 'minmax(240px,2.4fr)', get: o => h('span', null, o.summary, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, o.source)) }, { label: 'Next date', w: '110px', get: o => o.nextDate ? L.dmy(o.nextDate) : '—' }, { label: 'Status', w: '150px', get: o => h(Chip, { tone: o.confirmed || !o.nextDate ? '' : 'red' }, o.confirmed ? 'Confirmed' : (o.nextDate ? 'Needs confirmation' : 'No date found')) }], rows, empty: { title: 'No orders yet', text: 'Add an order to extract the next date.' } }));
   }
-  /* ---------- Plan payment: Razorpay Checkout only (functions/razorpay-pay) ---------- */
   /* ---------- Team chat extras: files, meeting cards, reactions, background ---------- */
   const EMOJIS = ['👍', '❤️', '😂', '🙏', '✅', '👏'];
   const fileSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
@@ -1551,7 +1551,9 @@
       h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.6 } }, 'Plans are paid in advance through Razorpay (UPI, cards or netbanking), with no automatic charges and no GST added. Use Upgrade or renew any time; a new payment starts after your current period ends.'));
   }
 
-  /* Who the customer sees as the receiver in their UPI app or bank. Razorpay shows the registered account holder, not "Legal Staff". */
+  /* ---------- Pay by card, UPI, netbanking or wallet: Razorpay Standard Checkout (functions/razorpay) ---------- */
+  const loadRazorpay = () => window.Razorpay ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay checkout. Check your connection and try again.')); document.head.appendChild(s); });
+  /* Razorpay shows the registered account holder as the receiver, not "Legal Staff": tell the customer before they pay. */
   const PAYEE_NAME = 'Abhijeet Kumar', UDYAM = 'UDYAM-BR-26-0259961';
   function PayeeNotice() {
     return h('div', { style: { border: '1px solid #F3D9A4', background: '#FFFCF5', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: K.txt, lineHeight: 1.55, textAlign: 'left' } },
@@ -1560,45 +1562,44 @@
   }
   function razorpayPay(app, o) {
     const Body = () => {
-      const [st, setSt] = useState({ phase: 'creating' }), [busy, setBusy] = useState(false);
-      const refresh = () => LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {});
-      React.useEffect(() => {
-        let dead = false;
-        LSB.pay.create(o.plan, o.cycle, o.gstin, o.promo, o.users).then(r => {
-          if (dead) return;
-          if (r.free) { setSt({ phase: 'paid', r, free: true }); refresh(); return; }
-          setSt({ phase: 'ready', r });
-        }).catch(e => !dead && setSt({ phase: 'error', msg: e.message }));
-        return () => { dead = true; };
-      }, []);
-      const r = st.r, amt = r ? L.inr(r.amount / 100) : '';
-      /* Opens Razorpay, then has the server verify the result. If the window is closed, asks the server whether the money still arrived. */
-      const pay = () => {
-        if (busy) return; setBusy(true);
-        LSB.pay.open(r, app.db, `${o.name} plan · ${o.cycleLabel} (receiver may show ${PAYEE_NAME}, proprietor of Legal Staff)`)
-          .then(res => { setSt({ phase: 'verifying', r }); return LSB.pay.verify(res).then(v => { if (v.status !== 'paid') throw new Error('We could not confirm the payment yet. If money was taken it will be matched to your order automatically.'); setSt({ phase: 'paid', r, x: v }); refresh(); }); })
-          .catch(e => LSB.pay.status(r.order_no).then(x => { if (x.status === 'paid') { setSt({ phase: 'paid', r, x }); refresh(); } else setSt({ phase: e.closed ? 'ready' : 'retry', r, msg: e.closed ? '' : e.message }); }).catch(() => setSt({ phase: 'retry', r, msg: e.message })))
-          .finally(() => setBusy(false));
+      const [st, setSt] = useState({ phase: 'notice' });
+      const start = () => {
+        setSt({ phase: 'creating' });
+        Promise.all([LSB.razorpay.createOrder(o.plan, o.cycle, o.gstin, o.promo, o.users), loadRazorpay()]).then(([ord]) => {
+          if (ord.free) { setSt({ phase: 'paid', ord: { amount: 0 }, v: { order_no: ord.order_no }, free: true }); LSB.refreshSub(app.db).then(() => app.setState(x => ({ rev: x.rev + 1 }))).catch(() => {}); return; }
+          const me = app.db.user || {};
+          const rz = new window.Razorpay({
+            key: ord.key_id, order_id: ord.order_id, amount: ord.amount, currency: ord.currency, name: 'Legal Staff', description: `${o.name} plan · ${o.cycleLabel} (receiver may show ${PAYEE_NAME}, proprietor of Legal Staff)`,
+            prefill: { name: me.name || '', email: me.email || '', contact: me.phone || '' }, theme: { color: '#0A0A0A' },
+            handler: resp => {
+              setSt({ phase: 'verifying', ord });
+              LSB.razorpay.verify(resp).then(v => { setSt({ phase: 'paid', ord, v }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); })
+                .catch(e => setSt({ phase: 'error', msg: e.message, ord }));
+            },
+            modal: { ondismiss: () => setSt(s => s.phase === 'verifying' || s.phase === 'paid' ? s : { phase: 'cancelled', ord }) }
+          });
+          rz.on('payment.failed', r => { setSt({ phase: 'error', msg: (r.error && r.error.description) || 'The payment failed. You have not been charged, or any amount will be refunded.', ord }); try { rz.close(); } catch (e) {} });
+          setSt({ phase: 'open', ord }); rz.open();
+        }).catch(e => setSt({ phase: 'error', msg: e.message }));
       };
+      const col = { display: 'flex', flexDirection: 'column', gap: 12 }, amt = st.ord ? L.inr(st.ord.amount / 100) : '';
+      if (st.phase === 'notice') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt } }, `${o.name} plan · ${o.cycleLabel}`), h(PayeeNotice),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'), h(Btn, { primary: true, onClick: start }, 'Continue to payment')));
       if (st.phase === 'creating') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Preparing your payment…' }));
-      if (st.phase === 'verifying') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Confirming your payment…' }));
-      if (st.phase === 'error') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } }, h('div', { style: { color: K.red, fontSize: 14 } }, st.msg), h(Btn, { onClick: () => app.modal(null) }, 'Close'));
-      if (st.phase === 'paid') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center', padding: '10px 0' } },
+      if (st.phase === 'open') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `Complete the payment of ${amt} in the Razorpay window.`), h(PayeeNotice));
+      if (st.phase === 'verifying') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Verifying your payment…' }));
+      if (st.phase === 'cancelled') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, 'You closed the payment window. Nothing was charged.'),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close'), h(Btn, { primary: true, onClick: start }, 'Try again')));
+      if (st.phase === 'error') return h('div', { style: col }, h('div', { style: { color: K.red, fontSize: 14, lineHeight: 1.6 } }, st.msg),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close'), !st.ord || /could not|failed|try again/i.test(st.msg) ? h(Btn, { primary: true, onClick: start }, 'Try again') : null));
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center', padding: '10px 0' } },
         h('div', { className: 'ls-pop', style: { width: 58, height: 58, borderRadius: 29, background: '#E7F6EC', color: '#137333', fontSize: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 8px #F3FBF5' } }, '✓'),
         h('div', { style: { fontSize: 18, fontWeight: 600 } }, st.free ? 'Plan activated' : 'Payment received'),
         h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, st.free ? `The ${o.name} plan (${o.cycleLabel}) is active.` : `${amt} for the ${o.name} plan (${o.cycleLabel}). Your plan is active.`),
-        st.x && st.x.payment_id && h('div', { style: { fontSize: 12.5, color: K.mut } }, 'Razorpay payment ' + st.x.payment_id + ' · order ' + r.order_no),
-        h(PaidInvoice, { orderNo: r.order_no }),
+        h(PaidInvoice, { orderNo: st.v.order_no }),
         h(Btn, { primary: true, onClick: () => { app.modal(null); app.go('dashboard'); } }, 'Go to dashboard'));
-      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'stretch' } },
-        h('div', { style: { textAlign: 'center' } }, h('div', { style: { fontSize: 13, color: K.mut } }, `${o.name} plan · ${o.cycleLabel}`),
-          h('div', { style: { fontSize: 12, color: K.mut, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 10 } }, 'Amount'), h('div', { style: { fontSize: 30, fontWeight: 700, letterSpacing: '-.02em' } }, amt)),
-        h(PayeeNotice),
-        st.phase === 'retry' && h('div', { style: { color: K.red, fontSize: 13.5, textAlign: 'center' } }, st.msg || 'The payment was not completed.'),
-        h('button', { onClick: pay, disabled: busy, className: 'ls-btn', style: { background: K.ink, color: '#fff', border: 0, borderRadius: 8, padding: '11px 18px', fontSize: 14.5, fontWeight: 600, cursor: busy ? 'default' : 'pointer', opacity: busy ? .7 : 1 } }, st.phase === 'retry' ? 'Try again with Razorpay' : 'Pay ' + amt + ' with Razorpay'),
-        h('div', { style: { fontSize: 12, color: K.mut, lineHeight: 1.5, textAlign: 'center' } }, 'UPI, cards and netbanking are available on the next screen. Your plan turns on by itself as soon as the payment is confirmed; you get an invoice by email. Order ' + r.order_no + '.'));
     };
-    app.modal(() => h(Modal, { title: 'Pay for your plan', onClose: () => app.modal(null), width: 440 }, h(Body)));
+    app.modal(() => h(Modal, { title: 'Pay with Razorpay', onClose: () => app.modal(null), width: 440 }, h(Body)));
   }
   /* ---------- AI drafting: writes a first draft as a new version of the open template ---------- */
   const textToHtml = t => String(t).replace(/\*\*/g, '').split(/\n{2,}/).map(p => '<p>' + p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') + '</p>').join('');

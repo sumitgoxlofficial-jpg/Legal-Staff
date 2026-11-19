@@ -1,6 +1,6 @@
 // Billing: invoices for plan payments (no GST is charged), as PDF, emailed to the buyer.
 // actions:
-//   issue  (server only: Authorization = service role key; called by razorpay-pay when a payment is confirmed)
+//   issue  (server only: Authorization = service role key; called by razorpay when a payment is confirmed)
 //          → creates the payment's invoice (once) and emails it with the PDF attached.
 //   list   (firm member) → { sub, invoices[] }; creates any missing invoice for a paid payment first.
 //   pdf    (firm member) → { filename, pdf (base64) } for one invoice.
@@ -15,7 +15,7 @@ class Fail extends Error { status: number; constructor(msg: string, status = 400
 
 const SITE = (Deno.env.get("APP_URL") ?? "https://legalstaff.in").replace(/\/$/, "");
 const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 299, annual: 2999 }, Professional: { monthly: 799, annual: 7999 }, Firm: { monthly: 3999, annual: 39999 } };
-// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with razorpay-pay, billing and admin.
+// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with razorpay, billing and admin.
 const PER_USER: Record<string, number> = { monthly: 249, annual: 2499 }, MAX_USERS = 15;
 /** List price in rupees for a plan and cycle; seats only counts for Professional (missing → 1). */
 const listPrice = (plan: string, cycle: string, seats?: number | null) => {
@@ -85,7 +85,7 @@ async function buildInvoice(admin: any, p: any, s: any) {
     period: sub ? { from: sub.since, to: sub.renews } : null,
     list, promo: p.promo_code || "", adjust: t.taxable - list,   // negative: discount; small positive: unique-amount paise
     ...t, total: p.amount_paise,
-    paidAt: p.paid_at, method: p.method === "promo" ? "Promo code" : p.method === "upi" ? "UPI" : "Razorpay", utr: p.gateway_payment_id || p.utr || "", orderNo: p.order_no || "",
+    paidAt: p.paid_at, method: p.method === "promo" ? "Promo code" : p.method === "razorpay" ? "Razorpay" : "UPI", utr: p.utr || "", orderNo: p.order_no || "",
   };
 }
 
@@ -189,7 +189,7 @@ async function invoicePdf(inv: any) {
   // payment
   y -= 14; hr(y); y -= 20;
   T("PAYMENT", M, y, { size: 7.5, bold: true, color: mut }); y -= 15;
-  T(`Paid by ${d.method} on ${d.paidAt ? fmtDate(d.paidAt) : fmtDate(inv.issued_at)}${d.utr ? "   ·   Payment ID " + d.utr : ""}`, M, y); y -= 13;
+  T(`Paid by ${d.method} on ${d.paidAt ? fmtDate(d.paidAt) : fmtDate(inv.issued_at)}${d.utr ? "   ·   " + (d.method === "Razorpay" ? "Payment ID " : "UPI reference ") + d.utr : ""}`, M, y); y -= 13;
   if (d.promo) { T(`Promo code applied: ${d.promo}`, M, y, { color: mut }); y -= 13; }
   if (!d.gst) { T("No GST is charged on this invoice.", M, y, { color: mut, size: 8.5 }); y -= 12; }
 
@@ -209,7 +209,7 @@ async function emailInvoice(admin: any, inv: any, to: string) {
   if (!key || !from || !to) throw new Fail("Email is not set up.", 501);
   const d = inv.data, pdf = await invoicePdf(inv), FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
   const rows: [string, string][] = [["Plan", `${d.plan} · ${d.cycle === "annual" ? "Annual" : "Monthly"}`], ...(d.period ? [["Valid", `${fmtDate(d.period.from)} – ${fmtDate(d.period.to)}`] as [string, string]] : []),
-    ["Amount paid", "₹" + inr(d.total)], ["Invoice", inv.invoice_no], ["Paid by", d.method + (d.utr ? " · " + d.utr : "")], ...(d.promo ? [["Promo code", d.promo] as [string, string]] : [])];
+    ["Amount paid", "₹" + inr(d.total)], ["Invoice", inv.invoice_no], ["Paid by", d.method + (d.utr ? " · ref " + d.utr : "")], ...(d.promo ? [["Promo code", d.promo] as [string, string]] : [])];
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Your Legal Staff invoice</title></head>
 <body style="margin:0;padding:0;background:#F4F4F2"><div style="display:none;max-height:0;overflow:hidden;opacity:0">Payment received: ${esc(d.plan)} plan, ₹${esc(inr(d.total))}. Your invoice ${esc(inv.invoice_no)} is attached.</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F4F4F2"><tr><td align="center" style="padding:28px 12px">
@@ -242,7 +242,7 @@ async function alertOwner(admin: any, inv: any) {
   if (!to || !key || !from) return;
   const d = inv.data, FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
   const rows: [string, string][] = [["Amount", "₹" + inr(d.total)], ["Firm", d.buyer.name || "-"], ["Buyer", d.buyer.email || "-"], ["Plan", `${d.plan} · ${d.cycle === "annual" ? "Annual" : "Monthly"}`],
-    ...(d.period ? [["Period", `${fmtDate(d.period.from)} – ${fmtDate(d.period.to)}`] as [string, string]] : []), ["Invoice", inv.invoice_no], ["Paid by", d.method + (d.utr ? " · " + d.utr : "")], ...(d.promo ? [["Promo code", d.promo] as [string, string]] : [])];
+    ...(d.period ? [["Period", `${fmtDate(d.period.from)} – ${fmtDate(d.period.to)}`] as [string, string]] : []), ["Invoice", inv.invoice_no], ["Paid by", d.method + (d.utr ? " · ref " + d.utr : "")], ...(d.promo ? [["Promo code", d.promo] as [string, string]] : [])];
   const html = `<!doctype html><html><body style="margin:0;padding:24px 12px;background:#F4F4F2"><table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #E5E5E5;border-radius:12px"><tr><td style="padding:26px 28px">
 <div style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#137333;padding-bottom:8px">New payment</div>
 <div style="font:700 22px/1.3 ${FONT};color:#0A0A0A;padding-bottom:14px">₹${esc(inr(d.total))} from ${esc(d.buyer.name || "a firm")}</div>
@@ -259,7 +259,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const action = body.action ?? "";
 
-    // ---- called by razorpay-pay right after a payment is confirmed ----
+    // ---- called by razorpay right after a payment is confirmed ----
     if (action === "issue") {
       if (req.headers.get("Authorization") !== "Bearer " + service) return json({ error: "Not allowed." }, 403);
       const { data: p } = await admin.from("payments").select("*").eq("id", body.payment_id).eq("status", "paid").maybeSingle();

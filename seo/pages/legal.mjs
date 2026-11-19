@@ -139,7 +139,7 @@ function privacy() {
     ['Supabase', 'Database, authentication and private file storage for accounts and practice data.', 'Mumbai, India (ap-south-1 region)'],
     ['Vercel', 'Hosting and content delivery for the website and app files; security logs.', 'Global edge network'],
     ['Google', 'Google sign-in; web fonts for the site; Google Drive, only for members who turn on Google Drive backup (files are encrypted before they reach Google).', 'Global'],
-    ['Razorpay', 'Plan payments are processed by Razorpay Software Private Limited, which collects your payment details on its own checkout page. Your UPI app or bank may show the receiver as the proprietor of Legal Staff, Abhijeet Kumar.', 'India'],
+    ['Razorpay', 'Plan and directory fees are processed by Razorpay Software Private Limited, which collects your payment details on its own checkout page. Your UPI app or bank may show the receiver as the proprietor of Legal Staff, Abhijeet Kumar.', 'India'],
     ['Resend', 'Sending email reminders and notices, once email is connected.', 'May be outside India'],
     ['Meta (WhatsApp Business API)', 'Sending WhatsApp reminders, only once your firm connects WhatsApp.', 'May be outside India'],
     ['A court-data provider', 'Fetching case status by CNR, only if your firm connects one.', 'Depends on the provider']
@@ -222,7 +222,7 @@ function cookies() {
     ['Notice choice<br><code>ls.consent.v1</code> (localStorage)', 'Legal Staff', 'Remembers that you have seen this storage notice.', 'Strictly necessary', 'Until you clear it'],
     ['Google sign-in button', 'Google', 'Loads the “Sign in with Google” button; Google may set its own cookies on Google’s domains.', 'Third party', 'Set by Google'],
     ['Web fonts', 'Google Fonts', 'Delivers the site’s typeface. No cookie is set by us; Google receives your IP address and browser details to send the font files.', 'Third party', 'Not applicable'],
-    ['Razorpay Checkout', 'Razorpay (checkout.razorpay.com)', 'Razorpay’s payment script, loaded only when you pay for a plan. Razorpay receives your IP address and browser details and may set its own cookies to process and secure the payment.', 'Third party', 'Not applicable'],
+    ['Razorpay Checkout', 'Razorpay (checkout.razorpay.com)', 'Razorpay’s payment script, loaded only when you pay. Razorpay receives your IP address and browser details and may set its own cookies to process and secure the payment.', 'Third party', 'Not applicable'],
     ['Hosting logs', 'Vercel', 'Server logs that may include your IP address, used for security and to keep the site running. No cookie.', 'Strictly necessary', 'As kept by Vercel']
   ]);
   const sections = [
