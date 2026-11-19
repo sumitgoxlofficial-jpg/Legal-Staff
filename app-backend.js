@@ -178,12 +178,23 @@
       download: drive => B.fn('drive', { action: 'download', firm_id: firmId, drive }),
       remove: drive => B.fn('drive', { action: 'delete', firm_id: firmId, drive }).catch(() => {})
     },
-    /* Direct UPI to the operator's account (server function 'upi-pay'), confirmed automatically by Paytm status or bank SMS. */
-    upi: {
-      config: () => B.fn('upi-pay', { action: 'config' }),
-      create: (plan, cycle, gstin, promo, users) => B.fn('upi-pay', { action: 'create', firm_id: firmId, plan, cycle, gstin, promo: promo || '', users }),
-      promo: (plan, cycle, promo, users) => B.fn('upi-pay', { action: 'promo', firm_id: firmId, plan, cycle, promo, users }),
-      status: orderNo => B.fn('upi-pay', { action: 'status', firm_id: firmId, order_no: orderNo })
+    /* Plan payments: Razorpay Checkout only (server function 'razorpay-pay'). The price is fixed on the server. */
+    pay: {
+      config: () => B.fn('razorpay-pay', { action: 'config' }),
+      create: (plan, cycle, gstin, promo, users) => B.fn('razorpay-pay', { action: 'create', firm_id: firmId, plan, cycle, gstin, promo: promo || '', users }),
+      promo: (plan, cycle, promo, users) => B.fn('razorpay-pay', { action: 'promo', firm_id: firmId, plan, cycle, promo, users }),
+      status: orderNo => B.fn('razorpay-pay', { action: 'status', firm_id: firmId, order_no: orderNo }),
+      verify: r => B.fn('razorpay-pay', { action: 'verify', razorpay_order_id: r.razorpay_order_id, razorpay_payment_id: r.razorpay_payment_id, razorpay_signature: r.razorpay_signature }),
+      /* Opens Razorpay Checkout for a created order. Resolves with Razorpay's signed result, rejects if closed or failed. */
+      async open(o, d, label) {
+        if (!window.Razorpay) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay Checkout. Check your connection and try again.')); document.head.appendChild(s); });
+        return new Promise((res, rej) => {
+          const rz = new window.Razorpay({ key: o.key_id, order_id: o.order_id, amount: o.amount, currency: o.currency, name: 'Legal Staff', description: label,
+            prefill: { email: o.email, name: d.user.name, contact: d.user.phone || '' }, notes: { firm: d.firm.name }, theme: { color: '#0A0A0A' }, handler: res, modal: { ondismiss: () => rej(Object.assign(new Error('Payment window closed.'), { closed: true })) } });
+          rz.on('payment.failed', e => rej(new Error((e.error && e.error.description) || 'The payment failed.')));
+          rz.open();
+        });
+      }
     },
     /* Team chat: the firm's group chat ('team') and one-to-one chats ('dm:<uid>:<uid>'), live through Supabase Realtime. */
     chat: {

@@ -243,15 +243,11 @@
   VIEWS.payments = async p => {
     const { payments, bank } = await api('payments');
     const st = x => x.status === 'paid' ? '<span class="chip c-good">Paid</span>' : x.status === 'failed' ? '<span class="chip c-bad">Failed</span>' : '<span class="chip c-mut">Not paid</span>';
-    const unmatched = bank.filter(b => b.amount_paise && !b.payment_id);
-    p.innerHTML = `<h1>Payments</h1><p class="sub">Every checkout and every bank alert that reached Legal Staff</p>
-      ${unmatched.length ? `<div class="card" style="margin-bottom:14px;border-color:#F3D9A4;background:#FFFCF5"><div class="strong">${unmatched.length} bank credit${unmatched.length === 1 ? '' : 's'} not matched to an order</div><div class="muted small">Money arrived but no open order had exactly that amount. If it was a customer, switch their plan on from Firms & users.</div></div>` : ''}
-      <div class="card"><div class="strong" style="margin-bottom:10px">Orders</div><div class="tscroll"><table><thead><tr><th>Created</th><th>Firm</th><th>Plan</th><th class="num">Amount</th><th>Status</th><th>Coupon</th><th>UPI reference</th><th>Order</th></tr></thead><tbody>
-        ${payments.length ? payments.map(x => `<tr><td class="mono">${dt(x.created_at)}</td><td>${esc(x.firm)}</td><td>${esc(x.plan)} <span class="muted small">${x.cycle === 'annual' ? 'annual' : 'monthly'}</span></td><td class="num strong">${rs(x.amount_paise)}</td><td>${st(x)}${x.confirmed_by ? ` <span class="muted small">by ${esc(x.confirmed_by)}</span>` : ''}</td><td>${esc(x.promo_code || '')}</td><td class="mono small">${esc(x.utr || '')}</td><td class="mono small muted">${esc(x.order_no || '')}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No payments yet.</td></tr>'}
+    p.innerHTML = `<h1>Payments</h1><p class="sub">Every plan checkout, paid through Razorpay</p>
+      <div class="card"><div class="strong" style="margin-bottom:10px">Orders</div><div class="tscroll"><table><thead><tr><th>Created</th><th>Firm</th><th>Plan</th><th class="num">Amount</th><th>Status</th><th>Coupon</th><th>Razorpay payment ID</th><th>Order</th></tr></thead><tbody>
+        ${payments.length ? payments.map(x => `<tr><td class="mono">${dt(x.created_at)}</td><td>${esc(x.firm)}</td><td>${esc(x.plan)} <span class="muted small">${x.cycle === 'annual' ? 'annual' : 'monthly'}</span></td><td class="num strong">${rs(x.amount_paise)}</td><td>${st(x)}${x.confirmed_by ? ` <span class="muted small">by ${esc(x.confirmed_by)}</span>` : ''}</td><td>${esc(x.promo_code || '')}</td><td class="mono small">${esc(x.gateway_payment_id || x.utr || '')}</td><td class="mono small muted">${esc(x.order_no || '')}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No payments yet.</td></tr>'}
       </tbody></table></div></div>
-      <div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:10px">Bank alerts received</div><div class="tscroll"><table><thead><tr><th>Received</th><th>From</th><th class="num">Amount</th><th>UPI reference</th><th>Result</th></tr></thead><tbody>
-        ${bank.length ? bank.map(b => `<tr><td class="mono">${dt(b.received_at)}</td><td class="small">${esc(b.sender)}</td><td class="num">${b.amount_paise ? rs(b.amount_paise) : '—'}</td><td class="mono small">${esc(b.utr || '')}</td><td class="small">${b.payment_id ? '<span class="chip c-good">Matched</span>' : b.amount_paise ? '<span class="chip c-warn">Not matched</span>' : ''} <span class="muted">${esc(b.note || '')}</span></td></tr>`).join('') : '<tr><td colspan="5" class="empty">No bank alerts yet.</td></tr>'}
-      </tbody></table></div></div>`;
+      `;
   };
 
   VIEWS.coupons = async p => {
@@ -351,9 +347,8 @@
     const inp = (k, l, ph = '', t = 'text') => `<label class="f">${l}<input data-k="${k}" type="${t}" value="${esc(s[k] ?? '')}" placeholder="${esc(ph)}"></label>`;
     p.innerHTML = `<h1>Settings</h1><p class="sub">Payments, invoices and alerts</p>
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
-        <div class="card grid" style="gap:12px;align-content:start"><div class="strong">UPI payments</div>
-          <label class="row small" style="gap:8px"><input data-k="upi_enabled" type="checkbox" style="width:auto;height:auto" ${s.upi_enabled ? 'checked' : ''}>Accept plan payments by UPI</label>
-          ${inp('upi_id', 'UPI ID (where customers pay)', 'name@bank')}${inp('payee_name', 'Payee name customers see', 'Legal Staff')}
+        <div class="card grid" style="gap:12px;align-content:start"><div class="strong">Payments</div>
+          <div class="muted small">Plans are paid through Razorpay only. The keys are kept on the server.</div>
           ${inp('alert_email', 'Email me about every new payment', 'you@example.com', 'email')}</div>
         <div class="card grid" style="gap:12px;align-content:start"><div class="strong">Invoice details (Billed by)</div>
           ${inp('seller_name', 'Business name')}${inp('seller_address', 'Address')}<div class="two">${inp('seller_state_code', 'GST state code', '10 for Bihar')}${inp('seller_phone', 'Phone')}</div>

@@ -16,7 +16,7 @@
 | `functions/court-status` | Older single-CNR lookup. The app no longer calls it (everything goes through `court-sync`); it can be removed |
 | `functions/auth-email` | Supabase Auth "Send Email" hook: sign-in codes, sign-up confirmations, invites, email changes and security notices in the Legal Staff design, sent through Resend (deploy with JWT verification off; it checks the hook signature) |
 | `functions/ai` | Real AI for AI Case Brain, AI Legal Research and AI Drafting Studio through Groq; picks the best model from Groq's live list; counts AI credits per firm per month by plan (deploy with JWT verification off; it checks the caller itself) |
-| `functions/upi-pay` | Pay by UPI straight to the operator's UPI ID, no gateway: creates orders with a unique amount, confirms them automatically by Paytm for Business order status, bank 'credited' SMS from an SMS-forwarder phone, or forwarded bank alert emails, applies promo codes, then activates the plan (deploy with JWT verification off; it checks every caller itself) |
+| `functions/razorpay-pay` | Plan payments through Razorpay Checkout, the only way money is received: creates the Razorpay order (price fixed on the server), verifies Razorpay's signature, captures if needed, handles promo codes, takes the Razorpay webhook, then activates the plan and issues the invoice (deploy with JWT verification off; it checks every caller itself) |
 | `functions/billing` | Invoices for plan payments: numbers them, emails the PDF to the buyer, lists, downloads and re-sends them (deploy with JWT verification off) |
 | `functions/drive` | Encrypted storage in each user's own Google Drive: uploads and nightly backups, encrypted with AES-256-GCM (a key per firm) and kept in the Drive's hidden app folder (deploy with JWT verification off; it checks the caller itself) |
 
@@ -63,23 +63,20 @@ that migration 0007 generates in Vault), so Google holds only ciphertext. Google
 way. Teammates open each other's files through the app. Users who have not connected Drive keep using the `documents` bucket.
 Losing the Vault key `drive_master_key` makes every Drive file unreadable: never delete or rotate it without re-encrypting.
 
-## Pay by UPI (direct to your account)
+## Payments (Razorpay only)
 
-Settings are one row in `public.pay_settings`: `upi_enabled`, `upi_id` (where customers pay), `payee_name`, `paytm_mid`
-(Paytm for Business merchant ID, optional) and `sms_secret` (generated). When `upi_enabled` is true the plan checkout shows
-**Pay by UPI**, the only way to pay. Each order gets a unique amount (0–99 paise above the price) so a payment can be matched
-to exactly one order. Confirmation is automatic, by whichever comes first:
+All plan payments go through Razorpay Checkout (`functions/razorpay-pay`); there is no own UPI QR code and no bank-SMS or
+email matching any more (migration 0024 switches the old UPI sweep off and keeps old UPI rows as history).
 
-- **Paytm for Business:** with `paytm_mid` set and `upi_id` being the Paytm merchant UPI ID, the order number travels in the
-  UPI link (`tr`) and is checked with Paytm's order status page while the customer waits, and every 2 minutes for 24 hours.
-  This uses Paytm's unofficial status page, which Paytm may change.
-- **Bank SMS:** an Android phone with the bank SIM runs an SMS-forwarder app that POSTs each SMS to
-  `/functions/v1/upi-pay?action=sms&key=<sms_secret>`. A 'credited' SMS whose amount matches one open order confirms it;
-  each bank reference (UTR) can confirm only one payment. Every SMS is kept in `public.upi_sms` with what happened to it.
-- **Bank alert email:** the mailbox that receives the bank's 'credited' alerts forwards them (a mail filter) to the secret
-  payments inbox `<pay_settings.email_inbox>@<your>.resend.app`; Resend's `email.received` webhook calls
-  `/functions/v1/upi-pay?action=email&key=<sms_secret>`, and the function reads the mail with the full-access Resend key
-  kept in Vault as `resend_read_key` (migration 0012). Only mail addressed to that inbox counts. Matched like the SMS.
+1. Put the **live** keys in the function secrets `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET`, or in
+   Vault with `select vault.create_secret('<value>', 'razorpay_key_id');` (and `razorpay_key_secret`, `razorpay_webhook_secret`).
+2. In the Razorpay Dashboard → Webhooks add `https://<project>.supabase.co/functions/v1/razorpay-pay?action=webhook` with the
+   events `payment.captured` and `order.paid`, and the same secret as `RAZORPAY_WEBHOOK_SECRET`. The webhook activates a plan
+   even if the customer closed the browser; without it the app still confirms through the checkout result and `status`.
+3. Razorpay shows the **registered account holder** as the receiver in the customer's UPI app or bank (the proprietor's name,
+   not "Legal Staff"). The app therefore tells customers before they pay (checkout card, the pay window, the checkout
+   description and the payment email) that "ABHIJEET KUMAR" is the founder and proprietor of Legal Staff. To change what the
+   bank shows, change the business/display name on the Razorpay account, not the code.
 
 ### Invoices
 

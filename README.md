@@ -40,7 +40,7 @@ The Client ID is public and safe to commit. No client secret is needed. Until it
 
 ## What needs outside accounts
 
-The app runs on Supabase (see `supabase/README.md`): sign-in, firm data, Google Drive backup, AI (Groq), UPI payments
+The app runs on Supabase (see `supabase/README.md`): sign-in, firm data, Google Drive backup, AI (Groq), Razorpay payments
 confirmed from bank alert emails, invoices, morning briefings, trial and plan-ending reminders, and team invitations are live.
 Two features wait for an outside account:
 

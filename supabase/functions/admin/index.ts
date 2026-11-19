@@ -9,7 +9,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 class Fail extends Error { status: number; constructor(msg: string, status = 400) { super(msg); this.status = status; } }
 
 const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 299, annual: 2999 }, Professional: { monthly: 799, annual: 7999 }, Firm: { monthly: 3999, annual: 39999 } };
-// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with upi-pay, billing and admin.
+// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with razorpay-pay, billing and admin.
 const PER_USER: Record<string, number> = { monthly: 249, annual: 2499 }, MAX_USERS = 15;
 /** List price in rupees for a plan and cycle; seats only counts for Professional (missing → 1). */
 const listPrice = (plan: string, cycle: string, seats?: number | null) => {
@@ -140,13 +140,12 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "payments") {
-      const [{ data: pays }, { data: msgs }, { data: firms }] = await Promise.all([
+      const [{ data: pays }, { data: firms }] = await Promise.all([
         admin.from("payments").select("id,firm_id,plan,cycle,amount_paise,status,method,order_no,utr,promo_code,confirmed_by,created_at,paid_at").order("created_at", { ascending: false }).limit(300),
-        admin.from("upi_sms").select("received_at,sender,amount_paise,utr,note,payment_id").order("received_at", { ascending: false }).limit(100),
         admin.from("firms").select("id,name"),
       ]);
       const name: Record<string, string> = {}; (firms ?? []).forEach((f: any) => name[f.id] = f.name);
-      return json({ payments: (pays ?? []).map((p: any) => ({ ...p, firm: name[p.firm_id] ?? "" })), bank: msgs ?? [] });
+      return json({ payments: (pays ?? []).map((p: any) => ({ ...p, firm: name[p.firm_id] ?? "" })), bank: [] });
     }
 
     if (action === "coupons") { const { data } = await admin.from("promo_codes").select("*").order("created_at", { ascending: false }); return json({ coupons: data ?? [] }); }
@@ -197,12 +196,11 @@ Deno.serve(async (req: Request) => {
     }
     if (action === "expense_delete") { await admin.from("admin_expenses").delete().eq("id", body.id); return json({ ok: true }); }
 
-    const KEYS = ["upi_enabled", "upi_id", "payee_name", "alert_email", "seller_name", "seller_address", "seller_state_code", "seller_gstin", "seller_pan", "seller_email", "seller_phone"];
+    const KEYS = ["alert_email", "seller_name", "seller_address", "seller_state_code", "seller_gstin", "seller_pan", "seller_email", "seller_phone"];
     if (action === "settings") { const { data } = await admin.from("pay_settings").select(KEYS.join(",")).eq("id", 1).single(); return json({ settings: data, admins: ((await admin.from("super_admins").select("email")).data ?? []).map((a: any) => a.email) }); }
     if (action === "settings_save") {
-      const patch: any = {}; for (const k of KEYS) if (k in (body.settings ?? {})) patch[k] = k === "upi_enabled" ? !!body.settings[k] : String(body.settings[k] ?? "").trim();
+      const patch: any = {}; for (const k of KEYS) if (k in (body.settings ?? {})) patch[k] = String(body.settings[k] ?? "").trim();
       if (patch.alert_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(patch.alert_email)) throw new Fail("That alert email does not look right.");
-      if (patch.upi_enabled && !(patch.upi_id ?? "").includes("@")) throw new Fail("Enter the UPI ID before switching UPI on.");
       patch.updated_at = new Date().toISOString();
       await admin.from("pay_settings").update(patch).eq("id", 1); return json({ ok: true });
     }

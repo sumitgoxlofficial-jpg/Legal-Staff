@@ -1,5 +1,5 @@
 // Also emails firm owners before their free trial ends (trialReminders) and before a paid plan runs out (planReminders),
-// scheduled runs only. UPI plans do not renew by themselves, so the plan reminders are how a firm knows to renew.
+// scheduled runs only. Plans do not renew by themselves, so the plan reminders are how a firm knows to renew.
 // Sends the morning briefing (hearings today and in N days, deadlines and approved limitation dates, overdue tasks)
 // by email (Resend) and WhatsApp (Meta Cloud API). Two callers: the hourly schedule (header x-cron-secret, pg_cron at
 // minute 0 UTC = HH:30 IST), which briefs each member once a day in the IST hour of their Settings › Morning briefing time
@@ -259,11 +259,11 @@ async function planReminders(admin: any, now: number) {
       const hello = `Hello ${o.title || o.name || ""},`.replace(" ,", ",");
       const subject = ended ? `Your Legal Staff ${s.plan} plan has ended` : `Your Legal Staff ${s.plan} plan ends ${when}`;
       const intro = ended
-        ? [hello, `The ${cyc} ${s.plan} plan for ${fname} ended on ${endDay}. The workspace is closed until you renew.`, "Your cases, documents and settings are kept safely. Renew by UPI in a minute and everything is back at once."]
-        : [hello, `The ${cyc} ${s.plan} plan for ${fname} is paid until ${endDay} and ends ${when}.`, "Plans paid by UPI do not renew by themselves. Renew now to keep working without interruption: the new period starts the day after your current one ends, so you lose no days."];
+        ? [hello, `The ${cyc} ${s.plan} plan for ${fname} ended on ${endDay}. The workspace is closed until you renew.`, "Your cases, documents and settings are kept safely. Renew online in a minute and everything is back at once."]
+        : [hello, `The ${cyc} ${s.plan} plan for ${fname} is paid until ${endDay} and ends ${when}.`, "Plans are paid in advance and do not renew by themselves. Renew now to keep working without interruption: the new period starts the day after your current one ends, so you lose no days."];
       const body = intro.concat(["", (ended ? "Renew now: " : "Renew your plan: ") + app, "", "Legal Staff"]).join("\n");
       const html = emailHtml({
-        preheader: ended ? "Your workspace is closed until you renew. Your data is kept safely." : `Your ${s.plan} plan ends ${when}. Renew by UPI to keep working without interruption.`,
+        preheader: ended ? "Your workspace is closed until you renew. Your data is kept safely." : `Your ${s.plan} plan ends ${when}. Renew to keep working without interruption.`,
         kicker: ended ? "Plan ended" : `Plan · ends ${when}`,
         heading: ended ? `Your ${s.plan} plan has ended` : `Your ${s.plan} plan ends ${when}`,
         intro, cta: { label: ended ? "Renew now" : "Renew plan", url: app },
