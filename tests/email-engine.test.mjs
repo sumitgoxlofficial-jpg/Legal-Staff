@@ -220,6 +220,16 @@ await t('administrator actions are in the audit log; the log is read-only throug
 await t('a test email can only go to an administrator', async () => { const r = await call({ action: 'template_test', key: 'reminder', subject: 'S', body_html: '<p>x {{unsubscribe_url}}</p>', to: 'stranger@example.in' }); eq(r.status, 403); const b = brevo.sent.length; const g = await call({ action: 'template_test', key: 'reminder', subject: 'S', body_html: '<p>x {{unsubscribe_url}}</p>' }); eq(g.status, 200); eq(brevo.sent.length, b + 1); ok(brevo.sent.at(-1).subject.startsWith('[TEST]')); });
 await t('template preview renders desktop/mobile content with sample data', async () => { const r = await adm('template_preview', { subject: 'Hi {{advocate_name}}', body_html: '<p>{{advocate_name}} {{unsubscribe_url}}</p>' }); ok(r.html.includes('Rajesh Kumar')); eq(r.subject, 'Hi Rajesh Kumar'); });
 
+console.log('manual send now');
+await t('"Send new emails now" needs confirmation, honours the daily limit, and sends right away when there is room', async () => {
+  await adm('settings_save', { settings: { legal_approval: true, legal_approval_ref: 'Counsel opinion 12 Nov 2026', provider_approved: true, provider_approval_ref: 'Provider mail 10 Nov 2026', system_enabled: true, dry_run: false, max_new_per_day: 3 } });
+  const jr = table('email_job_runs'); for (let i = jr.length - 1; i >= 0; i--) if (jr[i].job_key === 'rate_limit') jr.splice(i, 1);   // earlier tests left a provider pause and old queue rows
+  const elig = new Set(contacts().filter((c) => c.first_email_status === 'ELIGIBLE').map((c) => c.id)), qu = table('email_queue'); for (let i = qu.length - 1; i >= 0; i--) if (elig.has(qu[i].contact_id)) qu.splice(i, 1);
+  IST('2026-11-30', '11:00'); const bad = await call({ action: 'send_now' }); eq(bad.status, 400);
+  const before = brevo.sent.length; const r = await adm('send_now', { confirm: true }); eq(r.sent, 3); eq(brevo.sent.length, before + 3, 'sent at once, up to the daily limit');
+  const again = await adm('send_now', { confirm: true }); eq(again.sent, 0); eq(brevo.sent.length, before + 3, 'a second click cannot exceed the limit');
+  await adm('settings_save', { settings: { dry_run: true } }); const blocked = await call({ action: 'send_now', confirm: true }); eq(blocked.status, 400); });
+
 // helpers that need the function's token secret
 async function tokenFor(c, kind, camp) { const { makeToken } = await import(pathToFileURL(join(out, 'js/_shared/email-logic.js'))); return makeToken(E.EMAIL_TOKEN_SECRET, kind, c.id, camp); }
 async function rpcConvert(email, ev, ref) { const { createClient } = await import(pathToFileURL(join(out, 'js/fake-db.mjs'))); const { data } = await createClient().rpc('email_record_conversion', { p_email: email, p_event: ev, p_ref: ref, p_meta: {} }); return data; }
