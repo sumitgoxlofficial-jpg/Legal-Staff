@@ -1,6 +1,6 @@
 // Billing: invoices for plan payments (no GST is charged), as PDF, emailed to the buyer.
 // actions:
-//   issue  (server only: Authorization = service role key; called by upi-pay when a payment is confirmed)
+//   issue  (server only: Authorization = service role key; called by razorpay when a payment is confirmed)
 //          → creates the payment's invoice (once) and emails it with the PDF attached.
 //   list   (firm member) → { sub, invoices[] }; creates any missing invoice for a paid payment first.
 //   pdf    (firm member) → { filename, pdf (base64) } for one invoice.
@@ -15,7 +15,7 @@ class Fail extends Error { status: number; constructor(msg: string, status = 400
 
 const SITE = (Deno.env.get("APP_URL") ?? "https://legalstaff.in").replace(/\/$/, "");
 const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 299, annual: 2999 }, Professional: { monthly: 799, annual: 7999 }, Firm: { monthly: 3999, annual: 39999 } };
-// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with upi-pay, billing and admin.
+// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with razorpay, billing and admin.
 const PER_USER: Record<string, number> = { monthly: 249, annual: 2499 }, MAX_USERS = 15;
 /** List price in rupees for a plan and cycle; seats only counts for Professional (missing → 1). */
 const listPrice = (plan: string, cycle: string, seats?: number | null) => {
@@ -221,13 +221,14 @@ async function emailInvoice(admin: any, inv: any, to: string) {
 <div style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#137333;padding-bottom:8px">Payment received</div>
 <div style="font:700 22px/1.3 ${FONT};letter-spacing:-.02em;color:#0A0A0A;padding-bottom:14px">Your ${esc(d.plan)} plan is active</div>
 <p style="margin:0 0 16px;font:15px/1.6 ${FONT};color:#363636">Thank you${d.buyer.name ? ", " + esc(d.buyer.name) : ""}. We have received your payment. Your invoice is attached as a PDF for your records.</p>
+<p style="margin:0 0 16px;font:13px/1.6 ${FONT};color:#6B6B6B">Your UPI app or bank statement may show the receiver as “ABHIJEET KUMAR”. That is the founder and proprietor of Legal Staff, so it is the correct payee for this payment.</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map(([k, v]) => `<tr><td style="padding:11px 14px 11px 0;border-top:1px solid #EDEDED;width:120px;font:600 13px/1.4 ${FONT};color:#6B6B6B;white-space:nowrap">${esc(k)}</td><td style="padding:11px 0;border-top:1px solid #EDEDED;font:15px/1.45 ${FONT};color:#0A0A0A">${esc(v)}</td></tr>`).join("")}</table>
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:22px"><tr><td style="border-radius:8px;background:#0A0A0A"><a href="${SITE}/app" style="display:inline-block;padding:12px 22px;font:600 14px/1 ${FONT};color:#FFFFFF;text-decoration:none;border-radius:8px">Open Legal Staff</a></td></tr></table>
 <div style="padding-top:16px;font:13px/1.55 ${FONT};color:#6B6B6B">You can download this invoice again any time from Pricing → Your subscription in the app.</div>
 </td></tr>
 <tr><td style="padding:18px 6px 0;font:12px/1.6 ${FONT};color:#8A8A8A;text-align:center"><a href="${SITE}" style="color:#5E5E5E;text-decoration:none;font-weight:600">Legal Staff</a> · Practice management for Indian advocates<br>You received this because you paid for a Legal Staff plan.<br><a href="${SITE}/privacy" style="color:#8A8A8A">Privacy</a> · <a href="${SITE}/refund-policy" style="color:#8A8A8A">Refunds</a></td></tr>
 </table></td></tr></table></body></html>`;
-  const text = `Payment received — your ${d.plan} plan is active.\n\n` + rows.map(([k, v]) => `${k}: ${v}`).join("\n") + `\n\nYour invoice is attached as a PDF.\n${SITE}/app`;
+  const text = `Payment received — your ${d.plan} plan is active.\n\n` + rows.map(([k, v]) => `${k}: ${v}`).join("\n") + `\n\nYour invoice is attached as a PDF.\nYour UPI app or bank statement may show the receiver as ABHIJEET KUMAR, the founder and proprietor of Legal Staff. That is the correct payee.\n${SITE}/app`;
   const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
     body: JSON.stringify({ from, to: [to], ...(d.seller.email ? { reply_to: d.seller.email } : {}), subject: `Invoice ${inv.invoice_no}: Legal Staff ${d.plan} plan, ₹${inr(d.total)}`, html, text, attachments: [{ filename: fileName(inv), content: b64(pdf) }] }) });
   if (!r.ok) throw new Fail("Could not send the invoice email: " + (await r.text()).slice(0, 200), 502);
@@ -258,7 +259,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const action = body.action ?? "";
 
-    // ---- called by upi-pay right after a payment is confirmed ----
+    // ---- called by razorpay right after a payment is confirmed ----
     if (action === "issue") {
       if (req.headers.get("Authorization") !== "Bearer " + service) return json({ error: "Not allowed." }, 403);
       const { data: p } = await admin.from("payments").select("*").eq("id", body.payment_id).eq("status", "paid").maybeSingle();

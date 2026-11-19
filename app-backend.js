@@ -180,16 +180,10 @@
       download: drive => B.fn('drive', { action: 'download', firm_id: firmId, drive }),
       remove: drive => B.fn('drive', { action: 'delete', firm_id: firmId, drive }).catch(() => {})
     },
-    /* Direct UPI to the operator's account (server function 'upi-pay'), confirmed automatically by Paytm status or bank SMS. */
-    upi: {
-      config: () => B.fn('upi-pay', { action: 'config' }),
-      create: (plan, cycle, gstin, promo, users) => B.fn('upi-pay', { action: 'create', firm_id: firmId, plan, cycle, gstin, promo: promo || '', users }),
-      promo: (plan, cycle, promo, users) => B.fn('upi-pay', { action: 'promo', firm_id: firmId, plan, cycle, promo, users }),
-      status: orderNo => B.fn('upi-pay', { action: 'status', firm_id: firmId, order_no: orderNo })
-    },
     /* Razorpay Standard Checkout (server function 'razorpay'): the server creates the order and checks the payment signature; the secret key never reaches the browser. */
     razorpay: {
       createOrder: (plan, cycle, gstin, promo, users) => B.fn('razorpay', { action: 'create-order', firm_id: firmId, plan, cycle, gstin, promo: promo || '', users }),
+      promo: (plan, cycle, promo, users) => B.fn('razorpay', { action: 'promo', firm_id: firmId, plan, cycle, promo, users }),
       verify: r => B.fn('razorpay', { action: 'verify-payment', firm_id: firmId, razorpay_order_id: r.razorpay_order_id, razorpay_payment_id: r.razorpay_payment_id, razorpay_signature: r.razorpay_signature })
     },
     /* Team chat: the firm's group chat ('team') and one-to-one chats ('dm:<uid>:<uid>'), live through Supabase Realtime. */

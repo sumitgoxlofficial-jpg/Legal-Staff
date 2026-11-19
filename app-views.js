@@ -1247,7 +1247,7 @@
           server ? row('Check the court record', 'Every few hours the app asks your court-data provider about each open case with a CNR and adds new next dates and orders.' + (s.lastCheck ? ' Last checked ' + L.fmt(s.lastCheck.slice(0, 10)) + '.' : ''), h(Toggle, { on: s.autoCheck !== false, label: 'Automatic court checks', onChange: v => set('autoCheck', v) })) : row('Check the court record', 'Needs the server and a court-data provider, so it is not available in this browser-only copy.', null),
           server ? row('Check all cases now', null, h(Btn, { small: true, onClick: () => autoCheck(app, true) }, 'Check now')) : null),
         h(Card, { title: 'Appearance' }, row('Sidebar', null, h(Select, { value: s.sidebar, onChange: v => set('sidebar', v), options: [['Light', 'Light'], ['Ink', 'Ink (dark)']], style: { minWidth: 150 } })), row('Background', null, h(Select, { value: s.backdrop, onChange: v => set('backdrop', v), options: ['Wallpaper', 'Dots', 'Grid', 'Plain'].map(x => [x, x]), style: { minWidth: 150 } })), row('Density', null, h(Select, { value: s.density, onChange: v => set('density', v), options: [['Comfortable', 'Comfortable'], ['Compact', 'Compact']], style: { minWidth: 150 } }))),
-        h(Card, { title: 'Subscription' }, (acc => row(planName(acc) + (acc.state === 'active' ? ' · ' + (d.sub.cycle === 'annual' ? 'Annual' : 'Monthly') : ''), planSub(acc), h(Btn, { small: true, primary: !acc.ok, onClick: () => app.go('pricing') }, acc.state === 'none' ? 'Start free trial' : acc.ok ? 'Change plan' : 'Subscribe')))(L.access(d.sub)), server && d.sub.history.length ? row('Invoices', 'Download or email your invoices', h(Btn, { small: true, onClick: () => app.go('pricing') }, 'View invoices')) : null, d.sub.history.map((x, i) => row(x.plan + ' · ' + x.total, server ? 'Paid ' + L.fmt(x.date) + ' by UPI' : 'Recorded ' + L.fmt(x.date) + ' on this device · no payment taken (payments need the server)', null))),
+        h(Card, { title: 'Subscription' }, (acc => row(planName(acc) + (acc.state === 'active' ? ' · ' + (d.sub.cycle === 'annual' ? 'Annual' : 'Monthly') : ''), planSub(acc), h(Btn, { small: true, primary: !acc.ok, onClick: () => app.go('pricing') }, acc.state === 'none' ? 'Start free trial' : acc.ok ? 'Change plan' : 'Subscribe')))(L.access(d.sub)), server && d.sub.history.length ? row('Invoices', 'Download or email your invoices', h(Btn, { small: true, onClick: () => app.go('pricing') }, 'View invoices')) : null, d.sub.history.map((x, i) => row(x.plan + ' · ' + x.total, server ? 'Paid ' + L.fmt(x.date) + ' via Razorpay' : 'Recorded ' + L.fmt(x.date) + ' on this device · no payment taken (payments need the server)', null))),
         dataCard));
   }
   /* Removes what this browser keeps (saved data, file blobs) and signs out. Server data is untouched. */
@@ -1270,8 +1270,6 @@
     return h(Page, { art: 'order', kicker: 'Practice', title: 'Court Orders', sub: `${rows.length} orders · ${need} awaiting your confirmation`, actions: [h(Btn, { key: 1, primary: true, onClick: () => addOrder(app) }, '+ Add court order')] },
       h(Table, { onRow: o => app.go('order', o.id), min: 860, cols: [{ label: 'Case', w: 'minmax(220px,1.6fr)', get: o => h('span', null, caseOf(d, o.caseId).title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, caseOf(d, o.caseId).no)) }, { label: 'Order dated', w: '110px', get: o => L.dmy(o.date) }, { label: 'Summary', w: 'minmax(240px,2.4fr)', get: o => h('span', null, o.summary, h('span', { style: { display: 'block', fontSize: 12, color: K.mut } }, o.source)) }, { label: 'Next date', w: '110px', get: o => o.nextDate ? L.dmy(o.nextDate) : '—' }, { label: 'Status', w: '150px', get: o => h(Chip, { tone: o.confirmed || !o.nextDate ? '' : 'red' }, o.confirmed ? 'Confirmed' : (o.nextDate ? 'Needs confirmation' : 'No date found')) }], rows, empty: { title: 'No orders yet', text: 'Add an order to extract the next date.' } }));
   }
-  /* ---------- Pay by UPI: straight to the operator's UPI ID, confirmed automatically (functions/upi-pay) ---------- */
-  const loadQr = () => window.qrcode ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load the QR code.')); document.head.appendChild(s); });
   /* ---------- Team chat extras: files, meeting cards, reactions, background ---------- */
   const EMOJIS = ['👍', '❤️', '😂', '🙏', '✅', '👏'];
   const fileSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
@@ -1550,68 +1548,28 @@
               h('span', { style: { display: 'flex', gap: 6 } },
                 h(Btn, { small: true, disabled: !!busy, onClick: () => act('dl' + i.id, () => downloadInvoice(i.id)) }, busy === 'dl' + i.id ? '…' : 'PDF'),
                 h(Btn, { small: true, disabled: !!busy, onClick: () => act('em' + i.id, () => LSB.billing.email(i.id), r => 'Invoice ' + i.invoice_no + ' emailed to ' + r.sent_to + '.') }, busy === 'em' + i.id ? '…' : 'Email')))))),
-      h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.6 } }, 'Plans are paid by UPI in advance, with no automatic charges and no GST added. Use Upgrade or renew any time; a new payment starts after your current period ends.'));
+      h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.6 } }, 'Plans are paid in advance through Razorpay (UPI, cards or netbanking), with no automatic charges and no GST added. Use Upgrade or renew any time; a new payment starts after your current period ends.'));
   }
 
-  function upiPay(app, o) {
-    const Body = () => {
-      const [st, setSt] = useState({ phase: 'creating' }), [qr, setQr] = useState(''), [left, setLeft] = useState(0);
-      React.useEffect(() => {
-        let dead = false, poll = null, tick = null;
-        LSB.upi.create(o.plan, o.cycle, o.gstin, o.promo, o.users).then(r => {
-          if (dead) return;
-          if (r.free) { setSt({ phase: 'paid', r, x: { confirmed_by: 'promo' } }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); return; }
-          setSt({ phase: 'waiting', r });
-          loadQr().then(() => { const q = window.qrcode(0, 'M'); q.addData(r.link); q.make(); if (!dead) setQr(q.createSvgTag({ cellSize: 5, margin: 2, scalable: true })); }).catch(() => {});
-          const end = Date.parse(r.expires_at);
-          setLeft(Math.max(0, Math.round((end - Date.now()) / 1000)));
-          tick = setInterval(() => setLeft(Math.max(0, Math.round((end - Date.now()) / 1000))), 1000);
-          const check = () => LSB.upi.status(r.order_no).then(x => {
-            if (dead) return;
-            if (x.status === 'paid') { clearInterval(poll); clearInterval(tick); setSt({ phase: 'paid', r, x }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); }
-            else if (Date.now() > end) { clearInterval(poll); clearInterval(tick); setSt({ phase: 'expired', r }); }
-          }).catch(() => {});
-          poll = setInterval(check, 4000);
-        }).catch(e => !dead && setSt({ phase: 'error', msg: e.message }));
-        return () => { dead = true; clearInterval(poll); clearInterval(tick); };
-      }, []);
-      const r = st.r, amt = r ? L.inr(r.amount / 100) : '', mm = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
-      if (st.phase === 'creating') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Preparing your UPI payment…' }));
-      if (st.phase === 'error') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } }, h('div', { style: { color: K.red, fontSize: 14 } }, st.msg), h(Btn, { onClick: () => app.modal(null) }, 'Close'));
-      if (st.phase === 'paid') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center', padding: '10px 0' } },
-        h('div', { className: 'ls-pop', style: { width: 58, height: 58, borderRadius: 29, background: '#E7F6EC', color: '#137333', fontSize: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 8px #F3FBF5' } }, '✓'),
-        h('div', { style: { fontSize: 18, fontWeight: 600 } }, 'Payment received'),
-        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `${amt} for the ${o.name} plan (${o.cycleLabel}). Your plan is active.`),
-        st.x.utr && h('div', { style: { fontSize: 12.5, color: K.mut } }, 'UPI reference ' + st.x.utr + ' · order ' + r.order_no),
-        h(PaidInvoice, { orderNo: r.order_no }),
-        h(Btn, { primary: true, onClick: () => { app.modal(null); app.go('dashboard'); } }, 'Go to dashboard'));
-      if (st.phase === 'expired') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
-        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `This payment window has closed. If you already paid ${amt}, it is still confirmed automatically within 24 hours and your plan turns on by itself. If you have not paid, start again.`),
-        h('div', { style: { fontSize: 12.5, color: K.mut } }, 'Order ' + r.order_no),
-        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close')));
-      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', textAlign: 'center' } },
-        h('div', { style: { fontSize: 13, color: K.mut } }, `${o.name} plan · ${o.cycleLabel}`),
-        h('div', null, h('div', { style: { fontSize: 12, color: K.mut, textTransform: 'uppercase', letterSpacing: '.06em' } }, 'Pay exactly'), h('div', { style: { fontSize: 30, fontWeight: 700, letterSpacing: '-.02em' } }, amt)),
-        h('div', { style: { width: 220, height: 220, border: '1px solid ' + K.line, borderRadius: 12, padding: 8, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }, dangerouslySetInnerHTML: qr ? { __html: qr.replace('<svg ', '<svg width="100%" height="100%" ') } : undefined }, qr ? undefined : h('span', { style: { fontSize: 13, color: K.mut } }, 'Loading QR…')),
-        h('div', { style: { fontSize: 13.5, color: K.txt } }, 'Scan with any UPI app: GPay, PhonePe, Paytm, BHIM'),
-        h('a', { href: r.link, style: { display: 'inline-block', background: K.ink, color: '#fff', borderRadius: 8, padding: '10px 18px', fontSize: 14, fontWeight: 600, textDecoration: 'none' } }, 'Open UPI app (on your phone)'),
-        h('div', { style: { fontSize: 12.5, color: K.mut } }, `Paying ${r.payee} · ${r.upi_id}`),
-        h(CoinFlow, { label: `Verifying your payment… ${mm}` }),
-        h('div', { style: { fontSize: 12, color: K.mut, lineHeight: 1.5 } }, 'Keep this window open. Your plan turns on by itself as soon as the payment arrives. Pay the exact amount shown, including paise, so it is matched to your order ' + r.order_no + '.'));
-    };
-    app.modal(() => h(Modal, { title: 'Pay by UPI', onClose: () => app.modal(null), width: 420 }, h(Body)));
-  }
   /* ---------- Pay by card, UPI, netbanking or wallet: Razorpay Standard Checkout (functions/razorpay) ---------- */
   const loadRazorpay = () => window.Razorpay ? Promise.resolve() : new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.onload = res; s.onerror = () => rej(new Error('Could not load Razorpay checkout. Check your connection and try again.')); document.head.appendChild(s); });
+  /* Razorpay shows the registered account holder as the receiver, not "Legal Staff": tell the customer before they pay. */
+  const PAYEE_NAME = 'Abhijeet Kumar', UDYAM = 'UDYAM-BR-26-0259961';
+  function PayeeNotice() {
+    return h('div', { style: { border: '1px solid #F3D9A4', background: '#FFFCF5', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: K.txt, lineHeight: 1.55, textAlign: 'left' } },
+      h('div', { style: { fontWeight: 600, marginBottom: 2 } }, 'Your payment is to Legal Staff'),
+      `On the payment screen, your UPI app or bank may show the receiver as “${PAYEE_NAME.toUpperCase()}”. That is the founder and proprietor of Legal Staff, a Udyam-registered MSME (${UDYAM}), so it is the correct receiver. The payment is processed securely by Razorpay.`);
+  }
   function razorpayPay(app, o) {
     const Body = () => {
-      const [st, setSt] = useState({ phase: 'creating' });
+      const [st, setSt] = useState({ phase: 'notice' });
       const start = () => {
         setSt({ phase: 'creating' });
         Promise.all([LSB.razorpay.createOrder(o.plan, o.cycle, o.gstin, o.promo, o.users), loadRazorpay()]).then(([ord]) => {
+          if (ord.free) { setSt({ phase: 'paid', ord: { amount: 0 }, v: { order_no: ord.order_no }, free: true }); LSB.refreshSub(app.db).then(() => app.setState(x => ({ rev: x.rev + 1 }))).catch(() => {}); return; }
           const me = app.db.user || {};
           const rz = new window.Razorpay({
-            key: ord.key_id, order_id: ord.order_id, amount: ord.amount, currency: ord.currency, name: 'Legal Staff', description: `${o.name} plan · ${o.cycleLabel}`,
+            key: ord.key_id, order_id: ord.order_id, amount: ord.amount, currency: ord.currency, name: 'Legal Staff', description: `${o.name} plan · ${o.cycleLabel} (receiver may show ${PAYEE_NAME}, proprietor of Legal Staff)`,
             prefill: { name: me.name || '', email: me.email || '', contact: me.phone || '' }, theme: { color: '#0A0A0A' },
             handler: resp => {
               setSt({ phase: 'verifying', ord });
@@ -1624,10 +1582,11 @@
           setSt({ phase: 'open', ord }); rz.open();
         }).catch(e => setSt({ phase: 'error', msg: e.message }));
       };
-      React.useEffect(start, []);
       const col = { display: 'flex', flexDirection: 'column', gap: 12 }, amt = st.ord ? L.inr(st.ord.amount / 100) : '';
+      if (st.phase === 'notice') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt } }, `${o.name} plan · ${o.cycleLabel}`), h(PayeeNotice),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'), h(Btn, { primary: true, onClick: start }, 'Continue to payment')));
       if (st.phase === 'creating') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Preparing your payment…' }));
-      if (st.phase === 'open') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `Complete the payment of ${amt} in the Razorpay window.`));
+      if (st.phase === 'open') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `Complete the payment of ${amt} in the Razorpay window.`), h(PayeeNotice));
       if (st.phase === 'verifying') return h('div', { style: { padding: '24px 0' } }, h(CoinFlow, { label: 'Verifying your payment…' }));
       if (st.phase === 'cancelled') return h('div', { style: col }, h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, 'You closed the payment window. Nothing was charged.'),
         h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close'), h(Btn, { primary: true, onClick: start }, 'Try again')));
@@ -1635,12 +1594,12 @@
         h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close'), !st.ord || /could not|failed|try again/i.test(st.msg) ? h(Btn, { primary: true, onClick: start }, 'Try again') : null));
       return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center', padding: '10px 0' } },
         h('div', { className: 'ls-pop', style: { width: 58, height: 58, borderRadius: 29, background: '#E7F6EC', color: '#137333', fontSize: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 8px #F3FBF5' } }, '✓'),
-        h('div', { style: { fontSize: 18, fontWeight: 600 } }, 'Payment received'),
-        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `${amt} for the ${o.name} plan (${o.cycleLabel}). Your plan is active.`),
+        h('div', { style: { fontSize: 18, fontWeight: 600 } }, st.free ? 'Plan activated' : 'Payment received'),
+        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, st.free ? `The ${o.name} plan (${o.cycleLabel}) is active.` : `${amt} for the ${o.name} plan (${o.cycleLabel}). Your plan is active.`),
         h(PaidInvoice, { orderNo: st.v.order_no }),
         h(Btn, { primary: true, onClick: () => { app.modal(null); app.go('dashboard'); } }, 'Go to dashboard'));
     };
-    app.modal(() => h(Modal, { title: 'Pay with Razorpay', onClose: () => app.modal(null), width: 420 }, h(Body)));
+    app.modal(() => h(Modal, { title: 'Pay with Razorpay', onClose: () => app.modal(null), width: 440 }, h(Body)));
   }
   /* ---------- AI drafting: writes a first draft as a new version of the open template ---------- */
   const textToHtml = t => String(t).replace(/\*\*/g, '').split(/\n{2,}/).map(p => '<p>' + p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') + '</p>').join('');
@@ -1866,6 +1825,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { CourtAdmin, VerificationPanel, verifyBadge, verifyNow, portalBox, autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, upiPay, razorpayPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { CourtAdmin, VerificationPanel, verifyBadge, verifyNow, portalBox, autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, razorpayPay, PayeeNotice, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();

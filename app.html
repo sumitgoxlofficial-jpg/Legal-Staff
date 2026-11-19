@@ -969,10 +969,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#8A8A8A"><span style="flex:1;height:1px;background:#E5E5E5"></span>or pay now<span style="flex:1;height:1px;background:#E5E5E5"></span></div>
               </sc-if>
               <sc-if value="{{ showUpi }}" hint-placeholder-val="{{ false }}">
-                <button class="ls-btn" onClick="{{ payUpi }}" style="{{ upiStyle }}"><span style="display:block;font-weight:600">{{ upiBtn }}</span><span style="display:block;font-size:11.5px;opacity:.8;margin-top:2px">GPay · PhonePe · Paytm · BHIM · straight to our account · confirmed automatically</span></button>
-              </sc-if>
-              <sc-if value="{{ showUpi }}" hint-placeholder-val="{{ false }}">
-                <button class="ls-btn" onClick="{{ payRazorpay }}" style="{{ razorpayStyle }}"><span style="display:block;font-weight:600">{{ razorpayBtn }}</span><span style="display:block;font-size:11.5px;opacity:.8;margin-top:2px">Card · UPI · netbanking · wallets · secured by Razorpay</span></button>
+                <button class="ls-btn" onClick="{{ payRazorpay }}" style="{{ razorpayStyle }}"><span style="display:block;font-weight:600">{{ razorpayBtn }}</span><span style="display:block;font-size:11.5px;opacity:.8;margin-top:2px">UPI · cards · netbanking · wallets · secure Razorpay checkout</span></button>
               </sc-if>
               <sc-if value="{{ showCardPay }}" hint-placeholder-val="{{ true }}">
                 <button class="ls-btn" onClick="{{ pay }}" style="{{ payStyle }}">{{ payBtn }}</button>
@@ -1153,7 +1150,7 @@ class Component extends DCLogic {
     this.refreshChat();
   }
   refreshChat() { clearTimeout(this.chatT); this.chatT = setTimeout(() => LSB.chat.unread().then(u => { this.chatUnread = u; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => {}), 250); }
-  loadDrive() { this.startChat(); if (LSB.on && LSB.upi) LSB.upi.config().then(c => { this.upiCfg = c; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => {});
+  loadDrive() { this.startChat(); 
     if (!LSB.on || !LSB.drive) return; LSB.drive.status().then(s => { this.driveSt = s; this.setState(x => ({ rev: x.rev + 1 })); setTimeout(() => LSV.maybeAskDrive(this), 1500); }).catch(() => { this.driveSt = { configured: false }; }); }
   /* Owner only (Settings): waits for any save in flight, deletes the firm's files and records on the server, then reloads. */
   async eraseFirm() { clearTimeout(this.syncT); this.syncT = null; if (LSB.pending()) await LSB.sync(this.db).catch(() => {}); const n = await LSB.eraseFirm(this.db); await this.reload(); return n; }
@@ -1560,26 +1557,23 @@ class Component extends DCLogic {
         usersNote: perUser ? `${inr(ann ? a : m)} for the first user + ${inr(PER_USER[S.cycle])} for each additional user` + (used > users ? `. Your team has ${used} users.` : '') : '',
         lessUsers: () => setUsers(users - 1), moreUsers: () => setUsers(users + 1), gst: inr(gst), total: inr(base + gst), renew: ann ? 'every year' : 'every month', next: LS.fmt(renews), renews, gstErr: S.gstErr ? h('div', { style: { fontSize: 12.5, color: '#B42318', marginTop: 6 } }, S.gstErr) : null };
     }
-    /* Plans are paid only by UPI straight to our account (Legal Staff's own payment flow, no outside gateway). */
-    const upiOn = !!LSB.on;
+    /* Plans are paid only through Razorpay Checkout (functions/razorpay). */
+    const payOn = !!LSB.on;
     /* Promo code: checked by the server for this plan and billing cycle; the discount comes off before GST. */
     const promoOk = !!(S.promo && co.name && S.promo.plan === co.name && S.promo.cycle === S.cycle && S.promo.users === co.users);
     const applyPromo = () => { const code = String(S.promoInput || '').trim().toUpperCase();
       if (!code) return this.setState({ promoErr: 'Enter a promo code.' });
       if (this.promoBusy) return; this.promoBusy = true; this.setState({ promoErr: '' });
-      LSB.upi.promo(co.name, S.cycle, code, co.users).then(r => this.setState({ promo: Object.assign({ plan: co.name, cycle: S.cycle, users: co.users }, r), promoInput: r.code }))
+      LSB.razorpay.promo(co.name, S.cycle, code, co.users).then(r => this.setState({ promo: Object.assign({ plan: co.name, cycle: S.cycle, users: co.users }, r), promoInput: r.code }))
         .catch(e => this.setState({ promo: null, promoErr: e.message })).finally(() => { this.promoBusy = false; this.setState(s => ({ rev: s.rev + 1 })); }); };
     const removePromo = () => this.setState({ promo: null, promoInput: '', promoErr: '' });
     const rp = p => inr(p / 100);
     const tooFew = () => co.usedTooMany ? (this.setState({ gstErr: `Choose at least ${D.team.length} users, or remove team members first.` }), true) : false;
-    const payUpi = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
-      if (tooFew()) return;
-      const o = { plan: co.name, cycle: S.cycle, gstin: g, name: co.name, cycleLabel: co.cycle + (co.perUser ? ' · ' + co.usersLabel : ''), promo: promoOk ? S.promo.code : '', users: co.users }; this.setState({ plan: null, gstErr: '' }); V.upiPay(this, o); };
     const payRazorpay = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
       if (tooFew()) return;
       const o = { plan: co.name, cycle: S.cycle, gstin: g, name: co.name, cycleLabel: co.cycle + (co.perUser ? ' · ' + co.usersLabel : ''), promo: promoOk ? S.promo.code : '', users: co.users }; this.setState({ plan: null, gstErr: '' }); V.razorpayPay(this, o); };
     const pay = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
-      if (LSB.on) return payUpi();
+      if (LSB.on) return payRazorpay();
       if (tooFew()) return;
       this.mut(db => { db.sub.plan = co.name; db.sub.cycle = S.cycle; db.sub.seats = co.users; db.sub.status = 'active'; db.sub.trialEnds = ''; db.sub.since = T; db.sub.renews = co.renews; db.sub.history.unshift({ plan: co.name + ' · ' + co.cycle, total: co.total, date: T }); if (g) db.firm.gstin = g; V.logIt(db, `Subscription changed to ${co.name} (${co.cycle})`); }); this.setState({ paid: true, gstErr: '' }); };
 
@@ -1672,8 +1666,8 @@ class Component extends DCLogic {
         ...({ Dots: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' }, Grid: { backgroundImage: 'linear-gradient(#ECECEC 1px,transparent 1px),linear-gradient(90deg,#ECECEC 1px,transparent 1px)', backgroundSize: '40px 40px' }, Plain: { backgroundImage: 'none' }, Wallpaper: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' } })[st.backdrop] },
       showWall: st.backdrop === 'Wallpaper',
       goDashboard: () => this.go('dashboard'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'), goOrder: () => this.go('orders'),
-      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, greetingEl: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`.split(' ').map((w, i, a) => h('span', { key: i, className: i === a.length - 1 ? 'ls-greet-w ls-greet-name' : 'ls-greet-w', style: { animationDelay: i === a.length - 1 ? `${120 + i * 80}ms, ${700 + i * 80}ms` : `${120 + i * 80}ms` } }, i < a.length - 1 ? w + ' ' : w)), syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign in with Google or an email code · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'Pay by UPI straight to Legal Staff. The plan switches on by itself once the payment reaches us.' : 'Payments need the server. No money was taken and no tax invoice was issued; the plan is recorded on this device only.', paidLine: LSB.on ? `The invoice has been saved for ${D.user.email}. Next renewal: ${co.next || ''}.` : `Recorded on this device. Next renewal date: ${co.next || ''}.`, payLabel: LSB.on ? 'Paid by UPI' : 'Not charged',
-      payBtn: 'Record the plan on this device', payHint: upiOn ? 'Pay the exact amount shown. Your plan switches on by itself once the payment reaches us, usually within a minute.' : 'Payments need the server. This browser-only version only records the plan choice; no money is taken.', payHead: LSB.on ? 'Payment verified' : 'Plan recorded on this device',
+      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, greetingEl: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`.split(' ').map((w, i, a) => h('span', { key: i, className: i === a.length - 1 ? 'ls-greet-w ls-greet-name' : 'ls-greet-w', style: { animationDelay: i === a.length - 1 ? `${120 + i * 80}ms, ${700 + i * 80}ms` : `${120 + i * 80}ms` } }, i < a.length - 1 ? w + ' ' : w)), syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign in with Google or an email code · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'Pay securely through Razorpay (UPI, cards, netbanking). The plan switches on by itself once the payment is confirmed.' : 'Payments need the server. No money was taken and no tax invoice was issued; the plan is recorded on this device only.', paidLine: LSB.on ? `The invoice has been saved for ${D.user.email}. Next renewal: ${co.next || ''}.` : `Recorded on this device. Next renewal date: ${co.next || ''}.`, payLabel: LSB.on ? 'Paid via Razorpay' : 'Not charged',
+      payBtn: 'Record the plan on this device', payHint: payOn ? 'Your UPI app or bank may show the receiver as ABHIJEET KUMAR, the founder and proprietor of Legal Staff (Udyam-registered MSME). That is the correct receiver. Your plan switches on by itself once Razorpay confirms the payment.' : 'Payments need the server. This browser-only version only records the plan choice; no money is taken.', payHead: LSB.on ? 'Payment verified' : 'Plan recorded on this device',
       planBanner: h(V.PlanCard, { app: this, acc }),
       briefText, briefArt: todayH.length ? null : h('div', { className: 'ls-brief-art' }, h(V.Art, { name: 'sunrise', style: { width: '100%', height: 'auto' } })),
       dashEmpty: { hearings: todayH.length ? null : h(V.Empty, { small: true, art: 'calendar', title: 'No hearings today', text: 'Hearings you add to a case appear here on the day.' }), orders: D.orders.length ? null : h(V.Empty, { small: true, art: 'order', title: 'No court orders yet', text: 'Upload an order to pull out the next date and key points.' }), deadlines: dl.length ? null : h(V.Empty, { small: true, art: 'deadline', title: 'No deadlines tracked', text: 'Run a limitation calculation and it is tracked here.' }), stages: live.length ? null : h(V.Empty, { small: true, art: 'cases', title: 'No active cases', text: 'Cases you add are grouped here by stage.' }) },
@@ -1724,20 +1718,19 @@ class Component extends DCLogic {
       toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate',
       dictLangSel: h('select', { 'aria-label': 'Dictation language', title: 'Dictation language', value: st.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: S.dict, onChange: e => { const v = e.target.value; this.mut(db => { db.settings.dictLang = v; }); }, style: { height: 34, border: '1px solid #E5E5E5', borderRadius: 8, background: '#FFFFFF', fontSize: 13.5, padding: '0 8px', color: '#0A0A0A' } }, h('option', { value: 'en-IN' }, 'English (India)'), h('option', { value: 'hi-IN' }, 'Hindi')),
       dictBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, border: S.dict ? '1px solid #B42318' : '1px solid #E5E5E5', background: S.dict ? '#FDECEA' : '#FFFFFF', color: S.dict ? '#B42318' : '#0A0A0A' },
-      cycles, plans, co, checkoutOpen: S.plan !== null, canTrial, startTrial, payUpi, payRazorpay, showUpi: upiOn, showCardPay: !upiOn, upiBtn: promoOk ? `Pay ${rp(S.promo.total)} by UPI` : `Pay ${co.total || ''} by UPI`,
-      showPromo: upiOn, hasPromo: promoOk, promoCode: promoOk ? S.promo.code : '', promoLabel: promoOk ? S.promo.label : '', promoOff: promoOk ? rp(S.promo.discount) : '',
+      cycles, plans, co, checkoutOpen: S.plan !== null, canTrial, startTrial, payRazorpay, showUpi: payOn, showCardPay: !payOn,
+      showPromo: payOn, hasPromo: promoOk, promoCode: promoOk ? S.promo.code : '', promoLabel: promoOk ? S.promo.label : '', promoOff: promoOk ? rp(S.promo.discount) : '',
       coTotal: promoOk ? rp(S.promo.total) : co.total,
       promoInput: S.promoInput || '', setPromoInput: e => this.setState({ promoInput: e.target.value.toUpperCase(), promoErr: '' }), promoKey: e => { if (e.key === 'Enter') { e.preventDefault(); promoOk ? null : applyPromo(); } },
       promoBtn: promoOk ? 'Remove' : this.promoBusy ? 'Checking…' : 'Apply', promoBtnClick: promoOk ? removePromo : applyPromo,
       promoMsg: S.promoErr ? h('div', { style: { fontSize: 12.5, color: '#B42318' } }, S.promoErr) : promoOk ? h('div', { style: { fontSize: 12.5, color: '#137333' } }, `Code applied. You save ${rp(S.promo.base - S.promo.total)}.`) : null,
-      razorpayBtn: promoOk ? `Pay ${rp(S.promo.total)} by card or netbanking` : `Pay ${co.total || ''} by card or netbanking`, razorpayStyle: { whiteSpace: 'nowrap', padding: '9px 12px', borderRadius: 8, fontSize: 14, textAlign: 'center', background: '#FFFFFF', color: '#0A0A0A', border: '1px solid #0A0A0A' },
-      upiStyle: { whiteSpace: 'nowrap', padding: '9px 12px', borderRadius: 8, fontSize: 14, textAlign: 'center', background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
+      razorpayBtn: promoOk ? `Pay ${rp(S.promo.total)} with Razorpay` : `Pay ${co.total || ''} with Razorpay`, razorpayStyle: { whiteSpace: 'nowrap', padding: '9px 12px', borderRadius: 8, fontSize: 14, textAlign: 'center', background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
       trialBtn: acc.state === 'trial' ? `Switch my trial to ${co.name || ''}` : 'Start 7-day free trial', trialHint: acc.state === 'trial' ? `No payment needed. Your trial still ends on ${trialEndsTxt}.` : `No payment needed. Full ${co.name || ''} plan until ${trialEndsTxt}; then subscribe to keep working.`,
       payStyle: { whiteSpace: 'nowrap', height: 36, borderRadius: 8, fontSize: 13.5, fontWeight: 500, background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
       subPanel: LSB.on && V.SubPanel ? h(V.SubPanel, { app: this }) : null,
       showPlans: acc.state !== 'active' || !LSB.on || !!S.showPlans,
       pricingTitle: acc.state === 'active' ? 'Change or renew your plan' : 'Choose a plan for your practice',
-      coTerms: LSB.on ? `One-time UPI payment for ${S.cycle === 'annual' ? 'one year' : 'one month'}. No automatic charges; you get an invoice by email.` : `Auto-renews ${co.renew || ''}. You can cancel any time from Settings → Subscriptions.`,
+      coTerms: LSB.on ? `One-time payment through Razorpay for ${S.cycle === 'annual' ? 'one year' : 'one month'}. No automatic charges; you get an invoice by email.` : `Auto-renews ${co.renew || ''}. You can cancel any time from Settings → Subscriptions.`,
       pricingNote: acc.state === 'active' ? `You are on the ${D.sub.plan} plan (${D.sub.cycle === 'annual' ? 'annual' : 'monthly'}) until ${LS.fmt(D.sub.renews)}.` : acc.state === 'none' ? 'Every plan starts with a 7-day free trial. No payment needed to start.' : acc.state === 'trial' ? `You are on a free trial of the ${acc.plan} plan, ${acc.daysLeft} day${acc.daysLeft === 1 ? '' : 's'} left. Subscribe any time; unused trial days are kept.` : acc.state === 'expired' ? `Your ${acc.wasTrial ? 'free trial' : 'plan'} has ended. Subscribe to reopen your workspace.` : 'You can change plans at any time.', paid: S.paid, notPaid: !S.paid, gstin: S.gstin, setGstin: e => this.setState({ gstin: e.target.value, gstErr: '' }),
       closeCheckout: () => this.setState({ plan: null }), pay, finishPay: () => { this.setState({ plan: null, paid: false }); this.go('dashboard'); },
       apps, cur, adminNote: S.adminNote, setAdminNote: e => this.setState({ adminNote: e.target.value }), verify: () => this.setStatus('verified', ca), askInfo: () => this.setStatus('info', ca), reject: () => this.setStatus('rejected', ca),
