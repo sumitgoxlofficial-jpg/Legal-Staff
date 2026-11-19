@@ -2,7 +2,7 @@
 //   a super administrator  { action: "overview" | "contacts" | "contact" | "export" | "consent_record" | "consent_verify" | "public_record_apply" | "suppressions" | "suppress_add" |
 //                            "suppression_lift" | "sheets_get" | "sheets_connect" | "sheets_preview" | "sheets_save" | "sheets_sync" | "imports" | "campaigns" |
 //                            "templates" | "template_save" | "template_toggle" | "template_preview" | "template_test" | "queue" | "queue_cancel" | "history" |
-//                            "analytics" | "settings" | "settings_save" | "kill" | "simulate" | "preview_schedule" | "provider" | "provider_save" | "provider_check" |
+//                            "analytics" | "settings" | "settings_save" | "kill" | "simulate" | "send_now" | "preview_schedule" | "provider" | "provider_save" | "provider_check" |
 //                            "report_now" | "audit" }
 //   the scheduler          { action: "tick" } with x-cron-secret: runs whatever is due (sheet sync, planning, sending, the daily report)
 //   the email provider     ?action=webhook with the webhook secret (delivery, bounce, complaint, click, unsubscribe)
@@ -516,6 +516,19 @@ async function adminApi(admin: any, actor: string, action: string, b: any) {
     }
     case "kill": { const on = !!b.on; await admin.from("email_automation_settings").update({ kill_switch: on, updated_at: nowIso(), updated_by: actor }).eq("id", 1); await audit(admin, actor, on ? "kill_switch_on" : "kill_switch_off"); return { kill_switch: on }; }
     case "simulate": { const kinds: any[] = b.kind ? [b.kind] : ["new", "reminder"]; const out: any = {}; for (const k of kinds) out[k] = await plan(admin, k, true, actor); if (!b.quiet) await audit(admin, actor, "dry_run", "", { new: out.new?.selected.length, reminder: out.reminder?.selected.length }); return out; }
+    case "send_now": {
+      if (b.confirm !== true) throw new Fail("Confirm that you want to send the new emails now.");
+      const settings = await getSettings(admin), provider = await getProvider(admin), blockers = productionBlockers(settings, provider);
+      if (blockers.length) throw new Fail("Sending is blocked: " + blockers.join("; ") + ".");
+      const p = await plan(admin, "new", false, actor);   // same rules and the same daily limit as the scheduled run
+      const total = { sent: 0, skipped: 0, failed: 0, held: 0, retried: 0, note: "" }; const t0 = Date.now();
+      while (Date.now() - t0 < 90000) {   // the rest, if any, is sent by the 5-minute scheduler
+        const d = await drain(admin, 25); for (const k of ["sent", "skipped", "failed", "held", "retried"] as const) total[k] += d[k]; total.note = d.note || total.note;
+        if (!d.sent && !d.skipped && !d.failed && !d.retried) break;
+      }
+      await audit(admin, actor, "send_now", "", { selected: p.selected.length, queued: p.queued ?? 0, ...total });
+      return { selected: p.selected.length, queued: p.queued ?? 0, cap: p.cap, remaining_today: Math.max(0, p.remaining - (p.queued ?? 0)), ...total };
+    }
     case "preview_schedule": {
       const out: any = {}; for (const k of ["new", "reminder"] as const) { const p = await plan(admin, k, true, actor); const { data: camps } = await admin.from("email_campaigns").select("*").eq("kind", k);
         const sample = []; for (const s of p.selected.slice(0, 3)) { const { data: c } = await admin.from("email_contacts").select("*").eq("contact_id", s.contact_id).single(); const camp = camps.find((x: any) => x.code === s.campaign); const { data: t } = await admin.from("email_templates").select("*").eq("key", camp.template_key).single(); sample.push({ to: c.email_normalized, ...(await buildMessage(t, camp, c).then((m) => ({ subject: m.subject, html: m.html, text: m.text }))) }); }
