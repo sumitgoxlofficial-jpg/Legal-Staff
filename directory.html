@@ -886,7 +886,7 @@ class Component extends DCLogic {
     if (!window.Razorpay) return fail('Could not load Razorpay checkout. Check your connection and try again.');
     const u = this.state.user || {};
     const rz = new window.Razorpay({
-      key: d.key_id, order_id: d.order_id, amount: d.amount, currency: d.currency, name: 'Legal Staff', description: 'Lifetime directory listing (receiver may show Abhijeet Kumar, proprietor of Legal Staff)', prefill: { name: u.name || '', email: u.email || '' }, theme: { color: '#0A0A0A' },
+      key: d.key_id, order_id: d.order_id, amount: d.amount, currency: d.currency, name: 'Legal Staff', description: 'Lifetime directory listing', prefill: { name: u.name || '', email: u.email || '' }, theme: { color: '#0A0A0A' },
       handler: async resp => {
         this._rzDone = true;
         this.setState({ pay: { phase: 'creating', id } });
@@ -1833,9 +1833,6 @@ class Component extends DCLogic {
             h('div', { style: { fontSize: 12, color: '#5E5E5E', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' } }, 'Listing fee · one time'),
             h('div', { style: { fontSize: 38, fontWeight: 700, letterSpacing: '-.03em', lineHeight: 1.1 } }, rupee(total)),
             h('div', { style: { fontSize: 13.5, color: '#363636', maxWidth: 300 } }, 'UPI, cards, netbanking or wallets in Razorpay\'s secure window.'),
-            h('div', { style: { width: '100%', border: '1px solid #F3D9A4', background: '#FFFCF5', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: '#363636', lineHeight: 1.55, textAlign: 'left' } },
-              h('div', { style: { fontWeight: 600, marginBottom: 2 } }, 'Your payment is to Legal Staff'),
-              'Your UPI app or bank may show the receiver as “ABHIJEET KUMAR”. That is the founder and proprietor of Legal Staff, a Udyam-registered MSME (UDYAM-BR-26-0259961), so it is the correct receiver.'),
             h('button', { type: 'button', onClick: () => this.payRazorpay(pay.id), className: 'ls-press', style: { height: 46, padding: '0 22px', border: 0, borderRadius: 10, background: '#0A0A0A', color: '#fff', fontSize: 15, fontWeight: 600 } }, total === 0 ? 'Activate my listing' : 'Pay ' + rupee(total) + ' with Razorpay'),
             h('div', { style: { width: '100%', display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' } },
               pay.promo
