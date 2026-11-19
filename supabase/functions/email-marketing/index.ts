@@ -1,5 +1,5 @@
 // Legal Staff email marketing (supabase/migrations/0035_email_marketing.sql). One function, four kinds of caller:
-//   a super administrator  { action: "overview" | "contacts" | "contact" | "export" | "consent_record" | "consent_verify" | "suppressions" | "suppress_add" |
+//   a super administrator  { action: "overview" | "contacts" | "contact" | "export" | "consent_record" | "consent_verify" | "public_record_apply" | "suppressions" | "suppress_add" |
 //                            "suppression_lift" | "sheets_get" | "sheets_connect" | "sheets_preview" | "sheets_save" | "sheets_sync" | "imports" | "campaigns" |
 //                            "templates" | "template_save" | "template_toggle" | "template_preview" | "template_test" | "queue" | "queue_cancel" | "history" |
 //                            "analytics" | "settings" | "settings_save" | "kill" | "simulate" | "preview_schedule" | "provider" | "provider_save" | "provider_check" |
@@ -108,13 +108,13 @@ async function runImport(admin: any, integ: any, trigger: "manual" | "scheduled"
 }
 
 // ---------- planning ----------
-const CLEAN = (q: any) => q.eq("consent_status", "GRANTED").not("consent_verified_at", "is", null).eq("unsubscribe_status", "SUBSCRIBED").eq("hard_bounced", false).eq("spam_complaint", false).eq("registration_status", "NONE").eq("payment_status", "NONE");
+const CLEAN = (q: any, publicRecord = true) => (publicRecord ? q.in("consent_status", ["GRANTED", "PUBLIC_RECORD"]).or("consent_verified_at.not.is.null,consent_status.eq.PUBLIC_RECORD") : q.eq("consent_status", "GRANTED").not("consent_verified_at", "is", null)).eq("unsubscribe_status", "SUBSCRIBED").eq("hard_bounced", false).eq("spam_complaint", false).eq("registration_status", "NONE").eq("payment_status", "NONE");
 
 /** The facts evaluateEligibility needs, read fresh for a set of contacts. */
 async function facts(admin: any, contacts: any[], campaignIds: string[]) {
   const ids = contacts.map((c) => c.id), emails = contacts.map((c) => c.email_normalized);
   const [cons, sup, queued] = await Promise.all([
-    inChunks(ids, async (c) => (await admin.from("email_consents").select("contact_id").eq("purpose", "marketing").is("withdrawn_at", null).not("verified_at", "is", null).in("contact_id", c)).data ?? []),
+    inChunks(ids, async (c) => ((await admin.from("email_consents").select("contact_id,purpose,verified_at").in("purpose", ["marketing", "public_record"]).is("withdrawn_at", null).in("contact_id", c)).data ?? []).filter((r: any) => r.purpose === "public_record" || r.verified_at)),
     inChunks(emails, async (c) => (await admin.from("email_suppressions").select("email_normalized").in("email_normalized", c)).data ?? []),
     inChunks(ids, async (c) => (await admin.from("email_queue").select("contact_id,campaign_id,status").in("contact_id", c).in("campaign_id", campaignIds).in("status", ["sent", "sending"])).data ?? []),
   ]);
@@ -140,19 +140,21 @@ async function plan(admin: any, kind: "new" | "reminder", dry: boolean, actor = 
   const out: any = { kind, date: today, cap, remaining: left, selected: [], skipped: [], blockers: productionBlockers(settings, provider) };
   if (left <= 0 || !(campaigns ?? []).length) return out;
   let cands: any[];
-  if (kind === "new") cands = (await CLEAN(admin.from("email_contacts").select("*")).eq("first_email_status", "ELIGIBLE").order("created_at").limit(left * 3 + 20)).data ?? [];
-  else cands = (await CLEAN(admin.from("email_contacts").select("*")).eq("first_email_status", "SENT").lte("reminder_due_date", today).lt("reminder_count", settings.max_reminders).order("reminder_due_date").limit(left * 3 + 20)).data ?? [];
+  const pubOk = dry || !!settings.allow_public_record;   // a real run with the switch off must not let public-record rows crowd out others
+  if (kind === "new") cands = (await CLEAN(admin.from("email_contacts").select("*"), pubOk).eq("first_email_status", "ELIGIBLE").order("created_at").limit(left * 3 + 20)).data ?? [];
+  else cands = (await CLEAN(admin.from("email_contacts").select("*"), pubOk).eq("first_email_status", "SENT").lte("reminder_due_date", today).lt("reminder_count", settings.max_reminders).order("reminder_due_date").limit(left * 3 + 20)).data ?? [];
   const f = await facts(admin, cands, campaigns.map((c: any) => c.id));
   const rows: any[] = [];
   for (const c of cands) {
     if (out.selected.length >= left) break;
     const camp = kind === "new" ? campaigns[0] : campaigns.find((x: any) => x.step === c.reminder_count + 1);
     if (!camp) { out.skipped.push({ contact_id: c.contact_id, reasons: ["No campaign for this reminder step"] }); continue; }
-    const ev = evaluateEligibility({ contact: c, settings: dry ? { ...settings, system_enabled: true, legal_approval: true, provider_approved: true, kill_switch: false } : settings,
+    const ev = evaluateEligibility({ contact: c, settings: dry ? { ...settings, system_enabled: true, legal_approval: true, provider_approved: true, kill_switch: false, allow_public_record: true } : settings,
       campaign: camp, template: dry ? { active: true } : tpl.get(camp.template_key), provider: dry ? { configured: true } : provider, suppressed: f.suppressed.has(c.email_normalized),
       alreadySent: f.sent.has(c.id + ":" + camp.id), hasConsentRecord: f.consent.has(c.id), todayIst: today });
     if (!ev.ok) { out.skipped.push({ contact_id: c.contact_id, email: c.email_normalized, reasons: describeReasons(ev.reasons) }); continue; }
     out.selected.push({ contact_id: c.contact_id, email: c.email_normalized, name: c.advocate_name, campaign: camp.code });
+    if (dry && c.consent_status === "PUBLIC_RECORD" && !settings.allow_public_record && !out.blockers.includes("Public-record emailing is not switched on")) out.blockers.push("Public-record emailing is not switched on");
     rows.push({ campaign_id: camp.id, contact_id: c.id, scheduled_date: today, idempotency_key: `${camp.code}:${c.id}` });
   }
   if (!dry && rows.length) {
@@ -389,7 +391,7 @@ function applyFilters(q: any, f: any) {
   return q;
 }
 const pick = (o: any, keys: string[]) => Object.fromEntries(keys.filter((k) => k in o).map((k) => [k, o[k]]));
-const SETTING_KEYS = ["system_enabled", "legal_approval", "legal_approval_ref", "provider_approved", "provider_approval_ref", "dry_run", "max_new_per_day", "max_reminders_per_day", "new_email_time", "reminder_time", "report_time", "reminder_after_days", "max_reminders", "sheet_sync_hours", "report_to"];
+const SETTING_KEYS = ["system_enabled", "legal_approval", "legal_approval_ref", "provider_approved", "provider_approval_ref", "dry_run", "max_new_per_day", "max_reminders_per_day", "new_email_time", "reminder_time", "report_time", "reminder_after_days", "max_reminders", "sheet_sync_hours", "report_to", "allow_public_record", "public_record_ref"];
 
 async function adminApi(admin: any, actor: string, action: string, b: any) {
   switch (action) {
@@ -425,6 +427,14 @@ async function adminApi(admin: any, actor: string, action: string, b: any) {
       if (c.hard_bounced || c.spam_complaint) throw new Fail("This address bounced or complained and cannot receive marketing.");
       const { data, error } = await admin.rpc("email_apply_consent", { p_contact: c.id, p_source: String(b.source ?? ""), p_wording: String(b.wording_version ?? ""), p_at: at.toISOString(), p_verified: ver ? ver.toISOString() : null, p_evidence: String(b.evidence_ref ?? ""), p_by: actor });
       if (error) throw new Fail(error.message); return { consent_id: data };
+    }
+    case "public_record_apply": {
+      const s = await getSettings(admin); if (!s.legal_approval || !s.allow_public_record) throw new Fail("Record legal approval and switch on public-record emailing (with its reference) in Automation Settings first.");
+      if (b.confirm !== true) throw new Fail("Confirm that these contacts come from the official page you name.");
+      const at = new Date(b.checked_at); if (isNaN(+at) || +at > Date.now() + 6e4) throw new Fail("Give the date you checked the official page (not in the future).");
+      if (!/^https:\/\/[^\s]+\.[^\s]+$/.test(String(b.source_url ?? ""))) throw new Fail("Give the full https address of the official page.");
+      const { data, error } = await admin.rpc("email_apply_public_record", { p_source: String(b.source ?? ""), p_url: String(b.source_url), p_checked: at.toISOString(), p_by: actor });
+      if (error) throw new Fail(error.message); return { marked: data };
     }
     case "consent_verify": { const { data: c } = await admin.from("email_contacts").select("id").eq("contact_id", String(b.contact_id)).maybeSingle(); if (!c) throw new Fail("Contact not found.", 404);
       const { error } = await admin.rpc("email_verify_consent", { p_contact: c.id, p_at: nowIso(), p_by: actor }); if (error) throw new Fail(error.message); return { ok: true }; }

@@ -15,6 +15,14 @@ const reasons = (o) => L.evaluateEligibility(base(o)).reasons;
 console.log('eligibility (the ten checks)');
 await t('a fully permitted contact is eligible', () => { const r = L.evaluateEligibility(base()); ok(r.ok); eq(r.reasons, []); });
 await t('1 public-directory contact (consent UNKNOWN, BLOCKED) is never eligible', () => { const c = { ...good(), consent_status: 'UNKNOWN', first_email_status: 'BLOCKED', consent_verified_at: null }; const r = reasons({ contact: c, hasConsentRecord: false }); ok(r.includes('NO_CONSENT')); ok(r.includes('NOT_VERIFIED')); });
+await t('public-record contact needs the switch, then passes without email verification', () => {
+  const c = { ...good(), consent_status: 'PUBLIC_RECORD', consent_verified_at: null };
+  const off = L.evaluateEligibility(base({ contact: c, settings: { ...settings, allow_public_record: false } })); ok(!off.ok); ok(off.reasons.includes('PUBLIC_RECORD_OFF')); ok(off.hold);
+  ok(L.evaluateEligibility(base({ contact: c, settings: { ...settings, allow_public_record: true } })).ok);
+  ok(!L.evaluateEligibility(base({ contact: { ...c, unsubscribe_status: 'UNSUBSCRIBED' }, settings: { ...settings, allow_public_record: true } })).ok);
+  ok(reasons({ contact: c, hasConsentRecord: false, settings: { ...settings, allow_public_record: true } }).includes('NO_CONSENT'));
+});
+await t('settings: public-record emailing needs legal approval and a reference', () => { ok(L.settingsProblem({ allow_public_record: true, legal_approval: true, legal_approval_ref: 'x', public_record_ref: '' })); });
 await t('1 consent flag without an audit record is not enough', () => ok(reasons({ hasConsentRecord: false }).includes('NO_CONSENT')));
 await t('2 unverified email is blocked', () => ok(reasons({ contact: { ...good(), consent_verified_at: null } }).includes('NOT_VERIFIED')));
 await t('3 no legal approval', () => ok(reasons({ settings: { ...settings, legal_approval: false } }).includes('LEGAL')));

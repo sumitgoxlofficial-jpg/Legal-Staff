@@ -142,6 +142,22 @@ select pg_temp.check((select count(*) from public.email_templates where active) 
 select pg_temp.check((select count(*) from public.email_templates where body_html like '%{{unsubscribe_url}}%') = 3, 'every template contains the unsubscribe link');
 select pg_temp.check((select count(*) from public.email_campaigns) = 3, 'three campaigns: first, reminder, final reminder');
 
+-- public-record basis (0037)
+do $$ declare a uuid; b uuid; c uuid; n integer; begin
+  insert into public.email_contacts (contact_id, email, email_normalized) values ('P1','p1@court.in','p1@court.in') returning id into a;
+  insert into public.email_contacts (contact_id, email, email_normalized) values ('P2','p2@court.in','p2@court.in') returning id into b;
+  insert into public.email_contacts (contact_id, email, email_normalized) values ('P3','nope','nope') returning id into c;
+  perform public.email_suppress('p2@court.in', 'unsubscribed', 'test', 'test');
+  begin perform public.email_apply_public_record('', '', now(), 't'); perform pg_temp.check(false, 'needs evidence'); exception when raise_exception then perform pg_temp.check(true, 'a public-record basis needs source, page and date'); end;
+  n := public.email_apply_public_record('Bar Council', 'https://example.gov.in/list', now(), 'test');
+  perform pg_temp.check((select consent_status = 'PUBLIC_RECORD' and first_email_status = 'ELIGIBLE' and consent_verified_at is null from public.email_contacts where id = a), 'valid contact becomes PUBLIC_RECORD and eligible');
+  perform pg_temp.check((select consent_status = 'WITHDRAWN' and first_email_status = 'BLOCKED' from public.email_contacts where id = b), 'an unsubscribed contact is not touched');
+  perform pg_temp.check((select consent_status = 'UNKNOWN' from public.email_contacts where id = c), 'an invalid address is not touched');
+  perform pg_temp.check((select count(*) = 1 from public.email_consents where contact_id = a and purpose = 'public_record' and evidence_ref = 'https://example.gov.in/list'), 'the official page is kept as evidence');
+  perform public.email_suppress('p1@court.in', 'unsubscribed', 'test', 'test');
+  perform pg_temp.check((select consent_status = 'WITHDRAWN' and first_email_status = 'BLOCKED' from public.email_contacts where id = a) and (select withdrawn_at is not null from public.email_consents where contact_id = a), 'unsubscribing withdraws a public-record basis');
+end $$;
+
 -- row level security: nothing is readable from the browser roles
 reset role; set role authenticated;
 do $$ begin begin perform count(*) from public.email_contacts; perform pg_temp.check(false, 'authenticated read'); exception when insufficient_privilege then perform pg_temp.check(true, 'signed-in users cannot read contacts'); end; end $$;

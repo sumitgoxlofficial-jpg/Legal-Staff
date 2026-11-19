@@ -32,7 +32,7 @@ class Q {
   in(c, v) { this.f.push((r) => v.includes(r[c])); return this; }
   not(c, _o, _v) { this.f.push((r) => r[c] != null); return this; } is(c, _v) { this.f.push((r) => r[c] == null); return this; }
   ilike(c, p) { const re = new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*'), 'i'); this.f.push((r) => re.test(String(r[c] ?? ''))); return this; }
-  or(s) { const parts = s.split(',').map((x) => x.split('.')); this.f.push((r) => parts.some(([c, , p]) => new RegExp(p.replace(/%/g, '.*'), 'i').test(String(r[c] ?? '')))); return this; }
+  or(s) { const parts = s.split(',').map((x) => x.split('.')); this.f.push((r) => parts.some(([c, o, p]) => o === 'not' ? r[c] != null : o === 'eq' ? String(r[c]) === p : new RegExp(p.replace(/%/g, '.*'), 'i').test(String(r[c] ?? '')))); return this; }
   order(c, o) { this.ord = [c, !(o && o.ascending === false)]; return this; } limit(n) { this.lim = n; return this; } range(a, b) { this.from = a; this.lim = b - a + 1; return this; }
   single() { this.one = 'single'; return this; } maybeSingle() { this.one = 'maybe'; return this; }
   then(res, rej) { try { res(this.run()); } catch (e) { (rej || ((x) => { throw x; }))(e); } }
