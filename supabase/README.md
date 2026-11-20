@@ -18,6 +18,8 @@
 | `functions/ai` | Real AI for AI Case Brain, AI Legal Research and AI Drafting Studio through Groq; picks the best model from Groq's live list; counts AI credits per firm per month by plan (deploy with JWT verification off; it checks the caller itself) |
 | `functions/upi-pay` | Pay by UPI straight to the operator's UPI ID, no gateway: creates orders with a unique amount, confirms them automatically by Paytm for Business order status, bank 'credited' SMS from an SMS-forwarder phone, or forwarded bank alert emails, applies promo codes, then activates the plan (deploy with JWT verification off; it checks every caller itself) |
 | `functions/billing` | Invoices for plan payments: numbers them, emails the PDF to the buyer, lists, downloads and re-sends them (deploy with JWT verification off) |
+| `migrations/0024_partner_network.sql`, `0025_partner_mail_schedule.sql` | Advocate Partner Network: partners, categories, referral attribution, commission ledger, payouts, fraud flags, compliance approvals, roles, audit. See `docs/partner-network/` |
+| `functions/partner-mail` | Sends queued Partner Network emails and template test emails (deploy with JWT verification off; scheduled every 10 minutes by 0025) |
 | `functions/drive` | Encrypted storage in each user's own Google Drive: uploads and nightly backups, encrypted with AES-256-GCM (a key per firm) and kept in the Drive's hidden app folder (deploy with JWT verification off; it checks the caller itself) |
 
 ## Current project

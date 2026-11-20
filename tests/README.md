@@ -33,3 +33,11 @@ COURT_API_KEY=... node tests/court-live-check.mjs DLHC010001232024
 ```
 
 It makes one `GET /api/partner/case/{cnr}` call (about ₹1.50 on pay-as-you-go), prints which fields were read and which are missing, and never prints the key.
+
+## Partner Network
+
+| Command | What it proves |
+| --- | --- |
+| `bash tests/partner-db/run.sh` | Migration 0024 on real PostgreSQL 16: permissions per role, registration and duplicate blocking, attribution rules, commission gating and duplicate prevention, payouts, fraud flags, audit immutability, global switches, isolation between partners, and that advocate registration survives a partner-network fault. |
+| `node tests/partner-ui/ui.test.mjs` | Real Chromium against the real pages and database (through `tests/partner-ui/bridge.mjs`): registration with OTP, admin approval, legal approval before commission, referral capture on the directory, payment, commission, KYC, payout, CSV/Excel export, staff roles, mobile layouts. Needs Playwright and PostgreSQL 16. |
+| `node tests/partner-export.test.mjs`, `node tests/partner-mail.test.mjs` | CSV/Excel writer (formula-injection guard, valid xlsx) and email helpers. |
