@@ -1,4 +1,4 @@
--- Behavioural checks for migration 0024 on real PostgreSQL. Each t.ok(...) is one assertion; failures are listed at the end.
+-- Behavioural checks for migration 0039 on real PostgreSQL. Each t.ok(...) is one assertion; failures are listed at the end.
 \set ON_ERROR_STOP 0
 set client_min_messages = warning;
 create schema t; create table t.r (ok boolean, name text);
@@ -117,7 +117,7 @@ select public.partner_track_click('LS10001', 'visitor-token-dddddddd4');
 select public.partner_track_click('LS10002', 'visitor-token-eeeeeeee5');
 
 -- ===== advocate registration and attribution =====
-set role anon; select t.as_user(null, null);
+reset role; select t.as_user(null, null);
 insert into public.directory_applications (id, name, enr, council, year, city, email, mobile, details, referral_code, visitor_token) values
   ('A1', 'Anil Kumar', 'BR/100/2015', 'Bar Council of Bihar', '2015', 'Patna', 'anil@x.in', '9000000001', '{"documents":["id.pdf","enrolment.pdf"]}', 'ls10001', 'visitor-token-aaaaaaaa1'),
   ('A2', 'Asha Rao', 'BR/101/2016', 'Bar Council of Bihar', '2016', 'Patna', 'asha@example.in', '9000000002', '{"documents":["id.pdf"]}', 'LS10001', 'visitor-token-bbbbbbbb2'),
@@ -173,7 +173,7 @@ select t.a($q$not exists (select 1 from public.partner_commissions)$q$, 'an earl
 
 -- a new referral after approval
 select public.partner_track_click('LS10001', 'visitor-token-ffffffff6');
-set role anon; select t.as_user(null, null);
+reset role; select t.as_user(null, null);
 insert into public.directory_applications (id, name, enr, council, year, city, email, mobile, details, referral_code, visitor_token) values
   ('B1', 'Bharat Singh', 'BR/200/2018', 'Bar Council of Bihar', '2018', 'Gaya', 'bharat@x.in', '9100000001', '{"documents":["a.pdf"]}', 'LS10001', 'visitor-token-ffffffff6');
 reset role;
@@ -245,7 +245,7 @@ select t.a($q$t.cnt($$select count(*) from public.partner_audit_logs where entit
 
 -- ===== reversal when a listing is rejected =====
 select public.partner_track_click('LS10001', 'visitor-token-gggggggg7');
-set role anon; select t.as_user(null, null);
+reset role; select t.as_user(null, null);
 insert into public.directory_applications (id, name, enr, council, year, city, email, mobile, details, referral_code, visitor_token) values
   ('C1', 'Chandan Lal', 'BR/300/2019', 'Bar Council of Bihar', '2019', 'Gaya', 'chandan@x.in', '9200000001', '{"documents":["a.pdf"]}', 'LS10001', 'visitor-token-gggggggg7');
 reset role;
@@ -262,7 +262,7 @@ select public.admin_partner_status(t.pid('LS10002'), 'suspend', 'Under review');
 reset role;
 insert into t.v select 'clicked', public.partner_track_click('LS10002', 'visitor-token-hhhhhhhh8')::text;
 select t.a($q$not (select v::boolean from t.v where k='clicked')$q$, 'a suspended partner no longer records clicks');
-set role anon; select t.as_user(null, null);
+reset role; select t.as_user(null, null);
 insert into public.directory_applications (id, name, enr, council, year, city, email, mobile, referral_code, visitor_token) values ('D1', 'Dilip', 'BR/400/2019', 'Bar Council of Bihar', '2019', 'Gaya', 'dilip@x.in', '9300000001', 'LS10002', 'visitor-token-hhhhhhhh8');
 reset role;
 select t.a($q$not exists (select 1 from public.referral_attributions where application_id = 'D1') or (select status from public.referral_attributions where application_id = 'D1') = 'rejected_inactive'$q$, 'a suspended partner earns no attribution');
@@ -293,10 +293,33 @@ select t.a($q$jsonb_array_length(public.partner_earnings_list()) = 0$q$, 'partne
 select t.a($q$jsonb_array_length(public.partner_payouts_list() -> 'payouts') = 0$q$, 'partner B sees none of partner A''s payouts');
 reset role;
 
+select pg_get_functiondef('public.ps_evaluate_commission(text)'::regprocedure) as evaldef \gset
+-- ===== the real directory fee (Razorpay orders in directory_orders) =====
+select public.partner_track_click('LS10001', 'visitor-token-jjjjjjjj10');
+select public.partner_track_click('LS10001', 'visitor-token-kkkkkkkk11');
+reset role; select t.as_user(null, null);
+insert into public.directory_applications (id, name, enr, council, year, city, email, mobile, details, referral_code, visitor_token) values
+  ('R1', 'Rahul Jha', 'BR/600/2021', 'Bihar State Bar Council', '2021', 'Gaya', 'rahul@x.in', '9400000001', '{"documents":["a.pdf"]}', 'LS10001', 'visitor-token-jjjjjjjj10'),
+  ('R2', 'Rita Devi', 'BR/601/2021', 'Bihar State Bar Council', '2021', 'Gaya', 'rita@x.in', '9400000002', '{"documents":["a.pdf"]}', 'LS10001', 'visitor-token-kkkkkkkk11');
+insert into public.directory_orders (application_id, order_no, amount_paise, status, utr, confirmed_by, paid_at) values ('R2', 'order_promo', 0, 'paid', null, 'promo', now());
+select t.a($q$(select status from public.partner_commissions where application_id = 'R2') = 'pending_payment'$q$, 'a 100%-off promo order is a registration, not a payment: commission keeps waiting');
+insert into public.directory_orders (application_id, order_no, amount_paise, status, utr, confirmed_by, paid_at) values ('R1', 'order_rzp_1', 4900, 'paid', 'pay_ABC123', 'razorpay', now());
+select t.a($q$(select status from public.partner_commissions where application_id = 'R1') = 'pending_verification'$q$, 'a paid Razorpay directory order counts as the verified payment');
+update public.directory_applications set status = 'verified', paid_at = now() where id = 'R1';
+select t.a($q$(select status from public.partner_commissions where application_id = 'R1') = 'eligible'$q$, 'paid order + verified listing = eligible, with no manual payment entry');
+select t.a($q$public.ps_paid('R1') = 4900 and public.ps_paid('R2') is null$q$, 'ps_paid reports real money only');
+insert into public.directory_orders (application_id, order_no, amount_paise, status, confirmed_by, paid_at) values ('R2', 'order_rzp_2', 500, 'paid', 'razorpay', now());
+select t.a($q$(select status from public.partner_commissions where application_id = 'R2') = 'pending_payment'$q$, 'a payment smaller than the commission does not make it eligible');
+create or replace function public.ps_evaluate_commission(p_app text) returns uuid language plpgsql as $$ begin raise exception 'boom'; end $$;
+insert into public.directory_applications (id, name, enr, council, year, city) values ('R3', 'Rohan', 'BR/602/2021', 'Bihar State Bar Council', '2021', 'Gaya');
+insert into public.directory_orders (application_id, order_no, amount_paise, status, confirmed_by, paid_at) values ('R3', 'order_rzp_3', 4900, 'paid', 'razorpay', now());
+select t.a($q$exists (select 1 from public.directory_orders where order_no = 'order_rzp_3')$q$, 'a Razorpay order is recorded even if the partner network code fails');
+\i /tmp/ls-restore-eval.sql
+
 -- ===== advocate registration survives a partner-network fault =====
 select pg_get_functiondef('public.ps_attribute_application(text)'::regprocedure) as keepdef \gset
 create or replace function public.ps_attribute_application(p_app text) returns void language plpgsql as $$ begin raise exception 'boom'; end $$;
-set role anon; select t.as_user(null, null);
+reset role; select t.as_user(null, null);
 insert into public.directory_applications (id, name, enr, council, year, city, referral_code) values ('E1', 'Eshan', 'BR/500/2020', 'Bar Council of Bihar', '2020', 'Gaya', 'LS10001');
 reset role;
 select t.a($q$exists (select 1 from public.directory_applications where id = 'E1')$q$, 'advocate registration succeeds even if the partner network code fails');

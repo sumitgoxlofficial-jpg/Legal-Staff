@@ -39,8 +39,8 @@ Report kinds: partner_master, applications, state_wise, district_wise, referrals
 Edge function `partner-mail` (JWT verification off): `{action:"drain"}` with header `x-cron-secret`; `{action:"test", template, to}` for staff with notifications.manage.
 
 ## Deployment (in order)
-1. Take a database backup. Apply `0024_partner_network.sql`. (Needs the `vault` schema and `pgcrypto`, both present on Supabase.)
-2. Deploy `functions/partner-mail` (with `_shared/partner-mail.js`; deploy `functions/` as a whole). Then apply `0025_partner_mail_schedule.sql`.
+1. Take a database backup. Apply `0039_partner_network.sql`. (Needs the `vault` schema and `pgcrypto`, both present on Supabase.)
+2. Deploy `functions/partner-mail` (with `_shared/partner-mail.js`; deploy `functions/` as a whole). Then apply `0040_partner_mail_schedule.sql`.
 3. Merge/deploy the site (Vercel). Run `SITE_UPDATED=<date> node seo/build.mjs` only if you change pages; generated output is committed.
 4. Add staff: Admin → Partner Network → System Settings → Roles and staff.
 5. Leave commission off. Record counsel's approval first, then switch per category.

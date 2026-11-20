@@ -1,6 +1,6 @@
 // Advocate Partner Network pages: /partners, /partners/register, /partners/login, /partners/terms, /partners/privacy and the
 // signed-in portal shells (/partners/dashboard … /partners/support, noindex). Same header, footer, hero, sections and tokens as every
-// other Legal Staff page; behaviour lives in /static/partners.js and the database functions in migration 0024.
+// other Legal Staff page; behaviour lives in /static/partners.js and the database functions in migration 0039.
 // Never promises clients, cases, income or professional success. Commission is described as conditional and is OFF until counsel approves it.
 import { page, seoHead, ld, hero, section, faqBlock, icon, esc, abs } from '../lib.mjs';
 import { legalPage } from './legal.mjs';

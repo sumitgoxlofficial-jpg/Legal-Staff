@@ -10,9 +10,10 @@
 --     (referral_code, visitor_token) and triggers that record attribution and re-evaluate the commission ledger. A failure in that
 --     code is caught and logged, so advocate registration can never be broken by the partner network.
 --   * Commission is OFF everywhere until legal approval is recorded for the category (a CHECK constraint, not just a screen rule).
---   * The listing price is NOT assumed: the live directory has no listing fee. The price stays unset until a super admin reconciles
---     and approves it (partner_settings.listing_price_*). A commission needs a verified payment record, which only staff or the
---     payment webhook (service role) can create. Nothing is taken from a browser payment response.
+--   * The live directory charges a one-time Rs 49 listing fee through Razorpay (functions/razorpay; paid orders land in
+--     directory_orders, verified server-side). A commission counts that payment only when the order is paid with an amount above zero
+--     (a 100%-off promo is a registration, not a payment). Staff can also record a verified payment by hand. Nothing is taken from a
+--     browser payment response. partner_settings.listing_price_* is informational until a super admin confirms it matches the live fee.
 
 create extension if not exists pgcrypto with schema extensions;
 
@@ -41,7 +42,7 @@ insert into public.partner_settings (key, value, description) values
   ('payouts_paused', 'false', 'Pause withdrawal requests and payout processing'),
   ('campaigns_enabled', 'true', 'Marketing campaigns'),
   ('joining_fee_paise', '0', 'Partner joining fee (paise). Free by default'),
-  ('listing_price_paise', 'null', 'Directory listing price (paise). Unset: the live directory is free and this must be reconciled by a super admin'),
+  ('listing_price_paise', 'null', 'Directory listing price (paise) for reporting. The live fee is set in functions/razorpay (DIR_FEE_PAISE, Rs 49); a super admin confirms this matches'),
   ('listing_price_status', '"unreconciled"', 'unreconciled | approved. Only an approved price may be displayed or charged'),
   ('default_commission_paise', '1500', 'Proposed commission per eligible listing (paise). Applies only where a category has commission on'),
   ('min_withdrawal_paise', '30000', 'Minimum withdrawal (paise)'),
@@ -438,13 +439,23 @@ end $$;
 create or replace function public.ps_valid_approval(p_cat text) returns public.partner_compliance_approvals language sql stable security definer set search_path = public, pg_temp as $$
   select a.* from public.partner_compliance_approvals a where a.category_key = p_cat and a.revoked_at is null and (a.valid_until is null or a.valid_until >= current_date) order by a.approved_on desc limit 1 $$;
 
+-- Verified money for a listing, in paise: a paid Razorpay directory order (amount above zero) or a payment staff recorded by hand. Null when none.
+create or replace function public.ps_paid(p_app text) returns bigint language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare n bigint;
+begin
+  if to_regclass('public.directory_orders') is not null then
+    execute 'select max(amount_paise) from public.directory_orders where application_id = $1 and status = ''paid'' and amount_paise > 0' into n using p_app;
+  end if;
+  return coalesce(n, (select max(y.amount_paise) from public.partner_listing_payments y where y.application_id = p_app));
+end $$;
+
 create or replace function public.ps_risk(p_attr uuid) returns integer language sql stable security definer set search_path = public, pg_temp as $$
   select least(100, coalesce(sum(score), 0))::int from public.partner_fraud_flags where attribution_id = p_attr and status in ('open', 'confirmed') $$;
 
 -- Create or refresh the ledger entry for one advocate application. Idempotent; never moves a commission that finance has already approved.
 create or replace function public.ps_evaluate_commission(p_app text) returns uuid language plpgsql security definer set search_path = public, pg_temp as $$
 declare att public.referral_attributions; cat public.partner_categories; ap public.partner_compliance_approvals; app public.directory_applications;
-  pay public.partner_listing_payments; cm public.partner_commissions; want text; why text; amt int; docs int := 0; v_id uuid;
+  payamt bigint; cm public.partner_commissions; want text; why text; amt int; docs int := 0; v_id uuid;
 begin
   select * into att from public.referral_attributions where application_id = p_app and status = 'valid';
   if not found then return null; end if;
@@ -463,12 +474,13 @@ begin
   else
     amt := cm.amount_paise; ap.reference := cm.legal_approval_ref;
   end if;
-  select * into pay from public.partner_listing_payments where application_id = p_app;
+  payamt := public.ps_paid(p_app);
   if jsonb_typeof(app.details -> 'documents') = 'array' then docs := jsonb_array_length(app.details -> 'documents'); end if;
   if app.status = 'rejected' then want := 'rejected'; why := 'The directory application was rejected';
   elsif cm.manual_hold then want := 'on_hold'; why := coalesce(nullif(cm.status_reason, ''), 'Held by staff');
   elsif not att.touch_verified then want := 'pending_attribution'; why := 'Referral click not matched; staff must confirm the attribution';
-  elsif pay.id is null then want := 'pending_payment'; why := 'No verified payment for the listing yet';
+  elsif payamt is null then want := 'pending_payment'; why := 'No verified payment for the listing yet';
+  elsif payamt < amt then want := 'pending_payment'; why := 'The verified payment is smaller than the commission';
   elsif app.status <> 'verified' or docs = 0 then want := 'pending_verification'; why := case when docs = 0 then 'Documents not submitted' else 'Listing not yet approved' end;
   elsif public.ps_risk(att.id) >= coalesce(public.ps_int('fraud_hold_threshold'), 70) then want := 'on_hold'; why := 'Risk score above the hold threshold; manual review needed';
   else want := 'eligible'; why := 'All conditions met'; end if;
@@ -575,9 +587,21 @@ drop trigger if exists ps_attr_fixed on public.referral_attributions;
 create trigger ps_attr_fixed before update on public.referral_attributions for each row execute function public.ps_attr_immutable();
 
 create or replace function public.ps_payment_after_insert() returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
-begin perform public.ps_evaluate_commission(new.application_id); return new; end $$;
+begin   -- a payment (Razorpay order or manual) must never fail because of the partner network
+  begin perform public.ps_evaluate_commission(new.application_id);
+  exception when others then
+    insert into public.partner_audit_logs (action, entity, entity_id, detail) values ('commission.error', 'directory_application', new.application_id, jsonb_build_object('error', sqlerrm));
+  end;
+  return new;
+end $$;
 drop trigger if exists ps_payment_ins on public.partner_listing_payments;
 create trigger ps_payment_ins after insert on public.partner_listing_payments for each row execute function public.ps_payment_after_insert();
+do $$ begin
+  if to_regclass('public.directory_orders') is not null then
+    drop trigger if exists ps_order_paid on public.directory_orders;
+    create trigger ps_order_paid after insert or update of status, amount_paise on public.directory_orders for each row when (new.status = 'paid') execute function public.ps_payment_after_insert();
+  end if;
+end $$;
 
 -- ---------- public functions (no sign-in) ----------
 create or replace function public.partner_public_config() returns jsonb language sql stable security definer set search_path = public, pg_temp as $$
@@ -678,7 +702,7 @@ begin
     'totals', jsonb_build_object(
       'referrals', (select count(*) from public.partner_referrals where partner_id = p.id),
       'registrations', (select count(*) from public.referral_attributions where partner_id = p.id and status = 'valid'),
-      'paid_registrations', (select count(*) from public.referral_attributions t join public.partner_listing_payments y on y.application_id = t.application_id where t.partner_id = p.id and t.status = 'valid'),
+      'paid_registrations', (select count(*) from public.referral_attributions t where t.partner_id = p.id and t.status = 'valid' and public.ps_paid(t.application_id) is not null),
       'approved_listings', (select count(*) from public.referral_attributions t join public.directory_applications d on d.id = t.application_id where t.partner_id = p.id and t.status = 'valid' and d.status = 'verified'),
       'pending_verification', (select count(*) from public.referral_attributions t join public.directory_applications d on d.id = t.application_id where t.partner_id = p.id and t.status = 'valid' and d.status in ('pending', 'info'))),
     'money', jsonb_build_object(
@@ -704,7 +728,7 @@ create or replace function public.partner_referrals_list() returns jsonb languag
 declare p public.partners := public.ps_my_partner();
 begin
   return coalesce((select jsonb_agg(jsonb_build_object('when', t.attributed_at, 'advocate', left(d.name, 1) || '***', 'city', d.city, 'attribution', t.status, 'listing', d.status,
-      'paid', exists (select 1 from public.partner_listing_payments y where y.application_id = t.application_id), 'commission', c.status) order by t.attributed_at desc)
+      'paid', (public.ps_paid(t.application_id) is not null), 'commission', c.status) order by t.attributed_at desc)
     from public.referral_attributions t left join public.directory_applications d on d.id = t.application_id left join public.partner_commissions c on c.attribution_id = t.id where t.partner_id = p.id), '[]'::jsonb);
 end $$;
 
@@ -1000,7 +1024,7 @@ create or replace function public.admin_referrals(p_status text default null, p_
 begin
   perform public.ps_require('referrals.view');
   return coalesce((select jsonb_agg(r) from (select jsonb_build_object('id', t.id, 'at', t.attributed_at, 'partner', p.code, 'partner_name', p.name, 'application', t.application_id, 'advocate', d.name, 'enrolment', d.enr, 'city', d.city, 'attribution', t.status, 'reason', t.reason, 'touch_verified', t.touch_verified,
-      'listing', d.status, 'paid', exists (select 1 from public.partner_listing_payments y where y.application_id = t.application_id), 'commission', c.status, 'risk', public.ps_risk(t.id)) r
+      'listing', d.status, 'paid', (public.ps_paid(t.application_id) is not null), 'commission', c.status, 'risk', public.ps_risk(t.id)) r
     from public.referral_attributions t left join public.partners p on p.id = t.partner_id left join public.directory_applications d on d.id = t.application_id left join public.partner_commissions c on c.attribution_id = t.id
     where p_status is null or t.status = p_status order by t.attributed_at desc limit least(greatest(p_limit, 1), 1000)) q), '[]'::jsonb);
 end $$;
@@ -1355,7 +1379,10 @@ begin
     select json_agg(json_build_object('Requested', to_char(o.requested_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Partner ID', pt.code, 'Amount (INR)', o.amount_paise / 100.0, 'Status', o.status, 'Destination', o.destination_masked, 'UTR', coalesce(o.utr, ''), 'Paid on', to_char(o.paid_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD')) order by o.requested_at) into r from public.partner_payouts o join public.partners pt on pt.id = o.partner_id;
   elsif p_kind = 'monthly_revenue' then
     select json_agg(json_build_object('Month', m, 'Verified listing payments (INR)', pay / 100.0, 'Commission accrued (INR)', comm / 100.0, 'Remaining before other costs (INR)', (pay - comm) / 100.0, 'Listings paid', n) order by m) into r
-      from (select to_char(verified_at at time zone 'Asia/Kolkata', 'YYYY-MM') m, sum(amount_paise) pay, count(*) n, coalesce(sum((select c.amount_paise from public.partner_commissions c where c.application_id = y.application_id and c.status in ('eligible', 'approved', 'payable', 'paid'))), 0) comm from public.partner_listing_payments y group by 1) z;
+      from (select to_char(z.at at time zone 'Asia/Kolkata', 'YYYY-MM') m, sum(z.amt) pay, count(*) n,
+              coalesce(sum((select c.amount_paise from public.partner_commissions c where c.application_id = z.app and c.status in ('eligible', 'approved', 'payable', 'paid'))), 0) comm
+            from (select application_id app, amount_paise amt, verified_at at from public.partner_listing_payments
+                  union all select application_id, amount_paise, coalesce(paid_at, created_at) from public.directory_orders where status = 'paid' and amount_paise > 0) z group by 1) q;
   elsif p_kind = 'campaigns' then
     select json_agg(json_build_object('Campaign', c.name, 'Channel', c.channel, 'Status', c.status, 'Clicks', (select count(*) from public.partner_referrals x where x.campaign_id = c.id)) order by c.created_at) into r from public.partner_campaigns c;
   elsif p_kind = 'fraud' then

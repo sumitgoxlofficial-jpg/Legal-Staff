@@ -9,23 +9,23 @@
 | Auth | Supabase Auth with email one-time codes (hook `auth-email`) and Google. |
 | Super Admin | `admin.html` + `functions/admin`. Access = email in `public.super_admins`. Top tabs: Overview, Firms, Payments, Coupons, Support, Expenses, Settings. |
 | Directory | `directory.html`, table `directory_applications` (status pending/info/verified/rejected), review by platform admins, public read only of verified rows through `directory_profiles()`. Anonymous applications are inserted straight into the table. |
-| **Payments for the directory** | **None.** The directory is free: no price, no checkout. Existing payments (`payments`, `functions/upi-pay`) are for practice-software subscriptions. The proposed ₹49 lifetime listing therefore does not exist today. |
-| Documents | The directory records only file **names and sizes** (the page says files are not uploaded yet). |
+| **Payments for the directory** | **Added on `main` while this was built:** sign-in with Google, a one-time ₹49 listing fee through Razorpay (`functions/razorpay`, `DIR_FEE_PAISE`), paid orders in `directory_orders`, `paid_at` on the application, a promo code mechanism (a 100%-off promo makes an order of ₹0). The first audit found a free directory; this section was re-checked after merging `main`. |
+| Documents | At first audit only names and sizes were recorded; `main` later added document handling (migrations 0028, 0032). |
 | Notifications | Resend email (`notify`, `auth-email`, `admin`). WhatsApp wired but not connected. No SMS. |
 
 ### Consequences for this build
-* The listing price is stored as **unset / unreconciled**. A super admin must set it, compare it with the public pricing and mark it approved (System Settings). The Partner Network never displays or charges it.
-* A commission needs a **verified payment record**. With no directory payment flow, staff record a verified payment (Advocate Registrations → Record payment), or a future payment webhook can call the same SQL with the service role. Nothing is read from a browser payment response.
-* "Required documents submitted" can only mean "document names recorded", until the directory uploads real files.
+* A commission counts a listing's payment only when a `directory_orders` row is `paid` with an amount above zero and at least the commission amount. A 100%-off promo is a registration, not a payment. Staff can still record a verified payment by hand (offline payments); a repeated reference is refused and flagged.
+* `partner_settings.listing_price_*` is informational (for reports). The live fee is set in `functions/razorpay`; a super admin confirms the setting matches. The Partner Network never charges or displays a price.
+* "Required documents submitted" means document metadata recorded on the application (the directory has since gained document handling: re-check what `details.documents` holds before switching commission on).
 
 ## 2. Architecture
 
-* **All rules live in PostgreSQL** (`supabase/migrations/0024_partner_network.sql`). Every table is locked (RLS on, no grants to `anon`/`authenticated`). The browser calls `SECURITY DEFINER` functions: `partner_*` (a signed-in partner, only their own rows), `admin_*` (staff, permission re-checked on every call) and three public functions. Hiding a button is never the control.
+* **All rules live in PostgreSQL** (`supabase/migrations/0039_partner_network.sql`). Every table is locked (RLS on, no grants to `anon`/`authenticated`). The browser calls `SECURITY DEFINER` functions: `partner_*` (a signed-in partner, only their own rows), `admin_*` (staff, permission re-checked on every call) and three public functions. Hiding a button is never the control.
 * Reused, not duplicated: Supabase Auth users, `super_admins`, `directory_applications`, Resend, the existing design (`static/site.css`, generated header/footer via `seo/lib.mjs`), existing admin shell.
 * New: tables (`partners`, `partner_categories`, `partner_applications`, `partner_documents`, `partner_referrals`, `referral_attributions`, `partner_commissions`, `partner_payouts`, `partner_payment_methods`, `partner_campaigns`, `partner_resources`, `partner_notifications`, `partner_terms_acceptance`, `partner_compliance_approvals`, `partner_audit_logs`, `partner_fraud_flags`, `partner_settings`, plus `partner_roles`, `partner_staff`, `partner_templates`, `partner_support_tickets`, `partner_listing_payments`, `partner_rate_limits`).
 * Pages (`seo/pages/partners.mjs`): `/partners`, `/partners/register|login|terms|privacy`, portal shells `/partners/dashboard|referrals|earnings|payouts|profile|resources|support` (noindex, excluded from the sitemap). Logic in `static/partners.js`; styling `static/partners.css` (site tokens only).
 * Admin: new **Partner Network** tab in the existing console with an 18-item left menu (`static/admin-partners.js`).
-* Email: `functions/partner-mail` drains queued notifications and sends template test emails; `0025` schedules it.
+* Email: `functions/partner-mail` drains queued notifications and sends template test emails; `0040` schedules it.
 * Directory hook: `directory.html` captures `?ref=`, records the click server-side and sends `referral_code` + `visitor_token` with the application. Triggers on `directory_applications` do the rest and **cannot break registration** (errors are caught and logged to `partner_audit_logs`).
 
 ## 3. Policies (implemented as written)

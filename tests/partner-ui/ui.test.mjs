@@ -1,8 +1,8 @@
 // End-to-end: real Chromium drives the real pages (partner site, partner portal, Super Admin console, directory) against a real
-// PostgreSQL 16 with migration 0024, through tests/partner-ui/bridge.mjs. Run: node tests/partner-ui/ui.test.mjs
+// PostgreSQL 16 with migration 0039, through tests/partner-ui/bridge.mjs. Run: node tests/partner-ui/ui.test.mjs
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
-import { startDb, stopDb, startServer, sql, callRpc } from './bridge.mjs';
+import { startDb, stopDb, startServer, sql, callRpc, uidOf } from './bridge.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
@@ -72,14 +72,14 @@ try {
   const adm = await ctxFor('admin');
   await adm.p.goto(BASE + '/admin.html');
   await otpLogin(adm.p, OWNER, '#em', '#b1', '#code', '#b2');
-  await adm.p.waitForSelector('nav.tabs button[data-k="partners"]');
-  ok((await adm.p.textContent('nav.tabs')).includes('Partner Network'), 'Partner Network tab exists in the existing admin');
-  await adm.p.click('nav.tabs button[data-k="partners"]');
-  await adm.p.waitForSelector('.pnav nav a[data-s="overview"]');
-  const menu = await adm.p.$$eval('.pnav nav a', (a) => a.map((x) => x.textContent));
+  await adm.p.waitForSelector('#tabs a.nav-item[data-k="partners"]');
+  ok((await adm.p.textContent('#tabs')).includes('Partner Network'), 'Partner Network tab exists in the existing admin');
+  await adm.p.click('#tabs a.nav-item[data-k="partners"]');
+  await adm.p.waitForSelector('#tabs a[data-k="partners/overview"]');
+  const menu = await adm.p.$$eval('#tabs a[data-k^="partners/"]', (a) => a.map((x) => x.textContent));
   ok(menu.length === 18, `Super Admin sees all 18 menu items (${menu.length})`);
   for (const want of ['Overview', 'Partner Applications', 'All Partners', 'Partner Categories', 'Referral Management', 'Advocate Registrations', 'Commission Management', 'Payout Management', 'Marketing Campaigns', 'Marketing Resources', 'Partner Notifications', 'Leaderboard', 'Fraud Detection', 'Compliance Management', 'Partner Support', 'Reports & Analytics', 'System Settings', 'Audit Logs']) ok(menu.includes(want), `menu: ${want}`);
-  await adm.p.click('a[data-s="applications"]');
+  await adm.p.click('a[data-k="partners/applications"]');
   await adm.p.waitForSelector('text=Asha Rao');
   PROMPT = 'Welcome aboard';
   await adm.p.click('button[data-d="approve"]');
@@ -88,25 +88,25 @@ try {
 
   // every screen renders without an error card
   for (const [key] of [['overview'], ['partners'], ['categories'], ['referrals'], ['registrations'], ['commissions'], ['payouts'], ['campaigns'], ['resources'], ['notifications'], ['leaderboard'], ['fraud'], ['compliance'], ['support'], ['reports'], ['settings'], ['audit']]) {
-    await adm.p.click(`a[data-s="${key}"]`); await adm.p.waitForFunction(() => { const s = document.querySelector('#pn-screen'); return s && !/Loading…/.test(s.textContent); });
-    ok(!(await adm.p.$('#pn-screen .card.err')), `admin screen "${key}" renders`);
+    await adm.p.click(`a[data-k="partners/${key}"]`); await adm.p.waitForFunction(() => { const s = document.querySelector('#page'); return s && !s.querySelector('.skel-block') && s.textContent.length > 20; });
+    ok(!(await adm.p.$('#page .card.err')), `admin screen "${key}" renders`);
   }
 
   /* ---- 4. legal approval first, then commission on (listing price reconciled) ---- */
-  await adm.p.click('a[data-s="categories"]'); await adm.p.waitForSelector('button[data-c="campus_ambassador"]');
+  await adm.p.click('a[data-k="partners/categories"]'); await adm.p.waitForSelector('button[data-c="campus_ambassador"]');
   await adm.p.click('button[data-c="campus_ambassador"]');
   await adm.p.waitForSelector('.toast');
   ok(/counsel/i.test(await adm.p.textContent('.toast')), 'commission cannot be switched on without recorded legal approval (screen shows why)');
-  await adm.p.click('a[data-s="compliance"]'); await adm.p.waitForSelector('#l-new'); await adm.p.click('#l-new');
+  await adm.p.click('a[data-k="partners/compliance"]'); await adm.p.waitForSelector('#l-new'); await adm.p.click('#l-new');
   await adm.p.waitForSelector('#l-ref'); await adm.p.fill('#l-ref', 'COUNSEL-OPINION-2026-11'); await adm.p.fill('#l-by', 'Test Counsel LLP'); await adm.p.fill('#l-on', '2026-11-01');
   await adm.p.$eval('#l-scope', (e, v) => { e.value = v; }, 'Reward per verified listing');
   await adm.p.click('.modal [data-s]'); await adm.p.waitForSelector('text=COUNSEL-OPINION-2026-11');
   ok(sql('select count(*) from public.partner_compliance_approvals') === '1', 'legal approval recorded');
-  await adm.p.click('a[data-s="categories"]'); await adm.p.waitForSelector('button[data-c="campus_ambassador"]'); await adm.p.click('button[data-c="campus_ambassador"]');
+  await adm.p.click('a[data-k="partners/categories"]'); await adm.p.waitForSelector('button[data-c="campus_ambassador"]'); await adm.p.click('button[data-c="campus_ambassador"]');
   await adm.p.waitForFunction(() => /Commission off/.test(document.body.textContent));
   ok(sql("select commission_enabled from public.partner_categories where key='campus_ambassador'") === 't', 'commission switched on for the approved category only');
   ok(sql('select count(*) from public.partner_categories where commission_enabled') === '1', 'other categories remain off');
-  await adm.p.click('a[data-s="settings"]'); await adm.p.waitForSelector('#s-save');
+  await adm.p.click('a[data-k="partners/settings"]'); await adm.p.waitForSelector('#s-save');
   await adm.p.fill('#s-listing_price_paise', '49'); await adm.p.selectOption('#s-listing_price_status', 'approved');
   await adm.p.check('#s-commission_generation'); await adm.p.fill('#s-min_withdrawal_paise', '15');
   await adm.p.click('#s-save'); await adm.p.waitForFunction(() => /Settings saved/.test(document.body.textContent)); await adm.p.waitForTimeout(300);
@@ -133,6 +133,7 @@ try {
 
   /* ---- 6. an advocate arrives through the referral link ---- */
   const adv = await ctxFor('advocate');
+  await adv.p.addInitScript(() => localStorage.setItem('test.session', JSON.stringify({ user: { id: 'u-anil', email: 'anil@example.in' } })));
   await adv.p.goto(BASE + '/directory?ref=ls10001'.replace('ls', 'LS'));
   await adv.p.waitForFunction(() => !!localStorage.getItem('ls.partner.ref'));
   const claim = await adv.p.evaluate(() => JSON.parse(localStorage.getItem('ls.partner.ref')));
@@ -142,31 +143,31 @@ try {
   await adv.p.goto(BASE + '/directory?ref=LS10009');
   ok((await adv.p.evaluate(() => JSON.parse(localStorage.getItem('ls.partner.ref')).code)) === 'LS10001', 'a later link does not replace the first valid referral');
   // submit the application through the page's own code path
-  const res = await adv.p.evaluate(async () => {
+  const res = await adv.p.evaluate(async (UID) => {
     const c = JSON.parse(localStorage.getItem('ls.partner.ref'));
-    const r = await fetch('/__insert', { method: 'POST', body: JSON.stringify({ table: 'directory_applications', row: { id: 'LS-DIR-2026-00001', name: 'Anil Kumar', enr: 'BR/100/2015', council: 'Bihar State Bar Council', year: '2015', city: 'Patna', email: 'anil@example.in', mobile: '9000000001', details: { documents: ['id.pdf'] }, referral_code: c.code, visitor_token: c.token } }) });
+    const r = await fetch('/__insert', { method: 'POST', body: JSON.stringify({ table: 'directory_applications', email: 'anil@example.in', row: { id: 'LS-DIR-2026-00001', name: 'Anil Kumar', enr: 'BR/100/2015', council: 'Bihar State Bar Council', year: '2015', city: 'Patna', email: 'anil@example.in', mobile: '9000000001', details: { documents: ['id.pdf'] }, referral_code: c.code, visitor_token: c.token, user_id: UID } }) });
     return r.json();
-  });
+  }, uidOf('anil@example.in'));
   ok(!res.error, 'the advocate application is accepted');
   ok(sql("select status || ',' || touch_verified from public.referral_attributions") === 'valid,true', 'attribution recorded server-side and matched to the click');
   ok(sql('select count(*) from public.partner_commissions') === '1' && sql('select status from public.partner_commissions') === 'pending_payment', 'a commission entry waits for a verified payment');
 
   /* ---- 7. admin: record payment, verify listing, approve commission ---- */
-  await adm.p.click('a[data-s="registrations"]'); await adm.p.waitForSelector('button[data-pay]');
+  await adm.p.click('a[data-k="partners/registrations"]'); await adm.p.waitForSelector('button[data-pay]');
   await adm.p.click('button[data-pay]'); await adm.p.waitForSelector('#p-amt'); await adm.p.fill('#p-amt', '49'); await adm.p.fill('#p-ref', 'UPI-REF-778899'); await adm.p.click('.modal [data-s]');
   await adm.p.waitForFunction(() => /Payment recorded/.test(document.body.textContent));
   ok(sql('select status from public.partner_commissions') === 'pending_verification', 'with payment, the commission waits for directory verification');
   sql("update public.directory_applications set status = 'verified' where id = 'LS-DIR-2026-00001'");   // the existing directory review stays authoritative
-  await adm.p.click('a[data-s="commissions"]'); await adm.p.waitForSelector('button[data-a="approve"]');
+  await adm.p.click('a[data-k="partners/commissions"]'); await adm.p.waitForSelector('button[data-a="approve"]');
   ok(sql('select status from public.partner_commissions') === 'eligible', 'a verified, paid, documented listing is eligible');
   await adm.p.click('button[data-a="approve"]'); await adm.p.waitForSelector('button[data-a="payable"]'); await adm.p.click('button[data-a="payable"]');
   await adm.p.waitForFunction(() => !document.querySelector('button[data-a="payable"]'));
   ok(sql('select status from public.partner_commissions') === 'payable', 'finance approved it and made it payable');
-  await adm.p.click('a[data-s="registrations"]');   // replaying the referral screen must not double anything
+  await adm.p.click('a[data-k="partners/registrations"]');   // replaying the referral screen must not double anything
   ok(sql('select count(*) from public.partner_commissions') === '1', 'still exactly one commission');
 
   /* ---- 8. KYC, payment method, withdrawal, payout ---- */
-  await adm.p.click('a[data-s="partners"]'); await adm.p.waitForSelector('button[data-o]'); await adm.p.click('button[data-o]');
+  await adm.p.click('a[data-k="partners/partners"]'); await adm.p.waitForSelector('button[data-o]'); await adm.p.click('button[data-o]');
   await adm.p.waitForSelector('button[data-k="verified"]'); await adm.p.click('button[data-k="verified"]');
   await adm.p.waitForFunction(() => !document.querySelector('.modal'));
   ok(sql('select kyc_status from public.partners') === 'verified', 'KYC verified by staff');
@@ -178,7 +179,7 @@ try {
   await asha.p.waitForSelector('#po-req:not([disabled])'); await asha.p.click('#po-req');
   await asha.p.waitForFunction(() => /requested/i.test(document.body.textContent));
   ok(sql('select count(*) from public.partner_payouts') === '1', 'withdrawal requested');
-  await adm.p.click('a[data-s="payouts"]'); await adm.p.waitForSelector('button[data-a="approve"]'); await adm.p.click('button[data-a="approve"]');
+  await adm.p.click('a[data-k="partners/payouts"]'); await adm.p.waitForSelector('button[data-a="approve"]'); await adm.p.click('button[data-a="approve"]');
   await adm.p.waitForSelector('button[data-a="paid"]'); PROMPT = 'HDFC-UTR-5566778899'; await adm.p.click('button[data-a="paid"]');
   await adm.p.waitForFunction(() => /HDFC-UTR-5566778899/.test(document.body.textContent));
   ok(sql('select status from public.partner_commissions') === 'paid' && sql('select status from public.partner_payouts') === 'paid', 'payout paid with a UTR; the ledger shows the commission paid');
@@ -186,25 +187,25 @@ try {
   ok(/paid/i.test(await asha.p.textContent('.pn-table')), 'the partner sees the commission as paid');
 
   /* ---- 9. reports and exports ---- */
-  await adm.p.click('a[data-s="reports"]'); await adm.p.waitForSelector('#r-k'); await adm.p.selectOption('#r-k', 'commission_ledger');
+  await adm.p.click('a[data-k="partners/reports"]'); await adm.p.waitForSelector('#r-k'); await adm.p.selectOption('#r-k', 'commission_ledger');
   const d1 = adm.p.waitForEvent('download'); await adm.p.click('#r-csv'); const csvF = await d1;
   const csvText = readFileSync(await csvF.path(), 'utf8'); if (process.env.DEBUG) console.log('CSV>', JSON.stringify(csvText.slice(0, 240)));
   ok(csvText.startsWith('﻿Date,Commission') && /1500|15/.test(csvText) && /paid/.test(csvText), 'CSV export of the commission ledger');
   const d2 = adm.p.waitForEvent('download'); await adm.p.click('#r-xl'); const xl = await d2;
   ok(readFileSync(await xl.path()).slice(0, 2).toString() === 'PK' && /\.xlsx$/.test(xl.suggestedFilename()), 'Excel export of the commission ledger');
   await adm.p.click('#r-pv'); await adm.p.waitForSelector('#r-print'); ok((await adm.p.textContent('#r-print')).includes('Commission'), 'report preview (print to PDF) renders');
-  await adm.p.click('a[data-s="audit"]'); await adm.p.waitForFunction(() => /Append-only/.test(document.querySelector('#pn-screen')?.textContent || '') && !!document.querySelector('#pn-screen table'));
-  ok(/payout\.paid/.test(await adm.p.textContent('#pn-screen')) && /commission\.approve/.test(await adm.p.textContent('#pn-screen')), 'audit log shows the money trail');
+  await adm.p.click('a[data-k="partners/audit"]'); await adm.p.waitForFunction(() => /Append-only/.test(document.querySelector('#page')?.textContent || '') && !!document.querySelector('#page table'));
+  ok(/payout\.paid/.test(await adm.p.textContent('#page')) && /commission\.approve/.test(await adm.p.textContent('#page')), 'audit log shows the money trail');
 
   /* ---- 10. staff roles in the same console ---- */
   callRpc('admin_staff_save', { p_email: FIN, p_role: 'finance_manager', p_active: true }, OWNER);
   const fin = await ctxFor('finance');
   await fin.p.goto(BASE + '/admin.html'); await otpLogin(fin.p, FIN, '#em', '#b1', '#code', '#b2');
-  await fin.p.waitForSelector('.pnav nav a');
-  ok((await fin.p.$$eval('nav.tabs button', (b) => b.map((x) => x.textContent))).join() === 'Partner Network', 'a staff member sees only the Partner Network tab, not the Super Admin tabs');
-  const fm = await fin.p.$$eval('.pnav nav a', (a) => a.map((x) => x.dataset.s));
+  await fin.p.waitForSelector('#tabs a[data-k^="partners/"]');
+  ok((await fin.p.$$eval('#tabs a.nav-item', (b) => b.map((x) => x.textContent.trim()))).join() === 'Partner Network', 'a staff member sees only the Partner Network tab, not the Super Admin tabs');
+  const fm = (await fin.p.$$eval('#tabs a[data-k^="partners/"]', (a) => a.map((x) => x.dataset.k.split('/')[1])));
   ok(fm.includes('commissions') && fm.includes('payouts') && !fm.includes('compliance') && !fm.includes('fraud') && !fm.includes('audit'), 'Finance Manager menu is limited to their permissions');
-  await fin.p.click('a[data-s="settings"]'); await fin.p.waitForSelector('#pn-screen .card');
+  await fin.p.click('a[data-k="partners/settings"]'); await fin.p.waitForSelector('#page .card');
   ok(!(await fin.p.$('#s-save')), 'settings are read-only for staff');
   ok(callRpc('admin_settings_save', { p: { min_withdrawal_paise: 1 } }, FIN).error?.message.includes('permission'), 'the server refuses a staff settings change even if called directly');
   const stranger = callRpc('admin_overview', {}, 'nobody@example.in');

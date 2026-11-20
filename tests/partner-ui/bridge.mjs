@@ -1,5 +1,5 @@
 // Test bridge: serves the repository as a static site and turns the browser's Supabase calls into real SQL against a throwaway
-// PostgreSQL 16 that has migration 0024 applied. It replaces only the network (Supabase Auth, PostgREST); every rule runs in the database.
+// PostgreSQL 16 that has migration 0039 applied. It replaces only the network (Supabase Auth, PostgREST); every rule runs in the database.
 import http from 'node:http';
 import { readFileSync, existsSync, statSync, mkdtempSync, chmodSync, rmSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -30,7 +30,7 @@ export function startDb() {
   D = mkdtempSync(join('/var/tmp', 'ls-uitest.'));
   if (isRoot) chmodSync(D, 0o777);
   asPg(`${PGBIN}/initdb -D ${D}/data -A trust >/dev/null && ${PGBIN}/pg_ctl -D ${D}/data -o '-p ${PGPORT} -k ${D}' -l ${D}/log -w start >/dev/null`);
-  for (const f of [join(ROOT, 'tests/partner-db/stub.sql'), join(ROOT, 'supabase/migrations/0024_partner_network.sql')]) psqlFile(f);
+  for (const f of [join(ROOT, 'tests/partner-db/stub.sql'), join(ROOT, 'supabase/migrations/0039_partner_network.sql')]) psqlFile(f);
   return D;
 }
 export function stopDb() {

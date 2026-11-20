@@ -11,7 +11,7 @@
 * **Marketing Campaigns / Resources** – create, assign to categories, publish. `{{code}}` and `{{link}}` in text are personalised per partner. Clear material with counsel first.
 * **Partner Notifications** – edit templates, test send, broadcast in-dashboard messages.
 * **Leaderboard**, **Fraud Detection** (dismiss/confirm, add flag), **Compliance Management** (record/revoke counsel approvals), **Partner Support**, **Reports & Analytics** (preview, CSV, Excel, print/PDF), **System Settings** (all business settings; roles and staff for Super Admin), **Audit Logs**.
-* **Before switching commission on**: (1) counsel approves the activity and amount; (2) record it under Compliance; (3) reconcile and approve the listing price in System Settings and arrange verified payments; (4) turn the category on; (5) turn *Commission generation* on.
+* **Before switching commission on**: (1) counsel approves the activity and amount; (2) record it under Compliance; (3) confirm the listing price setting matches the live Razorpay fee (payments are picked up automatically from paid directory orders); (4) turn the category on; (5) turn *Commission generation* on.
 
 ## Partner guide
 1. Apply at `/partners/register`: verify email with a code, fill the form, accept terms and privacy.
@@ -24,8 +24,8 @@
 
 ## Outstanding dependencies and limitations
 * **Legal approval** (BCI Rule 36, remuneration sharing, DPDP) is required before any commission; terms/privacy pages are drafts.
-* **Listing price ₹49 / ₹15 commission are proposals only**; the live directory is free and has no payment flow. A verified-payment source (staff entry now, webhook later) is needed.
-* Directory documents are not uploaded to a server yet, so "documents submitted" means names recorded.
+* **₹15 commission is a proposal only** and off everywhere. The ₹49 listing fee is live through Razorpay; commission counts only paid orders above zero.
+* "Documents submitted" is read from `directory_applications.details.documents`; confirm it matches the directory's current document flow before enabling commission.
 * **Mobile OTP** needs an SMS provider; email OTP is live. WhatsApp automation is off.
 * Header/footer of the existing ~600 pages were deliberately not changed, so there is no site-wide "Partners" nav link yet (add it in `seo/lib.mjs` and rebuild when ready).
 * The directory's multi-step form was verified through its submit contract (insert with referral claim) and the DB, not by clicking every step.

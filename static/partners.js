@@ -1,5 +1,5 @@
 /* Legal Staff — Advocate Partner Network: landing hydration, registration, sign-in and the partner portal.
-   Every rule lives in the database (migration 0024). This file only calls the partner_* functions as the signed-in user and draws the results;
+   Every rule lives in the database (migration 0039). This file only calls the partner_* functions as the signed-in user and draws the results;
    it holds no secrets and makes no decisions about money, eligibility or attribution. */
 (function () {
   'use strict';

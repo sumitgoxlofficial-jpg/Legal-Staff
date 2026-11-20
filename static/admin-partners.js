@@ -272,7 +272,7 @@
         return field(id, label, x, 'text').replace('<input', '<input' + dis);
       };
       el.innerHTML = '<h1>System Settings</h1><p class="sub">Every business setting lives here, not in code. ' + (ro ? 'You can view these; only a Super Admin can change them.' : 'Changes are validated and audited.') + '</p>' +
-        '<div class="card" style="margin-bottom:14px;border-color:#B54708"><div class="strong">Listing price must be reconciled</div><p class="small" style="margin:6px 0 0">The live directory currently charges nothing. The proposed ₹49 lifetime listing and ₹15 commission are not applied until you set the price here, check it against the public pricing and payment set-up, and mark it <b>approved</b>. Nothing is displayed or charged from this setting by the Partner Network.</p></div>' +
+        '<div class="card" style="margin-bottom:14px;border-color:#B54708"><div class="strong">Listing price: confirm it matches the live fee</div><p class="small" style="margin:6px 0 0">The directory charges its one-time listing fee through Razorpay (set in <code>functions/razorpay</code>, currently \u20B949). Commission counts a listing only when that payment is verified and above zero; a 100%-off promo is a registration, not a payment. This setting is for reporting: enter the live price and mark it <b>approved</b> once you have checked it. The commission amount (default \u20B915) is separate and stays off until legal approval is recorded.</p></div>' +
         SETTING_GROUPS.map(function (g) { return '<div class="card" style="margin-bottom:14px"><div class="strong" style="margin-bottom:10px">' + g[0] + '</div><div class="grid" style="gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">' + g[1].map(function (f) { return input(f[0], f[1], f[2]); }).join('') + '</div></div>'; }).join('') +
         (ro ? '' : '<div class="row"><button class="btn pri" id="s-save">Save settings</button></div>') + '<div id="s-roles" style="margin-top:24px"></div>';
       var sv = el.querySelector('#s-save'); if (sv) sv.onclick = function () {
@@ -308,21 +308,34 @@
     });
   };
 
+  var GROUPS = [[null, ['overview']], ['People', ['applications', 'partners', 'categories']], ['Referrals', ['referrals', 'registrations']], ['Money', ['commissions', 'payouts']], ['Marketing', ['campaigns', 'resources', 'notifications']], ['Control', ['leaderboard', 'fraud', 'compliance', 'support']], ['Insight', ['reports', 'settings', 'audit']]];
+  var TABDEF = null;   // the entry in the console's sidebar; pruned to the signed-in person's permissions by init()
+  var load = function (sb) { return sb.rpc('admin_whoami').then(function (r) { if (r.error) throw new Error(r.error.message); who = r.data; return who; }); };
+
+  /* The console calls init() once after sign-in (before drawing the sidebar) so each person sees only the screens their role allows. */
   window.LSPartnerAdmin = {
-    /** Draws the Partner Network section (left menu + screen) into el. c = { sb, toast, modal, me }. */
-    mount: function (el, c, sub) {
-      ctx = c;
-      return rpc('admin_whoami').then(function (w) {
-        who = w; var items = MENU.filter(function (m) { return can(m[2]); });
-        sub = items.some(function (m) { return m[0] === sub; }) ? sub : (items[0] || [])[0];
-        el.innerHTML = '<style>.pnav{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:start}.pnav nav{display:flex;flex-direction:column;gap:2px;position:sticky;top:76px}.pnav nav a{padding:8px 12px;border-radius:8px;color:var(--mut);font-weight:500;text-decoration:none;cursor:pointer}.pnav nav a:hover{background:var(--soft);color:var(--ink)}.pnav nav a.on{background:var(--soft);color:var(--ink);font-weight:600}@media(max-width:860px){.pnav{grid-template-columns:1fr}.pnav nav{flex-direction:row;overflow-x:auto;position:static}.pnav nav a{white-space:nowrap}}</style><div class="pnav"><nav aria-label="Partner Network">' +
-          '<div class="muted small strong" style="padding:4px 12px;letter-spacing:.07em">PARTNER NETWORK</div>' + items.map(function (m) { return '<a data-s="' + m[0] + '" class="' + (m[0] === sub ? 'on' : '') + '">' + esc(m[1]) + '</a>'; }).join('') + '</nav><div id="pn-screen"><div class="muted">Loading…</div></div></div>';
-        el.querySelectorAll('[data-s]').forEach(function (a) { a.onclick = function () { history.replaceState(null, '', '#partners/' + a.dataset.s); window.LSPartnerAdmin.mount(el, c, a.dataset.s); }; });
-        var scr = el.querySelector('#pn-screen');
-        if (!sub) { scr.innerHTML = '<div class="card">Your role has no Partner Network permissions.</div>'; return; }
-        return S[sub](scr, sub).catch(function (e) { scr.innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; });
-      }).catch(function (e) { el.innerHTML = '<div class="card err">' + esc(e.message) + '</div>'; });
-    },
-    whoami: function (sb) { return sb.rpc('admin_whoami').then(function (r) { return r.data; }); }
+    init: function (sb, staffOnly) {
+      return load(sb).then(function () {
+        if (!TABDEF) return;
+        var allowed = {}; MENU.forEach(function (m) { if (can(m[2])) allowed[m[0]] = m[1]; });
+        TABDEF[2] = GROUPS.map(function (g) { return [g[0], g[1].filter(function (k) { return allowed[k]; }).map(function (k) { return [k, allowed[k]]; })]; }).filter(function (g) { return g[1].length; });
+        if (!TABDEF[2].length) TABDEF[2] = [[null, [['overview', 'Overview']]]];
+      }).catch(function () { /* the screens report their own errors */ });
+    }
   };
+
+  (window.LSAdminExtensions = window.LSAdminExtensions || []).push(function (A) {
+    ctx = { sb: A.sb, toast: A.toast, modal: A.modal, me: { email: '' } };
+    TABDEF = ['partners', 'Partner Network', GROUPS.map(function (g) { return [g[0], g[1].map(function (k) { return [k, MENU.filter(function (m) { return m[0] === k; })[0][1]]; })]; })];
+    A.TABS.push(TABDEF);
+    A.VIEWS.partners = function (p, sub) {
+      var key = String(sub || '').split(':')[0];
+      return load(ctx.sb).then(function () {
+        ctx.me.email = who.email;
+        var m = MENU.filter(function (x) { return x[0] === key; })[0] || MENU.filter(function (x) { return can(x[2]); })[0];
+        if (!m || !can(m[2])) { p.innerHTML = '<div class="card">Your role has no access to this screen.</div>'; return; }
+        return S[m[0]](p, m[0]);
+      });
+    };
+  });
 })();
