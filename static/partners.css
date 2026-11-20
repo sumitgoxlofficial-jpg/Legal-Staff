@@ -56,3 +56,23 @@
 .pn-notif small { color: var(--muted); }
 .pn-banner { border: 1px solid var(--line); background: var(--soft); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 20px; }
 .pn-res { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; background: var(--white); margin-bottom: 12px; } .pn-res pre { white-space: pre-wrap; font: inherit; background: var(--soft); padding: 12px; border-radius: 8px; margin: 10px 0; }
+
+/* ---- single-page partner dashboard ---- */
+.pn-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.pn-top .h2 { margin: 0; }
+.pn-welcome { background: var(--ink); color: var(--white); border-radius: var(--radius); padding: 18px 22px; margin-bottom: 18px; display: grid; gap: 4px; }
+.pn-welcome span { color: #CFCFCF; }
+.pn-jump { display: flex; gap: 6px; overflow-x: auto; margin: 0 0 22px; padding-bottom: 4px; scrollbar-width: none; position: sticky; top: 0; z-index: 4; background: var(--white); }
+.pn-jump::-webkit-scrollbar { display: none; }
+.pn-jump a { flex: none; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; color: var(--text); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.pn-jump a:hover { border-color: var(--ink); color: var(--ink); }
+.pn-sec { margin-bottom: 40px; scroll-margin-top: 64px; }
+.pn-sh { font-size: 22px; letter-spacing: -.02em; margin: 0 0 14px; }
+.pn-heroCard { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; background: var(--ink); color: var(--white); border-radius: 16px; padding: clamp(20px, 3vw, 32px); margin-bottom: 22px; }
+.pn-heroCard h2 { color: var(--white); font-size: clamp(22px, 3vw, 30px); letter-spacing: -.025em; margin: 6px 0 16px; }
+.pn-eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .02em; color: #BDBDBD; }
+.pn-linkDark input { background: #1A1A1A; border: 1px solid #3A3A3A; color: var(--white); }
+.pn-heroNote { margin: 14px 0 0; font-size: 13px; color: #BDBDBD; max-width: 560px; }
+.pn-heroQr svg, .pn-heroQr img { width: 168px; height: 168px; background: #fff; border-radius: 12px; padding: 10px; }
+@media (max-width: 760px) { .pn-heroCard { grid-template-columns: 1fr; } .pn-heroQr { justify-self: start; } }
+.btn-ghost-light { border: 1px solid #555; color: var(--white); }

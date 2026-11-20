@@ -2,6 +2,8 @@
 
 ## Admin guide (Admin → **Partner Network**)
 * **Overview** – counts, pending liability, and global switches (network, registration, referral tracking, commission generation, payouts, campaigns). Switching off keeps all records and is audited.
+* **Page Content** – edit the headline, steps, benefits, FAQ and rewards note of the public Partners page. *Restore built-in* removes your edit. Keep the rewards note free of income promises.
+* **Instant dashboard** (System Settings): on by default. Off = every application waits in Partner Applications for you to approve.
 * **Partner Applications** – Start review / Approve / Reject (reason shown to the applicant). Approval creates the partner ID (LS10001…).
 * **All Partners** – search; open a partner to see documents (signed links), referrals, commissions, activity; suspend, reactivate, terminate, edit, set KYC. Suspending holds unpaid commissions.
 * **Partner Categories** – create/edit/activate/deactivate/archive; per-category eligibility, terms, referral tracking and commission amount. *Commission on* is refused until a legal approval is recorded.
@@ -16,8 +18,8 @@
 
 ## Partner guide
 1. Apply at `/partners/register`: click **Continue with Google** (no code to type; an email code is available as a small fallback), check the pre-filled name, fill in the rest, accept terms and privacy.
-2. Wait for approval (email). Sign in at `/partners/login` with the same Google account.
-3. Dashboard: your partner ID, link, QR (download PNG), figures, recent referrals, notifications.
+2. You land on your dashboard straight away (no approval wait while **Instant dashboard** is on in System Settings). Sign in again any time at `/partners/login` with the same Google account.
+3. The dashboard is one page: your referral link (copy, share on WhatsApp), QR code (download PNG), figures, monthly earnings, payouts, referrals, resources, profile and support, with quick links at the top.
 4. Share only approved material; never promise clients, cases or income.
 5. Earnings page shows each entry and its status. Rewards exist only for categories whose terms are active, and only for verified listings.
 6. To withdraw: upload KYC (Profile), add UPI or bank details (Payouts), request withdrawal once the balance reaches the minimum.

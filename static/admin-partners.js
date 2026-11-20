@@ -25,7 +25,7 @@
   var cats = function () { return cache.cats ? Promise.resolve(cache.cats) : rpc('admin_categories').then(function (c) { cache.cats = c; return c; }); };
 
   var MENU = [['overview', 'Overview', 'partners.view'], ['applications', 'Partner Applications', 'partners.view'], ['partners', 'All Partners', 'partners.view'], ['categories', 'Partner Categories', 'partners.view'], ['referrals', 'Referral Management', 'referrals.view'], ['registrations', 'Advocate Registrations', 'referrals.view'],
-    ['commissions', 'Commission Management', 'commissions.view'], ['earnings', 'Monthly Earnings', 'commissions.view'], ['payouts', 'Payout Management', 'payouts.view'], ['campaigns', 'Marketing Campaigns', 'partners.view'], ['resources', 'Marketing Resources', 'partners.view'], ['notifications', 'Partner Notifications', 'partners.view'], ['leaderboard', 'Leaderboard', 'referrals.view'],
+    ['commissions', 'Commission Management', 'commissions.view'], ['earnings', 'Monthly Earnings', 'commissions.view'], ['payouts', 'Payout Management', 'payouts.view'], ['campaigns', 'Marketing Campaigns', 'partners.view'], ['resources', 'Marketing Resources', 'partners.view'], ['content', 'Page Content', 'partners.view'], ['notifications', 'Partner Notifications', 'partners.view'], ['leaderboard', 'Leaderboard', 'referrals.view'],
     ['fraud', 'Fraud Detection', 'fraud.manage'], ['compliance', 'Compliance Management', 'compliance.view'], ['support', 'Partner Support', 'support.manage'], ['reports', 'Reports & Analytics', 'reports.view'], ['settings', 'System Settings', 'partners.view'], ['audit', 'Audit Logs', 'audit.view']];
 
   var S = {};   // screens: each gets (el, sub)
@@ -50,7 +50,7 @@
     var st = el._st || '';
     return Promise.all([rpc('admin_applications', { p_status: st || null }), cats()]).then(function (a) {
       var rows = a[0];
-      el.innerHTML = '<h1>Partner Applications</h1><p class="sub">Every partner needs approval by a person.</p><div class="row" style="margin-bottom:12px"><label class="f" style="width:200px">Status<select id="f-st">' + [['', 'All'], ['applied', 'Applied'], ['under_review', 'Under review'], ['approved', 'Approved'], ['rejected', 'Rejected']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === st ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label></div>' +
+      el.innerHTML = '<h1>Partner Applications</h1><p class="sub">With <b>instant dashboard</b> on (System Settings), new partners appear in All Partners straight away and this list holds only applications waiting for approval. Switch it off to approve everyone by hand.</p><div class="row" style="margin-bottom:12px"><label class="f" style="width:200px">Status<select id="f-st">' + [['', 'All'], ['applied', 'Applied'], ['under_review', 'Under review'], ['approved', 'Approved'], ['rejected', 'Rejected']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === st ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label></div>' +
         table(['Applied', 'Name', 'Contact', 'Category', 'Location', 'Organisation', 'Status', ''], rows.map(function (r) { return '<tr><td>' + dt(r.created_at) + '</td><td class="strong">' + esc(r.name) + '</td><td class="small">' + esc(r.email) + '<br>' + esc(r.mobile) + '</td><td>' + esc(catName(a[1], r.category_key)) + '</td><td>' + esc(r.city + ', ' + r.district + ', ' + r.state) + '</td><td class="small">' + esc(r.organisation || '') + (r.designation ? '<br>' + esc(r.designation) : '') + (r.enrolment_no ? '<br>Enr. ' + esc(r.enrolment_no) : '') + '</td><td>' + chip(r.status) + (r.review_note ? '<div class="muted small">' + esc(r.review_note) + '</div>' : '') + '</td><td>' + (can('partners.manage') && (r.status === 'applied' || r.status === 'under_review') ? '<div class="row" style="flex-wrap:nowrap">' + (r.status === 'applied' ? btn('Start review', 'data-d="review" data-id="' + r.id + '"') : '') + btn('Approve', 'data-d="approve" data-id="' + r.id + '"', 'pri') + btn('Reject', 'data-d="reject" data-id="' + r.id + '"', 'danger') + '</div>' : '') + '</td></tr>'; }), 'No applications.');
       el.querySelector('#f-st').onchange = function (e) { el._st = e.target.value; S.applications(el); };
       el.querySelectorAll('[data-d]').forEach(function (b) { b.onclick = function () { var d = b.dataset.d, note = d === 'review' ? '' : ask(d === 'approve' ? 'Optional note to the applicant:' : 'Reason for rejection (shown to the applicant):'); if (note == null) return; act(el, 'admin_application_decide', { p_id: b.dataset.id, p_decision: d, p_note: note }, function () { return S.applications(el); }, d === 'approve' ? 'Approved. The partner ID has been created.' : 'Updated'); }; });
@@ -203,6 +203,31 @@
     });
   };
 
+  /* Page Content: the text of the public /partners page. Empty = the built-in text. */
+  S.content = function (el) {
+    return Promise.all([rpc('admin_content'), fetch('/static/partner-content-defaults.json').then(function (r) { return r.json(); })]).then(function (a) {
+      var ov = a[0].overrides, def = a[1], edit = a[0].can_edit;
+      var cur = function (k) { return ov[k] != null ? ov[k] : def[k]; };
+      var badge = function (k) { return ov[k] != null ? '<span class="chip c-info">edited</span>' : '<span class="chip c-mut">built-in text</span>'; };
+      var block = function (k, title, inner) { return '<div class="card" style="margin-bottom:14px" data-block="' + k + '"><div class="row between"><div class="strong">' + title + ' ' + badge(k) + '</div>' + (edit ? '<div class="row">' + btn('Save', 'data-save="' + k + '"', 'pri') + (ov[k] != null ? btn('Restore built-in', 'data-reset="' + k + '"') : '') + '</div>' : '') + '</div><div class="grid" style="gap:10px;margin-top:10px">' + inner + '</div></div>'; };
+      var rows = function (k, items, f1, f2, l1, l2) { return items.map(function (x, i) { return '<div class="card" style="padding:12px" data-row><div class="two"><label class="f">' + l1 + '<input data-f="' + f1 + '" value="' + esc(x[f1]) + '"></label><label class="f">' + l2 + '<textarea data-f="' + f2 + '" rows="2">' + esc(x[f2]) + '</textarea></label></div>' + (edit ? '<div class="row" style="margin-top:6px">' + btn('Remove', 'data-rm="1"', 'danger') + '</div>' : '') + '</div>'; }).join('') + (edit ? btn('+ Add', 'data-add="' + k + '"') : ''); };
+      el.innerHTML = '<h1>Page Content</h1><p class="sub">The text on the public Partners page. Saving shows your wording on the page; <b>Restore built-in</b> goes back to the original. Search engines still see the built-in text. Partner categories are edited under Partner Categories, and the legal Terms and Privacy pages are changed by a developer after counsel reviews them.</p>' +
+        block('hero_title', 'Headline', '<input data-f="v" value="' + esc(cur('hero_title')) + '" maxlength="120">') +
+        block('hero_lead', 'Sub-headline', '<textarea data-f="v" rows="2" maxlength="300">' + esc(cur('hero_lead')) + '</textarea>') +
+        block('steps', 'Steps (how it works)', rows('steps', cur('steps'), 'title', 'text', 'Step', 'Description')) +
+        block('benefits', 'Benefits', rows('benefits', cur('benefits'), 'title', 'text', 'Benefit', 'Description')) +
+        block('faq', 'Frequently asked questions', rows('faq', cur('faq'), 'q', 'a', 'Question', 'Answer')) +
+        block('rewards_note', 'How rewards work (must not promise income)', '<textarea data-f="v" rows="5" maxlength="1500">' + esc(cur('rewards_note')) + '</textarea>');
+      if (!edit) { el.querySelectorAll('input,textarea').forEach(function (i) { i.disabled = true; }); return; }
+      var collect = function (b, k) { if (['hero_title', 'hero_lead', 'rewards_note'].indexOf(k) >= 0) return b.querySelector('[data-f="v"]').value.trim();
+        return [].slice.call(b.querySelectorAll('[data-row]')).map(function (r) { var o = {}; [].slice.call(r.querySelectorAll('[data-f]')).forEach(function (i) { o[i.dataset.f] = i.value.trim(); }); return o; }); };
+      el.querySelectorAll('[data-save]').forEach(function (b) { b.onclick = function () { var k = b.dataset.save; act(el, 'admin_content_save', { p_key: k, p_value: collect(b.closest('[data-block]'), k) }, function () { S.content(el); }, 'Saved'); }; });
+      el.querySelectorAll('[data-reset]').forEach(function (b) { b.onclick = function () { if (window.confirm('Go back to the built-in text for this block?')) act(el, 'admin_content_save', { p_key: b.dataset.reset, p_value: null }, function () { S.content(el); }, 'Restored'); }; });
+      el.querySelectorAll('[data-rm]').forEach(function (b) { b.onclick = function () { b.closest('[data-row]').remove(); }; });
+      el.querySelectorAll('[data-add]').forEach(function (b) { b.onclick = function () { var k = b.dataset.add, f = k === 'faq' ? ['q', 'a'] : ['title', 'text']; var d = document.createElement('div'); d.className = 'card'; d.style.padding = '12px'; d.setAttribute('data-row', ''); d.innerHTML = '<div class="two"><label class="f">' + (k === 'faq' ? 'Question' : k === 'steps' ? 'Step' : 'Benefit') + '<input data-f="' + f[0] + '"></label><label class="f">' + (k === 'faq' ? 'Answer' : 'Description') + '<textarea data-f="' + f[1] + '" rows="2"></textarea></label></div>'; b.parentNode.insertBefore(d, b); }; });
+    });
+  };
+
   S.notifications = function (el) {
     return rpc('admin_notifications').then(function (d) {
       el.innerHTML = '<h1>Partner Notifications</h1><p class="sub">Edit the templates partners receive. Email goes through the existing LegalStaff email service; WhatsApp stays off until a lawful, authorised integration is configured.</p>' +
@@ -272,7 +297,7 @@
   };
 
   var SETTING_GROUPS = [
-    ['Programme', [['programme_name', 'Programme name', 'text'], ['programme_description', 'Description', 'text'], ['geography', 'Geography', 'text'], ['network_enabled', 'Partner Network enabled', 'flag'], ['registration_open', 'Public registration open', 'flag'], ['joining_fee_paise', 'Joining fee', 'rupees']]],
+    ['Programme', [['programme_name', 'Programme name', 'text'], ['programme_description', 'Description', 'text'], ['geography', 'Geography', 'text'], ['network_enabled', 'Partner Network enabled', 'flag'], ['registration_open', 'Public registration open', 'flag'], ['auto_approve_partners', 'Instant dashboard: no approval wait after sign-up', 'flag'], ['joining_fee_paise', 'Joining fee', 'rupees']]],
     ['Commercial', [['listing_price_paise', 'Directory listing price (blank = none)', 'rupees'], ['listing_price_status', 'Listing price status', 'select:unreconciled,approved'], ['default_commission_paise', 'Default commission per listing', 'rupees'], ['min_withdrawal_paise', 'Minimum withdrawal', 'rupees'], ['payout_cycle', 'Payout cycle', 'select:monthly,fortnightly,weekly'], ['commission_generation', 'Commission generation (global)', 'flag'], ['payouts_paused', 'Pause payout processing', 'flag']]],
     ['Referral', [['referral_tracking', 'Referral tracking', 'flag'], ['attribution_window_days', 'Attribution window (days)', 'int'], ['referral_code_prefix', 'Partner ID prefix (2–4 capitals)', 'text']]],
     ['Security and fraud', [['otp_required', 'Email OTP at registration', 'flag'], ['fraud_review_threshold', 'Review threshold (risk score)', 'int'], ['fraud_hold_threshold', 'Hold threshold (risk score)', 'int'], ['burst_limit_per_day', 'Registrations per partner per day before review', 'int']]],
@@ -327,7 +352,7 @@
     });
   };
 
-  var GROUPS = [[null, ['overview']], ['People', ['applications', 'partners', 'categories']], ['Referrals', ['referrals', 'registrations']], ['Money', ['commissions', 'earnings', 'payouts']], ['Marketing', ['campaigns', 'resources', 'notifications']], ['Control', ['leaderboard', 'fraud', 'compliance', 'support']], ['Insight', ['reports', 'settings', 'audit']]];
+  var GROUPS = [[null, ['overview']], ['People', ['applications', 'partners', 'categories']], ['Referrals', ['referrals', 'registrations']], ['Money', ['commissions', 'earnings', 'payouts']], ['Marketing', ['campaigns', 'resources', 'content', 'notifications']], ['Control', ['leaderboard', 'fraud', 'compliance', 'support']], ['Insight', ['reports', 'settings', 'audit']]];
   var TABDEF = null;   // the entry in the console's sidebar; pruned to the signed-in person's permissions by init()
   var load = function (sb) { return sb.rpc('admin_whoami').then(function (r) { if (r.error) throw new Error(r.error.message); who = r.data; return who; }); };
 

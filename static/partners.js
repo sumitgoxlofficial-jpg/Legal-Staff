@@ -23,12 +23,23 @@
 
   /* ---------- landing: categories are managed by Super Admin, so show the live list when it can be read ---------- */
   function landing() {
-    var box = $('#pn-cats'); if (!box || !sb) return;
+    if (!sb) return;
     rpc('partner_public_config').then(function (c) {
-      if (!c || !c.categories || !c.categories.length) return;
-      box.innerHTML = c.categories.map(function (k) { return '<div class="lg-tile ls-in"><b>' + esc(k.name) + '</b><span>' + esc(k.description) + '</span></div>'; }).join('');
-      if (c.registration_open === false) document.querySelectorAll('a[href="/partners/register"]').forEach(function (a) { a.setAttribute('aria-disabled', 'true'); a.title = 'Registration is closed at the moment'; });
+      var box = $('#pn-cats');
+      if (box && c && c.categories && c.categories.length) box.innerHTML = c.categories.map(function (k) { return '<div class="lg-tile ls-in"><b>' + esc(k.name) + '</b><span>' + esc(k.description) + '</span></div>'; }).join('');
+      if (c && c.registration_open === false) document.querySelectorAll('a[href="/partners/register"]').forEach(function (a) { a.setAttribute('aria-disabled', 'true'); a.title = 'Registration is closed at the moment'; });
     }).catch(function () { /* keep the built-in list */ });
+    // text that Super Admin has edited replaces the built-in text
+    rpc('partner_public_content').then(function (c) {
+      if (!c) return;
+      var h1 = $('.hero h1'), lead = $('.hero .lead');
+      if (c.hero_title && h1) h1.textContent = c.hero_title;
+      if (c.hero_lead && lead) lead.textContent = c.hero_lead;
+      if (c.steps && $('#pn-steps')) $('#pn-steps').innerHTML = c.steps.map(function (x, i) { return '<li class="ls-in"><span class="pn-n">' + (i + 1) + '</span><div><b>' + esc(x.title) + '</b><p>' + esc(x.text) + '</p></div></li>'; }).join('');
+      if (c.benefits && $('#pn-benefits')) $('#pn-benefits').innerHTML = c.benefits.map(function (x) { return '<div class="lg-tile ls-in"><span class="lg-tile-ic">✓</span><b>' + esc(x.title) + '</b><span>' + esc(x.text) + '</span></div>'; }).join('');
+      if (c.faq && $('#faq .faq')) $('#faq .faq').innerHTML = c.faq.map(function (x, i) { return '<details class="faq-item ls-in"' + (i === 0 ? ' open' : '') + '><summary><span>' + esc(x.q) + '</span><i aria-hidden="true"></i></summary><div class="faq-a"><p>' + esc(x.a) + '</p></div></details>'; }).join('');
+      if (c.rewards_note && $('#pn-rewards')) $('#pn-rewards').innerHTML = '<p><b>How rewards work.</b> ' + esc(c.rewards_note) + '</p>';
+    }).catch(function () { /* keep the built-in text */ });
   }
 
   /* ---------- sign in with Google (same mechanism as the directory: Google's button + Supabase signInWithIdToken, no redirect) ---------- */
@@ -114,7 +125,7 @@
       }).catch(function (e) { root.innerHTML = '<p class="pn-err">' + esc(errText(e)) + '</p>'; });
     }
     function status(a) {
-      var text = { applied: 'Your application has been received. Our team will review it and email you.', under_review: 'Your application is being reviewed.', approved: 'Your application is approved.', rejected: 'Your application was not approved. ' + (a.note || '') }[a.status] || '';
+      var text = { applied: 'Your application has been received. Your dashboard opens as soon as our team approves it.', under_review: 'Your application is being reviewed.', approved: 'Your application is approved.', rejected: 'Your application was not approved. ' + (a.note || '') }[a.status] || '';
       root.innerHTML = '<h2>Application ' + chip(a.status) + '</h2><p>' + esc(text) + '</p><p class="muted">Submitted ' + esc(dt(a.created_at)) + '.</p><div class="pn-actions">' + (a.status === 'approved' ? '<a class="btn btn-ink" href="/partners/dashboard">Open dashboard</a>' : '') + '<button class="btn btn-line" id="pn-so">Sign out</button></div>';
       $('#pn-so', root).onclick = function () { sb.auth.signOut().then(function () { location.reload(); }); };
     }
@@ -140,7 +151,7 @@
         if (bad) return msg($('#r-err', root), bad);
         msg($('#r-err', root), ''); busy($('#r-go', root), true, 'Submitting…');
         rpc('partner_apply', { p: { name: v('#r-name'), mobile: v('#r-mobile'), category_key: c.key, state: $('#r-state', root).value, district: v('#r-district'), city: v('#r-city'), organisation: v('#r-org'), designation: v('#r-des'), enrolment_no: v('#r-enr'), referral_source: $('#r-src', root).value, accept_terms: true, accept_privacy: true } })
-          .then(function () { status({ status: 'applied', created_at: new Date().toISOString() }); })
+          .then(function () { return rpc('partner_me'); }).then(function (m) { if (m.state === 'partner') { location.href = '/partners/dashboard?welcome=1'; return; } status({ status: 'applied', created_at: new Date().toISOString() }); })
           .catch(function (er) { busy($('#r-go', root), false, 'Submit application'); msg($('#r-err', root), errText(er)); });
       };
     }
@@ -149,27 +160,48 @@
   /* ---------- sign-in ---------- */
   function login() {
     var root = $('#pn-login'); if (!root) return;
-    var next = (location.search.match(/[?&]next=(\/partners\/[a-z]+)/) || [])[1] || '/partners/dashboard';
-    session().then(function (s) { if (s) { location.replace(next); return; } signInPanel(root, { title: 'Sign in', lead: 'Use the Google account you applied with.', create: false, done: function () { location.replace(next); } }); });
+    // After signing in: a partner goes to the dashboard; anyone else goes to the details form (or sees their application status).
+    var route = function () { return rpc('partner_me').then(function (m) { location.replace(m.state === 'partner' ? '/partners/dashboard' : '/partners/register'); }).catch(function () { location.replace('/partners/dashboard'); }); };
+    session().then(function (s) { if (s) return route(); signInPanel(root, { title: 'Sign in', lead: 'Use your Google account. If you are new, you will fill in your details next and land on your dashboard.', create: true, done: route }); });
   }
 
   /* ---------- portal ---------- */
   var me = null;
+  var SECTIONS = [['dashboard', 'Overview'], ['earnings', 'Monthly earnings'], ['payouts', 'Payouts'], ['referrals', 'Referrals'], ['resources', 'Resources'], ['profile', 'Profile'], ['support', 'Support']];
   function portal() {
     var root = $('#pn-view'); if (!root) return;
-    var which = root.getAttribute('data-view');
+    var focus = root.getAttribute('data-view');
     $('#pn-out').onclick = function (e) { e.preventDefault(); sb.auth.signOut().then(function () { location.href = '/partners/login'; }); };
     if (!sb) { root.innerHTML = '<p class="pn-err">The server is not connected.</p>'; return; }
     session().then(function (s) {
-      if (!s) { location.replace('/partners/login?next=/partners/' + which); return; }
+      if (!s) { location.replace('/partners/login'); return; }
       return rpc('partner_me').then(function (m) {
         me = m;
-        if (m.state === 'none') { root.innerHTML = '<div class="pn-banner">You have not applied to the partner network yet. <a href="/partners/register">Apply now</a>.</div>'; return; }
-        if (m.state === 'applicant') { root.innerHTML = '<div class="pn-banner"><b>Your application is ' + chip(m.application.status) + '</b><p class="muted" style="margin:6px 0 0">The partner dashboard opens once our team approves your application. ' + esc(m.application.note || '') + '</p></div>'; return; }
-        if (m.partner.status !== 'approved') root.insertAdjacentHTML('beforebegin', '<div class="pn-banner"><b>Your account is ' + chip(m.partner.status) + '.</b> ' + esc(m.partner.status_note || '') + ' Referral tracking and payouts are off while your account is not in good standing. Contact support if you have questions.</div>');
-        return VIEWS[which](root);
+        if (m.state === 'none') { location.replace('/partners/register'); return; }
+        if (m.state === 'applicant') { root.innerHTML = waiting(m.application); return; }
+        hub(root, m, focus);
       });
     }).catch(function (e) { root.innerHTML = '<p class="pn-err">' + esc(errText(e)) + '</p>'; });
+  }
+  function waiting(a) {
+    return '<div class="pn-banner"><b>Your application is ' + chip(a.status) + '</b><p class="muted" style="margin:6px 0 0">Your dashboard opens as soon as our team approves it. ' + esc(a.note || '') + '</p></div>';
+  }
+  /* The whole partner area is one page: the link first, then money, payouts, referrals, resources, profile and support, each in its own section. */
+  function hub(root, m, focus) {
+    var p = m.partner, welcome = /[?&]welcome=1/.test(location.search);
+    root.innerHTML = (welcome ? '<div class="pn-welcome"><b>Welcome, ' + esc(p.name.split(' ')[0]) + '. You are in.</b><span>Your partner ID is <b>' + esc(p.code) + '</b>. Your referral link and QR code are ready below: share them with advocates.</span></div>' : '') +
+      (p.status !== 'approved' ? '<div class="pn-banner"><b>Your account is ' + chip(p.status) + '.</b> ' + esc(p.status_note || '') + ' Referral tracking and payouts are off while your account is not in good standing. Contact support if you have questions.</div>' : '') +
+      '<nav class="pn-jump" aria-label="Sections">' + SECTIONS.map(function (x) { return '<a href="#s-' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</nav>' +
+      SECTIONS.map(function (x) { return '<section class="pn-sec" id="s-' + x[0] + '">' + (x[0] === 'dashboard' ? '' : '<h2 class="pn-sh">' + x[1] + '</h2>') + '<div id="v-' + x[0] + '"><p class="muted">Loading…</p></div></section>'; }).join('');
+    var jobs = SECTIONS.map(function (x) {
+      var el = $('#v-' + x[0]);
+      return Promise.resolve().then(function () { return VIEWS[x[0]](el); }).catch(function (e) { el.innerHTML = '<p class="pn-err">' + esc(errText(e)) + '</p>'; });
+    });
+    Promise.all(jobs).then(function () {
+      if (location.hash && $(location.hash)) $(location.hash).scrollIntoView();
+      else if (focus && focus !== 'dashboard' && $('#s-' + focus)) $('#s-' + focus).scrollIntoView();
+    });
+    if (welcome && window.history && history.replaceState) history.replaceState(null, '', location.pathname);
   }
   function table(cols, rows, empty) {
     if (!rows.length) return '<div class="pn-tablewrap"><div class="pn-empty">' + esc(empty) + '</div></div>';
@@ -188,15 +220,15 @@
       return Promise.all([rpc('partner_dashboard'), rpc('partner_notifications_list', { p_mark_read: false })]).then(function (a) {
         var d = a[0], notes = a[1], t = d.totals, m = d.money, max = Math.max.apply(null, d.monthly.map(function (x) { return Math.max(x.clicks, x.registrations, x.listings); }).concat([1]));
         var stat = function (k, v, s) { return '<div class="pn-stat"><span>' + esc(k) + '</span><b>' + esc(v) + '</b>' + (s ? '<small>' + esc(s) + '</small>' : '') + '</div>'; };
-        root.innerHTML = '<div class="pn-banner">' + esc(d.commission_note) + ' Rewards are never guaranteed and arise only on verified listings.</div>' +
-          '<div class="pn-stats">' + stat('Total referrals (clicks)', t.referrals) + stat('Registrations', t.registrations) + stat('Paid registrations', t.paid_registrations) + stat('Approved listings', t.approved_listings) + stat('Pending verification', t.pending_verification) +
+        var share = 'https://wa.me/?text=' + encodeURIComponent('Apply for a profile in the LegalStaff Advocate Directory: ' + d.referral_url);
+        root.innerHTML = '<div class="pn-heroCard"><div class="pn-heroMain"><span class="pn-eyebrow">Your referral link · Partner ID ' + esc(d.partner.code) + '</span><h2>Share this link with advocates</h2>' +
+          '<div class="pn-link pn-linkDark"><input readonly id="pn-url" value="' + esc(d.referral_url) + '" aria-label="Referral link"><button class="btn btn-light btn-sm" id="pn-copy" type="button">Copy</button></div>' +
+          '<div class="pn-actions" style="margin-top:12px"><a class="btn btn-ghost-light btn-sm" href="' + esc(share) + '" target="_blank" rel="noopener">Share on WhatsApp</a><button class="btn btn-ghost-light btn-sm" id="pn-dl" type="button">Download QR</button></div>' +
+          '<p class="pn-heroNote">' + esc(d.commission_note) + ' Rewards are never guaranteed and arise only on verified listings.</p></div><div class="pn-heroQr" id="pn-qr" aria-label="QR code"></div></div>' +
+          '<div class="pn-stats">' + stat('Link clicks', t.referrals) + stat('Advocates referred', t.registrations) + stat('Paid registrations', t.paid_registrations) + stat('Approved listings', t.approved_listings) + stat('Pending verification', t.pending_verification) +
           stat('Eligible commission', inr(m.eligible_paise)) + stat('Pending commission', inr(m.pending_paise)) + stat('Paid commission', inr(m.paid_paise)) + stat('Available balance', inr(m.available_paise), 'Minimum withdrawal ' + inr(m.min_withdrawal_paise)) + '</div>' +
-          '<div class="pn-grid2"><div class="pn-card"><h3 class="pn-h">Your referral link</h3><p class="muted">Partner ID <b>' + esc(d.partner.code) + '</b> · ' + esc(d.partner.district) + ', ' + esc(d.partner.state) + '</p>' +
-          '<div class="pn-link"><input readonly id="pn-url" value="' + esc(d.referral_url) + '" aria-label="Referral link"><button class="btn btn-ink btn-sm" id="pn-copy" type="button">Copy</button></div>' +
-          '<div class="pn-qr" style="margin-top:18px"><div id="pn-qr"></div><div><p class="muted" style="margin:0 0 10px">Print or share this QR code. It opens the LegalStaff Directory with your referral link.</p><button class="btn btn-line btn-sm" id="pn-dl" type="button">Download QR (PNG)</button></div></div></div>' +
-          '<div class="pn-card"><h3 class="pn-h">Last six months</h3><div class="pn-bars">' + d.monthly.map(function (x) { return '<div class="pn-bar" title="' + esc(x.month) + ': ' + x.clicks + ' clicks, ' + x.registrations + ' registrations, ' + x.listings + ' approved"><i style="height:' + Math.round(x.registrations / max * 100) + '%"></i><i class="b" style="height:' + Math.round(x.listings / max * 100) + '%"></i><span>' + esc(x.month.slice(5)) + '</span></div>'; }).join('') + '</div><div class="pn-legend"><span><i></i>Registrations</span><span><i class="b"></i>Approved listings</span></div></div></div>' +
-          '<div class="pn-grid2"><div><h3 class="pn-h">Recent referrals</h3>' + table([['Date', function (r) { return esc(dt(r.when)); }], ['Advocate', function (r) { return esc(r.advocate); }], ['City', function (r) { return esc(r.city); }], ['Listing', function (r) { return chip(r.listing); }], ['Referral', function (r) { return chip(r.attribution); }]], d.recent, 'No referrals yet. Share your link or QR code to get started.') + '</div>' +
-          '<div class="pn-card"><h3 class="pn-h">Notifications</h3><div id="pn-notes">' + (notes.length ? notes.slice(0, 8).map(function (n) { return '<div class="pn-notif' + (n.read ? '' : ' unread') + '"><b>' + esc(n.title) + '</b>' + esc(n.body) + '<br><small>' + esc(dt(n.at)) + '</small></div>'; }).join('') : '<div class="pn-empty">Nothing yet.</div>') + '</div></div></div>';
+          '<div class="pn-grid2"><div class="pn-card"><h3 class="pn-h">Last six months</h3><div class="pn-bars">' + d.monthly.map(function (x) { return '<div class="pn-bar" title="' + esc(x.month) + ': ' + x.clicks + ' clicks, ' + x.registrations + ' registrations, ' + x.listings + ' approved"><i style="height:' + Math.round(x.registrations / max * 100) + '%"></i><i class="b" style="height:' + Math.round(x.listings / max * 100) + '%"></i><span>' + esc(x.month.slice(5)) + '</span></div>'; }).join('') + '</div><div class="pn-legend"><span><i></i>Registrations</span><span><i class="b"></i>Approved listings</span></div></div>' +
+          '<div class="pn-card"><h3 class="pn-h">Notifications</h3><div id="pn-notes">' + (notes.length ? notes.slice(0, 6).map(function (n) { return '<div class="pn-notif' + (n.read ? '' : ' unread') + '"><b>' + esc(n.title) + '</b>' + esc(n.body) + '<br><small>' + esc(dt(n.at)) + '</small></div>'; }).join('') : '<div class="pn-empty">Nothing yet.</div>') + '</div></div></div>';
         $('#pn-qr').innerHTML = qrSvg(d.referral_url).createSvgTag(5, 0, 'QR code for ' + d.partner.code);
         $('#pn-copy').onclick = function () { var i = $('#pn-url'); i.select(); (navigator.clipboard ? navigator.clipboard.writeText(i.value) : Promise.reject()).catch(function () { document.execCommand('copy'); }); this.textContent = 'Copied'; var b = this; setTimeout(function () { b.textContent = 'Copy'; }, 1500); };
         $('#pn-dl').onclick = function () { var a = document.createElement('a'); a.href = qrPng(d.referral_url, d.partner.code); a.download = 'legalstaff-partner-' + d.partner.code + '-qr.png'; a.click(); };

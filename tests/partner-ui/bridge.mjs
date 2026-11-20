@@ -30,7 +30,7 @@ export function startDb() {
   D = mkdtempSync(join('/var/tmp', 'ls-uitest.'));
   if (isRoot) chmodSync(D, 0o777);
   asPg(`${PGBIN}/initdb -D ${D}/data -A trust >/dev/null && ${PGBIN}/pg_ctl -D ${D}/data -o '-p ${PGPORT} -k ${D}' -l ${D}/log -w start >/dev/null`);
-  for (const f of [join(ROOT, 'tests/partner-db/stub.sql'), join(ROOT, 'supabase/migrations/0039_partner_network.sql'), join(ROOT, 'supabase/migrations/0041_partner_monthly_earnings.sql')]) psqlFile(f);
+  for (const f of [join(ROOT, 'tests/partner-db/stub.sql'), join(ROOT, 'supabase/migrations/0039_partner_network.sql'), join(ROOT, 'supabase/migrations/0041_partner_monthly_earnings.sql'), join(ROOT, 'supabase/migrations/0042_partner_instant_access.sql')]) psqlFile(f);
   return D;
 }
 export function stopDb() {
@@ -42,12 +42,14 @@ export const uidOf = (email) => { const h = createHash('sha1').update(email).dig
 const lit = (v) => v === null || v === undefined ? 'null' : typeof v === 'number' || typeof v === 'boolean' ? String(v)
   : Array.isArray(v) ? (v.length ? `array[${v.map(lit).join(',')}]::text[]` : 'array[]::text[]')
   : typeof v === 'object' ? `$j$${JSON.stringify(v)}$j$::jsonb` : `$s$${String(v)}$s$`;
+// a plain string sent to a jsonb parameter is a JSON string, as PostgREST would send it
+const asJsonb = (fn, k, v) => fn === 'admin_content_save' && k === 'p_value' && typeof v === 'string';
 const asUser = (email) => `select set_config('test.uid','${email ? uidOf(email) : ''}',false), set_config('test.jwt','${email ? JSON.stringify({ email }) : ''}',false); set role ${email ? 'authenticated' : 'anon'};`;
 const errOf = (r) => (r.stderr.match(/ERROR:\s+(.*)/) || [])[1] || r.stderr;
 
 export function callRpc(fn, args, email) {
   if (!/^[a-z_]+$/.test(fn)) return { error: { message: 'bad function name' } };
-  const call = `select coalesce((select row_to_json(x) from (select public.${fn}(${Object.entries(args || {}).map(([k, v]) => `${k} => ${lit(v)}`).join(', ')}) as r) x)->'r', 'null'::json);`;
+  const call = `select coalesce((select row_to_json(x) from (select public.${fn}(${Object.entries(args || {}).map(([k, v]) => `${k} => ${asJsonb(fn, k, v) ? `$j$${JSON.stringify(v)}$j$::jsonb` : lit(v)}`).join(', ')}) as r) x)->'r', 'null'::json);`;
   const r = spawnSync('psql', [...base(), '-c', asUser(email) + ' ' + call], { encoding: 'utf8', env });
   if (r.status) return { error: { message: errOf(r).trim() } };
   const lines = r.stdout.trim().split('\n');

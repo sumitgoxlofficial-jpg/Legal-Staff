@@ -66,12 +66,13 @@ try {
   await asha.p.fill('#r-district', 'Patna'); await asha.p.fill('#r-city', 'Patna'); await asha.p.fill('#r-org', 'Chanakya National Law University');
   await asha.p.check('#r-terms'); await asha.p.check('#r-priv');
   await asha.p.click('#r-go');
-  await asha.p.waitForFunction(() => /Application/.test(document.querySelector('#pn-app h2')?.textContent || ''));
-  ok(/received/i.test(await asha.p.textContent('#pn-app')), 'application submitted');
-  ok(sql("select count(*) from public.partner_applications where status = 'applied'") === '1', 'the application is in the database');
-  await asha.p.goto(BASE + '/partners/dashboard');
-  await asha.p.waitForSelector('.pn-banner');
-  ok(/applied/i.test(await asha.p.textContent('#pn-view') + await asha.p.textContent('.pn-banner')), 'an applicant sees their status, not the dashboard');
+  await asha.p.waitForFunction(() => location.pathname === '/partners/dashboard');
+  await asha.p.waitForSelector('.pn-welcome');
+  ok(/LS10001/.test(await asha.p.textContent('.pn-welcome')), 'after the details, the partner lands on the dashboard with their partner ID (no approval wait)');
+  await asha.p.waitForSelector('#pn-url');
+  ok((await asha.p.inputValue('#pn-url')) === 'https://legalstaff.in/directory/?ref=LS10001', 'the referral link is on the dashboard straight away');
+  ok(sql("select code from public.partners") === 'LS10001' && sql("select status from public.partner_applications") === 'approved', 'the partner exists in the database, approved automatically');
+  ok(sql("select count(*) from public.partner_audit_logs where action = 'application.auto_approved'") === '1', 'automatic approval is in the audit log');
 
   /* ---- 3. Super Admin: Partner Network inside the existing console ---- */
   const adm = await ctxFor('admin');
@@ -82,17 +83,10 @@ try {
   await adm.p.click('#tabs a.nav-item[data-k="partners"]');
   await adm.p.waitForSelector('#tabs a[data-k="partners/overview"]');
   const menu = await adm.p.$$eval('#tabs a[data-k^="partners/"]', (a) => a.map((x) => x.textContent));
-  ok(menu.length === 19, `Super Admin sees all 19 menu items (${menu.length})`);
-  for (const want of ['Overview', 'Partner Applications', 'All Partners', 'Partner Categories', 'Referral Management', 'Advocate Registrations', 'Commission Management', 'Monthly Earnings', 'Payout Management', 'Marketing Campaigns', 'Marketing Resources', 'Partner Notifications', 'Leaderboard', 'Fraud Detection', 'Compliance Management', 'Partner Support', 'Reports & Analytics', 'System Settings', 'Audit Logs']) ok(menu.includes(want), `menu: ${want}`);
-  await adm.p.click('a[data-k="partners/applications"]');
-  await adm.p.waitForSelector('text=Asha Rao');
-  PROMPT = 'Welcome aboard';
-  await adm.p.click('button[data-d="approve"]');
-  await adm.p.waitForFunction(() => !document.querySelector('button[data-d="approve"]'));
-  ok(sql("select code from public.partners") === 'LS10001', 'approving creates partner LS10001');
-
+  ok(menu.length === 20, `Super Admin sees all 20 menu items (${menu.length})`);
+  for (const want of ['Overview', 'Partner Applications', 'All Partners', 'Partner Categories', 'Referral Management', 'Advocate Registrations', 'Commission Management', 'Monthly Earnings', 'Payout Management', 'Marketing Campaigns', 'Marketing Resources', 'Page Content', 'Partner Notifications', 'Leaderboard', 'Fraud Detection', 'Compliance Management', 'Partner Support', 'Reports & Analytics', 'System Settings', 'Audit Logs']) ok(menu.includes(want), `menu: ${want}`);
   // every screen renders without an error card
-  for (const [key] of [['overview'], ['partners'], ['categories'], ['referrals'], ['registrations'], ['commissions'], ['earnings'], ['payouts'], ['campaigns'], ['resources'], ['notifications'], ['leaderboard'], ['fraud'], ['compliance'], ['support'], ['reports'], ['settings'], ['audit']]) {
+  for (const [key] of [['overview'], ['partners'], ['categories'], ['referrals'], ['registrations'], ['commissions'], ['earnings'], ['payouts'], ['campaigns'], ['resources'], ['content'], ['notifications'], ['leaderboard'], ['fraud'], ['compliance'], ['support'], ['reports'], ['settings'], ['audit']]) {
     await adm.p.click(`a[data-k="partners/${key}"]`); await adm.p.waitForFunction(() => { const s = document.querySelector('#page'); return s && !s.querySelector('.skel-block') && s.textContent.length > 20; });
     ok(!(await adm.p.$('#page .card.err')), `admin screen "${key}" renders`);
   }
@@ -127,7 +121,7 @@ try {
   const dl = asha.p.waitForEvent('download'); await asha.p.click('#pn-dl'); const file = await dl;
   ok(/LS10001-qr\.png$/.test(file.suggestedFilename()), 'QR download works');
   const png = readFileSync(await file.path()); ok(png.slice(1, 4).toString() === 'PNG', 'QR download is a PNG');
-  ok((await asha.p.$$('.pn-stat')).length === 9, 'dashboard shows the nine required figures');
+  ok((await asha.p.$$('#v-dashboard .pn-stat')).length === 9, 'dashboard shows the nine required figures');
   for (const v of ['referrals', 'earnings', 'payouts', 'profile', 'resources', 'support']) {
     await asha.p.goto(BASE + '/partners/' + v); await asha.p.waitForFunction(() => !/Loading…/.test(document.querySelector('#pn-view').textContent));
     ok(!(await asha.p.$('#pn-view .pn-err:not([hidden])')), `partner page /${v} renders`);
@@ -195,7 +189,7 @@ try {
   await adm.p.waitForFunction(() => /HDFC-UTR-5566778899/.test(document.body.textContent));
   ok(sql('select status from public.partner_commissions') === 'paid' && sql('select status from public.partner_payouts') === 'paid', 'payout paid with a UTR; the ledger shows the commission paid');
   await asha.p.goto(BASE + '/partners/earnings'); await asha.p.waitForSelector('.pn-table');
-  ok(/paid/i.test(await asha.p.textContent('.pn-table')), 'the partner sees the commission as paid');
+  ok(/paid/i.test(await asha.p.textContent('#v-earnings')) && /15\.00/.test(await asha.p.textContent('#v-earnings')), 'the partner sees the commission as paid, and the monthly table');
 
   /* ---- 9. reports and exports ---- */
   await adm.p.click('a[data-k="partners/reports"]'); await adm.p.waitForSelector('#r-k'); await adm.p.selectOption('#r-k', 'commission_ledger');
@@ -207,6 +201,28 @@ try {
   await adm.p.click('#r-pv'); await adm.p.waitForSelector('#r-print'); ok((await adm.p.textContent('#r-print')).includes('Commission'), 'report preview (print to PDF) renders');
   await adm.p.click('a[data-k="partners/audit"]'); await adm.p.waitForFunction(() => /Append-only/.test(document.querySelector('#page')?.textContent || '') && !!document.querySelector('#page table'));
   ok(/payout\.paid/.test(await adm.p.textContent('#page')) && /commission\.approve/.test(await adm.p.textContent('#page')), 'audit log shows the money trail');
+
+  /* ---- 9b. editable page content ---- */
+  await adm.p.click('a[data-k="partners/content"]'); await adm.p.waitForSelector('[data-block="hero_title"]');
+  await adm.p.fill('[data-block="hero_title"] [data-f="v"]', 'Join the LegalStaff network today'); await adm.p.click('[data-save="hero_title"]');
+  await adm.p.waitForFunction(() => /Saved/.test(document.body.textContent) && /edited/.test(document.querySelector('[data-block="hero_title"]').textContent));
+  const pubc = await ctxFor('public2'); await pubc.p.goto(BASE + '/partners'); await pubc.p.waitForFunction(() => document.querySelector('.hero h1').textContent.includes('Join the LegalStaff network today'));
+  ok(true, 'text edited in the admin appears on the public Partners page');
+  await adm.p.once('dialog', () => {}); await adm.p.click('[data-reset="hero_title"]'); await adm.p.waitForFunction(() => /built-in text/.test(document.querySelector('[data-block="hero_title"]').textContent));
+  ok(sql("select count(*) from public.partner_content") === '0', 'restoring the built-in text removes the override');
+  await pubc.c.close();
+
+  /* ---- 9c. approval mode: the instant dashboard can be switched off ---- */
+  callRpc('admin_settings_save', { p: { auto_approve_partners: false } }, OWNER);
+  const carl = await ctxFor('carl'); await carl.p.addInitScript(() => localStorage.setItem('test.session', JSON.stringify({ user: { id: 'u-carl', email: 'carl@example.in' } })));
+  callRpc('partner_apply', { p: { name: 'Carl Das', mobile: '9876500077', state: 'Delhi', district: 'New Delhi', city: 'Delhi', category_key: 'district_coordinator', accept_terms: true, accept_privacy: true } }, 'carl@example.in');
+  await carl.p.goto(BASE + '/partners/dashboard'); await carl.p.waitForSelector('.pn-banner');
+  ok(/applied/i.test(await carl.p.textContent('#pn-view')) && !(await carl.p.$('#pn-url')), 'with the instant dashboard off, an applicant sees a waiting notice and no referral link');
+  await adm.p.click('a[data-k="partners/applications"]'); await adm.p.waitForSelector('button[data-d="approve"]'); await adm.p.click('button[data-d="approve"]');
+  await adm.p.waitForFunction(() => !document.querySelector('button[data-d="approve"]'));
+  await carl.p.goto(BASE + '/partners/dashboard'); await carl.p.waitForSelector('#pn-url');
+  ok(/ref=LS/.test(await carl.p.inputValue('#pn-url')), 'once staff approve, the applicant gets the dashboard');
+  callRpc('admin_settings_save', { p: { auto_approve_partners: true } }, OWNER);
 
   /* ---- 10. staff roles in the same console ---- */
   callRpc('admin_staff_save', { p_email: FIN, p_role: 'finance_manager', p_active: true }, OWNER);
