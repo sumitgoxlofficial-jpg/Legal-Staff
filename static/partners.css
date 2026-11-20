@@ -480,3 +480,22 @@ body[data-pview="landing"] .section::before {
 body[data-pview="landing"] #how .wrap::before, body[data-pview="landing"] #flow .wrap::before { display: none; }
 body[data-pview="landing"] .pn-steps li::after { display: none; }
 .pn-authBox::before { display: none; }
+
+/* ---------- Mobile fix: the referral card overflowed the screen (link box and buttons cut off) ---------- */
+.pn-portal { overflow-x: clip; }
+.pn-shell, .pn-main, .pn-heroMain, .pn-heroCard, .pn-kpis, .pn-grid2 { min-width: 0; }
+.pn-heroMain { max-width: 100%; }
+.pn-link input { min-width: 0; text-overflow: ellipsis; }
+@media (max-width: 900px) {
+  .pn-shell { grid-template-columns: minmax(0, 1fr); }
+  .pn-portal.pn-shelled .pn-heroCard { grid-template-columns: minmax(0, 1fr); }
+  .pn-heroCard .pn-link { flex-direction: column; align-items: stretch; gap: 10px; }
+  .pn-heroCard .pn-link input { flex: none; width: 100%; max-width: 100%; }
+  .pn-heroCard .pn-link .btn { flex: none; width: 100%; }
+  .pn-heroCard .pn-actions { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .pn-heroCard .pn-actions .btn { min-width: 0; white-space: normal; text-align: center; line-height: 1.25; padding: 10px 8px; height: auto; }
+}
+@media (max-width: 480px) {
+  .pn-heroCard .pn-actions { grid-template-columns: minmax(0, 1fr); }
+  .pn-heroQr svg, .pn-heroQr img { width: 150px; height: 150px; }
+}
