@@ -97,6 +97,30 @@ function login() {
   return shell('Partner sign in', 'Sign in to your LegalStaff partner dashboard with Google.', `${BASE}/login`, body, ['/static/partners.js'], false, true);
 }
 
+
+/* Partner Terms and Privacy: same document, dressed up. A scoped decoration layer, a "at a glance" strip, numbered section cards and a reading-progress bar. */
+function decorateLegal(p) {
+  const art = (p.html.match(/<article class="prose lg-body">([\s\S]*?)<\/article>/) || [, ''])[1];
+  const words = art.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+  const secs = (art.match(/class="lg-sec"/g) || []).length;
+  const upd = (p.html.match(/Last updated <time datetime="[^"]*">([^<]*)<\/time>/) || [, ''])[1];
+  const mins = Math.max(1, Math.round(words / 200));
+  const meta = `<section class="pl-meta"><div class="wrap"><ul>
+<li><span>${icon('clock', 18)}</span><div><small>Last updated</small><b>${esc(upd)}</b></div></li>
+<li><span>${icon('doc', 18)}</span><div><small>Sections</small><b>${secs}</b></div></li>
+<li><span>${icon('book', 18)}</span><div><small>Reading time</small><b>About ${mins} min</b></div></li>
+<li><span>${icon('shield', 18)}</span><div><small>Applies to</small><b>Every partner</b></div></li></ul></div></section>`;
+  const deco = `<div class="pl-deco" aria-hidden="true"><i class="pl-blob b1"></i><i class="pl-blob b2"></i><span class="pl-dots"></span>
+<svg class="pl-rings" viewBox="0 0 400 400"><circle cx="200" cy="200" r="60"/><circle cx="200" cy="200" r="110"/><circle cx="200" cy="200" r="160"/><circle cx="200" cy="200" r="195"/></svg>
+<svg class="pl-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+<b class="pl-plus p1">+</b><b class="pl-plus p2">+</b><b class="pl-plus p3">+</b></div>`;
+  p.html = p.html
+    .replace('<body>', '<body data-plegal="1"><div class="pl-progress" aria-hidden="true"><i id="pl-bar"></i></div>')
+    .replace('<section class="section post-section"><div class="wrap">', `${meta}\n<section class="section post-section">${deco}<div class="wrap">`)
+    .replace('</body>', `<script>(function(){var b=document.getElementById('pl-bar');if(!b)return;function u(){var h=document.documentElement,m=h.scrollHeight-h.clientHeight;b.style.transform='scaleX('+(m>0?Math.min(1,h.scrollTop/m):0)+')';}addEventListener('scroll',u,{passive:true});addEventListener('resize',u);u();})();</script>\n</body>`);
+  return p;
+}
+
 const li = x => `<li>${x}</li>`;
 function terms() {
   const p = legalPage({ path: `${BASE}/terms`, name: 'Partner Terms', metaTitle: 'LegalStaff Partner Terms', description: 'Terms for partners in the LegalStaff Advocate Partner Network: eligibility, referrals, attribution, rewards, conduct, payouts and suspension.', kicker: 'Advocate Partner Network', lead: 'The terms that apply to every LegalStaff partner. Category-specific terms are shown when you apply.', sections: [
@@ -116,7 +140,7 @@ function terms() {
     { id: 'changes', title: 'Changes', html: '<p>We may update these terms. The version you accepted is recorded with your application, and you will be asked to accept a new version where it matters.</p>' }
   ] });
   p.html = p.html.replace('</head>', CSS + '\n</head>');
-  return p;
+  return decorateLegal(p);
 }
 function privacy() {
   const p = legalPage({ path: `${BASE}/privacy`, name: 'Partner Privacy Notice', metaTitle: 'LegalStaff Partner Privacy Notice', description: 'How LegalStaff handles partner data: what we collect, why, how long we keep it, and how to correct or erase it, under the DPDP Act, 2023.', kicker: 'Advocate Partner Network', lead: 'What we collect from partners, why, and what you can do about it.', sections: [
@@ -133,7 +157,7 @@ function privacy() {
     { id: 'contact', title: 'Grievances', html: '<p>See the Grievance Officer details on the <a href="/privacy">Privacy Policy</a>.</p>' }
   ] });
   p.html = p.html.replace('</head>', CSS + '\n</head>');
-  return p;
+  return decorateLegal(p);
 }
 
 // The partner area is one page. The other portal URLs (referrals, earnings, payouts, profile, resources, support) open the same page scrolled to that section.
