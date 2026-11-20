@@ -217,22 +217,94 @@
   function waiting(a) {
     return '<div class="pn-banner"><b>Your application is ' + chip(a.status) + '</b><p class="muted" style="margin:6px 0 0">Your dashboard opens as soon as our team approves it. ' + esc(a.note || '') + '</p></div>';
   }
-  /* The whole partner area is one page: the link first, then money, payouts, referrals, resources, profile and support, each in its own section. */
+  /* ---------- small chart helpers (plain SVG, no library) ---------- */
+  function countUp(el) {
+    var to = Number(el.getAttribute('data-count')) || 0, kind = el.getAttribute('data-fmt'), fmt = function (v) { return kind === 'inr' ? inr(v) : Math.round(v).toLocaleString('en-IN'); };
+    if (reduceMotion || !to) { el.textContent = fmt(to); return; }
+    var t0 = null, dur = 1000; el.textContent = fmt(0);
+    (function step(ts) { if (t0 === null) t0 = ts; var k = Math.min(1, (ts - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(to * e); if (k < 1) requestAnimationFrame(step); })(performance.now());
+  }
+  function smooth(pts) { if (!pts.length) return ''; var d = 'M' + pts[0][0] + ' ' + pts[0][1]; for (var i = 1; i < pts.length; i++) { var a = pts[i - 1], b = pts[i], cx = (a[0] + b[0]) / 2; d += ' C' + cx + ' ' + a[1] + ' ' + cx + ' ' + b[1] + ' ' + b[0] + ' ' + b[1]; } return d; }
+  var monthName = function (ym) { var a = String(ym).split('-'); return new Date(+a[0], (+a[1] || 1) - 1, 1).toLocaleString('en-IN', { month: 'short' }); };
+  function spark(vals, color) {
+    var W = 96, H = 30, n = vals.length, mx = Math.max.apply(null, vals.concat([1])); if (n < 2) return '';
+    var pts = vals.map(function (v, i) { return [Math.round(i / (n - 1) * (W - 4) + 2), Math.round(H - 3 - v / mx * (H - 8))]; });
+    return '<svg class="pn-spark" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true"><path d="' + smooth(pts) + ' L' + pts[n - 1][0] + ' ' + H + ' L' + pts[0][0] + ' ' + H + 'Z" fill="' + color + '" opacity=".12"/><path class="pn-draw" pathLength="1" d="' + smooth(pts) + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round"/></svg>';
+  }
+  var SERIES = [['clicks', 'Link clicks', '#3B5BDB'], ['registrations', 'Advocates referred', '#0A0A0A'], ['listings', 'Approved listings', '#12B76A']];
+  function areaChart(monthly) {
+    var W = 640, H = 250, L = 34, R = 12, T = 14, B = 30, n = monthly.length;
+    var mx = Math.max.apply(null, monthly.map(function (x) { return Math.max(x.clicks, x.registrations, x.listings); }).concat([4]));
+    var top = mx <= 4 ? 4 : Math.ceil(mx / 4) * 4, X = function (i) { return n < 2 ? (L + W - R) / 2 : L + i / (n - 1) * (W - L - R); }, Y = function (v) { return T + (1 - v / top) * (H - T - B); };
+    var grid = [0, 1, 2, 3, 4].map(function (g) { var v = top / 4 * g, y = Y(v); return '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '" class="pn-grid"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end" class="pn-axis">' + Math.round(v) + '</text>'; }).join('');
+    var xs = monthly.map(function (x, i) { return '<text x="' + X(i) + '" y="' + (H - 8) + '" text-anchor="middle" class="pn-axis">' + esc(monthName(x.month)) + '</text>'; }).join('');
+    var defs = '<defs><linearGradient id="pn-gA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B5BDB" stop-opacity=".28"/><stop offset="1" stop-color="#3B5BDB" stop-opacity="0"/></linearGradient></defs>';
+    var lines = SERIES.map(function (se, si) {
+      var pts = monthly.map(function (x, i) { return [X(i), Y(x[se[0]])]; }), d = smooth(pts);
+      return '<g class="pn-ser" data-s="' + se[0] + '">' + (si === 0 && n > 1 ? '<path d="' + d + ' L' + X(n - 1) + ' ' + (H - B) + ' L' + X(0) + ' ' + (H - B) + 'Z" fill="url(#pn-gA)" class="pn-areafade"/>' : '') +
+        '<path class="pn-draw" pathLength="1" d="' + d + '" fill="none" stroke="' + se[2] + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>' +
+        pts.map(function (q, i) { return '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="3.2" fill="#fff" stroke="' + se[2] + '" stroke-width="2" class="pn-dot" style="--i:' + i + '"/>'; }).join('') + '</g>';
+    }).join('');
+    var empty = monthly.every(function (x) { return !x.clicks && !x.registrations && !x.listings; });
+    return '<div class="pn-chart" id="pn-chart"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Monthly clicks, referrals and approved listings for the last six months">' + defs + grid + xs + '<line class="pn-guide" id="pn-guide" y1="' + T + '" y2="' + (H - B) + '" x1="0" x2="0" opacity="0"/>' + lines + '</svg>' +
+      '<div class="pn-tip" id="pn-tip" hidden></div>' + (empty ? '<div class="pn-chart-empty">Your numbers will appear here once people start using your link.</div>' : '') + '</div>' +
+      '<div class="pn-legend2">' + SERIES.map(function (se) { return '<button type="button" class="pn-lg" data-s="' + se[0] + '" aria-pressed="true"><i style="background:' + se[2] + '"></i>' + se[1] + '</button>'; }).join('') + '</div>';
+  }
+  function wireChart(monthly) {
+    var box = $('#pn-chart'); if (!box) return;
+    var svg = box.querySelector('svg'), tip = $('#pn-tip'), guide = $('#pn-guide'), W = 640, L = 34, R = 12, n = monthly.length;
+    var X = function (i) { return n < 2 ? (L + W - R) / 2 : L + i / (n - 1) * (W - L - R); };
+    box.onpointermove = function (e) {
+      var r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, best = 0, bd = 1e9;
+      monthly.forEach(function (_, i) { var d = Math.abs(X(i) - x); if (d < bd) { bd = d; best = i; } });
+      var d = monthly[best]; guide.setAttribute('x1', X(best)); guide.setAttribute('x2', X(best)); guide.setAttribute('opacity', '1');
+      tip.hidden = false; tip.innerHTML = '<b>' + esc(monthName(d.month)) + ' ' + esc(String(d.month).slice(0, 4)) + '</b>' + SERIES.map(function (se) { return '<span><i style="background:' + se[2] + '"></i>' + se[1] + '<em>' + d[se[0]] + '</em></span>'; }).join('');
+      var px = X(best) / W * r.width, tw = tip.offsetWidth; tip.style.left = Math.max(4, Math.min(r.width - tw - 4, px - tw / 2)) + 'px';
+    };
+    box.onpointerleave = function () { tip.hidden = true; guide.setAttribute('opacity', '0'); };
+    document.querySelectorAll('.pn-lg').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); var g = svg.querySelector('.pn-ser[data-s="' + b.getAttribute('data-s') + '"]'); if (g) g.style.opacity = on ? '1' : '0'; b.classList.toggle('off', !on); }; });
+  }
+  function donut(parts, total) {
+    var R = 54, C = 2 * Math.PI * R, off = 0, segs = parts.map(function (x) {
+      var len = total ? x.v / total * C : 0, seg = '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="' + x.c + '" stroke-width="16" stroke-dasharray="' + Math.max(0, len - (len > 3 ? 2 : 0)) + ' ' + C + '" stroke-dashoffset="' + (-off) + '" transform="rotate(-90 70 70)" class="pn-seg"/>';
+      off += len; return seg;
+    }).join('');
+    return '<div class="pn-donut"><svg viewBox="0 0 140 140" role="img" aria-label="Commission split"><circle cx="70" cy="70" r="' + R + '" fill="none" stroke="#EFEFEE" stroke-width="16"/>' + segs + '</svg><div class="pn-donutC"><small>Total earned</small><b data-count="' + total + '" data-fmt="inr">' + inr(total) + '</b></div></div>';
+  }
+  var NAVIC = { dashboard: 'home', referrals: 'users', earnings: 'trend', payouts: 'wallet', resources: 'folder', profile: 'user', support: 'help' };
+  var ICP = { home: 'M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z', trend: 'M3 17l6-6 4 4 8-8M15 7h6v6', wallet: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7V6a2 2 0 0 1 2-2h12M16 14h2', users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8', folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8', help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01', click: 'M9 9l5 12 1.7-5.3L21 14zM9 3v2M3 9h2M5.6 5.6L7 7', check: 'M20 6L9 17l-5-5', clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2', out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9', rupee: 'M6 3h12M6 8h12M9 13h3a4 4 0 0 0 0-5M9 13l7 8', copy: 'M9 9h11v11H9zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1', share: 'M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v14', qr: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20h3M20 17v4', star: 'M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z' };
+  var ic = function (n, sz) { return '<svg class="pn-ic" width="' + (sz || 18) + '" height="' + (sz || 18) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + (ICP[n] || '') + '"/></svg>'; };
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var initials = function (n) { return String(n || '?').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join(''); };
+  var hour = function () { var h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
+
+  /* The partner area is one app: a sidebar with a section list, and one panel on screen at a time (the URL hash picks it). */
   function hub(root, m, focus) {
-    var p = m.partner, welcome = /[?&]welcome=1/.test(location.search);
-    root.innerHTML = (welcome ? '<div class="pn-welcome"><b>Welcome, ' + esc(p.name.split(' ')[0]) + '. You are in.</b><span>Your partner ID is <b>' + esc(p.code) + '</b>. Your referral link and QR code are ready below: share them with advocates.</span></div>' : '') +
+    var p = m.partner, welcome = /[?&]welcome=1/.test(location.search), first = String(p.name || 'Partner').split(' ')[0];
+    var host = root.closest('.pn-portal'); if (host) host.classList.add('pn-shelled');
+    root.innerHTML = '<div class="pn-shell"><aside class="pn-side"><div class="pn-me"><span class="pn-av">' + esc(initials(p.name)) + '</span><div><b>' + esc(p.name) + '</b><small>Partner ID ' + esc(p.code) + '</small></div></div>' +
+      '<nav class="pn-nav" aria-label="Partner sections">' + SECTIONS.map(function (x) { return '<a href="#s-' + x[0] + '" data-nav="' + x[0] + '">' + ic(NAVIC[x[0]], 18) + '<span>' + x[1] + '</span></a>'; }).join('') + '</nav>' +
+      '<a href="#" class="pn-signout" id="pn-out2">' + ic('out', 18) + '<span>Sign out</span></a></aside>' +
+      '<main class="pn-main"><header class="pn-head"><div><p class="pn-hello">' + hour() + ', ' + esc(first) + '</p><h1 id="pn-title">Overview</h1></div><div class="pn-headR">' + chip(p.status) + '</div></header>' +
+      (welcome ? '<div class="pn-welcome"><b>Welcome, ' + esc(first) + '. You are in.</b><span>Your partner ID is <b>' + esc(p.code) + '</b>. Your referral link and QR code are ready below: share them with advocates.</span></div>' : '') +
       (p.status !== 'approved' ? '<div class="pn-banner"><b>Your account is ' + chip(p.status) + '.</b> ' + esc(p.status_note || '') + ' Referral tracking and payouts are off while your account is not in good standing. Contact support if you have questions.</div>' : '') +
-      '<nav class="pn-jump" aria-label="Sections">' + SECTIONS.map(function (x) { return '<a href="#s-' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</nav>' +
-      SECTIONS.map(function (x) { return '<section class="pn-sec" id="s-' + x[0] + '">' + (x[0] === 'dashboard' ? '' : '<h2 class="pn-sh">' + x[1] + '</h2>') + '<div id="v-' + x[0] + '"><p class="muted">Loading…</p></div></section>'; }).join('');
-    var jobs = SECTIONS.map(function (x) {
+      SECTIONS.map(function (x) { return '<section class="pn-sec pn-panel" id="s-' + x[0] + '" hidden>' + (x[0] === 'dashboard' ? '' : '<h2 class="pn-sh">' + x[1] + '</h2>') + '<div id="v-' + x[0] + '"><div class="pn-skel"><i></i><i></i><i></i></div></div></section>'; }).join('') + '</main></div>';
+    $('#pn-out2').onclick = function (e) { e.preventDefault(); sb.auth.signOut().then(function () { location.href = '/partners/login'; }); };
+    var show = function (name) {
+      if (!$('#s-' + name)) name = 'dashboard';
+      SECTIONS.forEach(function (x) { var el = $('#s-' + x[0]); if (el) { var on = x[0] === name; if (on && el.hidden) { el.hidden = false; el.classList.remove('pn-in'); void el.offsetWidth; el.classList.add('pn-in'); } else if (!on) el.hidden = true; } });
+      root.querySelectorAll('[data-nav]').forEach(function (a) { if (a.getAttribute('data-nav') === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+      var t = SECTIONS.filter(function (x) { return x[0] === name; })[0]; $('#pn-title').textContent = t ? t[1] : 'Overview';
+    };
+    var cur = function () { var h = (location.hash || '').replace('#s-', ''); return $('#s-' + h) ? h : (focus && $('#s-' + focus) ? focus : 'dashboard'); };
+    root.querySelectorAll('[data-nav]').forEach(function (a) { a.onclick = function (e) { e.preventDefault(); var n = a.getAttribute('data-nav'); if (window.history && history.replaceState) history.replaceState(null, '', '#s-' + n); show(n); window.scrollTo({ top: Math.max(0, root.getBoundingClientRect().top + window.pageYOffset - 70), behavior: reduceMotion ? 'auto' : 'smooth' }); }; });
+    window.addEventListener('hashchange', function () { show(cur()); });
+    show(cur());
+    SECTIONS.forEach(function (x) {
       var el = $('#v-' + x[0]);
-      return Promise.resolve().then(function () { return VIEWS[x[0]](el); }).catch(function (e) { el.innerHTML = '<p class="pn-err">' + esc(errText(e)) + '</p>'; });
+      Promise.resolve().then(function () { return VIEWS[x[0]](el); }).catch(function (e) { el.innerHTML = '<p class="pn-err">' + esc(errText(e)) + '</p>'; });
     });
-    Promise.all(jobs).then(function () {
-      if (location.hash && $(location.hash)) $(location.hash).scrollIntoView();
-      else if (focus && focus !== 'dashboard' && $('#s-' + focus)) $('#s-' + focus).scrollIntoView();
-    });
-    if (welcome && window.history && history.replaceState) history.replaceState(null, '', location.pathname);
+    if (welcome && window.history && history.replaceState) history.replaceState(null, '', location.pathname + location.hash);
   }
   function table(cols, rows, empty) {
     if (!rows.length) return '<div class="pn-tablewrap"><div class="pn-empty">' + esc(empty) + '</div></div>';
@@ -249,20 +321,32 @@
   var VIEWS = {
     dashboard: function (root) {
       return Promise.all([rpc('partner_dashboard'), rpc('partner_notifications_list', { p_mark_read: false })]).then(function (a) {
-        var d = a[0], notes = a[1], t = d.totals, m = d.money, max = Math.max.apply(null, d.monthly.map(function (x) { return Math.max(x.clicks, x.registrations, x.listings); }).concat([1]));
-        var stat = function (k, v, s) { return '<div class="pn-stat"><span>' + esc(k) + '</span><b>' + esc(v) + '</b>' + (s ? '<small>' + esc(s) + '</small>' : '') + '</div>'; };
+        var d = a[0], notes = a[1], t = d.totals, m = d.money, mo = d.monthly || [];
+        var col = function (k) { return mo.map(function (x) { return x[k] || 0; }); };
         var share = 'https://wa.me/?text=' + encodeURIComponent('Apply for a profile in the LegalStaff Advocate Directory: ' + d.referral_url);
-        root.innerHTML = '<div class="pn-heroCard"><div class="pn-heroMain"><span class="pn-eyebrow">Your referral link · Partner ID ' + esc(d.partner.code) + '</span><h2>Share this link with advocates</h2>' +
-          '<div class="pn-link pn-linkDark"><input readonly id="pn-url" value="' + esc(d.referral_url) + '" aria-label="Referral link"><button class="btn btn-light btn-sm" id="pn-copy" type="button">Copy</button></div>' +
-          '<div class="pn-actions" style="margin-top:12px"><a class="btn btn-ghost-light btn-sm" href="' + esc(share) + '" target="_blank" rel="noopener">Share on WhatsApp</a><button class="btn btn-ghost-light btn-sm" id="pn-dl" type="button">Download QR</button></div>' +
+        var kpi = function (i, icon, label, val, fmt, color, series, sub) { return '<div class="pn-kpi" style="--i:' + i + ';--c:' + color + '"><div class="pn-kpiTop"><span class="pn-kpiIc">' + ic(icon, 18) + '</span>' + (series ? spark(series, color) : '') + '</div><b data-count="' + (val || 0) + '"' + (fmt ? ' data-fmt="' + fmt + '"' : '') + '>0</b><span class="pn-kpiL">' + esc(label) + '</span>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>'; };
+        var total = (m.pending_paise || 0) + (m.eligible_paise || 0) + (m.paid_paise || 0);
+        var parts = [{ n: 'Pending', v: m.pending_paise || 0, c: '#F79009' }, { n: 'Eligible', v: m.eligible_paise || 0, c: '#3B5BDB' }, { n: 'Paid', v: m.paid_paise || 0, c: '#12B76A' }];
+        var fun = [['Link clicks', t.referrals, '#3B5BDB'], ['Advocates referred', t.registrations, '#6D83E8'], ['Paid registrations', t.paid_registrations, '#0A0A0A'], ['Approved listings', t.approved_listings, '#12B76A']];
+        var fmax = Math.max.apply(null, fun.map(function (x) { return x[1] || 0; }).concat([1]));
+        root.innerHTML =
+          '<div class="pn-heroCard pn-rise" style="--i:0"><div class="pn-heroMain"><span class="pn-eyebrow">' + ic('star', 14) + ' Your referral link</span><h2>Share this link with advocates</h2>' +
+          '<div class="pn-link pn-linkDark"><input readonly id="pn-url" value="' + esc(d.referral_url) + '" aria-label="Referral link"><button class="btn btn-light btn-sm" id="pn-copy" type="button">' + ic('copy', 15) + ' Copy</button></div>' +
+          '<div class="pn-actions" style="margin-top:14px"><a class="btn btn-ghost-light btn-sm" href="' + esc(share) + '" target="_blank" rel="noopener">' + ic('share', 15) + ' Share on WhatsApp</a><button class="btn btn-ghost-light btn-sm" id="pn-dl" type="button">' + ic('qr', 15) + ' Download QR</button></div>' +
           '<p class="pn-heroNote">' + esc(d.commission_note) + ' Rewards are never guaranteed and arise only on verified listings.</p></div><div class="pn-heroQr" id="pn-qr" aria-label="QR code"></div></div>' +
-          '<div class="pn-stats">' + stat('Link clicks', t.referrals) + stat('Advocates referred', t.registrations) + stat('Paid registrations', t.paid_registrations) + stat('Approved listings', t.approved_listings) + stat('Pending verification', t.pending_verification) +
-          stat('Eligible commission', inr(m.eligible_paise)) + stat('Pending commission', inr(m.pending_paise)) + stat('Paid commission', inr(m.paid_paise)) + stat('Available balance', inr(m.available_paise), 'Minimum withdrawal ' + inr(m.min_withdrawal_paise)) + '</div>' +
-          '<div class="pn-grid2"><div class="pn-card"><h3 class="pn-h">Last six months</h3><div class="pn-bars">' + d.monthly.map(function (x) { return '<div class="pn-bar" title="' + esc(x.month) + ': ' + x.clicks + ' clicks, ' + x.registrations + ' registrations, ' + x.listings + ' approved"><i style="height:' + Math.round(x.registrations / max * 100) + '%"></i><i class="b" style="height:' + Math.round(x.listings / max * 100) + '%"></i><span>' + esc(x.month.slice(5)) + '</span></div>'; }).join('') + '</div><div class="pn-legend"><span><i></i>Registrations</span><span><i class="b"></i>Approved listings</span></div></div>' +
-          '<div class="pn-card"><h3 class="pn-h">Notifications</h3><div id="pn-notes">' + (notes.length ? notes.slice(0, 6).map(function (n) { return '<div class="pn-notif' + (n.read ? '' : ' unread') + '"><b>' + esc(n.title) + '</b>' + esc(n.body) + '<br><small>' + esc(dt(n.at)) + '</small></div>'; }).join('') : '<div class="pn-empty">Nothing yet.</div>') + '</div></div></div>';
+          '<div class="pn-kpis">' + kpi(1, 'click', 'Link clicks', t.referrals, '', '#3B5BDB', col('clicks')) + kpi(2, 'users', 'Advocates referred', t.registrations, '', '#0A0A0A', col('registrations')) + kpi(3, 'check', 'Approved listings', t.approved_listings, '', '#12B76A', col('listings')) + kpi(4, 'wallet', 'Available balance', m.available_paise, 'inr', '#7A5AF8', null, 'Minimum withdrawal ' + inr(m.min_withdrawal_paise)) + '</div>' +
+          '<div class="pn-grid2 pn-rise" style="--i:5"><div class="pn-card"><div class="pn-cardHead"><h3 class="pn-h">Performance</h3><span class="pn-muted2">Last six months</span></div>' + areaChart(mo) + '</div>' +
+          '<div class="pn-card"><div class="pn-cardHead"><h3 class="pn-h">Commission</h3><span class="pn-muted2">By status</span></div><div class="pn-split">' + donut(parts, total) + '<ul class="pn-keys">' + parts.map(function (x) { return '<li><i style="background:' + x.c + '"></i><span>' + x.n + '</span><b>' + inr(x.v) + '</b></li>'; }).join('') + '</ul></div></div></div>' +
+          '<div class="pn-grid2 pn-rise" style="--i:6"><div class="pn-card"><div class="pn-cardHead"><h3 class="pn-h">Referral funnel</h3><span class="pn-muted2">From click to approved listing</span></div><div class="pn-funnel">' + fun.map(function (x, i) {
+            var w = Math.max(x[1] ? 4 : 0, Math.round((x[1] || 0) / fmax * 100)), prev = i ? fun[i - 1][1] : 0, rate = i && prev ? Math.round((x[1] || 0) / prev * 100) + '% of previous' : '';
+            return '<div class="pn-fRow" style="--i:' + i + '"><div class="pn-fTop"><span>' + esc(x[0]) + '</span><b>' + (x[1] || 0) + '</b></div><div class="pn-fTrack"><i style="--w:' + w + '%;background:' + x[2] + '"></i></div><small>' + esc(rate) + '</small></div>';
+          }).join('') + '</div><p class="pn-hint" style="margin:12px 0 0">' + (t.pending_verification || 0) + ' listing' + ((t.pending_verification || 0) === 1 ? '' : 's') + ' waiting for verification.</p></div>' +
+          '<div class="pn-card"><div class="pn-cardHead"><h3 class="pn-h">Notifications</h3></div><div id="pn-notes" class="pn-feed">' + (notes.length ? notes.slice(0, 6).map(function (n) { return '<div class="pn-notif' + (n.read ? '' : ' unread') + '"><span class="pn-dotN"></span><div><b>' + esc(n.title) + '</b>' + esc(n.body) + '<br><small>' + esc(dt(n.at)) + '</small></div></div>'; }).join('') : '<div class="pn-empty">' + ic('clock', 22) + '<br>Nothing yet. Updates about your referrals and payouts appear here.</div>') + '</div></div></div>';
         $('#pn-qr').innerHTML = qrSvg(d.referral_url).createSvgTag(5, 0, 'QR code for ' + d.partner.code);
-        $('#pn-copy').onclick = function () { var i = $('#pn-url'); i.select(); (navigator.clipboard ? navigator.clipboard.writeText(i.value) : Promise.reject()).catch(function () { document.execCommand('copy'); }); this.textContent = 'Copied'; var b = this; setTimeout(function () { b.textContent = 'Copy'; }, 1500); };
+        $('#pn-copy').onclick = function () { var i = $('#pn-url'); i.select(); (navigator.clipboard ? navigator.clipboard.writeText(i.value) : Promise.reject()).catch(function () { document.execCommand('copy'); }); var b = this; b.innerHTML = ic('check', 15) + ' Copied'; setTimeout(function () { b.innerHTML = ic('copy', 15) + ' Copy'; }, 1500); };
         $('#pn-dl').onclick = function () { var a = document.createElement('a'); a.href = qrPng(d.referral_url, d.partner.code); a.download = 'legalstaff-partner-' + d.partner.code + '-qr.png'; a.click(); };
+        root.querySelectorAll('[data-count]').forEach(countUp);
+        wireChart(mo);
         if (notes.some(function (n) { return !n.read; })) rpc('partner_notifications_list', { p_mark_read: true });
       });
     },
