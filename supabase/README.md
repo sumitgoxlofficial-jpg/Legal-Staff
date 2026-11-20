@@ -26,6 +26,8 @@
 | `functions/ai` | Real AI for AI Case Brain, AI Legal Research and AI Drafting Studio through Groq; picks the best model from Groq's live list; counts AI credits per firm per month by plan (deploy with JWT verification off; it checks the caller itself) |
 | `functions/razorpay` | Razorpay Standard Checkout (card, UPI, netbanking, wallets): `create-order` makes the Razorpay order for a plan, `verify-payment` checks the HMAC-SHA256 signature and only then marks the payment paid, activates the plan and issues the invoice. Needs secrets `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` (deploy with JWT verification off; it checks every caller itself) |
 | `functions/billing` | Invoices for plan payments: numbers them, emails the PDF to the buyer, lists, downloads and re-sends them (deploy with JWT verification off) |
+| `migrations/0039_partner_network.sql`, `0040_partner_mail_schedule.sql` | Advocate Partner Network: partners, categories, referral attribution, commission ledger, payouts, fraud flags, compliance approvals, roles, audit. See `docs/partner-network/` |
+| `functions/partner-mail` | Sends queued Partner Network emails and template test emails (deploy with JWT verification off; scheduled every 10 minutes by 0040) |
 | `functions/drive` | Encrypted storage in each user's own Google Drive: uploads and nightly backups, encrypted with AES-256-GCM (a key per firm) and kept in the Drive's hidden app folder (deploy with JWT verification off; it checks the caller itself) |
 
 ## Current project

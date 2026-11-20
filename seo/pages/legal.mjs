@@ -48,7 +48,7 @@ const table = (caption, headers, rows) => `<div class="table-wrap" tabindex="0" 
  * legalPage: dark title band (breadcrumb, H1, lead, Last updated), then prose + sidebar (table of contents, legal nav).
  * sections: [{ id, title, html }] — each becomes an <h2 id> in the article and a TOC entry when toc is true.
  */
-function legalPage({ path, name, metaTitle, description, kicker = 'Company & legal', lead, sections, toc = true, note = true, jsonld = [], scripts = [], tail = '', priority = 0.4 }) {
+export function legalPage({ path, name, metaTitle, description, kicker = 'Company & legal', lead, sections, toc = true, note = true, jsonld = [], scripts = [], tail = '', priority = 0.4 }) {
   const crumbs = [{ name: 'Home', path: '/' }, { name, path }];
   const tocList = `<ol>${sections.map(s => `<li><a href="#${s.id}">${esc(s.title)}</a></li>`).join('')}</ol>`;
   const article = `<article class="prose lg-body">
