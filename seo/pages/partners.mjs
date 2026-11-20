@@ -34,14 +34,14 @@ function landing() {
   const steps = `<ol class="pn-steps" id="pn-steps">${STEPS.map((s, i) => `<li class="ls-reveal"><span class="pn-n">${i + 1}</span><div><b>${esc(s.title)}</b><p>${esc(s.text)}</p></div></li>`).join('')}</ol>`;
   const benefits = `<div class="lg-grid" id="pn-benefits">${BENEFITS.map((b, i) => `<div class="lg-tile ls-reveal"><span class="lg-tile-ic">${icon(BENEFIT_ICONS[i % BENEFIT_ICONS.length], 20)}</span><b>${esc(b.title)}</b><span>${esc(b.text)}</span></div>`).join('')}</div>`;
   const commission = `<div class="pn-note ls-reveal" id="pn-rewards"><p><b>How rewards work.</b> ${esc(CONTENT.rewards_note)}</p></div>`;
-  const body = `${hero({ kicker: 'Advocate Partner Network', title: CONTENT.hero_title, lead: CONTENT.hero_lead, crumbs: crumbs('Partners', BASE), primary: 'Become a Partner', primaryHref: `${BASE}/register`, secondary: { label: 'Explore Advocate Directory', href: '/directory' }, chips: ['Free to join', 'Instant dashboard', 'Unique link and QR code'] })}
+  const body = `${hero({ kicker: 'Advocate Partner Network', title: CONTENT.hero_title, lead: CONTENT.hero_lead, crumbs: crumbs('Partners', BASE), primary: 'Become a Partner', primaryHref: `${BASE}/register`, secondary: { label: 'Explore Advocate Directory', href: '/directory' }, extra: `<a class="btn btn-ghost-light" href="${BASE}/login">Partner login</a>`, chips: ['Free to join', 'Instant dashboard', 'Unique link and QR code'] })}
 ${section({ id: 'how', kicker: 'How it works', title: 'From Google sign-in to your dashboard in a minute', inner: steps })}
 ${section({ id: 'categories', kicker: 'Partner categories', title: 'Six ways to take part', lead: 'Each category has its own eligibility and terms. Choose the one that fits you when you apply.', inner: cats, tone: 'tone-soft' })}
 ${section({ id: 'benefits', kicker: 'Benefits', title: 'What partners get', inner: benefits })}
 ${section({ id: 'rewards', kicker: 'Rewards', title: 'Honest about rewards', inner: commission, tone: 'tone-soft' })}
 ${faqBlock(FAQ)}
 <section class="cta-band"><div class="wrap"><div class="cta-in"><div><h2 class="h2 light">Ready to apply?</h2><p class="lead">Registration takes a few minutes. Our team reviews every application.</p></div>
-<div class="row-btns"><a class="btn btn-light" href="${BASE}/register">Become a Partner ${icon('arrow', 16)}</a><a class="btn btn-ghost-light" href="${BASE}/login">Partner sign in</a></div></div></div></section>
+<div class="row-btns"><a class="btn btn-light" href="${BASE}/register">Become a Partner ${icon('arrow', 16)}</a><a class="btn btn-ghost-light" href="${BASE}/login">Partner login</a></div></div></div></section>
 <script>window.PN_CATS=${CATS_JSON};</script>`;
   const p = shell('LegalStaff Advocate Partner Network', 'Join a nationwide network helping India\u2019s advocates establish their professional digital presence. Free to join, approved by our team, with a unique referral link and QR code.', BASE, body, ['/static/partners.js']);
   p.html = p.html.replace('</head>', `<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: FAQ.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }).replace(/</g, '\\u003c')}</script>\n</head>`);
@@ -50,7 +50,7 @@ ${faqBlock(FAQ)}
 }
 
 function register() {
-  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Apply to become a partner', lead: 'Sign in with Google and fill in your details. Your referral link and dashboard are ready straight away.', crumbs: crumbs('Apply', `${BASE}/register`), primary: 'Partner sign in', primaryHref: `${BASE}/login`, secondary: { label: 'Back to Partners', href: BASE } })}
+  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Apply to become a partner', lead: 'Sign in with Google and fill in your details. Your referral link and dashboard are ready straight away.', crumbs: crumbs('Apply', `${BASE}/register`), primary: null, secondary: { label: 'Back to Partners', href: BASE } })}
 <section class="section"><div class="wrap narrow">
 <div class="pn-card" id="pn-app"><noscript><p class="muted">This form needs JavaScript.</p></noscript>
   <p class="muted" id="pn-loading">Loading\u2026</p></div>
