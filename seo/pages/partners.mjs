@@ -4,6 +4,13 @@
 // Never promises clients, cases, income or professional success. Commission is described as conditional and is OFF until counsel approves it.
 import { page, seoHead, ld, hero, section, faqBlock, icon, esc, abs } from '../lib.mjs';
 import { legalPage } from './legal.mjs';
+import { CONTENT } from '../data/partners-content.mjs';
+import { writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const { steps: STEPS, benefits: BENEFITS, faq: FAQ } = CONTENT;
+const BENEFIT_ICONS = ['spark', 'pin', 'folder', 'doc', 'shield', 'check', 'users', 'book'];
 
 const CSS = '<link rel="stylesheet" href="/static/partners.css">';
 const BASE = '/partners';
@@ -16,30 +23,6 @@ export const CATEGORIES = [
   ['district_coordinator', 'pin', 'District Coordinator', 'Independent district-level representatives for permitted platform awareness activities and local partner recruitment.'],
   ['legal_community_partner', 'building', 'Legal Community Partner', 'Legal publishers, legal education communities and other eligible legal ecosystem organisations.']
 ];
-const STEPS = [
-  ['Apply for partnership', 'Sign in with Google, then tell us who you are, where you work and which category fits you.'],
-  ['Get approved', 'Our team reviews every application. Nobody becomes a partner automatically.'],
-  ['Receive your referral link and QR code', 'Approved partners get a unique partner ID, a referral link and a downloadable QR code.'],
-  ['Introduce eligible advocates', 'Share the LegalStaff Directory with practising advocates. They apply and are verified exactly as every other advocate is.'],
-  ['Track referrals and eligible rewards', 'Follow referrals from your dashboard. Where rewards apply to your category, you see their status at every step.']
-];
-const BENEFITS = [
-  ['spark', 'Free to join', 'There is no joining fee.'],
-  ['pin', 'Your own link and QR', 'One unique partner ID with a shareable link and a printable QR code.'],
-  ['folder', 'Ready-made material', 'Posters, message templates and guides, kept up to date by the LegalStaff team.'],
-  ['doc', 'Clear tracking', 'See every referral, its stage and any reward status, from click to verified listing.'],
-  ['shield', 'Fair and transparent', 'Each referral is attributed on the server, recorded, and open to review. Nothing is changed silently.']
-];
-const FAQ = [
-  { q: 'Is there a fee to become a partner?', a: 'No. Joining the Advocate Partner Network is free.' },
-  { q: 'Will I earn money?', a: 'Not necessarily. Rewards depend on your category, are only paid on eligible, verified listings, and apply only where the programme terms for your category have been approved and switched on. LegalStaff does not promise income, clients or cases.' },
-  { q: 'Who decides whether an advocate gets a listing?', a: 'LegalStaff alone. Every advocate goes through the normal directory verification, whoever introduced them. A referral never changes the outcome of verification.' },
-  { q: 'Can advocates take part?', a: 'Practising advocates may apply as Advocate Referral Partners only where the rules that apply to them allow it. You are responsible for checking your own professional obligations, including the Bar Council of India rules, before you join.' },
-  { q: 'How long does a referral stay linked to me?', a: 'A referral link is valid for 30 days from the click, unless LegalStaff changes the window. The advocate must register through the Directory and the link is recorded by our server, not just in a browser.' },
-  { q: 'Can I refer myself or my own chamber?', a: 'No. Referrals that match the partner\u2019s own details are rejected. Suspicious activity is reviewed by a person before anything is decided.' },
-  { q: 'How and when are rewards paid?', a: 'Only where a reward applies, and only after verification and approval. Payouts are by UPI or bank transfer, after KYC, once your approved balance reaches the minimum withdrawal. The current minimum is shown in your dashboard.' },
-  { q: 'What data do you keep about me?', a: 'The details you submit, your referral activity and, for payouts, your KYC and payment details, which are stored encrypted. See the Partner Privacy Notice.' }
-];
 const CATS_JSON = JSON.stringify(CATEGORIES.map(c => ({ key: c[0], name: c[2] }))).replace(/</g, '\\u003c');
 
 const head = (title, description, path, noindex = false) => seoHead({ title, description, path, noindex, jsonld: [ld.breadcrumb([{ name: 'Home', path: '/' }, { name: 'Partners', path: BASE }])] }) + '\n' + CSS;
@@ -48,12 +31,11 @@ const shell = (title, description, path, body, scripts = [], noindex = false) =>
 
 function landing() {
   const cats = `<div class="lg-grid pn-cats" id="pn-cats">${CATEGORIES.map(c => `<div class="lg-tile ls-reveal"><span class="lg-tile-ic">${icon(c[1], 20)}</span><b>${esc(c[2])}</b><span>${esc(c[3])}</span></div>`).join('')}</div>`;
-  const steps = `<ol class="pn-steps">${STEPS.map((s, i) => `<li class="ls-reveal"><span class="pn-n">${i + 1}</span><div><b>${esc(s[0])}</b><p>${esc(s[1])}</p></div></li>`).join('')}</ol>`;
-  const benefits = `<div class="lg-grid">${BENEFITS.map(b => `<div class="lg-tile ls-reveal"><span class="lg-tile-ic">${icon(b[0], 20)}</span><b>${esc(b[1])}</b><span>${esc(b[2])}</span></div>`).join('')}</div>`;
-  const commission = `<div class="pn-note ls-reveal"><p><b>How rewards work.</b> For some partner categories, a fixed reward may be recorded when an advocate you introduced has registered through the Directory, completed every step LegalStaff requires, and been verified. It is not payment for legal work, it is never guaranteed, and it applies only where the programme terms for your category have been approved and switched on. Where a reward does not apply to your category, your referral activity is still recorded.</p>
-  <p>LegalStaff does not assign matters, give legal advice or take part in fee arrangements between advocates and clients. Verification is decided only by LegalStaff, and a referral never influences it.</p></div>`;
-  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Become a LegalStaff Partner.', lead: 'Join a nationwide network helping India\u2019s advocates establish their professional digital presence.', crumbs: crumbs('Partners', BASE), primary: 'Become a Partner', primaryHref: `${BASE}/register`, secondary: { label: 'Explore Advocate Directory', href: '/directory' }, chips: ['Free to join', 'Approved by our team', 'Unique link and QR code'] })}
-${section({ id: 'how', kicker: 'How it works', title: 'Five steps from application to tracking', inner: steps })}
+  const steps = `<ol class="pn-steps" id="pn-steps">${STEPS.map((s, i) => `<li class="ls-reveal"><span class="pn-n">${i + 1}</span><div><b>${esc(s.title)}</b><p>${esc(s.text)}</p></div></li>`).join('')}</ol>`;
+  const benefits = `<div class="lg-grid" id="pn-benefits">${BENEFITS.map((b, i) => `<div class="lg-tile ls-reveal"><span class="lg-tile-ic">${icon(BENEFIT_ICONS[i % BENEFIT_ICONS.length], 20)}</span><b>${esc(b.title)}</b><span>${esc(b.text)}</span></div>`).join('')}</div>`;
+  const commission = `<div class="pn-note ls-reveal" id="pn-rewards"><p><b>How rewards work.</b> ${esc(CONTENT.rewards_note)}</p></div>`;
+  const body = `${hero({ kicker: 'Advocate Partner Network', title: CONTENT.hero_title, lead: CONTENT.hero_lead, crumbs: crumbs('Partners', BASE), primary: 'Become a Partner', primaryHref: `${BASE}/register`, secondary: { label: 'Explore Advocate Directory', href: '/directory' }, chips: ['Free to join', 'Instant dashboard', 'Unique link and QR code'] })}
+${section({ id: 'how', kicker: 'How it works', title: 'From Google sign-in to your dashboard in a minute', inner: steps })}
 ${section({ id: 'categories', kicker: 'Partner categories', title: 'Six ways to take part', lead: 'Each category has its own eligibility and terms. Choose the one that fits you when you apply.', inner: cats, tone: 'tone-soft' })}
 ${section({ id: 'benefits', kicker: 'Benefits', title: 'What partners get', inner: benefits })}
 ${section({ id: 'rewards', kicker: 'Rewards', title: 'Honest about rewards', inner: commission, tone: 'tone-soft' })}
@@ -68,7 +50,7 @@ ${faqBlock(FAQ)}
 }
 
 function register() {
-  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Apply to become a partner', lead: 'Sign in with Google, fill in your details and choose a category. Our team reviews every application.', crumbs: crumbs('Apply', `${BASE}/register`), primary: 'Partner sign in', primaryHref: `${BASE}/login`, secondary: { label: 'Back to Partners', href: BASE } })}
+  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Apply to become a partner', lead: 'Sign in with Google and fill in your details. Your referral link and dashboard are ready straight away.', crumbs: crumbs('Apply', `${BASE}/register`), primary: 'Partner sign in', primaryHref: `${BASE}/login`, secondary: { label: 'Back to Partners', href: BASE } })}
 <section class="section"><div class="wrap narrow">
 <div class="pn-card" id="pn-app"><noscript><p class="muted">This form needs JavaScript.</p></noscript>
   <p class="muted" id="pn-loading">Loading\u2026</p></div>
@@ -120,19 +102,19 @@ function privacy() {
   return p;
 }
 
-const PORTAL = [['dashboard', 'Dashboard'], ['referrals', 'Referrals'], ['earnings', 'Earnings'], ['payouts', 'Payouts'], ['profile', 'Profile'], ['resources', 'Resources'], ['support', 'Support']];
+// The partner area is one page. The other portal URLs (referrals, earnings, payouts, profile, resources, support) open the same page scrolled to that section.
+const PORTAL = [['dashboard', 'Partner dashboard'], ['referrals', 'Referrals'], ['earnings', 'Monthly earnings'], ['payouts', 'Payouts'], ['profile', 'Profile'], ['resources', 'Resources'], ['support', 'Support']];
 function portalPage(view, title) {
-  const nav = `<nav class="pn-tabs" aria-label="Partner dashboard">${PORTAL.map(([k, l]) => `<a href="${BASE}/${k}"${k === view ? ' aria-current="page"' : ''}>${l}</a>`).join('')}<span class="pn-grow"></span><a href="#" id="pn-out">Sign out</a></nav>`;
   const body = `<section class="section pn-portal"><div class="wrap">
-<p class="kicker">Advocate Partner Network</p><h1 class="h2">${esc(title)}</h1>
-${nav}
+<div class="pn-top"><div><p class="kicker">Advocate Partner Network</p><h1 class="h2">Partner dashboard</h1></div><a href="#" id="pn-out" class="btn btn-line btn-sm">Sign out</a></div>
 <div id="pn-view" data-view="${view}" aria-live="polite"><p class="muted">Loading\u2026</p></div>
 </div></section>`;
-  const pg = shell(`${title} | Partner portal`, 'LegalStaff partner portal.', `${BASE}/${view}`, body, ['/vendor/qrcode.js', '/static/partners.js'], true);
+  const pg = shell('Partner dashboard', 'LegalStaff partner dashboard.', `${BASE}/${view}`, body, ['/vendor/qrcode.js', '/static/partners.js'], true);
   pg.html = pg.html.replace('<body>', `<body data-pview="portal">`);
   return pg;
 }
 
 export function pages() {
+  writeFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'static', 'partner-content-defaults.json'), JSON.stringify(CONTENT, null, 1) + '\n');
   return [landing(), register(), login(), terms(), privacy(), ...PORTAL.map(([k, l]) => portalPage(k, l))];
 }

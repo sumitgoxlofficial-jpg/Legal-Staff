@@ -12,4 +12,5 @@ $P -f "$HERE/stub.sql" >/dev/null
 $P -f "$ROOT/supabase/migrations/0039_partner_network.sql" >/dev/null && echo "migration applies"
 $P -f "$ROOT/supabase/migrations/0039_partner_network.sql" >/dev/null && echo "migration re-applies"
 $P -f "$ROOT/supabase/migrations/0041_partner_monthly_earnings.sql" >/dev/null && $P -f "$ROOT/supabase/migrations/0041_partner_monthly_earnings.sql" >/dev/null && echo "migration 0041 applies and re-applies"
+$P -f "$ROOT/supabase/migrations/0042_partner_instant_access.sql" >/dev/null && $P -f "$ROOT/supabase/migrations/0042_partner_instant_access.sql" >/dev/null && echo "migration 0042 applies and re-applies"
 psql -h "$D" -p "$PORT" -U postgres -qAt -f "$HERE/partner-db.test.sql" 2>&1 | grep -v '^$'

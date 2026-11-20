@@ -3,7 +3,7 @@
 All calls are Supabase RPCs (`POST /rest/v1/rpc/<name>` with the user's JWT) unless noted. Errors are raised as exceptions with a plain-language message.
 
 ## Public (anon)
-`partner_public_config()` · `partner_validate_code(p_code)` · `partner_track_click(p_code, p_visitor, p_campaign, p_source)`
+`partner_public_config()` · `partner_public_content()` (edited page text) · `partner_validate_code(p_code)` · `partner_track_click(p_code, p_visitor, p_campaign, p_source)`
 
 ## Partner (signed in; own data only)
 `partner_me` · `partner_apply(p jsonb)` · `partner_register_document(p_kind,p_path,p_name,p_size)` · `partner_dashboard` · `partner_referrals_list` · `partner_earnings_list` · `partner_payouts_list` · `partner_add_payment_method(p_kind,p_details)` · `partner_request_payout` · `partner_update_profile(p)` · `partner_resources_list` · `partner_notifications_list(p_mark_read)` · `partner_support_create(p_subject,p_message)` · `partner_support_list` · `partner_monthly_earnings` (migration 0041)
@@ -25,6 +25,8 @@ All calls are Supabase RPCs (`POST /rest/v1/rpc/<name>` with the user's JWT) unl
 | `admin_payout_action`, `admin_payout_destination` | payouts.manage |
 | `admin_campaign_save`, `admin_resource_save` | marketing.manage |
 | `admin_template_save`, `admin_broadcast` | notifications.manage |
+| `admin_content` | partners.view |
+| `admin_content_save(p_key, p_value)` | marketing.manage |
 | `admin_fraud_flags`, `admin_fraud_resolve`, `admin_fraud_add` | fraud.manage |
 | `admin_compliance` | compliance.view |
 | `admin_compliance_record`, `admin_compliance_revoke` | compliance.manage |
@@ -39,7 +41,7 @@ Report kinds: partner_master, applications, state_wise, district_wise, referrals
 Edge function `partner-mail` (JWT verification off): `{action:"drain"}` with header `x-cron-secret`; `{action:"test", template, to}` for staff with notifications.manage.
 
 ## Deployment (in order)
-1. Take a database backup. Apply `0039_partner_network.sql` (and `0041_partner_monthly_earnings.sql` for the monthly earnings screen). (Needs the `vault` schema and `pgcrypto`, both present on Supabase.)
+1. Take a database backup. Apply `0039_partner_network.sql` (then `0041_partner_monthly_earnings.sql` for monthly earnings and `0042_partner_instant_access.sql` for the instant dashboard and editable page content). (Needs the `vault` schema and `pgcrypto`, both present on Supabase.)
 2. Deploy `functions/partner-mail` (with `_shared/partner-mail.js`; deploy `functions/` as a whole). Then apply `0040_partner_mail_schedule.sql`.
 3. Merge/deploy the site (Vercel). Run `SITE_UPDATED=<date> node seo/build.mjs` only if you change pages; generated output is committed.
 4. Add staff: Admin → Partner Network → System Settings → Roles and staff.

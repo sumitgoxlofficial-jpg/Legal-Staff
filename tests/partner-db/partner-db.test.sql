@@ -34,6 +34,9 @@ select t.raises('select public.admin_overview()', '%permission denied%', 'anon c
 select t.raises('select public.partner_dashboard()', '%permission denied%', 'anon cannot call partner functions');
 reset role;
 
+-- the first block of tests covers the manual-approval mode (instant approval is tested near the end)
+update public.partner_settings set value = 'false' where key = 'auto_approve_partners';
+
 -- ===== registration =====
 set role authenticated;
 select t.as_user(:A, 'asha@example.in');
@@ -315,6 +318,44 @@ insert into public.directory_applications (id, name, enr, council, year, city) v
 insert into public.directory_orders (application_id, order_no, amount_paise, status, confirmed_by, paid_at) values ('R3', 'order_rzp_3', 4900, 'paid', 'razorpay', now());
 select t.a($q$exists (select 1 from public.directory_orders where order_no = 'order_rzp_3')$q$, 'a Razorpay order is recorded even if the partner network code fails');
 \i /tmp/ls-restore-eval.sql
+
+-- ===== instant dashboard (automatic approval) and editable page content =====
+select t.a($q$(select value from public.partner_settings where key = 'auto_approve_partners') = 'false'::jsonb$q$, 'manual mode: the setting is off for the earlier tests');
+select t.as_user('00000000-0000-0000-0000-0000000000d1', 'dev@example.in'); set role authenticated;
+select public.partner_apply('{"name":"Dev Anand","mobile":"9876500031","state":"Bihar","district":"Gaya","city":"Gaya","category_key":"district_coordinator","accept_terms":true,"accept_privacy":true}');
+select t.a($q$(public.partner_me() ->> 'state') = 'applicant'$q$, 'with automatic approval off, a new application waits');
+reset role;
+update public.partner_settings set value = 'true' where key = 'auto_approve_partners';
+select t.as_user('00000000-0000-0000-0000-0000000000d2', 'eva@example.in'); set role authenticated;
+select public.partner_apply('{"name":"Eva Rao","mobile":"9876500032","state":"Delhi","district":"New Delhi","city":"Delhi","category_key":"district_coordinator","accept_terms":true,"accept_privacy":true}');
+select t.a($q$(public.partner_me() ->> 'state') = 'partner' and (public.partner_me() -> 'partner' ->> 'code') like 'LS%'$q$, 'with automatic approval on, the partner has an ID and link the moment the details are saved');
+select t.a($q$(public.partner_dashboard() ->> 'referral_url') like 'https://legalstaff.in/directory/?ref=LS%'$q$, 'and can open the dashboard straight away');
+select t.raises($$select public.partner_apply('{"name":"Eva Again","mobile":"9876500032","state":"Delhi","district":"New Delhi","city":"Delhi","category_key":"district_coordinator","accept_terms":true,"accept_privacy":true}')$$, '%already%', 'a second application by the same person is still refused');
+reset role;
+select t.a($q$exists (select 1 from public.partner_audit_logs where action = 'application.auto_approved')$q$, 'automatic approval is audit-logged');
+select t.as_user('00000000-0000-0000-0000-0000000000d3', 'fay@example.in'); set role authenticated;
+select t.raises($$select public.partner_apply('{"name":"Fay","mobile":"9876500032","state":"Delhi","district":"New Delhi","city":"Delhi","category_key":"district_coordinator","accept_terms":true,"accept_privacy":true}')$$, '%already exists%', 'duplicate mobiles are still blocked in automatic mode');
+select t.raises($$select public.partner_apply('{"name":"Fay","mobile":"9876500033","state":"Delhi","district":"New Delhi","city":"Delhi","category_key":"campus_ambassador","accept_terms":true,"accept_privacy":true}')$$, '%organisation%', 'required fields are still enforced in automatic mode');
+reset role;
+select t.a($q$not exists (select 1 from public.partner_categories where commission_enabled and key = 'district_coordinator')$q$, 'automatic approval does not switch commission on for the partner''s category');
+-- editable content
+select t.as_user(:M, 'mk@legalstaff.test'); set role authenticated;
+select public.admin_content_save('hero_title', '"Join the LegalStaff Partner Network"');
+select public.admin_content_save('faq', '[{"q":"Is it free?","a":"Yes, joining is free."}]');
+select t.raises($$select public.admin_content_save('faq', '[{"q":"x","a":""}]')$$, '%filled in%', 'content items must be filled in');
+select t.raises($$select public.admin_content_save('nope', '"x"')$$, '%Unknown content%', 'only known content blocks can be saved');
+select t.raises($$select public.admin_content_save('hero_title', '""')$$, '%between 2 and%', 'empty text is refused');
+reset role;
+set role anon; select t.as_user(null, null);
+select t.a($q$(public.partner_public_content() ->> 'hero_title') = 'Join the LegalStaff Partner Network' and jsonb_array_length(public.partner_public_content() -> 'faq') = 1$q$, 'the public page can read the edited content without signing in');
+reset role;
+select t.as_user(:S, 'sup@legalstaff.test'); set role authenticated;
+select t.raises($$select public.admin_content_save('hero_lead', '"Hello there"')$$, '%permission%', 'Support Manager cannot edit page content');
+reset role;
+select t.as_user(:M, 'mk@legalstaff.test'); set role authenticated;
+select public.admin_content_save('hero_title', null);
+select t.a($q$not (public.partner_public_content() ? 'hero_title')$q$, 'removing an override restores the built-in text');
+reset role;
 
 -- ===== monthly earnings (for paying partners) =====
 select t.as_user(:O, 'owner@legalstaff.test'); set role authenticated;
