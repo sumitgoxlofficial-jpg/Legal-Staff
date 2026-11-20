@@ -29,13 +29,33 @@ const head = (title, description, path, noindex = false) => seoHead({ title, des
 const crumbs = (name, path) => [{ name: 'Home', path: '/' }, { name: 'Partners', path: BASE }, ...(path === BASE ? [] : [{ name, path }])];
 const shell = (title, description, path, body, scripts = [], noindex = false, app = false) => ({ path, noindex, priority: noindex ? 0 : 0.6, changefreq: 'monthly', html: page({ head: head(title, description, path, noindex), body, app, scripts: ['/static/consent.js', '/vendor/supabase.js', ...scripts] }) });
 
+
+/* Hero art: an illustrative partner dashboard (no real figures). */
+function partnerArt() {
+  const bars = [['Link clicks', 78, '#6D83E8'], ['Advocates referred', 52, '#9AA9F0'], ['Approved listings', 34, '#5FD6A0']];
+  return `<div class="pnl-art"><div class="pnl-win ls-float">
+    <div class="pnl-winH"><i></i><i></i><i></i><span>Partner dashboard</span><em>Illustration</em></div>
+    <div class="pnl-link"><span>${icon('check', 14)}</span><b>legalstaff.in/?ref=YOURID</b><u>Copy</u></div>
+    <div class="pnl-bars">${bars.map((b, i) => `<div class="pnl-bar" style="--i:${i}"><small>${b[0]}</small><div><i style="--w:${b[1]}%;background:${b[2]}"></i></div></div>`).join('')}</div>
+    <svg class="pnl-line" viewBox="0 0 300 90" aria-hidden="true"><defs><linearGradient id="pnlG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6D83E8" stop-opacity=".5"/><stop offset="1" stop-color="#6D83E8" stop-opacity="0"/></linearGradient></defs>
+      <path d="M0 70 C40 66 60 50 100 54 S160 30 200 34 S265 12 300 8 L300 90 L0 90Z" fill="url(#pnlG)"/><path class="pnl-draw" pathLength="1" d="M0 70 C40 66 60 50 100 54 S160 30 200 34 S265 12 300 8" fill="none" stroke="#9AA9F0" stroke-width="2.5" stroke-linecap="round"/></svg>
+  </div>
+  <div class="pnl-chip c1 ls-float" style="animation-delay:-1.5s">${icon('check', 15)}Listing verified</div>
+  <div class="pnl-qr ls-float" style="animation-delay:-3s" aria-hidden="true">${Array.from({ length: 25 }, (_, i) => `<i${[0, 1, 2, 4, 5, 6, 10, 12, 14, 15, 17, 18, 20, 22, 23, 24].includes(i) ? ' class="on"' : ''}></i>`).join('')}</div>
+</div>`;
+}
+const TRUST = [['check', 'Free to join', 'No joining fee'], ['users', 'Six categories', 'Find the one that fits'], ['rocket', 'Link and QR in a minute', 'Ready after Google sign-in'], ['clock', '30-day attribution', 'Recorded on our server']];
+const FLOW = [['spark', 'Link is clicked', 'Your partner link or QR code is opened.'], ['clock', '30-day window', 'The click is recorded by our server.'], ['users', 'Advocate registers', 'Through the LegalStaff Directory.'], ['shield', 'LegalStaff verifies', 'The same checks as every other advocate.'], ['folder', 'Shown in your dashboard', 'Every stage is visible to you.']];
+
 function landing() {
   const cats = `<div class="lg-grid pn-cats" id="pn-cats">${CATEGORIES.map(c => `<div class="lg-tile ls-reveal"><span class="lg-tile-ic">${icon(c[1], 20)}</span><b>${esc(c[2])}</b><span>${esc(c[3])}</span></div>`).join('')}</div>`;
   const steps = `<ol class="pn-steps" id="pn-steps">${STEPS.map((s, i) => `<li class="ls-reveal"><span class="pn-n">${i + 1}</span><div><b>${esc(s.title)}</b><p>${esc(s.text)}</p></div></li>`).join('')}</ol>`;
   const benefits = `<div class="lg-grid" id="pn-benefits">${BENEFITS.map((b, i) => `<div class="lg-tile ls-reveal"><span class="lg-tile-ic">${icon(BENEFIT_ICONS[i % BENEFIT_ICONS.length], 20)}</span><b>${esc(b.title)}</b><span>${esc(b.text)}</span></div>`).join('')}</div>`;
   const commission = `<div class="pn-note ls-reveal" id="pn-rewards"><p><b>How rewards work.</b> ${esc(CONTENT.rewards_note)}</p></div>`;
-  const body = `${hero({ kicker: 'Advocate Partner Network', title: CONTENT.hero_title, lead: CONTENT.hero_lead, crumbs: crumbs('Partners', BASE), primary: 'Become a Partner', primaryHref: `${BASE}/register`, secondary: { label: 'Explore Advocate Directory', href: '/directory' }, extra: `<a class="btn btn-ghost-light" href="${BASE}/login">Partner login</a>`, chips: ['Free to join', 'Instant dashboard', 'Unique link and QR code'] })}
+  const body = `${hero({ kicker: 'Advocate Partner Network', title: CONTENT.hero_title, lead: CONTENT.hero_lead, crumbs: crumbs('Partners', BASE), primary: 'Become a Partner', primaryHref: `${BASE}/register`, secondary: { label: 'Explore Advocate Directory', href: '/directory' }, extra: `<a class="btn btn-ghost-light" href="${BASE}/login">Partner login</a>`, chips: ['Free to join', 'Instant dashboard', 'Unique link and QR code'], art: partnerArt() })}
+<section class="pnl-trust"><div class="wrap"><ul>${TRUST.map((t, i) => `<li class="ls-reveal" style="--ls-delay:${i * 70}ms"><span>${icon(t[0], 20)}</span><div><b>${t[1]}</b><small>${t[2]}</small></div></li>`).join('')}</ul></div></section>
 ${section({ id: 'how', kicker: 'How it works', title: 'From Google sign-in to your dashboard in a minute', inner: steps })}
+${section({ id: 'flow', kicker: 'Attribution', title: 'How a referral is tracked', lead: 'Every step is recorded and reviewable. Nothing is changed silently.', inner: `<ol class="pnl-flow">${FLOW.map((f, i) => `<li class="ls-reveal" style="--ls-delay:${i * 80}ms"><span class="pnl-fi">${icon(f[0], 20)}</span><b>${f[1]}</b><small>${f[2]}</small></li>`).join('')}</ol>` })}
 ${section({ id: 'categories', kicker: 'Partner categories', title: 'Six ways to take part', lead: 'Each category has its own eligibility and terms. Choose the one that fits you when you apply.', inner: cats, tone: 'tone-soft' })}
 ${section({ id: 'benefits', kicker: 'Benefits', title: 'What partners get', inner: benefits })}
 ${section({ id: 'rewards', kicker: 'Rewards', title: 'Honest about rewards', inner: commission, tone: 'tone-soft' })}
