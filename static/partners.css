@@ -424,3 +424,37 @@ body[data-pview="landing"] .pn-cats .lg-tile:hover::after, body[data-pview="land
 @media (prefers-reduced-motion: reduce) {
   body[data-pview="landing"] .section::before, body[data-pview="landing"] .section::after, body[data-pview="landing"] .wrap::before, body[data-pview="landing"] .pn-steps::before, body[data-pview="landing"] .pn-steps .pn-n, body[data-pview="landing"] .pnl-flow li::after, body[data-pview="landing"] .pnl-fi { animation: none !important; }
 }
+
+/* ---------- Graphics and motion on every other white background in the partner area ---------- */
+@keyframes plDriftDots { to { background-position: 0 0, 0 0, 28px 28px; } }
+
+/* dashboard canvas */
+.pn-portal.pn-shelled { position: relative; isolation: isolate; }
+.pn-portal.pn-shelled::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(640px 420px at 96% 6%, rgba(59,91,219,.12), transparent 70%), radial-gradient(560px 380px at 0% 100%, rgba(122,90,248,.10), transparent 70%), radial-gradient(#D6D6D0 1.1px, transparent 1.3px);
+  background-size: auto, auto, 28px 28px; animation: plDriftDots 30s linear infinite; }
+.pn-portal.pn-shelled::after { content: ""; position: fixed; z-index: -1; pointer-events: none; width: 560px; height: 560px; right: -220px; bottom: -200px; border-radius: 50%;
+  border: 1.5px dashed #C9D2F7; box-shadow: inset 0 0 0 60px rgba(59,91,219,.025), inset 0 0 0 61px #E3E8FB; animation: plSpin 80s linear infinite; }
+.pn-portal.pn-shelled .pn-shell { position: relative; z-index: 1; }
+
+/* sign-in and apply: right-hand panel */
+.pn-authMain { position: relative; overflow: hidden; isolation: isolate; }
+.pn-authMain::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(520px 340px at 100% 0%, rgba(59,91,219,.13), transparent 70%), radial-gradient(460px 320px at 0% 100%, rgba(18,183,106,.09), transparent 70%), radial-gradient(#D6D6D0 1.1px, transparent 1.3px);
+  background-size: auto, auto, 28px 28px; animation: plDriftDots 28s linear infinite; }
+.pn-authMain::after { content: ""; position: absolute; z-index: -1; pointer-events: none; width: 440px; height: 440px; right: -170px; bottom: -150px; border-radius: 50%;
+  border: 1.5px dashed #C9D2F7; box-shadow: inset 0 0 0 52px rgba(122,90,248,.03), inset 0 0 0 53px #E6E2FA; animation: plSpin 60s linear infinite reverse; }
+.pn-authBox::before { content: "+"; position: absolute; left: -34px; top: 40px; font-size: 28px; font-weight: 300; color: #B9C3F2; animation: pnFloat 7s ease-in-out infinite; }
+.pn-authBox { position: relative; }
+
+/* landing: facts strip and FAQ band */
+.pnl-trust { position: relative; overflow: hidden; }
+.pnl-trust::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(100deg, transparent 30%, rgba(59,91,219,.07) 50%, transparent 70%); background-size: 220% 100%; animation: plSweep 7s ease-in-out infinite; }
+.pnl-trust .wrap { position: relative; }
+@keyframes plSweep { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+.pnl-trust li > span { animation: pnFloat 6s ease-in-out infinite; } .pnl-trust li:nth-child(2) > span { animation-delay: -1.5s; } .pnl-trust li:nth-child(3) > span { animation-delay: -3s; } .pnl-trust li:nth-child(4) > span { animation-delay: -4.5s; }
+
+/* shared: tidy on small screens, respect reduced motion, never print */
+@media (max-width: 900px) { .pn-portal.pn-shelled::after { width: 380px; height: 380px; right: -190px; bottom: -150px; } .pn-authBox::before { display: none; } }
+@media (prefers-reduced-motion: reduce) { .pn-portal.pn-shelled::before, .pn-portal.pn-shelled::after, .pn-authMain::before, .pn-authMain::after, .pn-authBox::before, .pnl-trust::before, .pnl-trust li > span { animation: none !important; } }
+@media print { .pn-portal.pn-shelled::before, .pn-portal.pn-shelled::after { display: none; } }
