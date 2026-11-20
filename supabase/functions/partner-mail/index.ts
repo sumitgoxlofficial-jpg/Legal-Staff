@@ -21,7 +21,11 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json().catch(() => ({}));
     if (body.action === "drain") {
-      if (!cronAllowed(req.headers.get("x-cron-secret") ?? "", Deno.env.get("CRON_SECRET") ?? "")) return json({ error: "Not allowed." }, 403);
+      // Same check as the other scheduled functions: the CRON_SECRET function secret, or the one kept in Vault (cron_secret_ok).
+      const hdr = req.headers.get("x-cron-secret") ?? "";
+      let allowed = cronAllowed(hdr, Deno.env.get("CRON_SECRET") ?? "");
+      if (!allowed && hdr) { const { data } = await admin.rpc("cron_secret_ok", { s: hdr }); allowed = data === true; }
+      if (!allowed) return json({ error: "Not allowed." }, 403);
       const { data: rows } = await admin.from("partner_notifications").select("id,partner_id,title,body").eq("email_status", "queued").eq("channel", "email").order("created_at").limit(50);
       let sent = 0, failed = 0;
       for (const n of rows ?? []) {
