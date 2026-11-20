@@ -225,21 +225,21 @@ const bookingModal = () => `<div class="modal" id="book" hidden aria-hidden="tru
 </div>`;
 
 /* ---------------- page shell ---------------- */
-export function page({ head, body, active = '', scripts = [] }) {
+export function page({ head, body, active = '', scripts = [], app = false }) {
   return `<!doctype html>
 <html lang="en-IN">
 <head>
 ${head}
 </head>
 <body>
-${header(active)}
+${app ? '' : header(active)}
 <main id="main">
 ${body}
 </main>
-${footer()}
-${bookingModal()}
+${app ? '' : footer()}
+${app ? '' : bookingModal()}
 <script src="/config.js"></script>
-<script src="/static/site.js" defer></script>
+${app ? '' : '<script src="/static/site.js" defer></script>'}
 <script src="/static/consent.js" defer></script>
 ${scripts.filter(s => s !== '/static/consent.js').map(s => `<script src="${s}" defer></script>`).join('\n')}
 </body>
