@@ -102,7 +102,7 @@
   }
   /* Google first; the email code stays as a small fallback. */
   function signInPanel(root, opts) {
-    root.innerHTML = '<div class="pn-form"><h2>' + esc(opts.title) + '</h2><p class="muted">' + esc(opts.lead) + '</p><div id="pn-g" style="min-height:44px;max-width:380px"></div><div class="pn-err" id="pn-ge" hidden></div>' +
+    root.innerHTML = '<div class="pn-form"><h2 class="pn-sih">' + esc(opts.title) + '</h2><p class="muted">' + esc(opts.lead) + '</p><div id="pn-g" style="min-height:44px;max-width:380px"></div><div class="pn-err" id="pn-ge" hidden></div>' +
       '<p class="pn-hint"><a href="#" id="pn-use-email">Use an email code instead</a></p></div>';
     googleButton($('#pn-g', root), opts.done, function (m) { msg($('#pn-ge', root), m); });
     $('#pn-use-email', root).onclick = function (e) { e.preventDefault(); otpFlow(root, { title: opts.title, lead: 'We email you a one-time code.', create: opts.create, done: opts.done }); };
