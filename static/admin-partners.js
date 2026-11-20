@@ -25,7 +25,7 @@
   var cats = function () { return cache.cats ? Promise.resolve(cache.cats) : rpc('admin_categories').then(function (c) { cache.cats = c; return c; }); };
 
   var MENU = [['overview', 'Overview', 'partners.view'], ['applications', 'Partner Applications', 'partners.view'], ['partners', 'All Partners', 'partners.view'], ['categories', 'Partner Categories', 'partners.view'], ['referrals', 'Referral Management', 'referrals.view'], ['registrations', 'Advocate Registrations', 'referrals.view'],
-    ['commissions', 'Commission Management', 'commissions.view'], ['payouts', 'Payout Management', 'payouts.view'], ['campaigns', 'Marketing Campaigns', 'partners.view'], ['resources', 'Marketing Resources', 'partners.view'], ['notifications', 'Partner Notifications', 'partners.view'], ['leaderboard', 'Leaderboard', 'referrals.view'],
+    ['commissions', 'Commission Management', 'commissions.view'], ['earnings', 'Monthly Earnings', 'commissions.view'], ['payouts', 'Payout Management', 'payouts.view'], ['campaigns', 'Marketing Campaigns', 'partners.view'], ['resources', 'Marketing Resources', 'partners.view'], ['notifications', 'Partner Notifications', 'partners.view'], ['leaderboard', 'Leaderboard', 'referrals.view'],
     ['fraud', 'Fraud Detection', 'fraud.manage'], ['compliance', 'Compliance Management', 'compliance.view'], ['support', 'Partner Support', 'support.manage'], ['reports', 'Reports & Analytics', 'reports.view'], ['settings', 'System Settings', 'partners.view'], ['audit', 'Audit Logs', 'audit.view']];
 
   var S = {};   // screens: each gets (el, sub)
@@ -143,6 +143,25 @@
       el.querySelector('#c-csv').onclick = function () { runReport('commission_ledger', 'csv'); };
       var bulk = el.querySelector('#c-bulk'); if (bulk) bulk.onclick = function () { if (window.confirm('Make every approved commission payable now?')) act(el, 'admin_commissions_make_payable', {}, function (n) { ctx.toast(n + ' made payable'); S.commissions(el); }, 'Done'); };
       el.querySelectorAll('[data-a]').forEach(function (b) { b.onclick = function () { var a = b.dataset.a, n = ['approve', 'payable'].indexOf(a) >= 0 ? '' : ask(a === 'reverse' ? 'Reason for reversal (required, audited):' : 'Reason:'); if (n == null) return; act(el, 'admin_commission_action', { p_id: b.dataset.i, p_action: a, p_note: n }, function () { S.commissions(el); }); }; });
+    });
+  };
+
+  /* Monthly Earnings: who referred how many in a month and what the ledger says to pay them. */
+  S.earnings = function (el) {
+    var mo = el._mo || new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 7);
+    return Promise.all([rpc('admin_monthly_earnings', { p_month: mo }), cats()]).then(function (a) {
+      var d = a[0], rows = d.rows, sum = function (k) { return rows.reduce(function (n, r) { return n + Number(r[k] || 0); }, 0); };
+      var flat = rows.map(function (r) { return { 'Month': d.month, 'Partner ID': r.code, 'Name': r.name, 'Category': catName(a[1], r.category_key), 'State': r.state, 'District': r.district, 'KYC': r.kyc, 'Advocates referred': r.referred, 'Paid listings': r.paid, 'Verified listings': r.verified, 'Earned (INR)': r.earned_paise / 100, 'Already paid (INR)': r.paid_out_paise / 100, 'To pay (INR)': r.to_pay_paise / 100, 'Waiting (INR)': r.waiting_paise / 100 }; });
+      el.innerHTML = '<h1>Monthly Earnings</h1><p class="sub">For each partner: advocates referred in the month (by the date they applied), how many paid and were verified, and what the commission ledger shows. <b>To pay</b> is approved or payable and not yet paid.</p>' +
+        (d.categories_with_commission_on ? '' : '<div class="card" style="margin-bottom:14px;border-color:#B54708"><b>Commission is off for every category</b><div class="small">Referral counts below are real, but money columns stay at ₹0.00 until counsel’s approval is recorded (Compliance Management) and commission is switched on for the category. Nothing here is payable until then.</div></div>') +
+        '<div class="row" style="margin-bottom:12px"><label class="f" style="width:200px">Month<input type="month" id="e-mo" value="' + esc(d.month) + '"></label><div class="row" style="align-self:end">' + btn('CSV', 'id="e-csv"') + btn('Excel', 'id="e-xl"') + '</div></div>' +
+        '<div class="grid k4" style="margin-bottom:14px">' + [['Advocates referred', sum('referred')], ['Verified listings', sum('verified')], ['Earned', inr(sum('earned_paise'))], ['To pay', inr(sum('to_pay_paise'))]].map(function (k) { return '<div class="card kpi"><div class="k">' + k[0] + '</div><div class="v">' + k[1] + '</div></div>'; }).join('') + '</div>' +
+        table(['Partner', 'Category', 'Location', ['Referred', 1], ['Paid', 1], ['Verified', 1], ['Earned', 1], ['Already paid', 1], ['To pay', 1], ['Waiting', 1]], rows.map(function (r) { return '<tr><td><b class="mono">' + esc(r.code) + '</b> ' + esc(r.name) + '<div class="muted small">KYC ' + esc(r.kyc) + (r.status !== 'approved' ? ' · ' + esc(r.status) : '') + '</div></td><td class="small">' + esc(catName(a[1], r.category_key)) + '</td><td class="small">' + esc(r.district + ', ' + r.state) + '</td><td class="num">' + r.referred + '</td><td class="num">' + r.paid + '</td><td class="num">' + r.verified + '</td><td class="num">' + inr(r.earned_paise) + '</td><td class="num">' + inr(r.paid_out_paise) + '</td><td class="num"><b>' + inr(r.to_pay_paise) + '</b></td><td class="num">' + inr(r.waiting_paise) + '</td></tr>'; }), 'No partner referred an advocate in this month.');
+      el.querySelector('#e-mo').onchange = function (e) { if (e.target.value) { el._mo = e.target.value; S.earnings(el); } };
+      var save = function (fmt) { if (!flat.length) return ctx.toast('Nothing to export for this month'); var name = 'legalstaff-partner-earnings-' + d.month;
+        var blob = fmt === 'xlsx' ? new Blob([window.LSExport.xlsx(flat, 'Earnings ' + d.month)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) : new Blob([window.LSExport.csv(flat)], { type: 'text/csv;charset=utf-8' });
+        var a2 = document.createElement('a'); a2.href = URL.createObjectURL(blob); a2.download = name + '.' + fmt; document.body.appendChild(a2); a2.click(); setTimeout(function () { URL.revokeObjectURL(a2.href); a2.remove(); }, 500); };
+      el.querySelector('#e-csv').onclick = function () { save('csv'); }; el.querySelector('#e-xl').onclick = function () { save('xlsx'); };
     });
   };
 
@@ -308,7 +327,7 @@
     });
   };
 
-  var GROUPS = [[null, ['overview']], ['People', ['applications', 'partners', 'categories']], ['Referrals', ['referrals', 'registrations']], ['Money', ['commissions', 'payouts']], ['Marketing', ['campaigns', 'resources', 'notifications']], ['Control', ['leaderboard', 'fraud', 'compliance', 'support']], ['Insight', ['reports', 'settings', 'audit']]];
+  var GROUPS = [[null, ['overview']], ['People', ['applications', 'partners', 'categories']], ['Referrals', ['referrals', 'registrations']], ['Money', ['commissions', 'earnings', 'payouts']], ['Marketing', ['campaigns', 'resources', 'notifications']], ['Control', ['leaderboard', 'fraud', 'compliance', 'support']], ['Insight', ['reports', 'settings', 'audit']]];
   var TABDEF = null;   // the entry in the console's sidebar; pruned to the signed-in person's permissions by init()
   var load = function (sb) { return sb.rpc('admin_whoami').then(function (r) { if (r.error) throw new Error(r.error.message); who = r.data; return who; }); };
 

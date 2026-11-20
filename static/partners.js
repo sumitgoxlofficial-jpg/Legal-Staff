@@ -31,6 +31,41 @@
     }).catch(function () { /* keep the built-in list */ });
   }
 
+  /* ---------- sign in with Google (same mechanism as the directory: Google's button + Supabase signInWithIdToken, no redirect) ---------- */
+  var gsiLoad = null;
+  function gsi() {
+    if (gsiLoad) return gsiLoad;
+    var id = String(cfg.googleClientId || '').trim();
+    gsiLoad = new Promise(function (res, rej) {
+      if (!id) return rej(new Error('Google sign-in is not switched on yet.'));
+      if (window.google && window.google.accounts && window.google.accounts.id) return res(id);
+      var sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+      sc.onload = function () { res(id); }; sc.onerror = function () { gsiLoad = null; rej(new Error('Could not reach Google. Check your connection and try again.')); };
+      document.head.appendChild(sc);
+    });
+    return gsiLoad;
+  }
+  function googleButton(el, done, fail) {
+    gsi().then(function (id) {
+      var bytes = new Uint8Array(16); (window.crypto || window.msCrypto).getRandomValues(bytes);
+      var raw = Array.prototype.map.call(bytes, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+      return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw)).then(function (h) {
+        var hashed = Array.prototype.map.call(new Uint8Array(h), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        window.google.accounts.id.initialize({ client_id: id, nonce: hashed, callback: function (r) {
+          sb.auth.signInWithIdToken({ provider: 'google', token: r.credential, nonce: raw }).then(function (x) { if (x.error) return fail(errText(x.error)); done(x.data.user); }, function (e) { fail(errText(e)); });
+        } });
+        window.google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', logo_alignment: 'center', width: Math.max(220, Math.min(380, el.offsetWidth || 340)) });
+      });
+    }).catch(function (e) { fail(e.message || 'Google sign-in is not available right now.'); });
+  }
+  /* Google first; the email code stays as a small fallback. */
+  function signInPanel(root, opts) {
+    root.innerHTML = '<div class="pn-form"><h2>' + esc(opts.title) + '</h2><p class="muted">' + esc(opts.lead) + '</p><div id="pn-g" style="min-height:44px;max-width:380px"></div><div class="pn-err" id="pn-ge" hidden></div>' +
+      '<p class="pn-hint"><a href="#" id="pn-use-email">Use an email code instead</a></p></div>';
+    googleButton($('#pn-g', root), opts.done, function (m) { msg($('#pn-ge', root), m); });
+    $('#pn-use-email', root).onclick = function (e) { e.preventDefault(); otpFlow(root, { title: opts.title, lead: 'We email you a one-time code.', create: opts.create, done: opts.done }); };
+  }
+
   /* ---------- email one-time code (shared by register and sign-in) ---------- */
   function otpFlow(root, opts) {
     root.innerHTML = '<form class="pn-form" id="pn-f1" novalidate><h2>' + esc(opts.title) + '</h2><p class="muted">' + esc(opts.lead) + '</p>' +
@@ -68,14 +103,14 @@
   function register() {
     var root = $('#pn-app'); if (!root) return;
     if (!sb) { root.innerHTML = '<p class="pn-err">The server is not connected, so applications cannot be taken right now.</p>'; return; }
-    session().then(function (s) { if (s) return afterSignIn(); otpFlow(root, { title: 'Verify your email', lead: 'We email a one-time code before you fill in the application. Mobile number verification by SMS is switched on once an SMS provider is connected.', create: true, done: afterSignIn }); });
+    session().then(function (s) { if (s) return afterSignIn(); signInPanel(root, { title: 'Sign in with Google to apply', lead: 'Use your Google account, then fill in your details. There is no code to type; our team reviews every application.', create: true, done: afterSignIn }); });
     function afterSignIn() {
       return Promise.all([rpc('partner_me'), rpc('partner_public_config')]).then(function (a) {
         var me = a[0], conf = a[1];
         if (me.state === 'partner') { location.replace('/partners/dashboard'); return; }
         if (me.state === 'applicant') return status(me.application);
         if (!conf.registration_open) { root.innerHTML = '<h2>Registration is closed</h2><p class="muted">Partner registration is not open at the moment. Please check back soon.</p>'; return; }
-        form(conf, me.email);
+        sb.auth.getUser().then(function (u) { var md = (u.data && u.data.user && u.data.user.user_metadata) || {}; form(conf, me.email, md.full_name || md.name || ''); });
       }).catch(function (e) { root.innerHTML = '<p class="pn-err">' + esc(errText(e)) + '</p>'; });
     }
     function status(a) {
@@ -83,10 +118,10 @@
       root.innerHTML = '<h2>Application ' + chip(a.status) + '</h2><p>' + esc(text) + '</p><p class="muted">Submitted ' + esc(dt(a.created_at)) + '.</p><div class="pn-actions">' + (a.status === 'approved' ? '<a class="btn btn-ink" href="/partners/dashboard">Open dashboard</a>' : '') + '<button class="btn btn-line" id="pn-so">Sign out</button></div>';
       $('#pn-so', root).onclick = function () { sb.auth.signOut().then(function () { location.reload(); }); };
     }
-    function form(conf, email) {
+    function form(conf, email, gname) {
       var cats = conf.categories || [];
-      root.innerHTML = '<form class="pn-form" id="pn-reg" novalidate><h2>Your details</h2><p class="muted">Signed in as ' + esc(email) + '.</p>' +
-        '<label>Full name<input id="r-name" autocomplete="name" required></label>' +
+      root.innerHTML = '<form class="pn-form" id="pn-reg" novalidate><h2>Your details</h2><p class="muted">Signed in with Google as ' + esc(email) + '.</p>' +
+        '<label>Full name<input id="r-name" autocomplete="name" value="' + esc(gname || '') + '" required></label>' +
         '<div class="pn-row"><label>Mobile number<input id="r-mobile" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="10-digit mobile" required></label>' +
         '<label>Partner category<select id="r-cat" required><option value="">Choose a category</option>' + cats.map(function (c) { return '<option value="' + esc(c.key) + '">' + esc(c.name) + '</option>'; }).join('') + '</select></label></div>' +
         '<p class="pn-hint" id="r-cat-note"></p>' +
@@ -115,7 +150,7 @@
   function login() {
     var root = $('#pn-login'); if (!root) return;
     var next = (location.search.match(/[?&]next=(\/partners\/[a-z]+)/) || [])[1] || '/partners/dashboard';
-    session().then(function (s) { if (s) { location.replace(next); return; } otpFlow(root, { title: 'Sign in', lead: 'Use the email address you applied with.', create: false, done: function () { location.replace(next); } }); });
+    session().then(function (s) { if (s) { location.replace(next); return; } signInPanel(root, { title: 'Sign in', lead: 'Use the Google account you applied with.', create: false, done: function () { location.replace(next); } }); });
   }
 
   /* ---------- portal ---------- */
@@ -174,11 +209,12 @@
       });
     },
     earnings: function (root) {
-      return Promise.all([rpc('partner_earnings_list'), rpc('partner_dashboard')]).then(function (a) {
-        var m = a[1].money;
+      return Promise.all([rpc('partner_earnings_list'), rpc('partner_dashboard'), rpc('partner_monthly_earnings')]).then(function (a) {
+        var m = a[1].money, months = a[2];
         root.innerHTML = '<div class="pn-stats"><div class="pn-stat"><span>Eligible</span><b>' + inr(m.eligible_paise) + '</b></div><div class="pn-stat"><span>Approved</span><b>' + inr(m.approved_paise) + '</b></div><div class="pn-stat"><span>Available to withdraw</span><b>' + inr(m.available_paise) + '</b></div><div class="pn-stat"><span>Paid</span><b>' + inr(m.paid_paise) + '</b></div></div>' +
           '<p class="muted">An entry moves from pending to eligible once the advocate’s payment (if any) is verified, documents are in and LegalStaff has approved the listing. Finance then approves it before it becomes payable.</p>' +
-          table([['Date', function (r) { return esc(dt(r.created_at)); }], ['Amount', function (r) { return inr(r.amount_paise); }, true], ['Status', function (r) { return chip(r.status); }], ['Note', function (r) { return esc(r.reason); }]], a[0], 'No commission entries. Rewards apply only to categories whose terms are approved and switched on.');
+          '<h3 class="pn-h">By month</h3>' + table([['Month', function (r) { return esc(r.month); }], ['Advocates referred', function (r) { return r.referred; }, true], ['Listings approved', function (r) { return r.verified; }, true], ['Earned', function (r) { return inr(r.earned_paise); }, true], ['Paid to you', function (r) { return inr(r.paid_out_paise); }, true], ['Waiting', function (r) { return inr(r.waiting_paise); }, true]], months, 'No referrals yet.') +
+          '<h3 class="pn-h" style="margin-top:24px">Every entry</h3>' + table([['Date', function (r) { return esc(dt(r.created_at)); }], ['Amount', function (r) { return inr(r.amount_paise); }, true], ['Status', function (r) { return chip(r.status); }], ['Note', function (r) { return esc(r.reason); }]], a[0], 'No commission entries. Rewards apply only to categories whose terms are approved and switched on.');
       });
     },
     payouts: function (root) {

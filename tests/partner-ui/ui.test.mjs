@@ -23,6 +23,8 @@ async function ctxFor(label, viewport = { width: 1280, height: 900 }) {
   p.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|fonts\.g|net::ERR/.test(m.text())) errors.push(`${label}: ${m.text()}`); });
   p.on('dialog', (d) => d.accept(d.type() === 'prompt' ? PROMPT : undefined));
   await p.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  // Google's script is not loaded in the test: a stand-in whose button "signs in" as the email put in window.__googleAs
+  await p.addInitScript(() => { let cb; window.google = { accounts: { id: { initialize: (o) => { cb = o.callback; }, renderButton: (el) => { const b = document.createElement('button'); b.id = 'fake-google'; b.textContent = 'Continue with Google'; b.onclick = () => cb({ credential: window.__googleAs }); el.appendChild(b); } } } }; });
   return { c, p };
 }
 const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -52,11 +54,14 @@ try {
   /* ---- 2. partner registration with email OTP ---- */
   const asha = await ctxFor('asha');
   await asha.p.goto(BASE + '/partners/register');
-  await otpLogin(asha.p, ASHA, '#pn-email', '#pn-b1', '#pn-code', '#pn-b2');
+  ok(/Sign in with Google/.test(await asha.p.textContent('#pn-app')) && !(await asha.p.$('#pn-email')), 'registration starts with Google, with no code to type');
+  await asha.p.evaluate((e) => { window.__googleAs = e; }, ASHA);
+  await asha.p.click('#fake-google');
   await asha.p.waitForSelector('#pn-reg');
+  ok((await asha.p.inputValue('#r-name')) === 'Asha Rao' && /Signed in with Google as asha@example.in/.test(await asha.p.textContent('#pn-reg')), 'the form is pre-filled with the name and email from Google');
   await asha.p.click('#pn-reg button[type=submit]');
   ok((await asha.p.textContent('#r-err')).length > 3, 'registration validates before submitting');
-  await asha.p.fill('#r-name', 'Asha Rao'); await asha.p.fill('#r-mobile', '9876500001');
+  await asha.p.fill('#r-mobile', '9876500001');
   await asha.p.selectOption('#r-cat', 'campus_ambassador'); await asha.p.selectOption('#r-state', 'Bihar');
   await asha.p.fill('#r-district', 'Patna'); await asha.p.fill('#r-city', 'Patna'); await asha.p.fill('#r-org', 'Chanakya National Law University');
   await asha.p.check('#r-terms'); await asha.p.check('#r-priv');
@@ -77,8 +82,8 @@ try {
   await adm.p.click('#tabs a.nav-item[data-k="partners"]');
   await adm.p.waitForSelector('#tabs a[data-k="partners/overview"]');
   const menu = await adm.p.$$eval('#tabs a[data-k^="partners/"]', (a) => a.map((x) => x.textContent));
-  ok(menu.length === 18, `Super Admin sees all 18 menu items (${menu.length})`);
-  for (const want of ['Overview', 'Partner Applications', 'All Partners', 'Partner Categories', 'Referral Management', 'Advocate Registrations', 'Commission Management', 'Payout Management', 'Marketing Campaigns', 'Marketing Resources', 'Partner Notifications', 'Leaderboard', 'Fraud Detection', 'Compliance Management', 'Partner Support', 'Reports & Analytics', 'System Settings', 'Audit Logs']) ok(menu.includes(want), `menu: ${want}`);
+  ok(menu.length === 19, `Super Admin sees all 19 menu items (${menu.length})`);
+  for (const want of ['Overview', 'Partner Applications', 'All Partners', 'Partner Categories', 'Referral Management', 'Advocate Registrations', 'Commission Management', 'Monthly Earnings', 'Payout Management', 'Marketing Campaigns', 'Marketing Resources', 'Partner Notifications', 'Leaderboard', 'Fraud Detection', 'Compliance Management', 'Partner Support', 'Reports & Analytics', 'System Settings', 'Audit Logs']) ok(menu.includes(want), `menu: ${want}`);
   await adm.p.click('a[data-k="partners/applications"]');
   await adm.p.waitForSelector('text=Asha Rao');
   PROMPT = 'Welcome aboard';
@@ -87,7 +92,7 @@ try {
   ok(sql("select code from public.partners") === 'LS10001', 'approving creates partner LS10001');
 
   // every screen renders without an error card
-  for (const [key] of [['overview'], ['partners'], ['categories'], ['referrals'], ['registrations'], ['commissions'], ['payouts'], ['campaigns'], ['resources'], ['notifications'], ['leaderboard'], ['fraud'], ['compliance'], ['support'], ['reports'], ['settings'], ['audit']]) {
+  for (const [key] of [['overview'], ['partners'], ['categories'], ['referrals'], ['registrations'], ['commissions'], ['earnings'], ['payouts'], ['campaigns'], ['resources'], ['notifications'], ['leaderboard'], ['fraud'], ['compliance'], ['support'], ['reports'], ['settings'], ['audit']]) {
     await adm.p.click(`a[data-k="partners/${key}"]`); await adm.p.waitForFunction(() => { const s = document.querySelector('#page'); return s && !s.querySelector('.skel-block') && s.textContent.length > 20; });
     ok(!(await adm.p.$('#page .card.err')), `admin screen "${key}" renders`);
   }
@@ -163,6 +168,12 @@ try {
   await adm.p.click('button[data-a="approve"]'); await adm.p.waitForSelector('button[data-a="payable"]'); await adm.p.click('button[data-a="payable"]');
   await adm.p.waitForFunction(() => !document.querySelector('button[data-a="payable"]'));
   ok(sql('select status from public.partner_commissions') === 'payable', 'finance approved it and made it payable');
+  await adm.p.click('a[data-k="partners/earnings"]'); await adm.p.waitForSelector('#e-mo');
+  ok(/LS10001/.test(await adm.p.textContent('#page')) && /Asha Rao/.test(await adm.p.textContent('#page')), 'Monthly Earnings lists the partner who referred this month');
+  const eRow = await adm.p.$eval('#page table tbody tr', (tr) => [...tr.querySelectorAll('td')].map((c) => c.textContent.trim()));
+  ok(eRow[3] === '1' && eRow[4] === '1' && eRow[5] === '1' && /15\.00/.test(eRow[6]) && /0\.00/.test(eRow[7]) && /15\.00/.test(eRow[8]), `monthly row: 1 referred, 1 paid, 1 verified, \u20B915 earned, \u20B90 paid out, \u20B915 to pay (${eRow.join(' | ')})`);
+  const eDl = adm.p.waitForEvent('download'); await adm.p.click('#e-xl'); const eFile = await eDl;
+  ok(readFileSync(await eFile.path()).slice(0, 2).toString() === 'PK' && /partner-earnings-\d{4}-\d{2}\.xlsx$/.test(eFile.suggestedFilename()), 'the month exports to Excel');
   await adm.p.click('a[data-k="partners/registrations"]');   // replaying the referral screen must not double anything
   ok(sql('select count(*) from public.partner_commissions') === '1', 'still exactly one commission');
 

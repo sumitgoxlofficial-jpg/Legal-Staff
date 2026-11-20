@@ -6,7 +6,7 @@ All calls are Supabase RPCs (`POST /rest/v1/rpc/<name>` with the user's JWT) unl
 `partner_public_config()` · `partner_validate_code(p_code)` · `partner_track_click(p_code, p_visitor, p_campaign, p_source)`
 
 ## Partner (signed in; own data only)
-`partner_me` · `partner_apply(p jsonb)` · `partner_register_document(p_kind,p_path,p_name,p_size)` · `partner_dashboard` · `partner_referrals_list` · `partner_earnings_list` · `partner_payouts_list` · `partner_add_payment_method(p_kind,p_details)` · `partner_request_payout` · `partner_update_profile(p)` · `partner_resources_list` · `partner_notifications_list(p_mark_read)` · `partner_support_create(p_subject,p_message)` · `partner_support_list`
+`partner_me` · `partner_apply(p jsonb)` · `partner_register_document(p_kind,p_path,p_name,p_size)` · `partner_dashboard` · `partner_referrals_list` · `partner_earnings_list` · `partner_payouts_list` · `partner_add_payment_method(p_kind,p_details)` · `partner_request_payout` · `partner_update_profile(p)` · `partner_resources_list` · `partner_notifications_list(p_mark_read)` · `partner_support_create(p_subject,p_message)` · `partner_support_list` · `partner_monthly_earnings` (migration 0041)
 
 ## Staff (permission in brackets)
 | Function | Permission |
@@ -19,7 +19,7 @@ All calls are Supabase RPCs (`POST /rest/v1/rpc/<name>` with the user's JWT) unl
 | `admin_referrals`, `admin_leaderboard` | referrals.view |
 | `admin_attribution_confirm`, `admin_attribution_override` | referrals.manage |
 | `admin_record_listing_payment` | payments.verify |
-| `admin_commissions` | commissions.view |
+| `admin_commissions`, `admin_monthly_earnings(p_month)` | commissions.view |
 | `admin_commission_action`, `admin_commissions_make_payable` | commissions.manage |
 | `admin_payouts` | payouts.view |
 | `admin_payout_action`, `admin_payout_destination` | payouts.manage |
@@ -39,14 +39,14 @@ Report kinds: partner_master, applications, state_wise, district_wise, referrals
 Edge function `partner-mail` (JWT verification off): `{action:"drain"}` with header `x-cron-secret`; `{action:"test", template, to}` for staff with notifications.manage.
 
 ## Deployment (in order)
-1. Take a database backup. Apply `0039_partner_network.sql`. (Needs the `vault` schema and `pgcrypto`, both present on Supabase.)
+1. Take a database backup. Apply `0039_partner_network.sql` (and `0041_partner_monthly_earnings.sql` for the monthly earnings screen). (Needs the `vault` schema and `pgcrypto`, both present on Supabase.)
 2. Deploy `functions/partner-mail` (with `_shared/partner-mail.js`; deploy `functions/` as a whole). Then apply `0040_partner_mail_schedule.sql`.
 3. Merge/deploy the site (Vercel). Run `SITE_UPDATED=<date> node seo/build.mjs` only if you change pages; generated output is committed.
 4. Add staff: Admin → Partner Network → System Settings → Roles and staff.
 5. Leave commission off. Record counsel's approval first, then switch per category.
 
 ## Environment
-No new variables. Uses existing: `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`, `CRON_SECRET` (+ Vault `cron_secret`). Mobile OTP needs an SMS provider (not configured; setting `sms_provider`). WhatsApp stays off.
+Google sign-in uses the existing `googleClientId` in `config.js` and Google's one-tap button (the same as the directory); no redirect URL setup. No new variables. Uses existing: `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`, `CRON_SECRET` (+ Vault `cron_secret`). Mobile OTP needs an SMS provider (not configured; setting `sms_provider`). WhatsApp stays off.
 
 ## Tests
 `bash tests/partner-db/run.sh` (114 checks, real PostgreSQL 16) · `node tests/partner-ui/ui.test.mjs` (98 browser checks, real Chromium + real database) · `node tests/partner-export.test.mjs` · `node tests/partner-mail.test.mjs`. Existing court tests still pass.

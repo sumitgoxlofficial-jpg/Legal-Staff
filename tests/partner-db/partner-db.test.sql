@@ -316,6 +316,26 @@ insert into public.directory_orders (application_id, order_no, amount_paise, sta
 select t.a($q$exists (select 1 from public.directory_orders where order_no = 'order_rzp_3')$q$, 'a Razorpay order is recorded even if the partner network code fails');
 \i /tmp/ls-restore-eval.sql
 
+-- ===== monthly earnings (for paying partners) =====
+select t.as_user(:O, 'owner@legalstaff.test'); set role authenticated;
+select t.a($q$(public.admin_monthly_earnings() -> 'rows' -> 0 ->> 'code') = 'LS10001'$q$, 'monthly earnings lists the partner who referred this month');
+select t.a($q$(public.admin_monthly_earnings() -> 'rows' -> 0 ->> 'referred')::int >= 5$q$, 'monthly earnings counts referred advocates (valid attributions only, self-referrals excluded)');
+select t.a($q$(public.admin_monthly_earnings() -> 'rows' -> 0 ->> 'paid')::int >= 3$q$, 'monthly earnings counts those with a verified payment');
+select t.a($q$(public.admin_monthly_earnings() -> 'rows' -> 0 ->> 'to_pay_paise')::int = 0 and (public.admin_monthly_earnings() -> 'rows' -> 0 ->> 'paid_out_paise')::int = 0$q$, 'the paid-out and to-pay amounts follow the ledger (the only paid commission was reversed)');
+select t.a($q$(public.admin_monthly_earnings() -> 'rows' -> 0 ->> 'earned_paise')::int = 1500$q$, 'earned counts only live ledger entries (eligible R1 = Rs 15)');
+select t.a($q$jsonb_array_length(public.admin_monthly_earnings('2020-01') -> 'rows') = 0$q$, 'a month with no referrals is empty');
+select t.raises($$select public.admin_monthly_earnings('not-a-month')$$, '%Choose a month%', 'a bad month is refused');
+reset role;
+select t.as_user(:M, 'mk@legalstaff.test'); set role authenticated;
+select t.raises($$select public.admin_monthly_earnings()$$, '%permission%', 'Marketing Manager cannot see earnings');
+reset role;
+select t.as_user(:A, 'asha@example.in'); set role authenticated;
+select t.a($q$(public.partner_monthly_earnings() -> 0 ->> 'referred')::int >= 5 and (public.partner_monthly_earnings() -> 0 ->> 'earned_paise')::int = 1500$q$, 'a partner sees their own monthly summary');
+reset role;
+select t.as_user(:B, 'bina@example.in'); set role authenticated;
+select t.a($q$jsonb_array_length(public.partner_monthly_earnings()) = 0$q$, 'another partner sees none of it');
+reset role;
+
 -- ===== advocate registration survives a partner-network fault =====
 select pg_get_functiondef('public.ps_attribute_application(text)'::regprocedure) as keepdef \gset
 create or replace function public.ps_attribute_application(p_app text) returns void language plpgsql as $$ begin raise exception 'boom'; end $$;
