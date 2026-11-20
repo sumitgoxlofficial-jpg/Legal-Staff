@@ -499,3 +499,9 @@ body[data-pview="landing"] .pn-steps li::after { display: none; }
   .pn-heroCard .pn-actions { grid-template-columns: minmax(0, 1fr); }
   .pn-heroQr svg, .pn-heroQr img { width: 150px; height: 150px; }
 }
+
+/* Dashboard: the dark app bar sits flush with the top of the page (no light strip above it). */
+.pn-portal.pn-shelled { padding-top: 0; }
+body:has(.pn-portal) #main, body:has(.pn-portal) main { margin: 0; padding-top: 0; }
+body:has(.pn-portal) { margin: 0; }
+.pn-appbar { top: 0; margin-top: 0; }
