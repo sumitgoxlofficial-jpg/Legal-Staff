@@ -55,7 +55,7 @@ function register() {
 <div class="pn-card" id="pn-app"><noscript><p class="muted">This form needs JavaScript.</p></noscript>
   <p class="muted" id="pn-loading">Loading\u2026</p></div>
 </div></section>`;
-  return shell('Apply to become a LegalStaff partner', 'Apply to the LegalStaff Advocate Partner Network. Verify your email, choose a category and submit your application for review.', `${BASE}/register`, body, ['/static/partners.js']);
+  return shell('Apply to become a LegalStaff partner', 'Apply to the LegalStaff Advocate Partner Network. Sign in with Google, fill in your details and get your referral link and dashboard straight away.', `${BASE}/register`, body, ['/static/partners.js']);
 }
 function login() {
   const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Partner sign in', lead: 'Sign in with the Google account you applied with. No password to remember.', crumbs: crumbs('Sign in', `${BASE}/login`), primary: 'Apply to become a partner', primaryHref: `${BASE}/register`, secondary: { label: 'Back to Partners', href: BASE } })}

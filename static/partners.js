@@ -114,7 +114,7 @@
   function register() {
     var root = $('#pn-app'); if (!root) return;
     if (!sb) { root.innerHTML = '<p class="pn-err">The server is not connected, so applications cannot be taken right now.</p>'; return; }
-    session().then(function (s) { if (s) return afterSignIn(); signInPanel(root, { title: 'Sign in with Google to apply', lead: 'Use your Google account, then fill in your details. There is no code to type; our team reviews every application.', create: true, done: afterSignIn }); });
+    session().then(function (s) { if (s) return afterSignIn(); signInPanel(root, { title: 'Sign in with Google to apply', lead: 'Use your Google account, then fill in your details. There is no code to type, and your dashboard opens straight away.', create: true, done: afterSignIn }); });
     function afterSignIn() {
       return Promise.all([rpc('partner_me'), rpc('partner_public_config')]).then(function (a) {
         var me = a[0], conf = a[1];
