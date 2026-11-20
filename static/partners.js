@@ -66,6 +66,8 @@
           sb.auth.signInWithIdToken({ provider: 'google', token: r.credential, nonce: raw }).then(function (x) { if (x.error) return fail(errText(x.error)); done(x.data.user); }, function (e) { fail(errText(e)); });
         } });
         window.google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', logo_alignment: 'center', width: Math.max(220, Math.min(380, el.offsetWidth || 340)) });
+        // Open Google's account chooser straight away (One Tap). The button above stays as the fallback if it is dismissed or blocked.
+        try { window.google.accounts.id.prompt(); } catch (e) { /* button still works */ }
       });
     }).catch(function (e) { fail(e.message || 'Google sign-in is not available right now.'); });
   }
