@@ -202,7 +202,7 @@
   function portal() {
     var root = $('#pn-view'); if (!root) return;
     var focus = root.getAttribute('data-view');
-    $('#pn-out').onclick = function (e) { e.preventDefault(); sb.auth.signOut().then(function () { location.href = '/partners/login'; }); };
+    var o1 = $('#pn-out'); if (o1) o1.onclick = function (e) { e.preventDefault(); if (sb) sb.auth.signOut().then(function () { location.href = '/partners/login'; }); };
     if (!sb) { root.innerHTML = '<p class="pn-err">The server is not connected.</p>'; return; }
     session().then(function (s) {
       if (!s) { location.replace('/partners/login'); return; }
@@ -272,7 +272,7 @@
     return '<div class="pn-donut"><svg viewBox="0 0 140 140" role="img" aria-label="Commission split"><circle cx="70" cy="70" r="' + R + '" fill="none" stroke="#EFEFEE" stroke-width="16"/>' + segs + '</svg><div class="pn-donutC"><small>Total earned</small><b data-count="' + total + '" data-fmt="inr">' + inr(total) + '</b></div></div>';
   }
   var NAVIC = { dashboard: 'home', referrals: 'users', earnings: 'trend', payouts: 'wallet', resources: 'folder', profile: 'user', support: 'help' };
-  var ICP = { home: 'M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z', trend: 'M3 17l6-6 4 4 8-8M15 7h6v6', wallet: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7V6a2 2 0 0 1 2-2h12M16 14h2', users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8', folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8', help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01', click: 'M9 9l5 12 1.7-5.3L21 14zM9 3v2M3 9h2M5.6 5.6L7 7', check: 'M20 6L9 17l-5-5', clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2', out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9', rupee: 'M6 3h12M6 8h12M9 13h3a4 4 0 0 0 0-5M9 13l7 8', copy: 'M9 9h11v11H9zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1', share: 'M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v14', qr: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20h3M20 17v4', star: 'M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z' };
+  var ICP = { home: 'M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z', trend: 'M3 17l6-6 4 4 8-8M15 7h6v6', wallet: 'M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7V6a2 2 0 0 1 2-2h12M16 14h2', users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8', folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8', help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01', click: 'M9 9l5 12 1.7-5.3L21 14zM9 3v2M3 9h2M5.6 5.6L7 7', check: 'M20 6L9 17l-5-5', clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2', out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9', rupee: 'M6 3h12M6 8h12M9 13h3a4 4 0 0 0 0-5M9 13l7 8', copy: 'M9 9h11v11H9zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1', share: 'M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v14', qr: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20h3M20 17v4', more: 'M5 12h.01M12 12h.01M19 12h.01', star: 'M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z' };
   var ic = function (n, sz) { return '<svg class="pn-ic" width="' + (sz || 18) + '" height="' + (sz || 18) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + (ICP[n] || '') + '"/></svg>'; };
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var initials = function (n) { return String(n || '?').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join(''); };
@@ -282,18 +282,28 @@
   function hub(root, m, focus) {
     var p = m.partner, welcome = /[?&]welcome=1/.test(location.search), first = String(p.name || 'Partner').split(' ')[0];
     var host = root.closest('.pn-portal'); if (host) host.classList.add('pn-shelled');
-    root.innerHTML = '<div class="pn-shell"><aside class="pn-side"><div class="pn-me"><span class="pn-av">' + esc(initials(p.name)) + '</span><div><b>' + esc(p.name) + '</b><small>Partner ID ' + esc(p.code) + '</small></div></div>' +
+    var TAB = [['dashboard', 'Home'], ['referrals', 'Referrals'], ['earnings', 'Earnings'], ['payouts', 'Payouts']], MORE = ['profile', 'resources', 'support'];
+    var appbar = '<header class="pn-appbar"><a href="/" class="pn-brand" aria-label="Legal Staff home"><img src="/assets/ls-logo-white.png" alt="Legal Staff" width="120" height="30"></a><span class="pn-appTag">Partner</span><span class="pn-grow"></span><a href="/partners" class="pn-site">Website</a><span class="pn-av sm" title="' + esc(p.name) + '">' + esc(initials(p.name)) + '</span></header>';
+    var tabbar = '<nav class="pn-tabbar" aria-label="Sections">' + TAB.map(function (x) { return '<a href="#s-' + x[0] + '" data-nav="' + x[0] + '">' + ic(NAVIC[x[0]], 22) + '<span>' + x[1] + '</span></a>'; }).join('') + '<button type="button" class="pn-moreb" id="pn-more" aria-expanded="false">' + ic('more', 22) + '<span>More</span></button></nav>' +
+      '<div class="pn-sheet" id="pn-sheet" hidden><div class="pn-sheetBox">' + MORE.map(function (n) { var t = SECTIONS.filter(function (x) { return x[0] === n; })[0]; return '<a href="#s-' + n + '" data-nav="' + n + '">' + ic(NAVIC[n], 20) + '<span>' + t[1] + '</span></a>'; }).join('') + '<a href="#" id="pn-out3">' + ic('out', 20) + '<span>Sign out</span></a></div></div>';
+    root.innerHTML = appbar + '<div class="pn-shell"><aside class="pn-side"><div class="pn-me"><span class="pn-av">' + esc(initials(p.name)) + '</span><div><b>' + esc(p.name) + '</b><small>Partner ID ' + esc(p.code) + '</small></div></div>' +
       '<nav class="pn-nav" aria-label="Partner sections">' + SECTIONS.map(function (x) { return '<a href="#s-' + x[0] + '" data-nav="' + x[0] + '">' + ic(NAVIC[x[0]], 18) + '<span>' + x[1] + '</span></a>'; }).join('') + '</nav>' +
       '<a href="#" class="pn-signout" id="pn-out2">' + ic('out', 18) + '<span>Sign out</span></a></aside>' +
-      '<main class="pn-main"><header class="pn-head"><div><p class="pn-hello">' + hour() + ', ' + esc(first) + '</p><h1 id="pn-title">Overview</h1></div><div class="pn-headR">' + chip(p.status) + '</div></header>' +
+      '<main class="pn-main"><header class="pn-head"><div><p class="pn-hello">' + hour() + ', ' + esc(first) + '</p><h2 id="pn-title">Overview</h2></div><div class="pn-headR">' + chip(p.status) + '</div></header>' +
       (welcome ? '<div class="pn-welcome"><b>Welcome, ' + esc(first) + '. You are in.</b><span>Your partner ID is <b>' + esc(p.code) + '</b>. Your referral link and QR code are ready below: share them with advocates.</span></div>' : '') +
       (p.status !== 'approved' ? '<div class="pn-banner"><b>Your account is ' + chip(p.status) + '.</b> ' + esc(p.status_note || '') + ' Referral tracking and payouts are off while your account is not in good standing. Contact support if you have questions.</div>' : '') +
-      SECTIONS.map(function (x) { return '<section class="pn-sec pn-panel" id="s-' + x[0] + '" hidden>' + (x[0] === 'dashboard' ? '' : '<h2 class="pn-sh">' + x[1] + '</h2>') + '<div id="v-' + x[0] + '"><div class="pn-skel"><i></i><i></i><i></i></div></div></section>'; }).join('') + '</main></div>';
-    $('#pn-out2').onclick = function (e) { e.preventDefault(); sb.auth.signOut().then(function () { location.href = '/partners/login'; }); };
+      SECTIONS.map(function (x) { return '<section class="pn-sec pn-panel" id="s-' + x[0] + '" hidden>' + (x[0] === 'dashboard' ? '' : '<h2 class="pn-sh">' + x[1] + '</h2>') + '<div id="v-' + x[0] + '"><div class="pn-skel"><i></i><i></i><i></i></div></div></section>'; }).join('') + '</main></div>' + tabbar;
+    var signOut = function (e) { e.preventDefault(); sb.auth.signOut().then(function () { location.href = '/partners/login'; }); };
+    $('#pn-out2').onclick = signOut; $('#pn-out3').onclick = signOut;
+    var sheet = $('#pn-sheet'), moreB = $('#pn-more');
+    var setSheet = function (on) { sheet.hidden = !on; moreB.setAttribute('aria-expanded', on); };
+    moreB.onclick = function () { setSheet(sheet.hidden); };
+    sheet.addEventListener('click', function (e) { if (e.target === sheet || e.target.closest('[data-nav]')) setSheet(false); });
     var show = function (name) {
       if (!$('#s-' + name)) name = 'dashboard';
       SECTIONS.forEach(function (x) { var el = $('#s-' + x[0]); if (el) { var on = x[0] === name; if (on && el.hidden) { el.hidden = false; el.classList.remove('pn-in'); void el.offsetWidth; el.classList.add('pn-in'); } else if (!on) el.hidden = true; } });
       root.querySelectorAll('[data-nav]').forEach(function (a) { if (a.getAttribute('data-nav') === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+      moreB.classList.toggle('on', MORE.indexOf(name) >= 0);
       var t = SECTIONS.filter(function (x) { return x[0] === name; })[0]; $('#pn-title').textContent = t ? t[1] : 'Overview';
     };
     var cur = function () { var h = (location.hash || '').replace('#s-', ''); return $('#s-' + h) ? h : (focus && $('#s-' + focus) ? focus : 'dashboard'); };

@@ -27,7 +27,7 @@ const CATS_JSON = JSON.stringify(CATEGORIES.map(c => ({ key: c[0], name: c[2] })
 
 const head = (title, description, path, noindex = false) => seoHead({ title, description, path, noindex, jsonld: [ld.breadcrumb([{ name: 'Home', path: '/' }, { name: 'Partners', path: BASE }])] }) + '\n' + CSS;
 const crumbs = (name, path) => [{ name: 'Home', path: '/' }, { name: 'Partners', path: BASE }, ...(path === BASE ? [] : [{ name, path }])];
-const shell = (title, description, path, body, scripts = [], noindex = false) => ({ path, noindex, priority: noindex ? 0 : 0.6, changefreq: 'monthly', html: page({ head: head(title, description, path, noindex), body, scripts: ['/static/consent.js', '/vendor/supabase.js', ...scripts] }) });
+const shell = (title, description, path, body, scripts = [], noindex = false, app = false) => ({ path, noindex, priority: noindex ? 0 : 0.6, changefreq: 'monthly', html: page({ head: head(title, description, path, noindex), body, app, scripts: ['/static/consent.js', '/vendor/supabase.js', ...scripts] }) });
 
 function landing() {
   const cats = `<div class="lg-grid pn-cats" id="pn-cats">${CATEGORIES.map(c => `<div class="lg-tile ls-reveal"><span class="lg-tile-ic">${icon(c[1], 20)}</span><b>${esc(c[2])}</b><span>${esc(c[3])}</span></div>`).join('')}</div>`;
@@ -105,11 +105,9 @@ function privacy() {
 // The partner area is one page. The other portal URLs (referrals, earnings, payouts, profile, resources, support) open the same page scrolled to that section.
 const PORTAL = [['dashboard', 'Partner dashboard'], ['referrals', 'Referrals'], ['earnings', 'Monthly earnings'], ['payouts', 'Payouts'], ['profile', 'Profile'], ['resources', 'Resources'], ['support', 'Support']];
 function portalPage(view, title) {
-  const body = `<section class="section pn-portal"><div class="wrap">
-<div class="pn-top"><div><p class="kicker">Advocate Partner Network</p><h1 class="h2">Partner dashboard</h1></div><a href="#" id="pn-out" class="btn btn-line btn-sm">Sign out</a></div>
-<div id="pn-view" data-view="${view}" aria-live="polite"><p class="muted">Loading\u2026</p></div>
-</div></section>`;
-  const pg = shell('Partner dashboard', 'LegalStaff partner dashboard.', `${BASE}/${view}`, body, ['/vendor/qrcode.js', '/static/partners.js'], true);
+  const body = `<div class="pn-portal"><h1 class="pn-sr">Partner dashboard</h1><div class="pn-top"><a href="/" class="pn-brand"><img src="/assets/ls-logo-white.png" alt="Legal Staff" width="120" height="30"></a><a href="#" id="pn-out" class="btn btn-ghost-light btn-sm">Sign out</a></div>
+<div id="pn-view" data-view="${view}" aria-live="polite"><div class="pn-skel"><i></i><i></i><i></i></div></div></div>`;
+  const pg = shell('Partner dashboard', 'LegalStaff partner dashboard.', `${BASE}/${view}`, body, ['/vendor/qrcode.js', '/static/partners.js'], true, true);
   pg.html = pg.html.replace('<body>', `<body data-pview="portal">`);
   return pg;
 }
