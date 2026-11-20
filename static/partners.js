@@ -22,8 +22,37 @@
   var msg = function (el, text, ok) { if (!el) return; el.className = ok ? 'pn-ok' : 'pn-err'; el.textContent = text; el.hidden = !text; };
 
   /* ---------- landing: categories are managed by Super Admin, so show the live list when it can be read ---------- */
+  /* Sign in right on the landing page: "Become a Partner" and "Partner login" open a Google sign-in popup here instead of a separate page.
+     Afterwards a partner goes to the dashboard; anyone new goes straight to the details form (they are already signed in). Without JS the links still work. */
+  function directSignIn() {
+    var css = document.createElement('style');
+    css.textContent = '.pn-modal{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,10,10,.6)}.pn-modal[hidden]{display:none}.pn-modal-box{position:relative;width:100%;max-width:440px;background:#fff;color:#0a0a0a;border-radius:16px;padding:28px 24px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.pn-modal-x{position:absolute;top:10px;right:14px;border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:#555}';
+    document.head.appendChild(css);
+    var modal = document.createElement('div'); modal.className = 'pn-modal'; modal.hidden = true; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
+    modal.innerHTML = '<div class="pn-modal-box"><button type="button" class="pn-modal-x" aria-label="Close">\u00d7</button><div id="pn-direct"></div></div>';
+    document.body.appendChild(modal);
+    var box = $('#pn-direct', modal);
+    var close = function () { modal.hidden = true; };
+    $('.pn-modal-x', modal).onclick = close;
+    modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    var route = function () { return rpc('partner_me').then(function (m) { location.href = m.state === 'partner' ? '/partners/dashboard' : '/partners/register'; }).catch(function () { location.href = '/partners/register'; }); };
+    var open = function (isLogin) {
+      session().then(function (sess) {
+        if (sess) return route();
+        modal.hidden = false;
+        signInPanel(box, { title: isLogin ? 'Partner sign in' : 'Sign in with Google to apply', lead: isLogin ? 'Use the Google account you applied with.' : 'Use your Google account, then fill in your details. There is no code to type.', create: true, done: route });
+      });
+    };
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href="/partners/register"], a[href="/partners/login"]');
+      if (!a || a.getAttribute('aria-disabled') === 'true' || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+      e.preventDefault(); open(a.getAttribute('href') === '/partners/login');
+    });
+  }
   function landing() {
     if (!sb) return;
+    directSignIn();
     rpc('partner_public_config').then(function (c) {
       var box = $('#pn-cats');
       if (box && c && c.categories && c.categories.length) box.innerHTML = c.categories.map(function (k) { return '<div class="lg-tile ls-in"><b>' + esc(k.name) + '</b><span>' + esc(k.description) + '</span></div>'; }).join('');
