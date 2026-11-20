@@ -458,3 +458,25 @@ body[data-pview="landing"] .pn-cats .lg-tile:hover::after, body[data-pview="land
 @media (max-width: 900px) { .pn-portal.pn-shelled::after { width: 380px; height: 380px; right: -190px; bottom: -150px; } .pn-authBox::before { display: none; } }
 @media (prefers-reduced-motion: reduce) { .pn-portal.pn-shelled::before, .pn-portal.pn-shelled::after, .pn-authMain::before, .pn-authMain::after, .pn-authBox::before, .pnl-trust::before, .pnl-trust li > span { animation: none !important; } }
 @media print { .pn-portal.pn-shelled::before, .pn-portal.pn-shelled::after { display: none; } }
+
+/* ---------- Fix: the background rings were rendering as thick filled bands. Thin hairline rings, quieter everything else. ---------- */
+body[data-pview="landing"] .section::after,
+.pn-portal.pn-shelled::after,
+.pn-authMain::after {
+  border: 1px dashed rgba(109,131,232,.35);
+  box-shadow: none;
+  background: repeating-radial-gradient(circle at center, transparent 0 62px, rgba(109,131,232,.2) 62px 63px);
+  -webkit-mask-image: radial-gradient(circle, #000 25%, transparent 72%);
+  mask-image: radial-gradient(circle, #000 25%, transparent 72%);
+  opacity: .8;
+}
+/* lighter dot grid and glows */
+body[data-pview="landing"] .section::before {
+  background-image: radial-gradient(520px 320px at 92% 8%, rgba(59,91,219,.06), transparent 70%), radial-gradient(460px 300px at 4% 96%, rgba(122,90,248,.05), transparent 70%), radial-gradient(#E0E0DA 1px, transparent 1.2px);
+}
+.pn-portal.pn-shelled::before { background-image: radial-gradient(640px 420px at 96% 6%, rgba(59,91,219,.06), transparent 70%), radial-gradient(560px 380px at 0% 100%, rgba(122,90,248,.05), transparent 70%), radial-gradient(#E2E2DC 1px, transparent 1.2px); }
+.pn-authMain::before { background-image: radial-gradient(520px 340px at 100% 0%, rgba(59,91,219,.07), transparent 70%), radial-gradient(460px 320px at 0% 100%, rgba(18,183,106,.05), transparent 70%), radial-gradient(#E2E2DC 1px, transparent 1.2px); }
+/* remove the loose shapes and giant outline numbers that sat on top of the text */
+body[data-pview="landing"] #how .wrap::before, body[data-pview="landing"] #flow .wrap::before { display: none; }
+body[data-pview="landing"] .pn-steps li::after { display: none; }
+.pn-authBox::before { display: none; }
