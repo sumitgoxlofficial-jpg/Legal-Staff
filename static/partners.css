@@ -355,3 +355,106 @@ body[data-plegal] .lg-aside .lg-nav, body[data-plegal] .lg-aside nav + nav { bor
 @media (max-width: 480px) { .pl-meta ul { grid-template-columns: 1fr; gap: 12px; padding: 16px 0; } body[data-plegal] .lg-sec h2 { font-size: 20px; gap: 10px; } }
 @media (prefers-reduced-motion: reduce) { .pl-blob, .pl-rings, .pl-plus { animation: none !important; } }
 @media print { .pl-progress, .pl-deco, .pl-meta { display: none !important; } body[data-plegal] .lg-sec { box-shadow: none; border-color: #ddd; } }
+
+/* ---------- Partners landing: graphics and motion on the white sections ---------- */
+body[data-pview="landing"] .section { position: relative; overflow: hidden; isolation: isolate; }
+body[data-pview="landing"] .section > .wrap { position: relative; z-index: 1; }
+/* layer 1: drifting dot grid, soft colour glows and tiny plus marks */
+body[data-pview="landing"] .section::before {
+  content: ""; position: absolute; inset: -40px 0; z-index: -1; pointer-events: none;
+  background-image:
+    radial-gradient(520px 320px at 92% 8%, rgba(59,91,219,.13), transparent 70%),
+    radial-gradient(460px 300px at 4% 96%, rgba(122,90,248,.11), transparent 70%),
+    radial-gradient(#D3D3CD 1.1px, transparent 1.3px);
+  background-size: auto, auto, 28px 28px;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 14%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 14%, #000 86%, transparent 100%);
+  animation: plDrift 26s linear infinite;
+}
+/* layer 2: rotating dashed rings, alternating sides */
+body[data-pview="landing"] .section::after {
+  content: ""; position: absolute; z-index: -1; pointer-events: none; width: 520px; height: 520px; right: -190px; top: -120px; border-radius: 50%;
+  border: 1.5px dashed #C9D2F7; box-shadow: inset 0 0 0 56px rgba(59,91,219,.025), inset 0 0 0 57px #E3E8FB, inset 0 0 0 118px rgba(122,90,248,.02), inset 0 0 0 119px #E9E3FB;
+  animation: plSpin 70s linear infinite;
+}
+body[data-pview="landing"] .section:nth-of-type(even)::after { right: auto; left: -200px; top: auto; bottom: -160px; animation-direction: reverse; border-color: #D8CFF6; }
+body[data-pview="landing"] .section.tone-soft::before { opacity: .85; }
+body[data-pview="landing"] .section.tone-soft { background: linear-gradient(180deg, #F7F7F4, #FAFAF8); }
+@keyframes plDrift { to { background-position: 0 0, 0 0, 28px 28px; } }
+
+/* floating shapes behind the "how it works" and "referral flow" sections */
+body[data-pview="landing"] #how .wrap::before, body[data-pview="landing"] #flow .wrap::before {
+  content: ""; position: absolute; z-index: -1; right: 4%; top: 26px; width: 120px; height: 120px; pointer-events: none;
+  background:
+    radial-gradient(circle at 18px 18px, #3B5BDB 5px, transparent 6px),
+    radial-gradient(circle at 96px 30px, #12B76A 4px, transparent 5px),
+    radial-gradient(circle at 60px 92px, #7A5AF8 6px, transparent 7px),
+    linear-gradient(135deg, transparent 49%, #C9D2F7 49% 51%, transparent 51%);
+  opacity: .8; animation: pnFloat 9s ease-in-out infinite;
+}
+body[data-pview="landing"] #flow .wrap::before { right: auto; left: 3%; animation-delay: -4s; transform: scaleX(-1); }
+
+/* how it works: more air under the heading, flowing connector, pulsing step markers */
+body[data-pview="landing"] .pn-steps { margin-top: 44px; }
+body[data-pview="landing"] .pn-steps::before { height: 3px; border-radius: 3px; opacity: .55; background: linear-gradient(90deg, #3B5BDB, #7A5AF8, #12B76A, #3B5BDB); background-size: 200% 100%; animation: plFlow 6s linear infinite; }
+@keyframes plFlow { to { background-position: -200% 0; } }
+body[data-pview="landing"] .pn-steps .pn-n { animation: plPulse 3.2s ease-in-out infinite; }
+body[data-pview="landing"] .pn-steps li:nth-child(2) .pn-n { animation-delay: .5s; } body[data-pview="landing"] .pn-steps li:nth-child(3) .pn-n { animation-delay: 1s; } body[data-pview="landing"] .pn-steps li:nth-child(4) .pn-n { animation-delay: 1.5s; } body[data-pview="landing"] .pn-steps li:nth-child(5) .pn-n { animation-delay: 2s; }
+@keyframes plPulse { 0%, 100% { box-shadow: 0 0 0 6px #fff, 0 8px 20px rgba(10,10,10,.18), 0 0 0 6px rgba(59,91,219,0); } 50% { box-shadow: 0 0 0 6px #fff, 0 8px 20px rgba(10,10,10,.18), 0 0 0 14px rgba(59,91,219,.14); } }
+/* faint oversized step numbers as background texture */
+body[data-pview="landing"] .pn-steps { counter-reset: plst; }
+body[data-pview="landing"] .pn-steps li { counter-increment: plst; }
+body[data-pview="landing"] .pn-steps li::after { content: counter(plst); position: absolute; right: 6px; top: 46px; font-size: 92px; font-weight: 800; line-height: 1; letter-spacing: -.05em; color: transparent; -webkit-text-stroke: 1px #E1E4F5; z-index: -1; pointer-events: none; }
+
+/* referral flow: animated dashes travel along the connectors, icons gently bob */
+body[data-pview="landing"] .pnl-flow li:not(:last-child)::after { background: repeating-linear-gradient(90deg, #6D83E8 0 4px, transparent 4px 8px); background-size: 16px 2px; animation: plMarch 1s linear infinite; }
+@keyframes plMarch { to { background-position: 16px 0; } }
+body[data-pview="landing"] .pnl-fi { animation: pnFloat 5s ease-in-out infinite; } body[data-pview="landing"] .pnl-flow li:nth-child(2) .pnl-fi { animation-delay: -1s; } body[data-pview="landing"] .pnl-flow li:nth-child(3) .pnl-fi { animation-delay: -2s; } body[data-pview="landing"] .pnl-flow li:nth-child(4) .pnl-fi { animation-delay: -3s; } body[data-pview="landing"] .pnl-flow li:nth-child(5) .pnl-fi { animation-delay: -4s; }
+
+/* cards pick up a soft animated edge on hover */
+body[data-pview="landing"] .pn-cats .lg-tile, body[data-pview="landing"] #pn-benefits .lg-tile { position: relative; background: #fff; }
+body[data-pview="landing"] .pn-cats .lg-tile::after, body[data-pview="landing"] #pn-benefits .lg-tile::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 0 0 14px 14px; background: linear-gradient(90deg, #3B5BDB, #7A5AF8, #12B76A); transform: scaleX(0); transform-origin: left; transition: transform .35s cubic-bezier(.3,.8,.2,1); }
+body[data-pview="landing"] .pn-cats .lg-tile:hover::after, body[data-pview="landing"] #pn-benefits .lg-tile:hover::after { transform: scaleX(1); }
+
+@media (max-width: 1000px) {
+  body[data-pview="landing"] .pn-steps li::after { display: none; }
+  body[data-pview="landing"] .section::after { width: 360px; height: 360px; right: -170px; opacity: .7; }
+  body[data-pview="landing"] .pn-steps { margin-top: 30px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-pview="landing"] .section::before, body[data-pview="landing"] .section::after, body[data-pview="landing"] .wrap::before, body[data-pview="landing"] .pn-steps::before, body[data-pview="landing"] .pn-steps .pn-n, body[data-pview="landing"] .pnl-flow li::after, body[data-pview="landing"] .pnl-fi { animation: none !important; }
+}
+
+/* ---------- Graphics and motion on every other white background in the partner area ---------- */
+@keyframes plDriftDots { to { background-position: 0 0, 0 0, 28px 28px; } }
+
+/* dashboard canvas */
+.pn-portal.pn-shelled { position: relative; isolation: isolate; }
+.pn-portal.pn-shelled::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(640px 420px at 96% 6%, rgba(59,91,219,.12), transparent 70%), radial-gradient(560px 380px at 0% 100%, rgba(122,90,248,.10), transparent 70%), radial-gradient(#D6D6D0 1.1px, transparent 1.3px);
+  background-size: auto, auto, 28px 28px; animation: plDriftDots 30s linear infinite; }
+.pn-portal.pn-shelled::after { content: ""; position: fixed; z-index: -1; pointer-events: none; width: 560px; height: 560px; right: -220px; bottom: -200px; border-radius: 50%;
+  border: 1.5px dashed #C9D2F7; box-shadow: inset 0 0 0 60px rgba(59,91,219,.025), inset 0 0 0 61px #E3E8FB; animation: plSpin 80s linear infinite; }
+.pn-portal.pn-shelled .pn-shell { position: relative; z-index: 1; }
+
+/* sign-in and apply: right-hand panel */
+.pn-authMain { position: relative; overflow: hidden; isolation: isolate; }
+.pn-authMain::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(520px 340px at 100% 0%, rgba(59,91,219,.13), transparent 70%), radial-gradient(460px 320px at 0% 100%, rgba(18,183,106,.09), transparent 70%), radial-gradient(#D6D6D0 1.1px, transparent 1.3px);
+  background-size: auto, auto, 28px 28px; animation: plDriftDots 28s linear infinite; }
+.pn-authMain::after { content: ""; position: absolute; z-index: -1; pointer-events: none; width: 440px; height: 440px; right: -170px; bottom: -150px; border-radius: 50%;
+  border: 1.5px dashed #C9D2F7; box-shadow: inset 0 0 0 52px rgba(122,90,248,.03), inset 0 0 0 53px #E6E2FA; animation: plSpin 60s linear infinite reverse; }
+.pn-authBox::before { content: "+"; position: absolute; left: -34px; top: 40px; font-size: 28px; font-weight: 300; color: #B9C3F2; animation: pnFloat 7s ease-in-out infinite; }
+.pn-authBox { position: relative; }
+
+/* landing: facts strip and FAQ band */
+.pnl-trust { position: relative; overflow: hidden; }
+.pnl-trust::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(100deg, transparent 30%, rgba(59,91,219,.07) 50%, transparent 70%); background-size: 220% 100%; animation: plSweep 7s ease-in-out infinite; }
+.pnl-trust .wrap { position: relative; }
+@keyframes plSweep { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+.pnl-trust li > span { animation: pnFloat 6s ease-in-out infinite; } .pnl-trust li:nth-child(2) > span { animation-delay: -1.5s; } .pnl-trust li:nth-child(3) > span { animation-delay: -3s; } .pnl-trust li:nth-child(4) > span { animation-delay: -4.5s; }
+
+/* shared: tidy on small screens, respect reduced motion, never print */
+@media (max-width: 900px) { .pn-portal.pn-shelled::after { width: 380px; height: 380px; right: -190px; bottom: -150px; } .pn-authBox::before { display: none; } }
+@media (prefers-reduced-motion: reduce) { .pn-portal.pn-shelled::before, .pn-portal.pn-shelled::after, .pn-authMain::before, .pn-authMain::after, .pn-authBox::before, .pnl-trust::before, .pnl-trust li > span { animation: none !important; } }
+@media print { .pn-portal.pn-shelled::before, .pn-portal.pn-shelled::after { display: none; } }
