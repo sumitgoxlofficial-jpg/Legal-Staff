@@ -49,18 +49,32 @@ ${faqBlock(FAQ)}
   return p;
 }
 
+/* Sign-in and apply pages share one standalone layout: a dark brand panel beside a clean card, no marketing header or footer. */
+function authPage({ id, title, lead, otherText, otherLabel, otherHref }) {
+  const pts = [['check', 'Free to join', 'No fees. Our team reviews every application.'], ['rocket', 'Instant dashboard', 'Your referral link and QR code are ready straight away.'], ['shield', 'Transparent rewards', 'Rewards arise only on verified listings, tracked in your dashboard.']];
+  const body = `<div class="pn-auth">
+<aside class="pn-authSide" aria-hidden="false">
+  <a href="/" class="pn-brand"><img src="/assets/ls-logo-white.png" alt="Legal Staff" width="132" height="33"></a>
+  <div class="pn-authCopy"><p class="pn-eyebrow">Advocate Partner Network</p><p class="pn-authBig">Grow with India’s advocate network.</p>
+  <ul class="pn-authPts">${pts.map((x, i) => `<li style="--i:${i}"><span>${icon(x[0], 18)}</span><div><b>${x[1]}</b><small>${x[2]}</small></div></li>`).join('')}</ul></div>
+  <div class="pn-authArt" aria-hidden="true"><div class="pn-artCard a1"><i></i><i></i><i></i><i></i><i></i></div><div class="pn-artCard a2"><span></span><b></b></div><div class="pn-artCard a3">${icon('check', 16)}<b></b></div></div>
+</aside>
+<main class="pn-authMain"><div class="pn-authBox">
+  <a class="pn-authBack" href="${BASE}">${icon('arrow', 14)} Back to Partners</a>
+  <h1 class="pn-authH">${title}</h1><p class="pn-authLead">${lead}</p>
+  <div class="pn-card pn-authCard" id="${id}"><noscript><p class="muted">This page needs JavaScript.</p></noscript><div class="pn-skel"><i></i></div></div>
+  <p class="pn-authAlt">${otherText} <a href="${otherHref}">${otherLabel}</a></p>
+  <p class="pn-authFine"><a href="${BASE}/terms">Partner terms</a> · <a href="${BASE}/privacy">Privacy</a></p>
+</div></main></div>`;
+  return body;
+}
 function register() {
-  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Apply to become a partner', lead: 'Sign in with Google and fill in your details. Your referral link and dashboard are ready straight away.', crumbs: crumbs('Apply', `${BASE}/register`), primary: null, secondary: { label: 'Back to Partners', href: BASE } })}
-<section class="section"><div class="wrap narrow">
-<div class="pn-card" id="pn-app"><noscript><p class="muted">This form needs JavaScript.</p></noscript>
-  <p class="muted" id="pn-loading">Loading\u2026</p></div>
-</div></section>`;
-  return shell('Apply to become a LegalStaff partner', 'Apply to the LegalStaff Advocate Partner Network. Sign in with Google, fill in your details and get your referral link and dashboard straight away.', `${BASE}/register`, body, ['/static/partners.js']);
+  const body = authPage({ id: 'pn-app', title: 'Apply to become a partner', lead: 'Sign in with Google, then fill in your details. Your referral link and dashboard are ready straight away.', otherText: 'Already a partner?', otherLabel: 'Sign in', otherHref: `${BASE}/login` });
+  return shell('Apply to become a LegalStaff partner', 'Apply to the LegalStaff Advocate Partner Network. Sign in with Google, fill in your details and get your referral link and dashboard straight away.', `${BASE}/register`, body, ['/static/partners.js'], false, true);
 }
 function login() {
-  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Partner sign in', lead: 'Sign in with the Google account you applied with. No password to remember.', crumbs: crumbs('Sign in', `${BASE}/login`), primary: 'Apply to become a partner', primaryHref: `${BASE}/register`, secondary: { label: 'Back to Partners', href: BASE } })}
-<section class="section"><div class="wrap narrow"><div class="pn-card" id="pn-login"><p class="muted">Loading\u2026</p></div></div></section>`;
-  return shell('Partner sign in', 'Sign in to your LegalStaff partner dashboard with a one-time email code.', `${BASE}/login`, body, ['/static/partners.js']);
+  const body = authPage({ id: 'pn-login', title: 'Partner sign in', lead: 'Sign in with the Google account you applied with. No password to remember.', otherText: 'New here?', otherLabel: 'Apply to become a partner', otherHref: `${BASE}/register` });
+  return shell('Partner sign in', 'Sign in to your LegalStaff partner dashboard with Google.', `${BASE}/login`, body, ['/static/partners.js'], false, true);
 }
 
 const li = x => `<li>${x}</li>`;
