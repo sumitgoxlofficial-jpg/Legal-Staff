@@ -392,6 +392,28 @@ class Component extends DCLogic {
   readApps() { const v = this.read(this.K.apps, []); return Array.isArray(v) ? v.filter(a => a && typeof a === 'object') : []; }
   readMine() { const v = this.read(this.K.mine, {}); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
   readList(key) { const v = this.read(key, []); return Array.isArray(v) ? v : []; }
+  /* ---------- Partner Network referral (?ref=LS10001) ----------
+     The link is only a claim. The click is recorded on the server (partner_track_click) and the claim travels with the application
+     (referral_code + visitor_token); the database validates both, applies the 30-day window and fixes the attribution for good.
+     First valid referral wins: a later link never replaces an earlier one. Nothing here can change an existing application. */
+  captureReferral() {
+    try {
+      const raw = (new URLSearchParams(window.location.search).get('ref') || '').trim().toUpperCase();
+      if (!/^[A-Z]{2,4}[0-9]{3,8}$/.test(raw)) return;
+      const cur = this.read('ls.partner.ref', null), day = 864e5;
+      if (cur && cur.code && cur.token && Date.now() - cur.at < 30 * day) return;   // first valid referral wins
+      const bytes = new Uint8Array(16); (window.crypto || window.msCrypto).getRandomValues(bytes);
+      const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+      const camp = (new URLSearchParams(window.location.search).get('c') || '').trim();
+      this.write('ls.partner.ref', { code: raw, token, at: Date.now() });
+      const sb = this.sb(); if (sb) Promise.resolve(sb.rpc('partner_track_click', { p_code: raw, p_visitor: token, p_campaign: /^[0-9a-f-]{36}$/i.test(camp) ? camp : null, p_source: 'link' })).catch(() => {});
+    } catch (e) { /* referral capture must never break the directory */ }
+  }
+  refClaim() {
+    const r = this.read('ls.partner.ref', null);
+    return r && r.code && r.token && Date.now() - r.at < 30 * 864e5 ? { referral_code: r.code, visitor_token: r.token } : {};
+  }
+
   loadStore() {
     if (this.sb()) { this.setState({ mine: this.readMine(), enquiries: this.readList(this.K.enq) }); this.refreshStatus(); return; }
     this.setState({ apps: this.readApps(), mine: this.readMine(), enquiries: this.readList(this.K.enq) });
@@ -523,6 +545,7 @@ class Component extends DCLogic {
     this.onKey = e => { if (e.key === 'Escape' && this.state.modal) this.setState({ modal: null }); };
     window.addEventListener('popstate', this.onPop); window.addEventListener('hashchange', this.onPop);
     window.addEventListener('storage', this.onStore); window.addEventListener('focus', this.onStore); window.addEventListener('keydown', this.onKey);
+    this.captureReferral();
     this.loadStore();
     if (this.sb()) this.loadProfiles();
     setTimeout(() => { if (window.location.hash) this.fromHash(); this.reveal(); }, 30);
@@ -638,7 +661,7 @@ class Component extends DCLogic {
         let r;
         for (let i = 0; i < 3; i++) {
           id = mk();
-          r = await this.call(sb.from('directory_applications').insert({ id, ...core, email: a.email.trim(), mobile: a.mobile.trim(), details }));
+          r = await this.call(sb.from('directory_applications').insert({ id, ...core, email: a.email.trim(), mobile: a.mobile.trim(), details, ...this.refClaim() }));
           if (!(r.error && String(r.error.code) === '23505' && /pkey/i.test(String(r.error.message) + String(r.error.details || '')))) break;
         }
         if (r.error && String(r.error.code) === '23505') return this.setState({ busy: '', step: 1, appErr: { enr: 'An application with this enrolment number already exists.' } });
@@ -1000,7 +1023,7 @@ class Component extends DCLogic {
         note: enq.remote ? 'Your request has been recorded for the Legal Staff team to pass on to the advocate. There is no automatic email to the advocate yet.' : 'Your request is saved in this browser. There is no server behind this site yet, so no email or message is sent to the advocate.' } : { head: '', withdraw: '', foot: '', summary: '', note: '' },
       regTitle: S.editingId ? 'Update your application' : 'Apply for a directory profile',
       steps, stepTitle: cur[1], stepFields: cur[2], isForm: S.step < 3, isDocs: S.step === 3, isReview: S.step === 4, docSlots,
-      reviewRows: [{ k: 'Name', v: A.name.trim() || '—' }, { k: 'Contact', v: [A.email.trim(), A.mobile.trim(), A.city.trim()].filter(Boolean).join(' · ') || '—' }, { k: 'Enrolment', v: [A.enr.trim().toUpperCase(), A.council, A.year.trim()].filter(Boolean).join(' · ') || '—' },
+      reviewRows: [...(this.refClaim().referral_code && !S.editingId ? [{ k: 'Introduced by', v: 'LegalStaff partner ' + this.refClaim().referral_code + ' (partners see only that you registered and its status, never your contact details)' }] : []), { k: 'Name', v: A.name.trim() || '—' }, { k: 'Contact', v: [A.email.trim(), A.mobile.trim(), A.city.trim()].filter(Boolean).join(' · ') || '—' }, { k: 'Enrolment', v: [A.enr.trim().toUpperCase(), A.council, A.year.trim()].filter(Boolean).join(' · ') || '—' },
         { k: 'Practice areas', v: A.areas.join(', ') || '—' }, { k: 'Courts', v: A.courts.trim() || '—' }, { k: 'District', v: A.district.trim() || '—' }, { k: 'Languages', v: A.langs.trim() || '—' }, { k: 'Qualifications', v: A.quals.trim() || '—' },
         { k: 'Documents', v: nDocs ? nDocs + ' attached: ' + Object.keys(A.docs).map(k => A.docs[k].name).join(', ') : 'None attached' }],
       confirmOn: A.confirm, toggleConfirm: () => setApp('confirm', !A.confirm), stepErr, stepBad: !!stepErr,

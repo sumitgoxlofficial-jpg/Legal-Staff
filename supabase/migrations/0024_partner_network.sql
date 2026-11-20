@@ -1329,39 +1329,39 @@ begin
   return coalesce((select jsonb_agg(to_jsonb(l) - 'actor_user' order by l.at desc) from (select * from public.partner_audit_logs where p_entity is null or entity = p_entity order by at desc limit least(greatest(p_limit, 1), 1000)) l), '[]'::jsonb);
 end $$;
 
-create or replace function public.admin_report(p_kind text, p jsonb default '{}'::jsonb) returns jsonb language plpgsql stable security definer set search_path = public, pg_temp as $$
-declare r jsonb; need text := case when p_kind in ('commission_ledger', 'monthly_revenue') then 'commissions.view' when p_kind = 'payouts' then 'payouts.view' when p_kind = 'fraud' then 'fraud.manage' else 'reports.view' end;
+create or replace function public.admin_report(p_kind text, p jsonb default '{}'::jsonb) returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare r json; need text := case when p_kind in ('commission_ledger', 'monthly_revenue') then 'commissions.view' when p_kind = 'payouts' then 'payouts.view' when p_kind = 'fraud' then 'fraud.manage' else 'reports.view' end;
 begin
   perform public.ps_require(need);
   perform public.ps_audit('report.run', 'report', p_kind, '{}'::jsonb);
   if p_kind = 'partner_master' then
-    select jsonb_agg(jsonb_build_object('Partner ID', code, 'Name', name, 'Email', email, 'Mobile', mobile, 'Category', category_key, 'State', state, 'District', district, 'City', city, 'Status', status, 'KYC', kyc_status, 'Approved on', to_char(approved_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD')) order by code) into r from public.partners;
+    select json_agg(json_build_object('Partner ID', code, 'Name', name, 'Email', email, 'Mobile', mobile, 'Category', category_key, 'State', state, 'District', district, 'City', city, 'Status', status, 'KYC', kyc_status, 'Approved on', to_char(approved_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD')) order by code) into r from public.partners;
   elsif p_kind = 'applications' then
-    select jsonb_agg(jsonb_build_object('Applied on', to_char(created_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Name', name, 'Email', email, 'Category', category_key, 'State', state, 'District', district, 'Status', status, 'Reviewed by', coalesce(reviewed_by, '')) order by created_at) into r from public.partner_applications;
+    select json_agg(json_build_object('Applied on', to_char(created_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Name', name, 'Email', email, 'Category', category_key, 'State', state, 'District', district, 'Status', status, 'Reviewed by', coalesce(reviewed_by, '')) order by created_at) into r from public.partner_applications;
   elsif p_kind = 'state_wise' then
-    select jsonb_agg(jsonb_build_object('State', state, 'Partners', n, 'Registrations', regs, 'Approved listings', listings) order by n desc) into r from (select p.state, count(distinct p.id) n, count(t.id) filter (where t.status = 'valid') regs, count(d.id) filter (where d.status = 'verified' and t.status = 'valid') listings
+    select json_agg(json_build_object('State', state, 'Partners', n, 'Registrations', regs, 'Approved listings', listings) order by n desc) into r from (select p.state, count(distinct p.id) n, count(t.id) filter (where t.status = 'valid') regs, count(d.id) filter (where d.status = 'verified' and t.status = 'valid') listings
       from public.partners p left join public.referral_attributions t on t.partner_id = p.id left join public.directory_applications d on d.id = t.application_id group by p.state) z;
   elsif p_kind = 'district_wise' then
-    select jsonb_agg(jsonb_build_object('State', state, 'District', district, 'Partners', n, 'Registrations', regs, 'Approved listings', listings) order by state, district) into r from (select p.state, p.district, count(distinct p.id) n, count(t.id) filter (where t.status = 'valid') regs, count(d.id) filter (where d.status = 'verified' and t.status = 'valid') listings
+    select json_agg(json_build_object('State', state, 'District', district, 'Partners', n, 'Registrations', regs, 'Approved listings', listings) order by state, district) into r from (select p.state, p.district, count(distinct p.id) n, count(t.id) filter (where t.status = 'valid') regs, count(d.id) filter (where d.status = 'verified' and t.status = 'valid') listings
       from public.partners p left join public.referral_attributions t on t.partner_id = p.id left join public.directory_applications d on d.id = t.application_id group by p.state, p.district) z;
   elsif p_kind = 'referrals' then
-    select jsonb_agg(jsonb_build_object('Date', to_char(t.attributed_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Partner ID', t.code, 'Application', t.application_id, 'Attribution', t.status, 'Click matched', t.touch_verified, 'Reason', t.reason) order by t.attributed_at) into r from public.referral_attributions t;
+    select json_agg(json_build_object('Date', to_char(t.attributed_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Partner ID', t.code, 'Application', t.application_id, 'Attribution', t.status, 'Click matched', t.touch_verified, 'Reason', t.reason) order by t.attributed_at) into r from public.referral_attributions t;
   elsif p_kind = 'approved_listings' then
-    select jsonb_agg(jsonb_build_object('Application', d.id, 'Advocate', d.name, 'Enrolment', d.enr, 'City', d.city, 'Partner ID', t.code, 'Decided on', to_char(d.decided_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD')) order by d.decided_at) into r
+    select json_agg(json_build_object('Application', d.id, 'Advocate', d.name, 'Enrolment', d.enr, 'City', d.city, 'Partner ID', t.code, 'Decided on', to_char(d.decided_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD')) order by d.decided_at) into r
       from public.referral_attributions t join public.directory_applications d on d.id = t.application_id where t.status = 'valid' and d.status = 'verified';
   elsif p_kind = 'commission_ledger' then
-    select jsonb_agg(jsonb_build_object('Date', to_char(c.created_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Commission', c.id, 'Partner ID', pt.code, 'Category', c.category_key, 'Application', c.application_id, 'Amount (INR)', c.amount_paise / 100.0, 'Status', c.status, 'Reason', c.status_reason, 'Legal approval', c.legal_approval_ref, 'Paid on', to_char(c.paid_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD')) order by c.created_at) into r from public.partner_commissions c join public.partners pt on pt.id = c.partner_id;
+    select json_agg(json_build_object('Date', to_char(c.created_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Commission', c.id, 'Partner ID', pt.code, 'Category', c.category_key, 'Application', c.application_id, 'Amount (INR)', c.amount_paise / 100.0, 'Status', c.status, 'Reason', c.status_reason, 'Legal approval', c.legal_approval_ref, 'Paid on', to_char(c.paid_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD')) order by c.created_at) into r from public.partner_commissions c join public.partners pt on pt.id = c.partner_id;
   elsif p_kind = 'payouts' then
-    select jsonb_agg(jsonb_build_object('Requested', to_char(o.requested_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Partner ID', pt.code, 'Amount (INR)', o.amount_paise / 100.0, 'Status', o.status, 'Destination', o.destination_masked, 'UTR', coalesce(o.utr, ''), 'Paid on', to_char(o.paid_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD')) order by o.requested_at) into r from public.partner_payouts o join public.partners pt on pt.id = o.partner_id;
+    select json_agg(json_build_object('Requested', to_char(o.requested_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Partner ID', pt.code, 'Amount (INR)', o.amount_paise / 100.0, 'Status', o.status, 'Destination', o.destination_masked, 'UTR', coalesce(o.utr, ''), 'Paid on', to_char(o.paid_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD')) order by o.requested_at) into r from public.partner_payouts o join public.partners pt on pt.id = o.partner_id;
   elsif p_kind = 'monthly_revenue' then
-    select jsonb_agg(jsonb_build_object('Month', m, 'Verified listing payments (INR)', pay / 100.0, 'Commission accrued (INR)', comm / 100.0, 'Remaining before other costs (INR)', (pay - comm) / 100.0, 'Listings paid', n) order by m) into r
+    select json_agg(json_build_object('Month', m, 'Verified listing payments (INR)', pay / 100.0, 'Commission accrued (INR)', comm / 100.0, 'Remaining before other costs (INR)', (pay - comm) / 100.0, 'Listings paid', n) order by m) into r
       from (select to_char(verified_at at time zone 'Asia/Kolkata', 'YYYY-MM') m, sum(amount_paise) pay, count(*) n, coalesce(sum((select c.amount_paise from public.partner_commissions c where c.application_id = y.application_id and c.status in ('eligible', 'approved', 'payable', 'paid'))), 0) comm from public.partner_listing_payments y group by 1) z;
   elsif p_kind = 'campaigns' then
-    select jsonb_agg(jsonb_build_object('Campaign', c.name, 'Channel', c.channel, 'Status', c.status, 'Clicks', (select count(*) from public.partner_referrals x where x.campaign_id = c.id)) order by c.created_at) into r from public.partner_campaigns c;
+    select json_agg(json_build_object('Campaign', c.name, 'Channel', c.channel, 'Status', c.status, 'Clicks', (select count(*) from public.partner_referrals x where x.campaign_id = c.id)) order by c.created_at) into r from public.partner_campaigns c;
   elsif p_kind = 'fraud' then
-    select jsonb_agg(jsonb_build_object('Date', to_char(f.created_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Kind', f.kind, 'Score', f.score, 'Status', f.status, 'Partner ID', coalesce(pt.code, ''), 'Application', coalesce(f.application_id, ''), 'Resolution', f.resolution_note) order by f.created_at) into r from public.partner_fraud_flags f left join public.partners pt on pt.id = f.partner_id;
+    select json_agg(json_build_object('Date', to_char(f.created_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), 'Kind', f.kind, 'Score', f.score, 'Status', f.status, 'Partner ID', coalesce(pt.code, ''), 'Application', coalesce(f.application_id, ''), 'Resolution', f.resolution_note) order by f.created_at) into r from public.partner_fraud_flags f left join public.partners pt on pt.id = f.partner_id;
   else raise exception 'Unknown report.'; end if;
-  return coalesce(r, '[]'::jsonb);
+  return coalesce(r, '[]'::json);   -- json (not jsonb) so each column keeps the order it is written in
 end $$;
 
 -- ---------- storage for KYC documents (private; each user reaches only their own folder) ----------
