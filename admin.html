@@ -10,6 +10,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script src="static/export-lite.js"></script>
+<script src="static/admin-partners.js"></script>
 <style>
   :root { --bg:#F4F4F2; --card:#FFFFFF; --ink:#0A0A0A; --txt:#363636; --mut:#6B6B6B; --line:#E5E5E5; --soft:#F5F5F4; --rev:#2a78d6; --exp:#eb6834;
     --good:#137333; --goodbg:#E7F6EC; --warn:#B54708; --warnbg:#FEF3E2; --bad:#B42318; --badbg:#FDECEA; --info:#1D4ED8; --infobg:#E8EEFD; }
@@ -128,12 +131,20 @@
     if (!data.session) return loginView();
     me = data.session.user;
     root.innerHTML = '<div class="login"><div class="muted">Loading…</div></div>';
-    try { await api('settings'); } catch (e) { await sb.auth.signOut(); return loginView(e.message); }
+    staffOnly = false; TABS = ALL_TABS;
+    try { await api('settings'); } catch (e) {
+      // Not a Super Admin: Partner Network staff (a role with permissions) may still use the Partner Network section.
+      const w = await sb.rpc('admin_whoami');
+      if (w.error || !w.data || !w.data.permissions || !w.data.permissions.length) { await sb.auth.signOut(); return loginView(e.message); }
+      staffOnly = true; TABS = ALL_TABS.filter(t => t[0] === 'partners');
+    }
     shell();
   }
 
   // ---------- layout ----------
-  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings']];
+  const ALL_TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['partners', 'Partner Network'], ['settings', 'Settings']];
+  let staffOnly = false;   // a Partner Network staff member (not a Super Admin): only the Partner Network tab
+  let TABS = ALL_TABS;
   function shell() {
     root.innerHTML = `<header class="top"><div class="wrap">
         <div class="brand"><img src="assets/ls-mark-black.png" alt="">Legal Staff <small>Admin</small></div>
@@ -141,18 +152,20 @@
         <div class="who"><span>${esc(me.email)}</span><button class="btn sm" id="out">Sign out</button></div>
       </div></header><main><div class="wrap" id="page"></div></main>`;
     root.querySelector('#out').onclick = async () => { await sb.auth.signOut(); loginView(); };
-    drawTabs(); go(location.hash.slice(1) || 'overview');
-    api('support').then(r => { unread = r.messages.filter(m => m.status === 'open').length; drawTabs(); }).catch(() => {});
+    drawTabs(); go(location.hash.slice(1) || (staffOnly ? 'partners' : 'overview'));
+    if (!staffOnly) api('support').then(r => { unread = r.messages.filter(m => m.status === 'open').length; drawTabs(); }).catch(() => {});
   }
   function drawTabs() {
     const t = root.querySelector('#tabs'); if (!t) return;
     t.innerHTML = TABS.map(([k, l]) => `<button data-k="${k}" class="${k === tab ? 'on' : ''}">${l}${k === 'support' && unread ? `<span class="badge">${unread}</span>` : ''}</button>`).join('');
     t.querySelectorAll('button').forEach(b => b.onclick = () => go(b.dataset.k));
   }
-  function go(k) { if (!TABS.some(t => t[0] === k)) k = 'overview'; tab = k; history.replaceState(null, '', '#' + k); drawTabs(); const p = root.querySelector('#page'); p.innerHTML = '<div class="muted">Loading…</div>'; VIEWS[k](p).catch(e => p.innerHTML = `<div class="card err">${esc(e.message)}</div>`); }
+  function go(k) { const sub = k.split('/')[1]; k = k.split('/')[0]; if (!TABS.some(t => t[0] === k)) k = TABS[0][0]; tab = k; history.replaceState(null, '', '#' + k + (sub ? '/' + sub : '')); window.__pnSub = sub; drawTabs(); const p = root.querySelector('#page'); p.innerHTML = '<div class="muted">Loading…</div>'; VIEWS[k](p).catch(e => p.innerHTML = `<div class="card err">${esc(e.message)}</div>`); }
 
   // ---------- views ----------
   const VIEWS = {};
+
+  VIEWS.partners = async p => { await window.LSPartnerAdmin.mount(p, { sb, toast, modal, me }, window.__pnSub); };
 
   VIEWS.overview = async p => {
     const o = await api('overview');

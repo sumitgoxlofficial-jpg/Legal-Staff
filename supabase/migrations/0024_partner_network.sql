@@ -405,6 +405,8 @@ create or replace function public.ps_can(p text) returns boolean language sql st
   select p = any (public.ps_perms()) or '*' = any (public.ps_perms()) $$;
 create or replace function public.ps_require(p text) returns void language plpgsql stable security definer set search_path = public, pg_temp as $$
 begin if (select auth.uid()) is null or not public.ps_can(p) then raise exception 'You do not have permission for this (%).', p using errcode = '42501'; end if; end $$;
+-- callable by the browser and by storage policies: does the signed-in user hold this staff permission?
+create or replace function public.admin_can(p text) returns boolean language sql stable security definer set search_path = public, pg_temp as $$ select (select auth.uid()) is not null and public.ps_can(p) $$;
 create or replace function public.ps_role() returns text language sql stable security definer set search_path = public, pg_temp as $$
   select case when (select auth.uid()) is null then 'system'
     when public.ps_is_super() then 'super_admin'
@@ -1163,7 +1165,7 @@ begin
     insert into public.partner_campaigns (name, channel, message, category_keys, status, starts_at, ends_at, created_by) values (btrim(p ->> 'name'), coalesce(p ->> 'channel', 'general'), coalesce(p ->> 'message', ''),
       coalesce(array(select jsonb_array_elements_text(p -> 'category_keys')), '{}'), st, nullif(p ->> 'starts_at', '')::timestamptz, nullif(p ->> 'ends_at', '')::timestamptz, public.ps_email()) returning partner_campaigns.id into id;
   else
-    update public.partner_campaigns c set name = btrim(p ->> 'name'), channel = coalesce(p ->> 'channel', channel), message = coalesce(p ->> 'message', message), category_keys = coalesce(array(select jsonb_array_elements_text(p -> 'category_keys')), category_keys), status = st,
+    update public.partner_campaigns c set name = btrim(p ->> 'name'), channel = coalesce(p ->> 'channel', channel), message = coalesce(p ->> 'message', message), category_keys = case when p ? 'category_keys' then array(select jsonb_array_elements_text(p -> 'category_keys')) else category_keys end, status = st,
       starts_at = nullif(p ->> 'starts_at', '')::timestamptz, ends_at = nullif(p ->> 'ends_at', '')::timestamptz where c.id = nullif(p ->> 'id', '')::uuid;
   end if;
   perform public.ps_audit('campaign.saved', 'campaign', id::text, p);
@@ -1183,7 +1185,7 @@ begin
       coalesce(array(select jsonb_array_elements_text(p -> 'category_keys')), '{}'), coalesce((p ->> 'published')::boolean, false), public.ps_email()) returning partner_resources.id into id;
   else
     update public.partner_resources r set title = btrim(p ->> 'title'), kind = coalesce(p ->> 'kind', kind), body = coalesce(p ->> 'body', body), file_url = coalesce(p ->> 'file_url', file_url),
-      category_keys = coalesce(array(select jsonb_array_elements_text(p -> 'category_keys')), category_keys), published = coalesce((p ->> 'published')::boolean, published), updated_at = now() where r.id = nullif(p ->> 'id', '')::uuid;
+      category_keys = case when p ? 'category_keys' then array(select jsonb_array_elements_text(p -> 'category_keys')) else category_keys end, published = coalesce((p ->> 'published')::boolean, published), updated_at = now() where r.id = nullif(p ->> 'id', '')::uuid;
   end if;
   perform public.ps_audit('resource.saved', 'resource', id::text, jsonb_build_object('title', p ->> 'title', 'published', p ->> 'published'));
   return id;
@@ -1368,6 +1370,8 @@ do $$ begin
     insert into storage.buckets (id, name, public, file_size_limit) values ('partner-docs', 'partner-docs', false, 10485760) on conflict (id) do nothing;
     drop policy if exists partner_docs_own on storage.objects;
     create policy partner_docs_own on storage.objects for all to authenticated using (bucket_id = 'partner-docs' and (storage.foldername(name))[1] = (select auth.uid())::text) with check (bucket_id = 'partner-docs' and (storage.foldername(name))[1] = (select auth.uid())::text);
+    drop policy if exists partner_docs_staff on storage.objects;
+    create policy partner_docs_staff on storage.objects for select to authenticated using (bucket_id = 'partner-docs' and public.admin_can('partners.manage'));
   end if;
 end $$;
 
