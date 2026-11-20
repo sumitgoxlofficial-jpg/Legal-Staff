@@ -30,7 +30,7 @@ export function startDb() {
   D = mkdtempSync(join('/var/tmp', 'ls-uitest.'));
   if (isRoot) chmodSync(D, 0o777);
   asPg(`${PGBIN}/initdb -D ${D}/data -A trust >/dev/null && ${PGBIN}/pg_ctl -D ${D}/data -o '-p ${PGPORT} -k ${D}' -l ${D}/log -w start >/dev/null`);
-  for (const f of [join(ROOT, 'tests/partner-db/stub.sql'), join(ROOT, 'supabase/migrations/0039_partner_network.sql')]) psqlFile(f);
+  for (const f of [join(ROOT, 'tests/partner-db/stub.sql'), join(ROOT, 'supabase/migrations/0039_partner_network.sql'), join(ROOT, 'supabase/migrations/0041_partner_monthly_earnings.sql')]) psqlFile(f);
   return D;
 }
 export function stopDb() {
@@ -78,7 +78,7 @@ export function startServer(port = 8099) {
       return;
     }
     if (p === '/vendor/supabase.js') { res.writeHead(200, { 'Content-Type': 'text/javascript' }); return res.end(stub); }
-    if (p === '/config.js') { res.writeHead(200, { 'Content-Type': 'text/javascript' }); return res.end("window.LS_CONFIG={supabaseUrl:'http://localhost',supabaseKey:'test'};"); }
+    if (p === '/config.js') { res.writeHead(200, { 'Content-Type': 'text/javascript' }); return res.end("window.LS_CONFIG={supabaseUrl:'http://localhost',supabaseKey:'test',googleClientId:'test-client'};"); }
     let f = join(ROOT, p);
     if (existsSync(f + '.html')) f += '.html';   // Vercel cleanUrls: /partners → partners.html
     else if (existsSync(f) && statSync(f).isDirectory()) f = join(f, 'index.html');

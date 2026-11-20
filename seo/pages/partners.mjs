@@ -17,7 +17,7 @@ export const CATEGORIES = [
   ['legal_community_partner', 'building', 'Legal Community Partner', 'Legal publishers, legal education communities and other eligible legal ecosystem organisations.']
 ];
 const STEPS = [
-  ['Apply for partnership', 'Tell us who you are, where you work and which category fits you. Verify your email with a one-time code.'],
+  ['Apply for partnership', 'Sign in with Google, then tell us who you are, where you work and which category fits you.'],
   ['Get approved', 'Our team reviews every application. Nobody becomes a partner automatically.'],
   ['Receive your referral link and QR code', 'Approved partners get a unique partner ID, a referral link and a downloadable QR code.'],
   ['Introduce eligible advocates', 'Share the LegalStaff Directory with practising advocates. They apply and are verified exactly as every other advocate is.'],
@@ -68,7 +68,7 @@ ${faqBlock(FAQ)}
 }
 
 function register() {
-  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Apply to become a partner', lead: 'Verify your email, tell us about yourself and choose a category. Our team reviews every application.', crumbs: crumbs('Apply', `${BASE}/register`), primary: 'Partner sign in', primaryHref: `${BASE}/login`, secondary: { label: 'Back to Partners', href: BASE } })}
+  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Apply to become a partner', lead: 'Sign in with Google, fill in your details and choose a category. Our team reviews every application.', crumbs: crumbs('Apply', `${BASE}/register`), primary: 'Partner sign in', primaryHref: `${BASE}/login`, secondary: { label: 'Back to Partners', href: BASE } })}
 <section class="section"><div class="wrap narrow">
 <div class="pn-card" id="pn-app"><noscript><p class="muted">This form needs JavaScript.</p></noscript>
   <p class="muted" id="pn-loading">Loading\u2026</p></div>
@@ -76,7 +76,7 @@ function register() {
   return shell('Apply to become a LegalStaff partner', 'Apply to the LegalStaff Advocate Partner Network. Verify your email, choose a category and submit your application for review.', `${BASE}/register`, body, ['/static/partners.js']);
 }
 function login() {
-  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Partner sign in', lead: 'We email you a one-time code. No password to remember.', crumbs: crumbs('Sign in', `${BASE}/login`), primary: 'Apply to become a partner', primaryHref: `${BASE}/register`, secondary: { label: 'Back to Partners', href: BASE } })}
+  const body = `${hero({ kicker: 'Advocate Partner Network', title: 'Partner sign in', lead: 'Sign in with the Google account you applied with. No password to remember.', crumbs: crumbs('Sign in', `${BASE}/login`), primary: 'Apply to become a partner', primaryHref: `${BASE}/register`, secondary: { label: 'Back to Partners', href: BASE } })}
 <section class="section"><div class="wrap narrow"><div class="pn-card" id="pn-login"><p class="muted">Loading\u2026</p></div></div></section>`;
   return shell('Partner sign in', 'Sign in to your LegalStaff partner dashboard with a one-time email code.', `${BASE}/login`, body, ['/static/partners.js']);
 }

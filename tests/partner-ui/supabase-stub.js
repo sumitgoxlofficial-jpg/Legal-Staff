@@ -9,6 +9,11 @@
       var wrap = function (r) { return r.error ? { data: null, error: r.error } : { data: r.data, error: null }; };
       return {
         auth: {
+          signInWithIdToken: function (o) {   // the fake Google credential is the email address
+            var em = o.token, u = { id: 'u-' + em, email: em, email_confirmed_at: new Date().toISOString(), user_metadata: { full_name: em === 'asha@example.in' ? 'Asha Rao' : '' } };
+            localStorage.setItem(KEY, JSON.stringify({ user: u }));
+            return Promise.resolve({ data: { user: u, session: { user: u } }, error: null });
+          },
           signInWithOtp: function () { return Promise.resolve({ data: {}, error: null }); },
           verifyOtp: function (o) {
             if (o.token !== '123456') return Promise.resolve({ data: {}, error: { message: 'Token has expired or is invalid' } });
