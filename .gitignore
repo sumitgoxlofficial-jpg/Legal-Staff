@@ -1,7 +1,5 @@
-<<<<<<< HEAD
 .env
 .env.*
 !.env.example
-=======
 tests/shots/
->>>>>>> origin/main
+node_modules/
