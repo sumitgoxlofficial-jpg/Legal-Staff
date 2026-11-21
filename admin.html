@@ -421,11 +421,14 @@
   }
 
   VIEWS.payments = async p => {
-    const { payments, bank } = await api('payments');
+    const { payments, bank, directory = [] } = await api('payments');
     const st = x => x.status === 'paid' ? '<span class="chip c-good">Paid</span>' : x.status === 'failed' ? '<span class="chip c-bad">Failed</span>' : '<span class="chip c-mut">Not paid</span>';
     p.innerHTML = `<h1>Payments</h1><p class="sub">Every plan checkout, paid through Razorpay</p>
       <div class="card"><div class="strong" style="margin-bottom:10px">Orders</div><div class="tscroll"><table><thead><tr><th>Created</th><th>Firm</th><th>Plan</th><th class="num">Amount</th><th>Status</th><th>Coupon</th><th>Razorpay payment ID</th><th>Order</th></tr></thead><tbody>
         ${payments.length ? payments.map(x => `<tr><td class="mono">${dt(x.created_at)}</td><td>${esc(x.firm)}</td><td>${esc(x.plan)} <span class="muted small">${x.cycle === 'annual' ? 'annual' : 'monthly'}</span></td><td class="num strong">${rs(x.amount_paise)}</td><td>${st(x)}${x.confirmed_by ? ` <span class="muted small">by ${esc(x.confirmed_by)}</span>` : ''}</td><td>${esc(x.promo_code || '')}</td><td class="mono small">${esc(x.utr || '')}</td><td class="mono small muted">${esc(x.order_no || '')}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No payments yet.</td></tr>'}
+      </tbody></table></div></div>
+      <div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:10px">Directory listing payments</div><div class="tscroll"><table><thead><tr><th>Created</th><th>Advocate</th><th>Enrolment</th><th class="num">Amount</th><th>Status</th><th>Coupon</th><th>Razorpay payment ID</th><th>Order</th></tr></thead><tbody>
+        ${directory.length ? directory.map(x => `<tr><td class="mono">${dt(x.created_at)}</td><td>${esc(x.name)}</td><td class="mono small">${esc(x.enr)}</td><td class="num strong">${rs(x.amount_paise)}</td><td>${st(x)}${x.confirmed_by ? ` <span class="muted small">by ${esc(x.confirmed_by)}</span>` : ''}</td><td>${esc(x.promo_code || '')}</td><td class="mono small">${esc(x.utr || '')}</td><td class="mono small muted">${esc(x.order_no || '')}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No directory payments yet.</td></tr>'}
       </tbody></table></div></div>
       `;
   };
