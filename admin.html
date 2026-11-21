@@ -215,7 +215,7 @@
   let toastT; const toast = t => { clearTimeout(toastT); document.querySelectorAll('.toast').forEach(x => x.remove()); const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); toastT = setTimeout(() => d.remove(), 3200); };
   async function api(action, body = {}) {
     const r = await sb.functions.invoke('admin', { body: Object.assign({ action }, body) });
-    if (r.error) { let m = r.error.message; try { const j = await r.error.context.json(); if (j && j.error) m = j.error; } catch (e) {} throw new Error(m); }
+    if (r.error) { let m = r.error.message; let st = 0; try { st = r.error.context.status || 0; const j = await r.error.context.json(); if (j && j.error) m = j.error; } catch (e) {} const err = new Error(m); err.status = st; throw err; }
     return r.data;
   }
   function modal(html, onMount) {
@@ -236,7 +236,7 @@
       <div class="err" id="er">${esc(msg || '')}</div></div></div>`;
     const er = root.querySelector('#er'), em = root.querySelector('#em');
     root.querySelector('#f1').onsubmit = async e => { e.preventDefault(); er.textContent = ''; const b = root.querySelector('#b1'); b.disabled = true; b.textContent = 'Sending…';
-      const { error } = await sb.auth.signInWithOtp({ email: em.value.trim().toLowerCase(), options: { shouldCreateUser: true } });
+      const { error } = await sb.auth.signInWithOtp({ email: em.value.trim().toLowerCase(), options: { shouldCreateUser: false } });
       b.disabled = false; b.textContent = 'Email me a code';
       if (error) return er.textContent = error.message;
       root.querySelector('#f1').style.display = 'none'; root.querySelector('#f2').style.display = 'grid'; root.querySelector('#code').focus(); };
@@ -257,6 +257,8 @@
     root.innerHTML = '<div class="login"><div class="muted">Loading…</div></div>';
     let staff = false;
     try { await api('settings'); } catch (e) {
+      // A network or server error must not sign a Super Admin out: only a refusal (401/403) means "not an administrator".
+      if (e.status && e.status >= 500 || !e.status) { root.innerHTML = `<div class="login"><div class="card" style="max-width:420px;padding:24px"><div class="strong">The console could not be reached</div><p class="muted">${esc(e.message)}</p><button class="btn pri" id="retry">Try again</button></div></div>`; root.querySelector('#retry').onclick = boot; return; }
       // Not a Super Admin: Partner Network staff (a role with permissions) may still use the Partner Network section only.
       const w = await sb.rpc('admin_whoami');
       if (w.error || !w.data || !w.data.permissions || !w.data.permissions.length) { await sb.auth.signOut(); return loginView(e.message); }
@@ -267,14 +269,15 @@
   }
 
   // ---------- layout ----------
-  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings', [[null, [['general', 'General'], ['integrations', 'Integrations']]]]]];
+  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['activity', 'Activity log'], ['settings', 'Settings', [[null, [['general', 'General'], ['integrations', 'Integrations']]]]]];
   // sidebar sections (anything an extension adds that is not listed here lands under "More")
-  const NAV = [['', ['overview']], ['Business', ['firms', 'payments', 'coupons', 'expenses']], ['Growth', ['directory', 'email', 'partners']], ['Help', ['support']], ['System', ['settings']]];
+  const NAV = [['', ['overview']], ['Business', ['firms', 'payments', 'coupons', 'expenses']], ['Growth', ['directory', 'email', 'partners']], ['Help', ['support']], ['System', ['settings', 'activity']]];
   const IC = {
     overview: '<rect x="3" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.8"/>',
     firms: '<path d="M4 21V6.5L12 3l8 3.5V21"/><path d="M9 21v-5h6v5M8.5 9.5h1M14.5 9.5h1M8.5 13h1M14.5 13h1"/>',
     payments: '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/>',
     coupons: '<path d="M3 12.5V4.5a1.5 1.5 0 0 1 1.5-1.5h8L21 11.5a1.5 1.5 0 0 1 0 2.1l-7.4 7.4a1.5 1.5 0 0 1-2.1 0z"/><circle cx="8" cy="8" r="1.3"/>',
+    activity: '<path d="M4 12h4l2.5-7 4 14L17 12h3"/>',
     expenses: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
     directory: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.9c1.6.7 2.7 2.2 3 4.1"/>',
     email: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6.5L20.5 7"/>',
@@ -305,7 +308,7 @@
     root.querySelector('#out').onclick = async () => { await sb.auth.signOut(); loginView(); };
     drawTabs(); go(location.hash.slice(1) || TABS[0][0]);
     api('support').then(r => { unread = r.messages.filter(m => m.status === 'open').length; drawTabs(); }).catch(() => {});
-    api('directory_list').then(r => { dirPending = r.applications.filter(a => a.status === 'pending').length; drawTabs(); }).catch(() => {});
+    api('directory_counts').then(r => { dirPending = r.counts.pending || 0; drawTabs(); }).catch(() => {});
   }
   function drawTabs() {
     const t = root.querySelector('#tabs'); if (!t) return;
@@ -421,16 +424,23 @@
   }
 
   VIEWS.payments = async p => {
-    const { payments, bank, directory = [] } = await api('payments');
-    const st = x => x.status === 'paid' ? '<span class="chip c-good">Paid</span>' : x.status === 'failed' ? '<span class="chip c-bad">Failed</span>' : '<span class="chip c-mut">Not paid</span>';
+    const { payments, directory = [], attention = [], events = [] } = await api('payments');
+    const st = x => x.status === 'paid' ? '<span class="chip c-good">Paid</span>' : x.status === 'refunded' ? '<span class="chip c-warn">Refunded</span>' : x.status === 'failed' ? `<span class="chip c-bad" title="${esc(x.failure_reason || '')}">Failed</span>` : '<span class="chip c-mut">Not paid</span>';
+    const refundBtn = (kind, x) => x.status === 'paid' && x.amount_paise > 0 && /^pay_/.test(x.utr || '') ? `<button class="btn sm" data-refund="${esc(x.id)}" data-kind="${kind}">Refund</button>` : '';
     p.innerHTML = `<h1>Payments</h1><p class="sub">Every plan checkout, paid through Razorpay</p>
-      <div class="card"><div class="strong" style="margin-bottom:10px">Orders</div><div class="tscroll"><table><thead><tr><th>Created</th><th>Firm</th><th>Plan</th><th class="num">Amount</th><th>Status</th><th>Coupon</th><th>Razorpay payment ID</th><th>Order</th></tr></thead><tbody>
-        ${payments.length ? payments.map(x => `<tr><td class="mono">${dt(x.created_at)}</td><td>${esc(x.firm)}</td><td>${esc(x.plan)} <span class="muted small">${x.cycle === 'annual' ? 'annual' : 'monthly'}</span></td><td class="num strong">${rs(x.amount_paise)}</td><td>${st(x)}${x.confirmed_by ? ` <span class="muted small">by ${esc(x.confirmed_by)}</span>` : ''}</td><td>${esc(x.promo_code || '')}</td><td class="mono small">${esc(x.utr || '')}</td><td class="mono small muted">${esc(x.order_no || '')}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No payments yet.</td></tr>'}
+      <div class="card"><div class="strong" style="margin-bottom:10px">Orders</div><div class="tscroll"><table><thead><tr><th>Created</th><th>Firm</th><th>Plan</th><th class="num">Amount</th><th>Status</th><th>Coupon</th><th>Razorpay payment ID</th><th>Order</th><th></th></tr></thead><tbody>
+        ${payments.length ? payments.map(x => `<tr><td class="mono">${dt(x.created_at)}</td><td>${esc(x.firm)}</td><td>${esc(x.plan)} <span class="muted small">${x.cycle === 'annual' ? 'annual' : 'monthly'}</span></td><td class="num strong">${rs(x.amount_paise)}</td><td>${st(x)}${x.confirmed_by ? ` <span class="muted small">by ${esc(x.confirmed_by)}</span>` : ''}</td><td>${esc(x.promo_code || '')}</td><td class="mono small">${esc(x.utr || '')}</td><td class="mono small muted">${esc(x.order_no || '')}</td><td>${refundBtn('plan', x)}</td></tr>`).join('') : '<tr><td colspan="9" class="empty">No payments yet.</td></tr>'}
       </tbody></table></div></div>
-      <div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:10px">Directory listing payments</div><div class="tscroll"><table><thead><tr><th>Created</th><th>Advocate</th><th>Enrolment</th><th class="num">Amount</th><th>Status</th><th>Coupon</th><th>Razorpay payment ID</th><th>Order</th></tr></thead><tbody>
-        ${directory.length ? directory.map(x => `<tr><td class="mono">${dt(x.created_at)}</td><td>${esc(x.name)}</td><td class="mono small">${esc(x.enr)}</td><td class="num strong">${rs(x.amount_paise)}</td><td>${st(x)}${x.confirmed_by ? ` <span class="muted small">by ${esc(x.confirmed_by)}</span>` : ''}</td><td>${esc(x.promo_code || '')}</td><td class="mono small">${esc(x.utr || '')}</td><td class="mono small muted">${esc(x.order_no || '')}</td></tr>`).join('') : '<tr><td colspan="8" class="empty">No directory payments yet.</td></tr>'}
+      <div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:10px">Directory listing payments</div><div class="tscroll"><table><thead><tr><th>Created</th><th>Advocate</th><th>Enrolment</th><th class="num">Amount</th><th>Status</th><th>Coupon</th><th>Razorpay payment ID</th><th>Order</th><th></th></tr></thead><tbody>
+        ${directory.length ? directory.map(x => `<tr><td class="mono">${dt(x.created_at)}</td><td>${esc(x.name)}</td><td class="mono small">${esc(x.enr)}</td><td class="num strong">${rs(x.amount_paise)}</td><td>${st(x)}${x.confirmed_by ? ` <span class="muted small">by ${esc(x.confirmed_by)}</span>` : ''}</td><td>${esc(x.promo_code || '')}</td><td class="mono small">${esc(x.utr || '')}</td><td class="mono small muted">${esc(x.order_no || '')}</td><td>${refundBtn('directory', x)}</td></tr>`).join('') : '<tr><td colspan="9" class="empty">No directory payments yet.</td></tr>'}
       </tbody></table></div></div>
       `;
+    if (attention.length) p.insertAdjacentHTML('afterbegin', `<div class="card" style="border-color:var(--warn);margin-bottom:14px"><div class="strong" style="margin-bottom:8px">Needs a person (${attention.length})</div><div class="muted small" style="margin-bottom:8px">Payments Razorpay reported that could not be applied on their own, for example a second payment for a profile that is already listed (refund it), or an amount that does not match our order.</div><div class="tscroll"><table><thead><tr><th>When</th><th>Event</th><th>Outcome</th><th>Payment</th><th class="num">Amount</th></tr></thead><tbody>${attention.map(e => `<tr><td class="mono">${dt(e.at)}</td><td>${esc(e.kind)}</td><td><span class="chip c-warn">${esc(e.outcome)}</span></td><td class="mono small">${esc(e.payment_id || '')}</td><td class="num">${e.amount_paise ? rs(e.amount_paise) : ''}</td></tr>`).join('')}</tbody></table></div></div>`);
+    p.insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:10px">Razorpay events (latest ${events.length})</div><div class="tscroll"><table><thead><tr><th>When</th><th>Event</th><th>Outcome</th><th>Payment</th><th class="num">Amount</th></tr></thead><tbody>${events.length ? events.map(e => `<tr><td class="mono">${dt(e.at)}</td><td>${esc(e.kind)}</td><td>${esc(e.outcome)}</td><td class="mono small">${esc(e.payment_id || '')}</td><td class="num">${e.amount_paise ? rs(e.amount_paise) : ''}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">No Razorpay events yet. Add this project\'s razorpay function URL as a webhook in the Razorpay dashboard.</td></tr>'}</tbody></table></div></div>`);
+    p.querySelectorAll('button[data-refund]').forEach(b => b.onclick = async () => {
+      const reason = prompt('Refund this payment in full through Razorpay?\n\nA listing refund takes the profile down; a plan refund ends the plan. Type a reason to continue (it is kept in the activity log):');
+      if (reason === null) return; if (reason.trim().length < 3) return toast('Write a reason for the refund.');
+      b.disabled = true; try { const r = await api('refund', { kind: b.dataset.kind, id: b.dataset.refund, reason: reason.trim() }); toast('Refunded (' + r.result + ').'); VIEWS.payments(p); } catch (e) { b.disabled = false; toast(e.message); } });
   };
 
   VIEWS.coupons = async p => {
@@ -530,7 +540,8 @@
     };
     p.querySelector('#q').oninput = e => { q = e.target.value.trim().toLowerCase(); draw(); };
     p.querySelectorAll('#fs button').forEach(b => b.onclick = () => { f = b.dataset.k; p.querySelectorAll('#fs button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
-    const review = a => {
+    const review = async a0 => {
+      let a; try { a = (await api('directory_get', { id: a0.id })).application; } catch (e) { return toast(e.message); }
       const d = a.details || {}, docs = Array.isArray(d.documents) ? d.documents : [], KIND = { cert: 'Enrolment certificate', cop: 'Certificate of Practice', id: 'Government photo ID' };
       const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
       const row = (k, v) => `<div style="display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-top:1px solid var(--line)"><span class="muted">${k}</span><span style="text-align:right;overflow-wrap:anywhere">${v || '—'}</span></div>`;
@@ -565,6 +576,10 @@
     draw();
   };
 
+  VIEWS.activity = async p => {
+    const { log } = await api('audit_log', { limit: 300 });
+    p.innerHTML = `<h1>Activity log</h1><p class="sub">Every change made in this console: who, what, which record. It cannot be edited or deleted.</p><div class="card"><div class="tscroll"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>Details</th></tr></thead><tbody>${log.length ? log.map(x => `<tr><td class="mono">${dt(x.at)}</td><td class="small">${esc(x.actor)}</td><td><span class="chip c-info">${esc(x.action)}</span></td><td class="mono small">${esc(x.target)}</td><td class="small muted">${esc(JSON.stringify(x.detail || {}).slice(0, 220))}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">Nothing yet.</td></tr>'}</tbody></table></div></div>`;
+  };
   VIEWS.expenses = async p => {
     const { expenses } = await api('expenses');
     const ym = istToday().slice(0, 7), month = expenses.filter(e => e.spent_on.startsWith(ym)).reduce((a, e) => a + e.amount_paise, 0);
