@@ -140,13 +140,16 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "payments") {
-      const [{ data: pays }, { data: msgs }, { data: firms }] = await Promise.all([
+      const [{ data: pays }, { data: msgs }, { data: firms }, { data: dir }] = await Promise.all([
         admin.from("payments").select("id,firm_id,plan,cycle,amount_paise,status,method,order_no,utr,promo_code,confirmed_by,created_at,paid_at").order("created_at", { ascending: false }).limit(300),
         admin.from("upi_sms").select("received_at,sender,amount_paise,utr,note,payment_id").order("received_at", { ascending: false }).limit(100),
         admin.from("firms").select("id,name"),
+        // directory listing fees (₹49 etc.) live in directory_orders, not payments
+        admin.from("directory_orders").select("id,application_id,order_no,amount_paise,discount_paise,promo_code,status,utr,confirmed_by,created_at,paid_at,directory_applications(name,enr)").order("created_at", { ascending: false }).limit(300),
       ]);
       const name: Record<string, string> = {}; (firms ?? []).forEach((f: any) => name[f.id] = f.name);
-      return json({ payments: (pays ?? []).map((p: any) => ({ ...p, firm: name[p.firm_id] ?? "" })), bank: msgs ?? [] });
+      const directory = (dir ?? []).map((o: any) => ({ ...o, name: o.directory_applications?.name ?? "", enr: o.directory_applications?.enr ?? "", directory_applications: undefined }));
+      return json({ payments: (pays ?? []).map((p: any) => ({ ...p, firm: name[p.firm_id] ?? "" })), directory, bank: msgs ?? [] });
     }
 
     if (action === "coupons") { const { data } = await admin.from("promo_codes").select("*").order("created_at", { ascending: false }); return json({ coupons: data ?? [] }); }
