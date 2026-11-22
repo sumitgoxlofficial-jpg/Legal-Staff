@@ -10,10 +10,10 @@ cleanup() { stop="$PGBIN/pg_ctl -D $D/data -m immediate stop >/dev/null 2>&1"; i
 trap cleanup EXIT
 P="psql -h $D -p $PORT -U postgres -qAt -v ON_ERROR_STOP=1"
 $P -f "$HERE/stub.sql" >/dev/null
-for m in 0001_core 0022_court_intelligence 0023_court_refresh 0005_reminders 0006_trial 0007_drive 0010_upi 0013_promo_codes 0014_remove_razorpay 0019_team_chat 0020_chat_files_reactions 0021_seat_pricing 0018_super_admin 0026_directory_membership 0027_directory_compare_reviews 0029_is_super_admin 0039_partner_network 0041_partner_monthly_earnings 0042_partner_instant_access 0043_support_ai 0044_security_hardening 0045_core_app_hardening 0046_remaining_fixes 0047_list_verified_only 0048_member_roles 0049_account_erase 0050_partner_doc_review 0051_site_banner; do
+for m in 0001_core 0022_court_intelligence 0023_court_refresh 0005_reminders 0006_trial 0007_drive 0010_upi 0013_promo_codes 0014_remove_razorpay 0019_team_chat 0020_chat_files_reactions 0021_seat_pricing 0018_super_admin 0026_directory_membership 0027_directory_compare_reviews 0029_is_super_admin 0039_partner_network 0041_partner_monthly_earnings 0042_partner_instant_access 0043_support_ai 0044_security_hardening 0045_core_app_hardening 0046_remaining_fixes 0047_list_verified_only 0048_member_roles 0049_account_erase 0050_partner_doc_review 0051_site_banner 0052_directory_lite; do
   f="$ROOT/supabase/migrations/$m.sql"; sed -e 's/^create extension if not exists pg_cron;//' -e 's/^create extension if not exists pg_net[^;]*;//' "$f" > "$D/m.sql"
   $P -f "$D/m.sql" >/dev/null 2>"$D/err" || { echo "MIGRATION $m FAILED"; cat "$D/err"; exit 1; }
 done
 echo "migrations apply"
-for m in 0044_security_hardening 0045_core_app_hardening 0046_remaining_fixes 0047_list_verified_only 0048_member_roles 0049_account_erase 0050_partner_doc_review 0051_site_banner; do $P -f "$ROOT/supabase/migrations/$m.sql" >/dev/null && echo "$m re-applies"; done
+for m in 0044_security_hardening 0045_core_app_hardening 0046_remaining_fixes 0047_list_verified_only 0048_member_roles 0049_account_erase 0050_partner_doc_review 0051_site_banner 0052_directory_lite; do $P -f "$ROOT/supabase/migrations/$m.sql" >/dev/null && echo "$m re-applies"; done
 psql -h "$D" -p "$PORT" -U postgres -qAt -f "$HERE/hardening-db.test.sql" 2>&1 | grep -v '^$'
