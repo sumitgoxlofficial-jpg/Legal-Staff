@@ -117,7 +117,7 @@ function decorateLegal(p) {
   p.html = p.html
     .replace('<body>', '<body data-plegal="1"><div class="pl-progress" aria-hidden="true"><i id="pl-bar"></i></div>')
     .replace('<section class="section post-section"><div class="wrap">', `${meta}\n<section class="section post-section">${deco}<div class="wrap">`)
-    .replace('</body>', `<script>(function(){var b=document.getElementById('pl-bar');if(!b)return;function u(){var h=document.documentElement,m=h.scrollHeight-h.clientHeight;b.style.transform='scaleX('+(m>0?Math.min(1,h.scrollTop/m):0)+')';}addEventListener('scroll',u,{passive:true});addEventListener('resize',u);u();})();</script>\n</body>`);
+    .replace(/(<script src="\/static\/ambient\.js" defer><\/script>\n)?<\/body>/, (m, amb) => `<script>(function(){var b=document.getElementById('pl-bar');if(!b)return;function u(){var h=document.documentElement,m=h.scrollHeight-h.clientHeight;b.style.transform='scaleX('+(m>0?Math.min(1,h.scrollTop/m):0)+')';}addEventListener('scroll',u,{passive:true});addEventListener('resize',u);u();})();</script>\n${amb || ''}</body>`);
   return p;
 }
 

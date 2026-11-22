@@ -48,7 +48,7 @@ const table = (caption, headers, rows) => `<div class="table-wrap" tabindex="0" 
  * legalPage: dark title band (breadcrumb, H1, lead, Last updated), then prose + sidebar (table of contents, legal nav).
  * sections: [{ id, title, html }] — each becomes an <h2 id> in the article and a TOC entry when toc is true.
  */
-export function legalPage({ path, name, metaTitle, description, kicker = 'Company & legal', lead, sections, toc = true, note = true, jsonld = [], scripts = [], tail = '', priority = 0.4 }) {
+export function legalPage({ path, name, metaTitle, description, kicker = 'Company & legal', lead, sections, toc = true, note = true, jsonld = [], scripts = [], tail = '', priority = 0.4, updated = C.updated }) {
   const crumbs = [{ name: 'Home', path: '/' }, { name, path }];
   const tocList = `<ol>${sections.map(s => `<li><a href="#${s.id}">${esc(s.title)}</a></li>`).join('')}</ol>`;
   const article = `<article class="prose lg-body">
@@ -66,12 +66,12 @@ export function legalPage({ path, name, metaTitle, description, kicker = 'Compan
       <p class="kicker light lh" style="--d:60ms">${esc(kicker)}</p>
       <h1 class="h1 post-title lh" style="--d:120ms">${esc(name)}</h1>
       ${lead ? `<p class="lead lh" style="--d:200ms">${lead}</p>` : ''}
-      <p class="post-meta lh" style="--d:280ms"><span>Last updated <time datetime="${C.updated}">${fmtDate(C.updated)}</time></span><span>${esc(C.brand)}</span></p>
+      <p class="post-meta lh" style="--d:280ms"><span>Last updated <time datetime="${updated}">${fmtDate(updated)}</time></span><span>${esc(C.brand)}</span></p>
     </div></div></section>`;
   const body = `${band}
 <section class="section post-section"><div class="wrap"><div class="post-layout">${article}${aside}</div></div></section>${tail}`;
-  const head = seoHead({ title: metaTitle, description, path, jsonld: [ld.breadcrumb(crumbs), { '@context': 'https://schema.org', '@type': 'WebPage', name, url: abs(path), dateModified: C.updated, inLanguage: 'en-IN', isPartOf: { '@id': abs('/#website') }, publisher: { '@id': abs('/#org') } }, ...jsonld] });
-  return { path, priority, changefreq: 'yearly', lastmod: C.updated, html: page({ head, body, scripts: ['/static/consent.js', ...scripts] }) };
+  const head = seoHead({ title: metaTitle, description, path, jsonld: [ld.breadcrumb(crumbs), { '@context': 'https://schema.org', '@type': 'WebPage', name, url: abs(path), dateModified: updated, inLanguage: 'en-IN', isPartOf: { '@id': abs('/#website') }, publisher: { '@id': abs('/#org') } }, ...jsonld] });
+  return { path, priority, changefreq: 'yearly', lastmod: updated, html: page({ head, body, scripts: ['/static/consent.js', ...scripts] }) };
 }
 
 /* =====================================================================================
@@ -283,7 +283,7 @@ function terms() {
         <li>Paid plans (Solo, Professional, Firm and Enterprise) are billed monthly or annually in Indian rupees at the prices shown when you subscribe.</li>
         <li>Prices are subject to GST and other applicable taxes, which we show on the invoice. Give your GSTIN at checkout to get a GST invoice in your firm’s name.</li>
         <li>Plan fees are paid through Razorpay (UPI, cards or netbanking). We never see or store your UPI PIN, card number or bank login; we keep only the amount and the Razorpay payment ID.</li>
-        <li>Unless you cancel, a plan renews for the same period at the end of each billing period where your payment method supports renewal; otherwise you will be asked to pay to renew.</li>
+        <li>Each payment buys one fixed period (one month or one year). Plans do not renew automatically and we never charge you without your action: before a period ends you can pay again to continue. Upgrading or changing plan starts a new paid period; unused days are not credited (no pro-rata).</li>
         <li>We may change prices for future periods with reasonable notice before they apply to you.</li>
       </ul>` },
     { id: 'cancel', title: 'Cancellation and refunds', html: `<p>You can cancel at any time; your plan stays active until the end of the period you have paid for. Refunds are covered by our <a href="/refund-policy">Cancellation &amp; Refund Policy</a>.</p>` },
@@ -307,7 +307,7 @@ function terms() {
     { id: 'contact', title: 'Contact', html: `<p>Questions about these Terms: ${contactLine()}. See also our <a href="/privacy">Privacy Policy</a> and <a href="/cookies">Cookie Policy</a>.</p>` }
   ];
   return legalPage({
-    path: '/terms', name: 'Terms of Service', kicker: 'Terms of Service',
+    path: '/terms', name: 'Terms of Service', kicker: 'Terms of Service', updated: '2026-11-22',
     metaTitle: 'Terms of Service',
     description: 'The terms for using Legal Staff: accounts, acceptable use, your data, AI features reviewed by an advocate, fees and GST, cancellation, liability and law.',
     lead: 'The rules for using Legal Staff, in plain English. You own your data; AI output is assistive and must be reviewed by an advocate.',
