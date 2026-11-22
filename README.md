@@ -23,6 +23,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - `app-views.js` holds the module screens, dialogs and forms.
 - `app-brain.js` holds AI Case Brain: a chat assistant with saved chats (search, rename, archive, delete), file and image attachments (PDF, Word .docx, text, photos; scanned PDFs are read as images), voice typing (English or Hindi), ready-made tasks, and an optional link to one case so answers cite its records. Chats are private to each user.
 - `app-sign.js` holds the Drafting Studio extras: eStamp record, electronic signatures, fill-details automation, sealing (SHA-256) and audit trail.
+- `app-import.js` moves a firm's data in from other software: clients, cases, hearings, tasks and invoices from Excel (.xlsx), CSV or JSON exports, with column matching, a row check, linking and duplicate skipping. It runs in the browser; files are not uploaded.
 - `config.js` holds site settings such as the Google Client ID.
 
 ## Accounts and data
@@ -31,6 +32,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - Sign-up asks who you are (advocate, chamber, law firm, corporate legal team) and the one area of law you work in (criminal, banking and recovery, family, tax and 10 more, or general practice). The dashboard figures, quick actions, watch panel, case stages, starter labels, limitation presets and sidebar order follow that area; it can be changed in Settings. The definitions are in `app-practice.js`.
 - Sign-in is with Google or a one-time email code.
 - Data is kept on the server (Supabase) when it is configured, otherwise in the browser. Export a backup, restore one, or erase everything from Settings.
+- Firms switching from other practice-management software, an Excel diary or billing software use **Import from other software** (Cases, Clients, or Settings → Move from other software). Each sheet is matched to a kind of record, its columns are matched by name (common names from other products are known), rows are checked before anything is saved, cases are linked to clients and hearings, tasks and invoices to cases by CNR, case number, file number or title. Records already here are skipped, so the same file can be imported again. Blank templates for each kind can be downloaded from the first step.
 
 ## Google sign-in
 

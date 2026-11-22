@@ -2,6 +2,10 @@
 
 Nothing here is deployed.
 
+## Importing from other software
+
+`node tests/import.test.mjs` runs the core of `app-import.js` under Node: CSV dialects, a real .xlsx built in the test (shared, inline and rich-text strings, sparse cells, date serials, two sheets), Indian date formats, times and amounts, column and kind guessing, JSON exports, linking clients, cases, hearings, tasks and invoices, duplicate skipping on a second import, and the plan's active-case limit.
+
 ## Court-record engine
 
 | Command | What it proves |
