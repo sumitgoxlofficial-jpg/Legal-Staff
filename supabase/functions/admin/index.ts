@@ -1,6 +1,8 @@
 // Super admin console API (admin.html). Every call: a signed-in user whose verified email is in public.super_admins.
 // actions: overview · firms · firm_update · payments · coupons · coupon_save · coupon_delete · support · support_reply ·
-//          support_status · expenses · expense_add · expense_delete · settings · settings_save
+//          support_status · expenses · expense_add · expense_delete · settings · settings_save · refund · audit_log · directory_counts · directory_get ·
+//          firm_members · member_status · user_delete · banner_get · banner_save · admins_add · admins_remove · dir_reports · dir_enquiries
+// Every change made here is written to admin_audit_log (append-only): who, what, which record, the details.
 // Deploy with JWT verification off; it checks every caller itself.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -9,7 +11,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 class Fail extends Error { status: number; constructor(msg: string, status = 400) { super(msg); this.status = status; } }
 
 const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 299, annual: 2999 }, Professional: { monthly: 799, annual: 7999 }, Firm: { monthly: 3999, annual: 39999 } };
-// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with upi-pay, billing and admin.
+// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with razorpay, billing and admin.
 const PER_USER: Record<string, number> = { monthly: 249, annual: 2499 }, MAX_USERS = 15;
 /** List price in rupees for a plan and cycle; seats only counts for Professional (missing → 1). */
 const listPrice = (plan: string, cycle: string, seats?: number | null) => {
@@ -70,6 +72,37 @@ ${reply.split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px;font:15px/1.6 ${FO
 ${original ? `<div style="margin-top:22px;padding-top:14px;border-top:1px solid #EDEDED;font:13px/1.55 ${FONT};color:#6B6B6B"><b>Your message</b><br>${esc(original).replace(/\n/g, "<br>")}</div>` : ""}
 </td></tr><tr><td style="padding:16px 6px 0;font:12px/1.6 ${FONT};color:#8A8A8A;text-align:center">Reply to this email to continue the conversation.<br><a href="${SITE}" style="color:#5E5E5E">legalstaff.in</a></td></tr></table></td></tr></table></body></html>`;
 
+/** The email an advocate gets when a moderator decides their directory application. */
+function directoryDecisionEmail(name: string, status: string, note: string, paid: boolean, id: string) {
+  const first = (name || "").split(/\s+/)[0] || "";
+  const link = (h: string) => `${SITE}/directory#${h}`;
+  let subject: string, lines: string[], label: string, url: string;
+  if (status === "verified") {
+    subject = "Your Legal Staff Directory profile is verified";
+    lines = paid ? ["Your enrolment has been verified and your profile is now live in the Legal Staff Directory, with the verified tick on your photo.", "Clients can find you and send you contact requests. You will see them in your dashboard."]
+      : ["Your enrolment has been verified. Your profile goes live as soon as the one-time \u20b949 listing fee is paid.", "Open your dashboard and tap Pay \u20b949 to finish."];
+    label = paid ? "View my profile" : "Pay \u20b949 and go live"; url = link(paid ? "profile/" + encodeURIComponent(id) : "pay");
+  } else if (status === "info") {
+    subject = "We need a little more information for your directory profile";
+    lines = ["A moderator reviewed your application and needs something more before it can be verified:", note, "Open your application, update it and resubmit. Your \u20b949 payment, if made, stays valid."];
+    label = "Update my application"; url = link("status");
+  } else {
+    subject = "Your Legal Staff Directory application was not approved";
+    lines = ["A moderator reviewed your application and could not approve it:", note, "If this is a mistake or you can fix the issue, you can apply again from your dashboard. Reply to this email if you have a question."];
+    label = "Open my application"; url = link("status");
+  }
+  const text = `Hello ${first},\n\n${lines.join("\n\n")}\n\n${label}: ${url}\n\nLegal Staff Directory`;
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#F4F4F2"><table role="presentation" width="100%" style="background:#F4F4F2"><tr><td align="center" style="padding:28px 12px">
+<table role="presentation" width="100%" style="max-width:600px"><tr><td style="padding:0 4px 16px"><table role="presentation"><tr><td style="padding-right:10px"><img src="${SITE}/assets/email-mark.png" width="31" height="32" alt="Legal Staff" style="display:block;border:0"></td><td style="font:700 18px/1 ${FONT};color:#0A0A0A">Legal Staff</td></tr></table></td></tr>
+<tr><td style="background:#fff;border:1px solid #E5E5E5;border-radius:12px;padding:28px 30px">
+<div style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#6B6B6B;padding-bottom:8px">Legal Staff Directory</div>
+<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#363636">Hello${first ? " " + esc(first) : ""},</p>
+${lines.map((l) => `<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#0A0A0A">${esc(l).replace(/\n/g, "<br>")}</p>`).join("")}
+<p style="margin:20px 0 0"><a href="${url}" style="display:inline-block;background:#0A0A0A;color:#fff;text-decoration:none;font:600 15px/1 ${FONT};padding:14px 22px;border-radius:10px">${esc(label)}</a></p>
+</td></tr></table></td></tr></table></body></html>`;
+  return { subject, text, html };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const url = Deno.env.get("SUPABASE_URL")!, admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -81,16 +114,24 @@ Deno.serve(async (req: Request) => {
     const { data: ok } = await admin.from("super_admins").select("email").eq("email", email).maybeSingle();
     if (!ok || !user.email_confirmed_at) throw new Fail("This account is not a Legal Staff administrator.", 403);
     const body = await req.json().catch(() => ({}));
+    /** Writes one line to the append-only admin audit log; a failure to log is reported to the server log but never hides the change. */
+    const audit = async (act: string, target: string, detail: Record<string, unknown> = {}) => {
+      const { error } = await admin.from("admin_audit_log").insert({ actor: email, action: act, target: String(target ?? "").slice(0, 200), detail });
+      if (error) console.error("audit log", error.message);
+    };
+    const must = (error: any, msg: string) => { if (error) { console.error(msg, error.message); throw new Fail(msg + " Nothing was changed.", 500); } };
     const action = body.action ?? "", now = Date.now(), thisMonth = istMonth(new Date(now).toISOString());
 
     if (action === "overview") {
-      const [users, firms, subs, paid, exps] = await Promise.all([
+      const [users, firms, subs, paid0, exps, dirPaid] = await Promise.all([
         userCount(admin),
         all(() => admin.from("firms").select("id,created_at").order("id")),
         all(() => admin.from("subscriptions").select("firm_id,plan,cycle,seats,status,since,renews,trial_ends").order("firm_id")),
         all(() => admin.from("payments").select("amount_paise,paid_at,plan,cycle,promo_code,method").eq("status", "paid").order("paid_at")),
         all(() => admin.from("admin_expenses").select("amount_paise,spent_on").order("spent_on")),
+        all(() => admin.from("directory_orders").select("amount_paise,paid_at").eq("status", "paid").gt("amount_paise", 0).order("paid_at")),
       ]);
+      const paid = [...paid0, ...dirPaid.map((o: any) => ({ amount_paise: o.amount_paise, paid_at: o.paid_at, plan: "Directory", cycle: "once", promo_code: null, method: "razorpay" }))];
       const months = lastMonths(thisMonth, 12), fy = fyStart(thisMonth), yr = thisMonth.slice(0, 4);
       const rev = (pred: (ym: string) => boolean) => sum(paid.filter((p: any) => p.paid_at && pred(istMonth(p.paid_at))).map((p: any) => p.amount_paise));
       const exp = (pred: (ym: string) => boolean) => sum(exps.filter((e: any) => pred(e.spent_on.slice(0, 7))).map((e: any) => e.amount_paise));
@@ -103,6 +144,7 @@ Deno.serve(async (req: Request) => {
       return json({
         users, firms: firms.length, newFirmsMonth: firms.filter((f: any) => istMonth(f.created_at) === thisMonth).length,
         states, byPlan, mrr, revenue: r, expenses: e, profit: { month: r.month - e.month, fy: r.fy - e.fy, year: r.year - e.year, all: r.all - e.all },
+        directoryFees: { count: dirPaid.length, all: sum(dirPaid.map((o: any) => o.amount_paise)) },
         payments: { count: paid.length, month: paid.filter((p: any) => p.paid_at && istMonth(p.paid_at) === thisMonth).length, promo: paid.filter((p: any) => p.promo_code).length },
         series: months.map((m) => ({ month: m, revenue: rev((x) => x === m), expenses: exp((x) => x === m) })),
         thisMonth, fyLabel: `FY ${fy.slice(0, 4)}-${String((+fy.slice(0, 4) + 1) % 100).padStart(2, "0")}`, year: yr,
@@ -130,26 +172,60 @@ Deno.serve(async (req: Request) => {
       const { data: cur } = await admin.from("subscriptions").select("*").eq("firm_id", firm_id).maybeSingle();
       if (end) {
         const yesterday = istDay(now - 864e5);
-        await admin.from("subscriptions").upsert({ firm_id, plan: cur?.plan ?? "Solo", cycle: cur?.cycle ?? "monthly", status: "active", since: cur?.since ?? yesterday, renews: yesterday, trial_ends: null, updated_at: new Date().toISOString() });
+        const { error } = await admin.from("subscriptions").upsert({ firm_id, plan: cur?.plan ?? "Solo", cycle: cur?.cycle ?? "monthly", status: "active", since: cur?.since ?? yesterday, renews: yesterday, trial_ends: null, updated_at: new Date().toISOString() });
+        must(error, "The plan could not be ended.");
+        await audit("plan.end", firm_id, { before: cur ? { plan: cur.plan, cycle: cur.cycle, status: cur.status, renews: cur.renews } : null });
         return json({ ok: true });
       }
       if (!PRICES[plan] || !["monthly", "annual"].includes(cycle) || !/^\d{4}-\d{2}-\d{2}$/.test(String(renews))) throw new Fail("Choose a plan, a billing cycle and an end date.");
       const today = istDay(now);
-      await admin.from("subscriptions").upsert({ firm_id, plan, cycle, status: "active", since: cur?.status === "active" && cur.since && cur.since <= today ? cur.since : today, renews, trial_ends: null, updated_at: new Date().toISOString() });
+      const { data: firmRow } = await admin.from("firms").select("id").eq("id", firm_id).maybeSingle();
+      if (!firmRow) throw new Fail("Firm not found.", 404);
+      const { error } = await admin.from("subscriptions").upsert({ firm_id, plan, cycle, status: "active", since: cur?.status === "active" && cur.since && cur.since <= today ? cur.since : today, renews, trial_ends: null, updated_at: new Date().toISOString() });
+      must(error, "The plan could not be saved.");
+      await audit("plan.set", firm_id, { before: cur ? { plan: cur.plan, cycle: cur.cycle, status: cur.status, renews: cur.renews } : null, after: { plan, cycle, renews } });
       return json({ ok: true });
     }
 
     if (action === "payments") {
-      const [{ data: pays }, { data: msgs }, { data: firms }, { data: dir }] = await Promise.all([
-        admin.from("payments").select("id,firm_id,plan,cycle,amount_paise,status,method,order_no,utr,promo_code,confirmed_by,created_at,paid_at").order("created_at", { ascending: false }).limit(300),
-        admin.from("upi_sms").select("received_at,sender,amount_paise,utr,note,payment_id").order("received_at", { ascending: false }).limit(100),
+      const [{ data: pays }, { data: firms }, { data: dir }, { data: events }] = await Promise.all([
+        admin.from("payments").select("id,firm_id,plan,cycle,amount_paise,status,method,order_no,utr,promo_code,confirmed_by,created_at,paid_at,refunded_at,refund_paise,failure_reason").order("created_at", { ascending: false }).limit(300),
         admin.from("firms").select("id,name"),
         // directory listing fees (₹49 etc.) live in directory_orders, not payments
-        admin.from("directory_orders").select("id,application_id,order_no,amount_paise,discount_paise,promo_code,status,utr,confirmed_by,created_at,paid_at,directory_applications(name,enr)").order("created_at", { ascending: false }).limit(300),
+        admin.from("directory_orders").select("id,application_id,order_no,amount_paise,discount_paise,promo_code,status,utr,confirmed_by,created_at,paid_at,refunded_at,directory_applications(name,enr)").order("created_at", { ascending: false }).limit(300),
+        admin.from("payment_events").select("id,kind,order_id,payment_id,amount_paise,outcome,at").order("id", { ascending: false }).limit(100),
       ]);
       const name: Record<string, string> = {}; (firms ?? []).forEach((f: any) => name[f.id] = f.name);
       const directory = (dir ?? []).map((o: any) => ({ ...o, name: o.directory_applications?.name ?? "", enr: o.directory_applications?.enr ?? "", directory_applications: undefined }));
-      return json({ payments: (pays ?? []).map((p: any) => ({ ...p, firm: name[p.firm_id] ?? "" })), directory, bank: msgs ?? [] });
+      // Reconciliation: gateway events we could not match or that need a person (a duplicate payment, an amount that differs, an unmatched refund).
+      const attention = (events ?? []).filter((e: any) => ["duplicate_payment", "amount_mismatch", "unmatched", "rejected_application", "lookup_failed"].includes(e.outcome));
+      return json({ payments: (pays ?? []).map((p: any) => ({ ...p, firm: name[p.firm_id] ?? "" })), directory, events: events ?? [], attention, bank: [] });
+    }
+    if (action === "refund") {   // full refund of one Razorpay payment; the state change is applied by apply_refund (also what the webhook uses)
+      const kind = String(body.kind ?? ""), id = String(body.id ?? "");
+      if (!["plan", "directory"].includes(kind) || !id) throw new Fail("Choose the payment to refund.");
+      const keyId = Deno.env.get("RAZORPAY_KEY_ID"), keySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+      if (!keyId || !keySecret) throw new Fail("Razorpay is not configured on the server.", 501);
+      const { data: row } = kind === "plan"
+        ? await admin.from("payments").select("id,status,amount_paise,gateway_payment_id,confirmed_by,method").eq("id", id).maybeSingle()
+        : await admin.from("directory_orders").select("id,status,amount_paise,utr,confirmed_by").eq("id", id).maybeSingle();
+      if (!row) throw new Fail("Payment not found.", 404);
+      const paymentId = kind === "plan" ? row.gateway_payment_id : row.utr;
+      if (row.status !== "paid") throw new Fail("Only a paid payment can be refunded.");
+      if (!paymentId || !String(paymentId).startsWith("pay_") || !(row.amount_paise > 0)) throw new Fail("This payment did not go through Razorpay (a free or promo order), so there is nothing to refund.");
+      const r = await fetch("https://api.razorpay.com/v1/payments/" + encodeURIComponent(paymentId) + "/refund", { method: "POST", signal: AbortSignal.timeout(20000),
+        headers: { Authorization: "Basic " + btoa(keyId + ":" + keySecret), "Content-Type": "application/json" }, body: JSON.stringify({ amount: row.amount_paise, speed: "normal", notes: { by: "admin", reason: String(body.reason ?? "").slice(0, 200) } }) });
+      const rf = await r.json().catch(() => ({}));
+      if (!r.ok || !rf.id) { console.error("razorpay refund", r.status, JSON.stringify(rf).slice(0, 300)); throw new Fail("Razorpay did not accept the refund: " + String(rf?.error?.description ?? "try again, or refund from the Razorpay dashboard").slice(0, 200), 502); }
+      const { data: res, error } = await admin.rpc("apply_refund", { p_payment_id: paymentId, p_refund_id: rf.id, p_amount: row.amount_paise });
+      must(error, "The refund was made at Razorpay but could not be recorded here (the webhook will record it).");
+      await admin.from("payment_events").insert({ event_id: "admin-refund-" + rf.id, kind: "refund.admin", order_id: null, payment_id: paymentId, amount_paise: row.amount_paise, outcome: String(res), payload: { refund_id: rf.id, by: email } });
+      await audit("payment.refund", paymentId, { kind, amount_paise: row.amount_paise, refund_id: rf.id, result: res, reason: String(body.reason ?? "").slice(0, 200) });
+      return json({ ok: true, result: res });
+    }
+    if (action === "audit_log") {
+      const { data } = await admin.from("admin_audit_log").select("id,actor,action,target,detail,at").order("id", { ascending: false }).limit(Math.min(500, Math.max(1, Number(body.limit) || 200)));
+      return json({ log: data ?? [] });
     }
 
     if (action === "coupons") { const { data } = await admin.from("promo_codes").select("*").order("created_at", { ascending: false }); return json({ coupons: data ?? [] }); }
@@ -166,15 +242,17 @@ Deno.serve(async (req: Request) => {
       else if (kind === "amount") { if (v <= 0) throw new Fail("Enter the rupees off."); row.amount_off = Math.round(v); }
       else if (kind === "fixed") row.fixed_total = Math.round(v * 100);
       else throw new Fail("Choose the kind of discount.");
+      if (row.fixed_total === 0 || row.percent_off === 100 || row.fixed_total != null && row.fixed_total < 100 && row.fixed_total > 0) { if (!row.plans) throw new Fail("A free or ₹0–₹0.99 code must be limited to specific plans (Directory is one of them), or it would apply to every plan."); }
       const { error } = await admin.from("promo_codes").upsert(row, { onConflict: "code" });
       if (error) throw new Fail("Could not save the coupon: " + error.message);
+      await audit("coupon.save", code, { kind, value: v, plans: row.plans, cycles: row.cycles, max_uses: row.max_uses, active: row.active });
       return json({ ok: true });
     }
     if (action === "coupon_delete") {
       const { data: c } = await admin.from("promo_codes").select("uses").eq("code", body.code).maybeSingle();
       if (!c) throw new Fail("Coupon not found.", 404);
-      if (c.uses > 0) { await admin.from("promo_codes").update({ active: false }).eq("code", body.code); return json({ ok: true, deactivated: true }); }
-      await admin.from("promo_codes").delete().eq("code", body.code); return json({ ok: true });
+      if (c.uses > 0) { const { error } = await admin.from("promo_codes").update({ active: false }).eq("code", body.code); must(error, "The coupon could not be turned off."); await audit("coupon.deactivate", body.code, { uses: c.uses }); return json({ ok: true, deactivated: true }); }
+      const { error } = await admin.from("promo_codes").delete().eq("code", body.code); must(error, "The coupon could not be deleted."); await audit("coupon.delete", body.code); return json({ ok: true });
     }
 
     if (action === "support") { const { data } = await admin.from("contact_requests").select("*").order("created_at", { ascending: false }).limit(500); return json({ messages: data ?? [] }); }
@@ -184,30 +262,162 @@ Deno.serve(async (req: Request) => {
       if (!m) throw new Fail("Message not found.", 404);
       const { data: s } = await admin.from("pay_settings").select("seller_email,alert_email").eq("id", 1).single();
       await sendEmail(m.email, "Re: " + (m.topic || "Your message to Legal Staff"), `Hello ${m.name || ""},\n\n${reply}\n\nLegal Staff support\n\n— Your message —\n${m.message}`, replyHtml(m.name, reply, m.message), s?.seller_email || s?.alert_email || email);
-      await admin.from("contact_requests").update({ status: "replied", reply, replied_at: new Date().toISOString() }).eq("id", body.id);
+      const { error: re } = await admin.from("contact_requests").update({ status: "replied", reply, replied_at: new Date().toISOString() }).eq("id", body.id);
+      must(re, "The reply was emailed but could not be saved on the message.");
+      await audit("support.reply", String(body.id), { to: m.email });
       return json({ ok: true });
     }
     if (action === "support_status") {
       if (!["open", "replied", "closed"].includes(body.status)) throw new Fail("Unknown status.");
-      await admin.from("contact_requests").update({ status: body.status }).eq("id", body.id); return json({ ok: true });
+      const { error } = await admin.from("contact_requests").update({ status: body.status }).eq("id", body.id); must(error, "The status could not be saved."); await audit("support.status", String(body.id), { status: body.status }); return json({ ok: true });
     }
 
     if (action === "expenses") { const { data } = await admin.from("admin_expenses").select("*").order("spent_on", { ascending: false }).limit(500); return json({ expenses: data ?? [] }); }
     if (action === "expense_add") {
       const label = String(body.label ?? "").trim(), amt = Math.round(Number(body.amount) * 100), on = String(body.spent_on ?? "");
       if (!label || !(amt > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(on)) throw new Fail("Enter what it was for, the amount and the date.");
-      await admin.from("admin_expenses").insert({ label, amount_paise: amt, spent_on: on }); return json({ ok: true });
+      const { error } = await admin.from("admin_expenses").insert({ label, amount_paise: amt, spent_on: on }); must(error, "The expense could not be saved."); await audit("expense.add", label, { amount_paise: amt, spent_on: on }); return json({ ok: true });
     }
-    if (action === "expense_delete") { await admin.from("admin_expenses").delete().eq("id", body.id); return json({ ok: true }); }
+    if (action === "expense_delete") { const { error } = await admin.from("admin_expenses").delete().eq("id", body.id); must(error, "The expense could not be deleted."); await audit("expense.delete", String(body.id)); return json({ ok: true }); }
 
-    const KEYS = ["upi_enabled", "upi_id", "payee_name", "alert_email", "seller_name", "seller_address", "seller_state_code", "seller_gstin", "seller_pan", "seller_email", "seller_phone"];
+    const KEYS = ["alert_email", "seller_name", "seller_address", "seller_state_code", "seller_gstin", "seller_pan", "seller_email", "seller_phone"];
+    // ---- directory review: applications, their private documents, and the decision ----
+    if (action === "directory_list") {
+      // Light rows only (no photos or AI reports: those can be hundreds of KB each); the review window loads the full record with directory_get.
+      const st = String(body.status ?? ""), limit = Math.min(500, Math.max(1, Number(body.limit) || 300)), offset = Math.max(0, Number(body.offset) || 0);
+      let q = admin.from("directory_applications").select("id,name,enr,council,year,city,email,mobile,status,note,paid_at,created_at,decided_at", { count: "exact" });
+      if (["pending", "info", "verified", "rejected"].includes(st)) q = q.eq("status", st);
+      const { data, count, error } = await q.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+      must(error, "The applications could not be loaded.");
+      return json({ applications: data ?? [], total: count ?? 0 });
+    }
+    if (action === "directory_counts") {
+      const out: Record<string, number> = {};
+      for (const st of ["pending", "info", "verified", "rejected"]) { const { count } = await admin.from("directory_applications").select("id", { count: "exact", head: true }).eq("status", st); out[st] = count ?? 0; }
+      return json({ counts: out });
+    }
+    if (action === "directory_get") {
+      const { data } = await admin.from("directory_applications").select("id,name,enr,council,year,city,email,mobile,details,photo,status,note,paid_at,created_at,decided_at,ai_report").eq("id", String(body.id ?? "")).maybeSingle();
+      if (!data) throw new Fail("Application not found.", 404);
+      return json({ application: data });
+    }
+    if (action === "directory_doc") {   // a 5-minute link to one uploaded document (must be a file recorded on an application)
+      const path = String(body.path ?? "");
+      if (!/^[0-9a-f-]{36}\/LS-DIR-\d{4}-\d+\/(cert|cop|id)-[^/]+$/i.test(path)) throw new Fail("Not a directory document.");
+      const { data, error } = await admin.storage.from("directory-docs").createSignedUrl(path, 300);
+      if (error || !data) throw new Fail("That file could not be opened. It may not have been uploaded.", 404);
+      return json({ url: data.signedUrl });
+    }
+    if (action === "directory_decide") {
+      const status = String(body.status ?? ""), note = String(body.note ?? "").trim();
+      if (!["verified", "info", "rejected"].includes(status)) throw new Fail("Choose verify, ask for more information, or reject.");
+      if (status !== "verified" && note.length < 5) throw new Fail("Write a note for the advocate: they will see it.");
+      const { data: app } = await admin.from("directory_applications").select("id,name,email,paid_at").eq("id", String(body.id ?? "")).maybeSingle();
+      if (!app) throw new Fail("Application not found.", 404);
+      const { error } = await admin.from("directory_applications").update({ status, note, decided_at: new Date().toISOString(), decided_by: user.id }).eq("id", app.id);
+      if (error) throw new Fail("The decision could not be saved.", 500);
+      await audit("directory." + status, app.id, { note: note.slice(0, 300), name: app.name });
+      let emailed = false;   // the decision stands even if the email cannot be sent
+      if (app.email) {
+        try {
+          const { data: s } = await admin.from("pay_settings").select("seller_email,alert_email").eq("id", 1).single();
+          const m = directoryDecisionEmail(app.name, status, note, !!app.paid_at, app.id);
+          await sendEmail(app.email, m.subject, m.text, m.html, s?.seller_email || s?.alert_email || email);
+          emailed = true;
+        } catch (e) { console.error("directory email", e); }
+      }
+      return json({ ok: true, emailed });
+    }
+
+    // ---- team members: suspend or reactivate one person in a firm (never the owner) ----
+    if (action === "firm_members") {
+      const { data } = await admin.from("members").select("id,name,email,role,status,is_owner,user_id").eq("firm_id", String(body.firm_id ?? "")).order("is_owner", { ascending: false });
+      return json({ members: data ?? [] });
+    }
+    if (action === "member_status") {
+      const status = String(body.status ?? ""); if (!["Active", "Suspended"].includes(status)) throw new Fail("Choose Active or Suspended.");
+      const { data: m } = await admin.from("members").select("id,email,is_owner,status,firm_id").eq("id", String(body.member_id ?? "")).maybeSingle();
+      if (!m) throw new Fail("Member not found.", 404);
+      if (m.is_owner) throw new Fail("A firm owner cannot be suspended here. End the firm's plan instead.");
+      const { error } = await admin.from("members").update({ status }).eq("id", m.id); must(error, "The member could not be updated.");
+      await audit("member." + status.toLowerCase(), m.firm_id, { member: m.email, before: m.status });
+      return json({ ok: true });
+    }
+    // ---- delete a person's account (support request / legal erasure): same rules as "Delete my account" ----
+    if (action === "user_delete") {
+      const { data: m } = await admin.from("members").select("id,email,user_id,firm_id").eq("id", String(body.member_id ?? "")).maybeSingle();
+      if (!m || !m.user_id) throw new Fail("That person has no account to delete.", 404);
+      if (String(body.confirm ?? "").trim().toLowerCase() !== String(m.email).toLowerCase()) throw new Fail("Type the person's email to confirm.");
+      const { data: sa } = await admin.from("super_admins").select("email").eq("email", String(m.email).toLowerCase()).maybeSingle();
+      if (sa) throw new Fail("An administrator account cannot be deleted here. Remove the administrator first.");
+      const { data, error } = await admin.rpc("erase_user_account", { u: m.user_id });
+      if (error) { if (error.code === "P0001") throw new Fail(error.message, 409); must(error, "The account could not be deleted."); }
+      let removed = 0;
+      for (const firm of (data?.firms ?? []) as string[]) for (const bucket of ["documents", "chat"]) {
+        const st = admin.storage.from(bucket), paths: string[] = [];
+        const list = async (pre: string) => { const all: any[] = []; for (let off = 0; ; off += 1000) { const r = await st.list(pre, { limit: 1000, offset: off }); if (r.error) throw r.error; all.push(...(r.data ?? [])); if ((r.data ?? []).length < 1000) return all; } };
+        try { for (const f of await list(firm)) { if (f.id) paths.push(`${firm}/${f.name}`); else for (const g of await list(`${firm}/${f.name}`)) if (g.id) paths.push(`${firm}/${f.name}/${g.name}`); } } catch { /* files can be removed later */ }
+        for (let i = 0; i < paths.length; i += 100) { const r = await st.remove(paths.slice(i, i + 100)); if (!r.error) removed += Math.min(100, paths.length - i); }
+      }
+      const { error: de } = await admin.auth.admin.deleteUser(m.user_id);
+      await audit("user.delete", m.firm_id, { member: m.email, firms_erased: (data?.firms ?? []).length, files_removed: removed, sign_in_removed: !de });
+      if (de) throw new Fail("The data was erased but the sign-in could not be removed. Try again.", 500);
+      return json({ ok: true, files_removed: removed });
+    }
+    // ---- super admins: add and remove, never the last one and never yourself ----
+    if (action === "admins_add") {
+      const e = String(body.email ?? "").trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Fail("That email does not look right.");
+      const { error } = await admin.from("super_admins").upsert({ email: e }, { onConflict: "email" }); must(error, "The administrator could not be added.");
+      await audit("admin.add", e); return json({ ok: true });
+    }
+    if (action === "admins_remove") {
+      const e = String(body.email ?? "").trim().toLowerCase();
+      if (e === email) throw new Fail("You cannot remove your own access. Ask another administrator.");
+      const { data: all2 } = await admin.from("super_admins").select("email");
+      if ((all2 ?? []).length <= 1) throw new Fail("There must always be at least one administrator.");
+      if (!(all2 ?? []).some((a: any) => a.email === e)) throw new Fail("That person is not an administrator.", 404);
+      const { error } = await admin.from("super_admins").delete().eq("email", e); must(error, "The administrator could not be removed.");
+      await audit("admin.remove", e); return json({ ok: true });
+    }
+    // ---- directory inbox: reports about profiles and contact requests sent to advocates (read only) ----
+    if (action === "dir_reports") {
+      const { data } = await admin.from("profile_reports").select("id,application_id,reason,details,email,created_at,directory_applications(name,enr)").order("created_at", { ascending: false }).limit(300);
+      return json({ reports: (data ?? []).map((r: any) => ({ ...r, name: r.directory_applications?.name ?? "", enr: r.directory_applications?.enr ?? "", directory_applications: undefined })) });
+    }
+    if (action === "dir_enquiries") {
+      const { data } = await admin.from("directory_enquiries").select("id,application_id,name,email,phone,category,language,message,created_at,replied_at,directory_applications(name,enr)").order("created_at", { ascending: false }).limit(300);
+      return json({ enquiries: (data ?? []).map((r: any) => ({ ...r, advocate: r.directory_applications?.name ?? "", enr: r.directory_applications?.enr ?? "", directory_applications: undefined })) });
+    }
+
+    // ---- the site-wide banner (plain text, https link only, optional start/end dates in India time) ----
+    if (action === "banner_get") {
+      const { data } = await admin.from("site_banner").select("enabled,message,tone,link_url,link_text,starts_on,ends_on,updated_at,updated_by").eq("id", 1).maybeSingle();
+      return json({ banner: data ?? null });
+    }
+    if (action === "banner_save") {
+      const b = body.banner ?? {}, message = String(b.message ?? "").trim(), tone = String(b.tone ?? "info"), linkUrl = String(b.link_url ?? "").trim(), linkText = String(b.link_text ?? "").trim();
+      const day = (v: unknown) => { const s = String(v ?? "").trim(); if (!s) return null; if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw new Fail("Dates look like 2026-12-01."); return s; };
+      const starts = day(b.starts_on), ends = day(b.ends_on), enabled = b.enabled === true;
+      if (message.length > 300) throw new Fail("The message is at most 300 characters.");
+      if (enabled && !message) throw new Fail("Write the message before switching the banner on.");
+      if (!["info", "warning", "success"].includes(tone)) throw new Fail("Choose a colour.");
+      if (linkUrl && !/^https:\/\/[^\s]+$/.test(linkUrl)) throw new Fail("A link must start with https://");
+      if (linkText.length > 40) throw new Fail("The link text is at most 40 characters.");
+      if (starts && ends && ends < starts) throw new Fail("The end date cannot be before the start date.");
+      const { error } = await admin.from("site_banner").upsert({ id: 1, enabled, message, tone, link_url: linkUrl, link_text: linkText, starts_on: starts, ends_on: ends, updated_at: new Date().toISOString(), updated_by: email });
+      must(error, "The banner could not be saved.");
+      await audit("banner.save", "site_banner", { enabled, tone, starts_on: starts, ends_on: ends, message: message.slice(0, 120) });
+      return json({ ok: true });
+    }
+
     if (action === "settings") { const { data } = await admin.from("pay_settings").select(KEYS.join(",")).eq("id", 1).single(); return json({ settings: data, admins: ((await admin.from("super_admins").select("email")).data ?? []).map((a: any) => a.email) }); }
     if (action === "settings_save") {
-      const patch: any = {}; for (const k of KEYS) if (k in (body.settings ?? {})) patch[k] = k === "upi_enabled" ? !!body.settings[k] : String(body.settings[k] ?? "").trim();
+      const patch: any = {}; for (const k of KEYS) if (k in (body.settings ?? {})) patch[k] = String(body.settings[k] ?? "").trim();
       if (patch.alert_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(patch.alert_email)) throw new Fail("That alert email does not look right.");
-      if (patch.upi_enabled && !(patch.upi_id ?? "").includes("@")) throw new Fail("Enter the UPI ID before switching UPI on.");
       patch.updated_at = new Date().toISOString();
-      await admin.from("pay_settings").update(patch).eq("id", 1); return json({ ok: true });
+      const { error } = await admin.from("pay_settings").update(patch).eq("id", 1); must(error, "The settings could not be saved.");
+      await audit("settings.save", "pay_settings", { fields: Object.keys(patch).filter((k) => k !== "updated_at") }); return json({ ok: true });
     }
 
     throw new Fail("Unknown action.");

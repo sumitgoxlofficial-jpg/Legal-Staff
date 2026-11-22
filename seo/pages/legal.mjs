@@ -48,7 +48,7 @@ const table = (caption, headers, rows) => `<div class="table-wrap" tabindex="0" 
  * legalPage: dark title band (breadcrumb, H1, lead, Last updated), then prose + sidebar (table of contents, legal nav).
  * sections: [{ id, title, html }] — each becomes an <h2 id> in the article and a TOC entry when toc is true.
  */
-function legalPage({ path, name, metaTitle, description, kicker = 'Company & legal', lead, sections, toc = true, note = true, jsonld = [], scripts = [], tail = '', priority = 0.4 }) {
+export function legalPage({ path, name, metaTitle, description, kicker = 'Company & legal', lead, sections, toc = true, note = true, jsonld = [], scripts = [], tail = '', priority = 0.4 }) {
   const crumbs = [{ name: 'Home', path: '/' }, { name, path }];
   const tocList = `<ol>${sections.map(s => `<li><a href="#${s.id}">${esc(s.title)}</a></li>`).join('')}</ol>`;
   const article = `<article class="prose lg-body">
@@ -130,7 +130,7 @@ function privacy() {
     ['Practice data your firm enters', 'Cases, parties, clients, hearings, orders, documents, notes, tasks and invoices.', 'To provide the service to your firm. We act as a <b>data processor</b> for this data (see below).', 'On the firm’s instructions'],
     ['Advocate directory applications', 'Name, enrolment number, State Bar Council, enrolment year, city, email, mobile, practice areas, courts, languages, and the names of the verification documents you attach.', 'To verify and, once approved, publish your directory profile. Contact details are used to reach you about the application.', 'Consent'],
     ['Demo and contact requests', 'Name, email, phone, firm and your message.', 'To reply to you and arrange a demo.', 'Consent'],
-    ['Payments', 'Order and payment IDs, plan, billing cycle, amount and GSTIN (if you give one). You pay by UPI from your own UPI app or bank; we receive only the amount and the UPI reference number, never your UPI PIN or bank login.', 'To activate your plan, issue invoices and keep accounting records.', 'Contract; legal obligation'],
+    ['Payments', 'Order and payment IDs, plan, billing cycle, amount and GSTIN (if you give one). You pay through Razorpay Checkout (UPI, cards or netbanking); we receive only the amount and the Razorpay payment ID, never your UPI PIN, card number or bank login.', 'To activate your plan, issue invoices and keep accounting records.', 'Contract; legal obligation'],
     ['Google Drive backup (optional)', 'If you turn it on: permission to use one hidden app-data folder in your own Google Drive, a Google access token (stored encrypted), and the email address of the connected Google account. We cannot see or open any other file in your Drive.', 'To save your uploads and a nightly backup of your firm’s data, encrypted, in your own Drive, and to let your team open those files through Legal Staff.', 'Consent'],
     ['Notifications', 'The email address or WhatsApp number of the member a reminder is for, and the hearing details in it.', 'To send hearing reminders and briefings that your firm has turned on.', 'Consent; on the firm’s instructions'],
     ['Technical data', 'Hosting logs (IP address, browser, time, page requested) and data kept in your browser’s storage.', 'To keep the service secure and working, and to keep you signed in. See our <a href="/cookies">Cookie Policy</a>.', 'Legitimate use; necessary for the service']
@@ -139,7 +139,7 @@ function privacy() {
     ['Supabase', 'Database, authentication and private file storage for accounts and practice data.', 'Mumbai, India (ap-south-1 region)'],
     ['Vercel', 'Hosting and content delivery for the website and app files; security logs.', 'Global edge network'],
     ['Google', 'Google sign-in; web fonts for the site; Google Drive, only for members who turn on Google Drive backup (files are encrypted before they reach Google).', 'Global'],
-    ['Your UPI app and bank', 'You pay plan fees by UPI directly to our account; your bank and ours process the transfer.', 'India'],
+    ['Razorpay', 'Plan and directory fees are processed by Razorpay Software Private Limited, which collects your payment details on its own checkout page.', 'India'],
     ['Resend', 'Sending email reminders and notices, once email is connected.', 'May be outside India'],
     ['Meta (WhatsApp Business API)', 'Sending WhatsApp reminders, only once your firm connects WhatsApp.', 'May be outside India'],
     ['A court-data provider', 'Fetching case status by CNR, only if your firm connects one.', 'Depends on the provider']
@@ -222,7 +222,7 @@ function cookies() {
     ['Notice choice<br><code>ls.consent.v1</code> (localStorage)', 'Legal Staff', 'Remembers that you have seen this storage notice.', 'Strictly necessary', 'Until you clear it'],
     ['Google sign-in button', 'Google', 'Loads the “Sign in with Google” button; Google may set its own cookies on Google’s domains.', 'Third party', 'Set by Google'],
     ['Web fonts', 'Google Fonts', 'Delivers the site’s typeface. No cookie is set by us; Google receives your IP address and browser details to send the font files.', 'Third party', 'Not applicable'],
-    ['Payment QR code', 'cdnjs (Cloudflare)', 'A small script that draws the UPI QR code, loaded only when you pay for a plan. No cookie is set; Cloudflare receives your IP address and browser details to send the file.', 'Third party', 'Not applicable'],
+    ['Razorpay Checkout', 'Razorpay (checkout.razorpay.com)', 'Razorpay’s payment script, loaded only when you pay. Razorpay receives your IP address and browser details and may set its own cookies to process and secure the payment.', 'Third party', 'Not applicable'],
     ['Hosting logs', 'Vercel', 'Server logs that may include your IP address, used for security and to keep the site running. No cookie.', 'Strictly necessary', 'As kept by Vercel']
   ]);
   const sections = [
@@ -278,11 +278,11 @@ function terms() {
         <li>The output is not legal advice. Legal Staff is software, not a law firm, and does not act for you or your clients.</li>
       </ul>
       <p>You remain responsible for your professional work, your filings and your advice to clients.</p>` },
-    { id: 'third', title: 'Third-party services', html: `<p>Some features depend on services we do not control, such as Google sign-in, UPI apps and banks, email delivery, the WhatsApp Business API and court-data providers. Their own terms apply when you use them, and we are not responsible for their availability or for errors in court data they supply. eCourts and court websites are run by the courts, not by us.</p>` },
+    { id: 'third', title: 'Third-party services', html: `<p>Some features depend on services we do not control, such as Google sign-in, Razorpay, UPI apps and banks, email delivery, the WhatsApp Business API and court-data providers. Their own terms apply when you use them, and we are not responsible for their availability or for errors in court data they supply. eCourts and court websites are run by the courts, not by us.</p>` },
     { id: 'fees', title: 'Plans, fees and taxes', html: `<ul>
         <li>Paid plans (Solo, Professional, Firm and Enterprise) are billed monthly or annually in Indian rupees at the prices shown when you subscribe.</li>
         <li>Prices are subject to GST and other applicable taxes, which we show on the invoice. Give your GSTIN at checkout to get a GST invoice in your firm’s name.</li>
-        <li>Plan fees are paid by UPI straight to our bank account from your own UPI app. We never see or store your UPI PIN or bank login; we keep only the amount and the UPI reference number.</li>
+        <li>Plan fees are paid through Razorpay (UPI, cards or netbanking). We never see or store your UPI PIN, card number or bank login; we keep only the amount and the Razorpay payment ID.</li>
         <li>Unless you cancel, a plan renews for the same period at the end of each billing period where your payment method supports renewal; otherwise you will be asked to pay to renew.</li>
         <li>We may change prices for future periods with reasonable notice before they apply to you.</li>
       </ul>` },

@@ -241,7 +241,7 @@ async function billing(o) {
   const { page } = o;
   await step('invoice: create, GST 18% added, numbered INV-<year>-001, in the CSV', async () => {
     await o.go('#/billing'); await o.click('+ New invoice');
-    await o.fill([['Description', 'Professional fees: drafting and appearance'], ['Amount before GST (₹)', '10000']]);
+    await o.fill([['Description', 'Professional fees: drafting and appearance'], ['Amount before GST (₹)', '10000'], ['GST', 'Add 18% GST (tax invoice)']]);
     await o.dclick('Create invoice'); await o.toast('Invoice created');
     await page.locator('.ls-print').waitFor();
     const t = await page.locator('[role=dialog]').innerText();
@@ -250,6 +250,16 @@ async function billing(o) {
     await o.closeDialog(); await o.go('#/billing');
     const d = await o.download(() => o.click('Export CSV')); eq(d.suggestedFilename(), 'invoices.csv');
     const csv = fs.readFileSync(await d.path(), 'utf8'); assert(csv.includes('"GST"') && csv.includes('1800'), 'CSV has the GST column: ' + csv.slice(0, 200));
+  });
+  await step('invoice: a firm with no GSTIN gets a plain invoice by default, with no GST added', async () => {
+    await o.go('#/billing'); await o.click('+ New invoice');
+    await o.fill([['Description', 'Consultation'], ['Amount before GST (₹)', '5000']]);
+    await o.dclick('Create invoice'); await o.toast('Invoice created');
+    await page.locator('.ls-print').waitFor();
+    const t = await page.locator('[role=dialog]').innerText();
+    assert(!/Tax invoice/.test(t) && !/GST @ 18%/.test(t), 'no GST and no "Tax invoice" without a GSTIN: ' + t.slice(0, 300));
+    assert(/5,000/.test(t) && !/5,900/.test(t), 'total is the fee only: ' + t.slice(0, 300));
+    await o.dclick('Delete'); await o.dclick('Delete invoice'); await o.toast('Invoice deleted');
   });
   await step('pricing: Solo, Professional and Firm are listed', async () => {
     await o.go('#/pricing'); await o.see('Solo'); await o.see('Professional'); await o.see('Firm');
@@ -348,6 +358,35 @@ async function outcomes(o) {
     await page.locator('[role=dialog]', { hasText: 'Case details' }).waitFor();
     await o.closeDialog();
   });
+  await step('Case Brain chat: history, attach a file, rename, archive, delete', async () => {
+    await o.go('#/brain');
+    await page.locator('aside', { hasText: 'Hearing brief' }).first().waitFor();
+    await o.shot('brain-case-chat');
+    await page.locator('button', { hasText: 'New chat' }).first().click();
+    await o.see('How can I help');
+    await page.locator('select[aria-label="Case linked to this chat"]').selectOption('');
+    const file = path.join(SHOTS, 'notice.txt'); fs.mkdirSync(SHOTS, { recursive: true });
+    fs.writeFileSync(file, 'LEGAL NOTICE\nDated 01.11.2026. Pay Rs. 2,00,000 within 15 days.');
+    await o.chooseFile(() => page.locator('button[aria-label="Attach documents or images"]').click(), file);
+    await page.locator('text=notice.txt').first().waitFor();
+    await page.locator('textarea[aria-label="Message AI Case Brain"]').fill('Summarise this notice');
+    await o.shot('brain-compose');
+    await page.locator('button[aria-label="Send"]').click();
+    await page.locator('.ls-msg', { hasText: 'AI answers need the Legal Staff server' }).waitFor();
+    await page.locator('aside button', { hasText: 'Summarise this notice' }).first().waitFor();
+    eq(await page.evaluate(() => LS.load().brain.length), 2, 'two saved chats');
+    await page.locator('button[aria-label="Options for Summarise this notice"]').click();
+    await o.click('Rename');
+    await page.locator('input[aria-label="Chat name"]').fill('Notice from bank'); await page.keyboard.press('Enter');
+    await page.locator('aside button', { hasText: 'Notice from bank' }).first().waitFor();
+    await page.locator('button[aria-label="Options for Notice from bank"]').click();
+    await o.click('Archive'); await o.toast('Chat archived');
+    await page.locator('aside button', { hasText: /^Archived/ }).click();
+    await page.locator('aside button', { hasText: 'Notice from bank' }).first().waitFor();
+    await page.locator('button[aria-label="Options for Notice from bank"]').click();
+    await o.click('Delete'); await o.dclick('Delete chat'); await o.toast('Chat deleted');
+    eq(await page.evaluate(() => LS.load().brain.length), 1, 'one chat left');
+  });
 }
 
 async function exportsAndSearch(o) {
@@ -361,6 +400,37 @@ async function exportsAndSearch(o) {
     await o.go('#/drafting');
     d = await o.download(() => o.click('Export DOCX')); assert(/\.docx$/.test(d.suggestedFilename()), d.suggestedFilename());
     const head = fs.readFileSync(await d.path()).slice(0, 2).toString(); eq(head, 'PK', 'DOCX is a zip');
+  });
+  await step('drafting studio: fill details, eStamp, eSign, seal, verify, audit trail', async () => {
+    await o.go('#/drafting');
+    await o.click('Affidavit');
+    await o.see('Ref. No.');
+    await o.click('Fill details');
+    await o.set('name', 'Rohit Sharma');
+    await o.dclick('Fill document'); await o.see('Rohit Sharma');
+    await o.click('Add eStamp');
+    await o.fill([['State / UT of the stamp', 'Delhi'], ['Stamp duty paid (₹)', '10'], ['Certificate / stamp paper no.', 'IN-DL1234567890'], ['Purchased by', 'Rohit Sharma']]);
+    await o.dclick('Add to document'); await o.see('NON-JUDICIAL STAMP'); await o.see('IN-DL1234567890');
+    await o.click('Add signers'); await o.dclick('+ Add signer');
+    await o.fill([['Full name', 'Rohit Sharma']]); await o.dclick('Add signer');
+    await o.dclick('Sign now');
+    await page.getByRole('tab', { name: 'Type' }).click();
+    await o.dclick('Apply signature'); await o.see('Tick the consent box');
+    await page.getByLabel(/I agree to apply this electronic signature/).check();
+    await o.dclick('Apply signature'); await o.toast('Rohit Sharma has signed');
+    await o.dclick('Done'); await o.see('Signed electronically');
+    eq(await page.locator('[aria-readonly=true]').count(), 1, 'text is locked once signed');
+    await o.click('Seal document'); await o.dclick('Seal document');
+    await o.see('CERTIFICATE OF COMPLETION'); await o.see('SHA-256');
+    await o.click('Verify integrity'); await o.see('Document verified');
+    const t = await page.locator('[role=dialog]').innerText(); assert(/LSD-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}/.test(t), 'document id shown');
+    await o.closeDialog();
+    await o.see('Document sealed');
+    await o.shot('drafting-sealed'); await page.locator('.ls-paperwrap').screenshot({ path: path.join(SHOTS, 'drafting-paper.png') });
+    /* a sealed version that is altered in storage no longer verifies */
+    await o.ls(() => { const k = Object.keys(localStorage).find(k => /ls/i.test(k) && localStorage[k].includes('NON-JUDICIAL') === false && localStorage[k].includes('"seal"')); const d = JSON.parse(localStorage[k]); const v = Object.values(d.drafts)[0][0]; v.html = v.html.replace('Rohit Sharma', 'Rohit Verma'); localStorage[k] = JSON.stringify(d); });
+    await page.reload(); await page.locator('main, body').first().waitFor(); await sleep(800); await o.go('#/drafting');
+    await o.click('Affidavit'); await o.click('Verify integrity'); await o.see('Verification failed');
   });
   await step('search finds the case and opens it', async () => {
     await o.go('#/dashboard');
@@ -610,7 +680,8 @@ async function practiceArea(browser) {
     await o.notSee('Active cases by stage');
     await o.page.locator('aside').getByText('Evidence', { exact: true }).first().waitFor();
     const tops = await o.page.evaluate(() => [...document.querySelectorAll('aside nav button')].map(b => b.textContent.trim()));
-    assert(tops.indexOf('Evidence') < tops.indexOf('Court Intelligence'), 'criminal sidebar leads with evidence: ' + tops.join(','));
+    // the sidebar is grouped (Case management / Court & orders / Records); within Records a criminal chamber's list leads with Evidence
+    assert(tops.indexOf('Evidence') >= 0 && tops.indexOf('Evidence') < tops.indexOf('Documents') && tops.indexOf('Evidence') < tops.indexOf('Legal Deadlines'), 'criminal sidebar leads with evidence in Records: ' + tops.join(','));
   });
   await step('criminal labels, stages and limitation presets', async () => {
     await o.go('#/labels'); await o.see('Anticipatory bail'); await o.see('In custody');

@@ -8,9 +8,11 @@
   let hiding = false;
   const kfetch = (u, o) => fetch(u, hiding && o && (!o.body || (typeof o.body === 'string' && o.body.length < 60000)) ? Object.assign({}, o, { keepalive: true }) : o);
   const sb = on ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { global: { fetch: kfetch } }) : null;
-  const KIND = { cases: 'case', clients: 'client', hearings: 'hearing', orders: 'order', tasks: 'task', docs: 'doc', invoices: 'invoice', deadlines: 'deadline', lims: 'limitation', watch: 'watch', log: 'log' };
-  const USER_KEYS = ['settings', 'notes', 'chats', 'copilot', 'research', 'drafts', 'photo'];
+  const KIND = { cases: 'case', clients: 'client', hearings: 'hearing', orders: 'order', tasks: 'task', docs: 'doc', invoices: 'invoice', deadlines: 'deadline', esign: 'esign', lims: 'limitation', watch: 'watch', log: 'log' };
+  const USER_KEYS = ['settings', 'notes', 'chats', 'brain', 'copilot', 'research', 'drafts', 'photo'];
   const PAGE = 1000, LOG_MAX = 300, NEWEST_FIRST = { cases: 1, clients: 1, docs: 1, orders: 1, invoices: 1, lims: 1 };
+  /* ver: the updated_at of every record as last read or written by this device. An edit is applied only if the record on the server still has that stamp, so a change made meanwhile by a colleague is never silently overwritten. */
+  let ver = {};
   let snap = {}, firmSnap = '', userSnap = '', teamSnap = '', meSnap = '', firmId = '', uid = '', busy = null, again = false;
   /* Profile photo: photoCol is true once the members table has the photo column (migration 0020); mePhoto is the caller's photo as stored there. */
   let photoCol = false, mePhoto = '';
@@ -55,24 +57,26 @@
     d.sub = { aiUsed: au ? au.used : 0, plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', seats: s ? s.seats || null : null, since: s ? s.since : '', renews: s ? s.renews : '', trialEnds: s && s.trial_ends ? s.trial_ends : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
   }
 
+  /* An administrator who signs in here is sent to the admin console, and only that (needs migration 0029; harmless without it). */
+  const toAdmin = async () => { try { const r = await sb.rpc('is_super_admin'); if (r.data === true) { location.replace('/admin'); return true; } } catch (e) {} return false; };
   const B = {
     on, client: sb,
-    async session() { const s = ok(await sb.auth.getSession()).session; uid = s ? s.user.id : ''; return s; },
-    async signInGoogle(token, nonce) { const d = ok(await sb.auth.signInWithIdToken({ provider: 'google', token, nonce })); uid = d.user.id; return d.session; },
+    async session() { const s = ok(await sb.auth.getSession()).session; uid = s ? s.user.id : ''; if (s && await toAdmin()) return new Promise(() => {}); return s; },
+    async signInGoogle(token, nonce) { const d = ok(await sb.auth.signInWithIdToken({ provider: 'google', token, nonce })); uid = d.user.id; if (await toAdmin()) return new Promise(() => {}); return d.session; },
     /* Email sign-in: Supabase emails a one-time code (and a sign-in link that opens /app). */
     async sendOtp(email) { ok(await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + '/app' } })); },
-    async verifyOtp(email, token) { const d = ok(await sb.auth.verifyOtp({ email, token, type: 'email' })); uid = d.user.id; return d.session; },
+    async verifyOtp(email, token) { const d = ok(await sb.auth.verifyOtp({ email, token, type: 'email' })); uid = d.user.id; if (await toAdmin()) return new Promise(() => {}); return d.session; },
     async signOut() { firmId = ''; uid = ''; snap = {}; try { await sb.auth.signOut(); } catch (e) {} },
     async firms() { return ok(await sb.rpc('my_firms')); },
     async createFirm(v) { return ok(await sb.rpc('create_firm', { p_name: v.firm, p_city: v.city, p_address: v.address || v.city, p_user_name: v.name, p_role: v.role })); },
     /* Builds the app's working data for one firm. */
     async load(id, session) {
       firmId = id; const d = window.LS.seed(); d.firmId = id; d.session = { email: session.user.email, provider: (session.user.app_metadata || {}).provider || 'google' };
-      const [firm, recs, us] = await Promise.all([sb.from('firms').select('*').eq('id', id).single(), pages(() => sb.from('records').select('kind,id,data').eq('firm_id', id).order('kind').order('id')), sb.from('user_state').select('data').eq('firm_id', id).eq('user_id', uid).maybeSingle()]);
+      const [firm, recs, us] = await Promise.all([sb.from('firms').select('*').eq('id', id).single(), pages(() => sb.from('records').select('kind,id,data,updated_at').eq('firm_id', id).order('kind').order('id')), sb.from('user_state').select('data').eq('firm_id', id).eq('user_id', uid).maybeSingle()]);
       const f = ok(firm); d.firm = { name: f.name, city: f.city, address: f.address, gstin: f.gstin, court: (f.state && f.state.court) || '', photo: (f.state && f.state.photo) || '', groupPhoto: (f.state && f.state.groupPhoto) || '', kind: (f.state && f.state.kind) || '', domain: (f.state && f.state.domain) || '' };
       if (f.state && Array.isArray(f.state.labels)) d.labels = f.state.labels; if (f.state && f.state.lim) d.lim = f.state.lim; if (f.state && Array.isArray(f.state.agents) && f.state.agents.length) d.agents = f.state.agents;
       const by = {}; Object.keys(KIND).forEach(c => { by[KIND[c]] = d[c] = []; });
-      recs.forEach(r => { if (by[r.kind]) by[r.kind].push(Object.assign({}, r.data, { id: r.id })); });
+      ver = {}; recs.forEach(r => { ver[r.kind + '|' + r.id] = r.updated_at; if (by[r.kind]) by[r.kind].push(Object.assign({}, r.data, { id: r.id })); });
       order(d);
       const u = ok(us); if (u && u.data) USER_KEYS.forEach(k => { if (u.data[k] != null) d[k] = k === 'settings' ? Object.assign(d.settings, u.data[k]) : u.data[k]; });
       /* A calculation kept in the older firm state (one object in firms.state.lim) becomes a 'limitation' record; the next sync stores it and clears the old key. */
@@ -101,8 +105,13 @@
           const meWant = meKey(d.user) !== meSnap ? { name: d.user.name, title: d.user.title, phone: d.user.phone || '' } : null;
           Object.keys(KIND).forEach(c => (d[c] || []).forEach(r => { if (!r.id) r.id = window.LS.uid(KIND[c][0]); const k = KIND[c] + '|' + r.id; if (c !== 'log' && !r.created && !(k in snap)) r.created = stamp; const s = JSON.stringify(r); now[k] = s; if (snap[k] !== s) up.push({ firm_id: firmId, kind: KIND[c], id: r.id, data: r }); }));
           Object.keys(snap).forEach(k => { if (!(k in now)) { const i = k.indexOf('|'); (del[k.slice(0, i)] = del[k.slice(0, i)] || []).push(k.slice(i + 1)); } });
-          for (let i = 0; i < up.length; i += 200) ok(await sb.from('records').upsert(up.slice(i, i + 200)));
+          /* New records are inserted; a record that already existed is changed only if nobody changed it since this device read it. A very large batch (a restored backup) is sent in one go as before. */
+          const known = u => ver[u.kind + '|' + u.id], edits = up.length <= 60 ? up.filter(known) : [], bulk = up.length <= 60 ? up.filter(u => !known(u)) : up, conflicts = [];
+          for (let i = 0; i < bulk.length; i += 200) { const part = bulk.slice(i, i + 200).map(u => Object.assign({}, u, { updated_at: stamp })); ok(await sb.from('records').upsert(part)); part.forEach(u => { ver[u.kind + '|' + u.id] = stamp; }); }
+          for (const u of edits) { const at = new Date().toISOString(), rows = ok(await sb.from('records').update({ data: u.data, updated_at: at, updated_by: uid || undefined }).eq('firm_id', firmId).eq('kind', u.kind).eq('id', u.id).eq('updated_at', ver[u.kind + '|' + u.id]).select('id'));
+            if (rows && rows.length) ver[u.kind + '|' + u.id] = at; else conflicts.push(u); }
           for (const kind of Object.keys(del)) await delIds(kind, del[kind]);
+          if (conflicts.length) { const e = new Error(conflicts.length === 1 ? 'A colleague changed the same record at the same time, so your edit to it was not saved. The latest version has been loaded.' : conflicts.length + ' records were changed by a colleague at the same time, so your edits to them were not saved. The latest versions have been loaded.'); e.conflict = true; throw e; }
           snap = now;
           const fr = firmRow(d), fs = JSON.stringify(fr); if (fs !== firmSnap) { changed(ok(await sb.from('firms').update(fr).eq('id', firmId).select('id')), 'The firm profile'); firmSnap = fs; }
           const ur = userRow(d), us = JSON.stringify(ur); if (us !== userSnap) { ok(await sb.from('user_state').upsert({ user_id: uid, firm_id: firmId, data: ur, updated_at: new Date().toISOString() })); userSnap = us; }
@@ -150,6 +159,8 @@
       snap = {}; return all.length;
     },
     /* Enterprise enquiries go to the same table as the website's contact form. */
+    /* The site-wide notice an administrator may switch on (plain text). Null when there is none or it cannot be read. */
+    async banner() { try { const r = await sb.rpc('site_banner'); return r.error ? null : (r.data || null); } catch (e) { return null; } },
     async contact(row) { ok(await sb.from('contact_requests').insert(Object.assign(row.source === 'app' ? { firm_id: firmId || null, user_id: uid || null } : {}, row))); },
     async refreshSub(d) { await subscription(d); },
     /* Owner only: starts (or, while it runs, switches) the firm's 7-day free trial. No payment is taken. */
@@ -178,12 +189,11 @@
       download: drive => B.fn('drive', { action: 'download', firm_id: firmId, drive }),
       remove: drive => B.fn('drive', { action: 'delete', firm_id: firmId, drive }).catch(() => {})
     },
-    /* Direct UPI to the operator's account (server function 'upi-pay'), confirmed automatically by Paytm status or bank SMS. */
-    upi: {
-      config: () => B.fn('upi-pay', { action: 'config' }),
-      create: (plan, cycle, gstin, promo, users) => B.fn('upi-pay', { action: 'create', firm_id: firmId, plan, cycle, gstin, promo: promo || '', users }),
-      promo: (plan, cycle, promo, users) => B.fn('upi-pay', { action: 'promo', firm_id: firmId, plan, cycle, promo, users }),
-      status: orderNo => B.fn('upi-pay', { action: 'status', firm_id: firmId, order_no: orderNo })
+    /* Razorpay Standard Checkout (server function 'razorpay'): the server creates the order and checks the payment signature; the secret key never reaches the browser. */
+    razorpay: {
+      createOrder: (plan, cycle, gstin, promo, users) => B.fn('razorpay', { action: 'create-order', firm_id: firmId, plan, cycle, gstin, promo: promo || '', users }),
+      promo: (plan, cycle, promo, users) => B.fn('razorpay', { action: 'promo', firm_id: firmId, plan, cycle, promo, users }),
+      verify: r => B.fn('razorpay', { action: 'verify-payment', firm_id: firmId, razorpay_order_id: r.razorpay_order_id, razorpay_payment_id: r.razorpay_payment_id, razorpay_signature: r.razorpay_signature })
     },
     /* Team chat: the firm's group chat ('team') and one-to-one chats ('dm:<uid>:<uid>'), live through Supabase Realtime. */
     chat: {
