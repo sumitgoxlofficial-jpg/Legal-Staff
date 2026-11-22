@@ -15,6 +15,7 @@
 <script src="app-brain.js"></script>
 <script src="app-esign.js"></script>
 <script src="app-sign.js"></script>
+<script src="app-demo.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
@@ -272,6 +273,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <img src="assets/ls-mark-black.png" alt="" style="position:absolute;right:calc(4vw + 110px);bottom:calc(-6vh + 120px);width:calc(min(38vw,520px) - 220px);opacity:.05">
       </div>
     </sc-if>
+    {{ demoStrip }}
 
     <sc-if value="{{ s.dashboard }}" hint-placeholder-val="{{ true }}">
       <div class="ls-stagger" style="display:flex;flex-direction:column;gap:28px;max-width:1240px">
@@ -1600,7 +1602,8 @@ class Component extends DCLogic {
       goDashboard: () => this.go('dashboard'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'), goOrder: () => this.go('orders'),
       todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, greetingEl: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`.split(' ').map((w, i, a) => h('span', { key: i, className: i === a.length - 1 ? 'ls-greet-w ls-greet-name' : 'ls-greet-w', style: { animationDelay: i === a.length - 1 ? `${120 + i * 80}ms, ${700 + i * 80}ms` : `${120 + i * 80}ms` } }, i < a.length - 1 ? w + ' ' : w)), syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign in with Google or an email code · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'Pay securely through Razorpay (UPI, cards, netbanking). The plan switches on by itself once the payment is confirmed.' : 'Payments need the server. No money was taken and no tax invoice was issued; the plan is recorded on this device only.', paidLine: LSB.on ? `The invoice has been saved for ${D.user.email}. Next renewal: ${co.next || ''}.` : `Recorded on this device. Next renewal date: ${co.next || ''}.`, payLabel: LSB.on ? 'Paid via Razorpay' : 'Not charged',
       payBtn: 'Record the plan on this device', payHint: payOn ? 'Your plan switches on by itself once Razorpay confirms the payment.' : 'Payments need the server. This browser-only version only records the plan choice; no money is taken.', payHead: LSB.on ? 'Payment verified' : 'Plan recorded on this device',
-      planBanner: h(V.PlanCard, { app: this, acc }),
+      planBanner: h(React.Fragment, null, window.LSD && h(LSD.DemoCard, { app: this }), h(V.PlanCard, { app: this, acc })),
+      demoStrip: window.LSD && !s.dashboard && !fullBleed && acc.ok ? h(LSD.DemoStrip, { app: this }) : null,
       briefText, briefArt: todayH.length ? null : h('div', { className: 'ls-brief-art' }, h(V.Art, { name: 'sunrise', style: { width: '100%', height: 'auto' } })),
       dashEmpty: { hearings: todayH.length ? null : h(V.Empty, { small: true, art: 'calendar', title: 'No hearings today', text: 'Hearings you add to a case appear here on the day.' }), orders: D.orders.length ? null : h(V.Empty, { small: true, art: 'order', title: 'No court orders yet', text: 'Upload an order to pull out the next date and key points.' }), deadlines: dl.length ? null : h(V.Empty, { small: true, art: 'deadline', title: 'No deadlines tracked', text: 'Run a limitation calculation and it is tracked here.' }), stages: live.length ? null : h(V.Empty, { small: true, art: 'cases', title: 'No active cases', text: 'Cases you add are grouped here by stage.' }) },
       waHello: `Good morning, Adv. ${D.user.name.split(' ').pop()}.`, waLine1: `${todayH.length} hearing${todayH.length === 1 ? '' : 's'} today.` + (tClash.length ? ` ${LS.t12ap(tClash[0][0].time)} clash: ${tClash[0].map(x => shortCourt(x.court).replace('HC ', 'Delhi HC Court ').replace('Saket ', 'Saket Court ')).join(' and ')}.` : ''), waLine2: dl[0] ? `Deadline: ${dl[0].title.split(',')[0]} due ${LS.dayMon(LS.addDays(T, dl[0].days))}.` : 'No limitation deadlines this week.', waTime: LS.t12ap(st.briefingTime),
