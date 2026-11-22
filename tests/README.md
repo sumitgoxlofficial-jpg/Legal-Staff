@@ -79,3 +79,6 @@ It makes one `GET /api/partner/case/{cnr}` call (about ₹1.50 on pay-as-you-go)
 | `node tests/e2e.js local` | The browser-only app, 25 steps (updated: the sidebar is grouped). |
 
 Known stale: `node tests/partner-ui/ui.test.mjs` passes 63 of 64 and then fails at the partner dashboard (`.pn-stats` hidden) on main as well; the test predates the "instant access" change.
+
+| `node tests/advocate-page.test.mjs` | The crawlable advocate page and sitemap function with the directory RPC mocked: real head tags and JSON-LD, markup escaped, unchecked profiles `noindex` and out of the sitemap, malformed ids never reach the database, no contact data in the page. |
+| `node tests/directory-notify.test.mjs` | The directory-verify sweep announcing new contact requests: once each, names and topics only, nothing for unpaid or rejected profiles, retried when the email fails, cron secret only. |

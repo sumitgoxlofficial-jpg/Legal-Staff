@@ -9,10 +9,12 @@ class Q {
   constructor(t) { this.t = t; this.f = []; this.op = 'select'; this.ret = false; this.lim = 1e9; this.head = false; this.one = null; }
   select(_c, o) { this.ret = true; if (o && o.head) this.head = true; return this; }
   insert(r) { this.op = 'insert'; this.rows = Array.isArray(r) ? r : [r]; return this; }
-  upsert(r) { this.op = 'upsert'; this.rows = Array.isArray(r) ? r : [r]; return this; }
+  upsert(r, o) { this.op = 'upsert'; this.rows = Array.isArray(r) ? r : [r]; this.conflict = (o && o.onConflict) || 'firm_id'; return this; }
+  delete() { this.op = 'delete'; return this; }
   update(p) { this.op = 'update'; this.patch = p; return this; }
   eq(c, v) { this.f.push(r => String(r[c]) === String(v)); return this; }
   is(c, v) { this.f.push(r => (v === null ? r[c] == null : r[c] === v)); return this; }
+  lt(c, v) { this.f.push(r => r[c] != null && String(r[c]) < String(v)); return this; } lte(c, v) { this.f.push(r => r[c] != null && String(r[c]) <= String(v)); return this; } gte(c, v) { this.f.push(r => r[c] != null && String(r[c]) >= String(v)); return this; }
   gt(c, v) { this.f.push(r => r[c] > v); return this; } in(c, vs) { this.f.push(r => vs.includes(r[c])); return this; }
   range(a, b) { this.off = a; this.lim = b - a + 1; return this; }
   limit(n) { this.lim = n; return this; } order() { return this; } single() { this.one = 'single'; return this; } maybeSingle() { this.one = 'maybe'; return this; }
@@ -25,12 +27,13 @@ class Q {
       for (const r0 of this.rows) {
         const r = { id: seq++, ...r0 };
         for (const k of UNIQUE[this.t] || []) if (r[k] != null && rows.some(x => x[k] === r[k])) return { data: null, error: { message: 'duplicate key value violates unique constraint ' + k } };
-        if (this.op === 'upsert') { const ex = rows.find(x => x.firm_id && x.firm_id === r.firm_id); if (ex) { Object.assign(ex, r0); continue; } }
+        if (this.op === 'upsert') { const k = this.conflict; const ex = rows.find(x => x[k] != null && x[k] === r[k]); if (ex) { Object.assign(ex, r0); continue; } }
         rows.push(r); made.push(r);
       }
       return { data: this.ret ? (this.one ? made[0] : made) : null, error: null };
     }
     let m = rows.filter(r => this.f.every(fn => fn(r)));
+    if (this.op === 'delete') { m.forEach(r => rows.splice(rows.indexOf(r), 1)); return { data: null, error: null }; }
     if (this.op === 'update') { m.forEach(r => Object.assign(r, this.patch)); return { data: this.ret ? m.map(r => ({ id: r.id })) : null, error: null }; }
     const total = m.length; m = m.slice(this.off || 0, (this.off || 0) + this.lim).map(r => ({ ...r }));   // snapshots, like a real database
     if (this.head) return { data: null, error: null, count: total };

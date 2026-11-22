@@ -212,6 +212,8 @@
   const addMonths = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 10); };
   const STATUS = { paid: ['Paying', 'c-good'], paid_upcoming: ['Paid · starts later', 'c-info'], trial: ['Trial', 'c-warn'], expired: ['Expired', 'c-bad'], none: ['No plan', 'c-mut'] };
   const chip = s => { const [t, c] = STATUS[s] || [s, 'c-mut']; return `<span class="chip ${c}">${t}</span>`; };
+  /** Downloads rows (array of objects) as a CSV file; cells that start with = + - @ are neutralised by LSExport so a spreadsheet never runs them. */
+  const exportCsv = (name, rows) => { if (!rows.length) return toast('Nothing to export.'); const blob = new Blob([window.LSExport.csv(rows)], { type: 'text/csv;charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name + '-' + new Date().toISOString().slice(0, 10) + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); };
   let toastT; const toast = t => { clearTimeout(toastT); document.querySelectorAll('.toast').forEach(x => x.remove()); const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); toastT = setTimeout(() => d.remove(), 3200); };
   async function api(action, body = {}) {
     const r = await sb.functions.invoke('admin', { body: Object.assign({ action }, body) });
@@ -269,14 +271,15 @@
   }
 
   // ---------- layout ----------
-  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['activity', 'Activity log'], ['settings', 'Settings', [[null, [['general', 'General'], ['integrations', 'Integrations']]]]]];
+  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['dirinbox', 'Directory inbox'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['activity', 'Activity log'], ['settings', 'Settings', [[null, [['general', 'General'], ['integrations', 'Integrations']]]]]];
   // sidebar sections (anything an extension adds that is not listed here lands under "More")
-  const NAV = [['', ['overview']], ['Business', ['firms', 'payments', 'coupons', 'expenses']], ['Growth', ['directory', 'email', 'partners']], ['Help', ['support']], ['System', ['settings', 'activity']]];
+  const NAV = [['', ['overview']], ['Business', ['firms', 'payments', 'coupons', 'expenses']], ['Growth', ['directory', 'dirinbox', 'email', 'partners']], ['Help', ['support']], ['System', ['settings', 'activity']]];
   const IC = {
     overview: '<rect x="3" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.8"/>',
     firms: '<path d="M4 21V6.5L12 3l8 3.5V21"/><path d="M9 21v-5h6v5M8.5 9.5h1M14.5 9.5h1M8.5 13h1M14.5 13h1"/>',
     payments: '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/>',
     coupons: '<path d="M3 12.5V4.5a1.5 1.5 0 0 1 1.5-1.5h8L21 11.5a1.5 1.5 0 0 1 0 2.1l-7.4 7.4a1.5 1.5 0 0 1-2.1 0z"/><circle cx="8" cy="8" r="1.3"/>',
+    dirinbox: '<path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/>',
     activity: '<path d="M4 12h4l2.5-7 4 14L17 12h3"/>',
     expenses: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
     directory: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.9c1.6.7 2.7 2.2 3 4.1"/>',
@@ -388,7 +391,7 @@
   VIEWS.firms = async p => {
     const { firms } = await api('firms');
     let q = '', f = 'all';
-    p.innerHTML = `<div class="row between"><div><h1>Firms & users</h1><p class="sub">${firms.length} firms · ${firms.reduce((a, x) => a + x.members, 0)} team members</p></div></div>
+    p.innerHTML = `<div class="row between"><div><h1>Firms & users</h1><p class="sub">${firms.length} firms · ${firms.reduce((a, x) => a + x.members, 0)} team members</p></div><button class="btn" id="xp">Export CSV</button></div>
       <div class="card"><div class="row" style="margin-bottom:12px"><input id="q" class="grow" placeholder="Search firm, owner email or city" style="max-width:340px">
         <div class="seg" id="fs">${[['all', 'All'], ['paid', 'Paying'], ['trial', 'Trial'], ['expired', 'Expired']].map(([k, l]) => `<button data-k="${k}" class="${k === 'all' ? 'on' : ''}">${l}</button>`).join('')}</div></div>
         <div class="tscroll"><table><thead><tr><th>Firm</th><th>Owner</th><th>Plan</th><th>Status</th><th>Valid until</th><th class="num">Paid</th><th class="num">Members</th><th>Joined</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>`;
@@ -402,6 +405,7 @@
     };
     p.querySelector('#q').oninput = e => { q = e.target.value.trim().toLowerCase(); draw(); };
     p.querySelectorAll('#fs button').forEach(b => b.onclick = () => { f = b.dataset.k; p.querySelectorAll('#fs button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
+    p.querySelector('#xp').onclick = () => exportCsv('firms', firms.map(x => ({ firm: x.name, city: x.city, owner: x.owner, owner_name: x.ownerName, plan: x.plan, billing: x.cycle, status: x.status, valid_until: x.renews, trial_ends: x.trial_ends, paid_rupees: x.paid / 100, payments: x.payments, members: x.members, joined: x.joined, created: x.created_at })));
     draw();
   };
   function manageFirm(x, done) {
@@ -413,21 +417,44 @@
       <div class="row small"><span class="muted">Quick:</span><button class="btn sm" data-a="7">+7 days</button><button class="btn sm" data-m="1">+1 month</button><button class="btn sm" data-m="12">+1 year</button></div>
       <div class="muted small">Use this to give a free plan, extend a plan or fix a payment that did not match. No money is taken and no invoice is created.</div>
       <div class="err" id="er"></div>
-      <div class="row between"><button class="btn danger" id="end">End plan now</button><div class="row"><button class="btn" id="cn">Cancel</button><button class="btn pri" id="sv">Save</button></div></div>`, (m, close) => {
+      <div class="row between"><div class="row"><button class="btn danger" id="end">End plan now</button><button class="btn" id="tm">Team…</button></div><div class="row"><button class="btn" id="cn">Cancel</button><button class="btn pri" id="sv">Save</button></div></div>`, (m, close) => {
       const rn = m.querySelector('#rn');
       m.querySelectorAll('[data-a]').forEach(b => b.onclick = () => rn.value = addDays(base, +b.dataset.a));
       m.querySelectorAll('[data-m]').forEach(b => b.onclick = () => rn.value = addDays(addMonths(base, +b.dataset.m), base === istToday() ? -1 : 0));
       m.querySelector('#cn').onclick = close;
+      m.querySelector('#tm').onclick = () => { close(); manageTeam(x, done); };
       m.querySelector('#sv').onclick = async () => { try { await api('firm_update', { firm_id: x.id, plan: m.querySelector('#pl').value, cycle: m.querySelector('#cy').value, renews: rn.value }); close(); toast('Plan saved for ' + x.name); done(); } catch (e) { m.querySelector('#er').textContent = e.message; } };
       m.querySelector('#end').onclick = async () => { if (!confirm(`End the plan for ${x.name} now? Their workspace closes until they pay.`)) return; try { await api('firm_update', { firm_id: x.id, end: true }); close(); toast('Plan ended for ' + x.name); done(); } catch (e) { m.querySelector('#er').textContent = e.message; } };
     });
   }
 
+  async function manageTeam(x, done) {
+    let members; try { members = (await api('firm_members', { firm_id: x.id })).members; } catch (e) { return toast(e.message); }
+    modal(`<h2>${esc(x.name)} · team</h2><div class="muted small">Suspending a person blocks them from this firm's data until you reactivate them. The owner cannot be suspended here.</div>
+      <div class="tscroll"><table><thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${members.map(m => `<tr><td><div class="strong">${esc(m.name || '—')}</div><div class="muted small">${esc(m.email)}</div></td><td>${esc(m.role)}${m.is_owner ? ' <span class="chip c-info">Owner</span>' : ''}</td><td>${m.status === 'Active' ? '<span class="chip c-good">Active</span>' : m.status === 'Suspended' ? '<span class="chip c-bad">Suspended</span>' : '<span class="chip c-mut">Invited</span>'}</td>
+        <td>${m.is_owner || m.status === 'Invited' ? '' : `<button class="btn sm" data-mid="${esc(m.id)}" data-to="${m.status === 'Active' ? 'Suspended' : 'Active'}">${m.status === 'Active' ? 'Suspend' : 'Reactivate'}</button>`}</td></tr>`).join('')}</tbody></table></div>
+      <div class="row between"><span class="err" id="er"></span><button class="btn" id="cn">Close</button></div>`, (m, close) => {
+      m.querySelector('#cn').onclick = close;
+      m.querySelectorAll('button[data-mid]').forEach(b => b.onclick = async () => { if (b.dataset.to === 'Suspended' && !confirm('Suspend this person? They lose access to the firm until you reactivate them.')) return; try { await api('member_status', { member_id: b.dataset.mid, status: b.dataset.to }); close(); toast(b.dataset.to === 'Suspended' ? 'Suspended.' : 'Reactivated.'); manageTeam(x, done); } catch (e) { m.querySelector('#er').textContent = e.message; } });
+    });
+  }
+
+  VIEWS.dirinbox = async p => {
+    const [{ reports }, { enquiries }] = await Promise.all([api('dir_reports'), api('dir_enquiries')]);
+    p.innerHTML = `<div class="row between"><div><h1>Directory inbox</h1><p class="sub">Reports about profiles and contact requests sent to advocates (read only)</p></div></div>
+      <div class="card"><div class="row between"><div class="strong" style="margin-bottom:10px">Reports about profiles (${reports.length})</div><button class="btn sm" id="xr">Export CSV</button></div><div class="tscroll"><table><thead><tr><th>When</th><th>Profile</th><th>Reason</th><th>Details</th><th>Reporter</th></tr></thead><tbody>
+        ${reports.length ? reports.map(r => `<tr><td class="mono">${dt(r.created_at)}</td><td><div class="strong">${esc(r.name || r.application_id || 'General')}</div><div class="muted small mono">${esc(r.enr || '')}</div></td><td>${esc(r.reason)}</td><td class="small">${esc(r.details)}</td><td class="small">${esc(r.email)}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">No reports.</td></tr>'}</tbody></table></div></div>
+      <div class="card" style="margin-top:14px"><div class="row between"><div class="strong" style="margin-bottom:10px">Contact requests to advocates (${enquiries.length})</div><button class="btn sm" id="xe">Export CSV</button></div><div class="tscroll"><table><thead><tr><th>When</th><th>Advocate</th><th>From</th><th>About</th><th>Message</th><th>Replied</th></tr></thead><tbody>
+        ${enquiries.length ? enquiries.map(r => `<tr><td class="mono">${dt(r.created_at)}</td><td><div class="strong">${esc(r.advocate)}</div><div class="muted small mono">${esc(r.enr)}</div></td><td><div>${esc(r.name)}</div><div class="muted small">${esc(r.phone || r.email)}</div></td><td class="small">${esc(r.category)}</td><td class="small">${esc(r.message)}</td><td>${r.replied_at ? '<span class="chip c-good">Yes</span>' : '<span class="chip c-mut">No</span>'}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">No contact requests.</td></tr>'}</tbody></table></div></div>`;
+    p.querySelector('#xr').onclick = () => exportCsv('directory-reports', reports.map(r => ({ when: r.created_at, profile: r.name, enrolment: r.enr, reason: r.reason, details: r.details, reporter: r.email })));
+    p.querySelector('#xe').onclick = () => exportCsv('directory-enquiries', enquiries.map(r => ({ when: r.created_at, advocate: r.advocate, enrolment: r.enr, from: r.name, email: r.email, phone: r.phone, about: r.category, language: r.language, message: r.message, replied: r.replied_at || '' })));
+  };
+
   VIEWS.payments = async p => {
     const { payments, directory = [], attention = [], events = [] } = await api('payments');
     const st = x => x.status === 'paid' ? '<span class="chip c-good">Paid</span>' : x.status === 'refunded' ? '<span class="chip c-warn">Refunded</span>' : x.status === 'failed' ? `<span class="chip c-bad" title="${esc(x.failure_reason || '')}">Failed</span>` : '<span class="chip c-mut">Not paid</span>';
     const refundBtn = (kind, x) => x.status === 'paid' && x.amount_paise > 0 && /^pay_/.test(x.utr || '') ? `<button class="btn sm" data-refund="${esc(x.id)}" data-kind="${kind}">Refund</button>` : '';
-    p.innerHTML = `<h1>Payments</h1><p class="sub">Every plan checkout, paid through Razorpay</p>
+    p.innerHTML = `<div class="row between"><div><h1>Payments</h1><p class="sub">Every plan checkout, paid through Razorpay</p></div><button class="btn" id="xpay">Export CSV</button></div>
       <div class="card"><div class="strong" style="margin-bottom:10px">Orders</div><div class="tscroll"><table><thead><tr><th>Created</th><th>Firm</th><th>Plan</th><th class="num">Amount</th><th>Status</th><th>Coupon</th><th>Razorpay payment ID</th><th>Order</th><th></th></tr></thead><tbody>
         ${payments.length ? payments.map(x => `<tr><td class="mono">${dt(x.created_at)}</td><td>${esc(x.firm)}</td><td>${esc(x.plan)} <span class="muted small">${x.cycle === 'annual' ? 'annual' : 'monthly'}</span></td><td class="num strong">${rs(x.amount_paise)}</td><td>${st(x)}${x.confirmed_by ? ` <span class="muted small">by ${esc(x.confirmed_by)}</span>` : ''}</td><td>${esc(x.promo_code || '')}</td><td class="mono small">${esc(x.utr || '')}</td><td class="mono small muted">${esc(x.order_no || '')}</td><td>${refundBtn('plan', x)}</td></tr>`).join('') : '<tr><td colspan="9" class="empty">No payments yet.</td></tr>'}
       </tbody></table></div></div>
@@ -437,6 +464,7 @@
       `;
     if (attention.length) p.insertAdjacentHTML('afterbegin', `<div class="card" style="border-color:var(--warn);margin-bottom:14px"><div class="strong" style="margin-bottom:8px">Needs a person (${attention.length})</div><div class="muted small" style="margin-bottom:8px">Payments Razorpay reported that could not be applied on their own, for example a second payment for a profile that is already listed (refund it), or an amount that does not match our order.</div><div class="tscroll"><table><thead><tr><th>When</th><th>Event</th><th>Outcome</th><th>Payment</th><th class="num">Amount</th></tr></thead><tbody>${attention.map(e => `<tr><td class="mono">${dt(e.at)}</td><td>${esc(e.kind)}</td><td><span class="chip c-warn">${esc(e.outcome)}</span></td><td class="mono small">${esc(e.payment_id || '')}</td><td class="num">${e.amount_paise ? rs(e.amount_paise) : ''}</td></tr>`).join('')}</tbody></table></div></div>`);
     p.insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:10px">Razorpay events (latest ${events.length})</div><div class="tscroll"><table><thead><tr><th>When</th><th>Event</th><th>Outcome</th><th>Payment</th><th class="num">Amount</th></tr></thead><tbody>${events.length ? events.map(e => `<tr><td class="mono">${dt(e.at)}</td><td>${esc(e.kind)}</td><td>${esc(e.outcome)}</td><td class="mono small">${esc(e.payment_id || '')}</td><td class="num">${e.amount_paise ? rs(e.amount_paise) : ''}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">No Razorpay events yet. Add this project\'s razorpay function URL as a webhook in the Razorpay dashboard.</td></tr>'}</tbody></table></div></div>`);
+    p.querySelector('#xpay').onclick = () => exportCsv('payments', [...payments.map(x => ({ kind: 'plan', created: x.created_at, paid_at: x.paid_at, who: x.firm, item: x.plan + ' ' + x.cycle, amount_rupees: x.amount_paise / 100, status: x.status, coupon: x.promo_code || '', payment_id: x.utr || '', order: x.order_no || '' })), ...directory.map(x => ({ kind: 'directory', created: x.created_at, paid_at: x.paid_at, who: x.name, item: 'Directory listing ' + (x.enr || ''), amount_rupees: x.amount_paise / 100, status: x.status, coupon: x.promo_code || '', payment_id: x.utr || '', order: x.order_no || '' }))]);
     p.querySelectorAll('button[data-refund]').forEach(b => b.onclick = async () => {
       const reason = prompt('Refund this payment in full through Razorpay?\n\nA listing refund takes the profile down; a plan refund ends the plan. Type a reason to continue (it is kept in the activity log):');
       if (reason === null) return; if (reason.trim().length < 3) return toast('Write a reason for the refund.');
@@ -616,8 +644,10 @@
           ${inp('seller_name', 'Business name')}${inp('seller_address', 'Address')}<div class="two">${inp('seller_state_code', 'GST state code', '10 for Bihar')}${inp('seller_phone', 'Phone')}</div>
           <div class="two">${inp('seller_email', 'Support email', '', 'email')}${inp('seller_pan', 'PAN')}</div>${inp('seller_gstin', 'GSTIN (leave empty: no GST)')}</div>
       </div>
-      <div class="row" style="margin-top:14px;justify-content:space-between"><div class="muted small">Administrators: ${admins.map(esc).join(', ')}</div><div class="row"><span class="err" id="er"></span><button class="btn pri" id="sv">Save settings</button></div></div>`;
+      <div class="row" style="margin-top:14px;justify-content:space-between"><div class="muted small">Administrators: ${admins.map(a => esc(a) + ' <a href="#" data-rmadmin="' + esc(a) + '">remove</a>').join(', ')} · <a href="#" id="addadmin">add administrator</a></div><div class="row"><span class="err" id="er"></span><button class="btn pri" id="sv">Save settings</button></div></div>`;
     wireSettingsNav(p);
+    p.querySelector('#addadmin').onclick = async e => { e.preventDefault(); const em = (prompt('Email address of the new administrator (they must sign in with it; full access to this console):') || '').trim(); if (!em) return; try { await api('admins_add', { email: em }); toast('Administrator added.'); go('settings'); } catch (er) { toast(er.message); } };
+    p.querySelectorAll('[data-rmadmin]').forEach(a => a.onclick = async e => { e.preventDefault(); if (!confirm('Remove ' + a.dataset.rmadmin + ' as administrator?')) return; try { await api('admins_remove', { email: a.dataset.rmadmin }); toast('Administrator removed.'); go('settings'); } catch (er) { toast(er.message); } });
     p.querySelector('#sv').onclick = async () => { const out = {}; p.querySelectorAll('[data-k]').forEach(i => out[i.dataset.k] = i.type === 'checkbox' ? i.checked : i.value);
       try { await api('settings_save', { settings: out }); p.querySelector('#er').textContent = ''; toast('Settings saved'); } catch (e) { p.querySelector('#er').textContent = e.message; } };
   };

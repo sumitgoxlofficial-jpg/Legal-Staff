@@ -109,6 +109,7 @@ select t.a($q$not public.promo_claim('NOSUCH', null, '00000000-0000-0000-0000-00
 reset role;
 
 -- ===== 7. core app: owner row, firm profile, chat meeting cards =====
+update public.subscriptions set renews = current_date + 30 where firm_id = '11111111-1111-1111-1111-111111111111';
 insert into public.members (firm_id, user_id, email, name, role, status, is_owner) values ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-00000000000a', 'asha@example.in', 'Asha', 'Partner', 'Active', true), ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-00000000000b', 'bina@example.in', 'Bina', 'Associate', 'Active', false);
 set role authenticated; select t.as_user(:B, 'bina@example.in');
 select t.raises($q$update public.firms set name = 'Hijacked' where id = '11111111-1111-1111-1111-111111111111'$q$, '%Only the firm owner%', 'a member cannot rename the firm or change its GSTIN');
@@ -127,6 +128,80 @@ select t.raises($q$insert into public.chat_messages (firm_id, channel, body, kin
 select t.raises($q$insert into public.chat_messages (firm_id, channel, body, kind, data) values ('11111111-1111-1111-1111-111111111111', 'team', 'x', 'meeting', '{"link":"https://evil.example/meet.google.com/abc","start":"2026-12-01T10:00:00.000Z"}')$q$, '%chat_meeting_check%', 'a meeting card pointing at another site is rejected');
 select t.raises($q$insert into public.chat_messages (firm_id, channel, body, kind, data) values ('11111111-1111-1111-1111-111111111111', 'team', 'x', 'meeting', '{"link":"https://meet.google.com/abc-defg-hij"}')$q$, '%chat_meeting_check%', 'a meeting card without a start time is rejected');
 reset role;
+
+-- ===== 8. remaining audit items (migration 0046) =====
+insert into auth.users values ('00000000-0000-0000-0000-00000000000c', 'chitra@example.in', now());
+\set C '''00000000-0000-0000-0000-00000000000c'''
+create function t.codes() returns text[] language sql security definer as $$ select array_agg(code order by created_at) from public.partners $$;
+create function t.attr(a text) returns uuid language sql security definer as $$ select id from public.referral_attributions where application_id = a $$;
+create function t.pid(c text) returns uuid language sql security definer as $$ select id from public.partners where code = c $$;
+set role authenticated; select t.as_user(:C, 'chitra@example.in');
+select public.partner_apply('{"name":"Chitra Nair","mobile":"9876500002","state":"Kerala","district":"Kochi","city":"Kochi","category_key":"campus_ambassador","organisation":"NLU Kochi","accept_terms":true,"accept_privacy":true}');
+reset role;
+select t.a($q$array_length(t.codes(), 1) = 2$q$, 'fixture: two approved partners');
+
+-- 8a. first touch: the visitor opened partner 1's link first, then partner 2's; a listing typed with partner 2's code is still credited to partner 1
+set role anon; select t.as_user(null, null);
+select public.partner_track_click((t.codes())[1], 'ft-visitor-token-0001');
+select public.partner_track_click((t.codes())[2], 'ft-visitor-token-0001');
+reset role;
+set role authenticated; select t.as_user(:B, 'bina@example.in');
+insert into public.directory_applications (id, name, enr, council, year, city, email, mobile, user_id, referral_code, visitor_token) values ('APP-FT', 'Bina First', 'D/8888/2019', 'c', '2019', 'c', 'bina.ft@example.in', '9000000123', :B, (t.codes())[2], 'ft-visitor-token-0001');
+reset role;
+select t.a($q$(select p.code from public.referral_attributions r join public.partners p on p.id = r.partner_id where r.application_id = 'APP-FT') = (t.codes())[1]$q$, 'first touch: the partner whose link was opened first keeps the credit');
+select t.a($q$(select r.code from public.referral_attributions r where r.application_id = 'APP-FT') = (t.codes())[1]$q$, 'the attribution records the credited partner''s code, not the one typed');
+
+-- 8b. click flooding
+set role anon; select t.as_user(null, null);
+do $$ declare i int; begin for i in 1..430 loop perform public.partner_track_click((t.codes())[1], 'flood-token-' || lpad(i::text, 8, '0'), null, ''); end loop; end $$;
+reset role;
+select t.a($q$t.cnt('select count(*) from public.partner_referrals where visitor_token like ''flood-token-%''') <= 400$q$, 'one referral code cannot collect more than 400 clicks an hour whatever visitor tokens are used');
+select t.a($q$t.cnt('select count(*) from public.partner_referrals where visitor_token like ''flood-token-%''') > 300$q$, 'normal traffic below the limit is still recorded');
+
+-- 8c. KYC needs documents; an override also reverses an approved commission
+set role authenticated; select t.as_user(:O, 'owner@legalstaff.test');
+select t.raises($q$select public.admin_partner_update(t.pid((t.codes())[1]), '{"kyc_status":"verified"}'::jsonb)$q$, '%PAN and a bank proof%', 'KYC cannot be marked verified with no documents');
+reset role;
+insert into public.partner_documents (partner_id, user_id, kind, storage_path, file_name, size_bytes) select id, user_id, 'pan', 'x/pan.pdf', 'pan.pdf', 10 from public.partners where code = (t.codes())[1];
+insert into public.partner_documents (partner_id, user_id, kind, storage_path, file_name, size_bytes) select id, user_id, 'bank_proof', 'x/bank.pdf', 'bank.pdf', 10 from public.partners where code = (t.codes())[1];
+set role authenticated; select t.as_user(:O, 'owner@legalstaff.test');
+select t.ok($q$select public.admin_partner_update(t.pid((t.codes())[1]), '{"kyc_status":"verified"}'::jsonb)$q$, 'KYC can be verified once a PAN and a bank proof are on file');
+reset role;
+insert into public.partner_commissions (partner_id, attribution_id, application_id, category_key, amount_paise, status) select r.partner_id, r.id, 'APP-FT', r.category_key, 1500, 'approved' from public.referral_attributions r where r.application_id = 'APP-FT' on conflict (attribution_id) do update set status = 'approved';
+set role authenticated; select t.as_user(:O, 'owner@legalstaff.test');
+select t.ok($q$select public.admin_attribution_override(t.attr('APP-FT'), 'testing the override of an approved commission')$q$, 'a Super Admin can override an attribution');
+reset role;
+select t.a($q$(select status from public.partner_commissions where application_id = 'APP-FT') = 'rejected'$q$, 'overriding the attribution also rejects its approved commission');
+
+
+-- 8d. after a plan has ended, drafts and chat are read-only too; a firm that never had a plan is not locked
+insert into public.firms (id, name, city, address, created_by) values ('33333333-3333-3333-3333-333333333333', 'No-plan Firm', 'Delhi', 'x', :C);
+insert into public.members (firm_id, user_id, email, name, role, status, is_owner) values ('33333333-3333-3333-3333-333333333333', :C, 'chitra@example.in', 'Chitra', 'Partner', 'Active', true);
+set role authenticated; select t.as_user(:C, 'chitra@example.in');
+select t.ok($q$insert into public.user_state (user_id, firm_id, data) values ('00000000-0000-0000-0000-00000000000c', '33333333-3333-3333-3333-333333333333', '{"settings":{}}')$q$, 'a firm that has not started a plan can still save its settings (onboarding is not locked)');
+reset role;
+update public.subscriptions set renews = current_date - 5 where firm_id = '11111111-1111-1111-1111-111111111111';
+set role authenticated; select t.as_user(:A, 'asha@example.in');
+select t.a($q$(select public.firm_locked('11111111-1111-1111-1111-111111111111'))$q$, 'a firm whose plan has ended is locked');
+select t.raises($q$insert into public.user_state (user_id, firm_id, data) values ('00000000-0000-0000-0000-00000000000a', '11111111-1111-1111-1111-111111111111', '{}')$q$, '%row-level security%', 'after the plan ended, drafts and notes cannot be written');
+select t.raises($q$insert into public.chat_messages (firm_id, channel, body) values ('11111111-1111-1111-1111-111111111111', 'team', 'still chatting')$q$, '%row-level security%', 'after the plan ended, new chat messages cannot be sent');
+select t.a($q$(select count(*) from public.chat_messages where firm_id = '11111111-1111-1111-1111-111111111111') >= 1$q$, 'after the plan ended, existing chat messages can still be read');
+reset role;
+update public.subscriptions set renews = current_date + 30 where firm_id = '11111111-1111-1111-1111-111111111111';
+set role authenticated; select t.as_user(:A, 'asha@example.in');
+select t.ok($q$insert into public.user_state (user_id, firm_id, data) values ('00000000-0000-0000-0000-00000000000a', '11111111-1111-1111-1111-111111111111', '{}')$q$, 'with a running plan, drafts and notes are written as usual');
+reset role;
+
+-- 8e. "Delete firm data" also clears team chat and court-case records
+insert into public.legal_cases (firm_id, record_id, cnr) values ('11111111-1111-1111-1111-111111111111', 'c1', 'DLHC010000012024');
+set role authenticated; select t.as_user(:A, 'asha@example.in');
+select t.ok($q$select public.erase_firm_data('11111111-1111-1111-1111-111111111111')$q$, 'the owner can delete the firm data');
+reset role;
+select t.a($q$t.cnt('select count(*) from public.chat_messages where firm_id = ''11111111-1111-1111-1111-111111111111''') = 0$q$, 'team chat is gone after delete firm data');
+select t.a($q$t.cnt('select count(*) from public.legal_cases where firm_id = ''11111111-1111-1111-1111-111111111111''') = 0$q$, 'court-case records are gone after delete firm data');
+
+select t.a($q$exists (select 1 from information_schema.columns where table_name = 'directory_enquiries' and column_name = 'notified_at')$q$, 'enquiries carry a notified_at marker for the advocate email');
+select t.a($q$t.cnt('select count(*) from public.directory_enquiries where notified_at is null') > 0$q$, 'enquiries created after the migration are waiting to be announced');
 
 \echo
 select 'RESULT', count(*) filter (where ok), count(*) filter (where not ok) from t.r;
