@@ -1,6 +1,7 @@
 // Super admin console API (admin.html). Every call: a signed-in user whose verified email is in public.super_admins.
 // actions: overview · firms · firm_update · payments · coupons · coupon_save · coupon_delete · support · support_reply ·
-//          support_status · expenses · expense_add · expense_delete · settings · settings_save · refund · audit_log · directory_counts · directory_get
+//          support_status · expenses · expense_add · expense_delete · settings · settings_save · refund · audit_log · directory_counts · directory_get ·
+//          firm_members · member_status · admins_add · admins_remove · dir_reports · dir_enquiries
 // Every change made here is written to admin_audit_log (append-only): who, what, which record, the details.
 // Deploy with JWT verification off; it checks every caller itself.
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -326,6 +327,46 @@ Deno.serve(async (req: Request) => {
         } catch (e) { console.error("directory email", e); }
       }
       return json({ ok: true, emailed });
+    }
+
+    // ---- team members: suspend or reactivate one person in a firm (never the owner) ----
+    if (action === "firm_members") {
+      const { data } = await admin.from("members").select("id,name,email,role,status,is_owner,user_id").eq("firm_id", String(body.firm_id ?? "")).order("is_owner", { ascending: false });
+      return json({ members: data ?? [] });
+    }
+    if (action === "member_status") {
+      const status = String(body.status ?? ""); if (!["Active", "Suspended"].includes(status)) throw new Fail("Choose Active or Suspended.");
+      const { data: m } = await admin.from("members").select("id,email,is_owner,status,firm_id").eq("id", String(body.member_id ?? "")).maybeSingle();
+      if (!m) throw new Fail("Member not found.", 404);
+      if (m.is_owner) throw new Fail("A firm owner cannot be suspended here. End the firm's plan instead.");
+      const { error } = await admin.from("members").update({ status }).eq("id", m.id); must(error, "The member could not be updated.");
+      await audit("member." + status.toLowerCase(), m.firm_id, { member: m.email, before: m.status });
+      return json({ ok: true });
+    }
+    // ---- super admins: add and remove, never the last one and never yourself ----
+    if (action === "admins_add") {
+      const e = String(body.email ?? "").trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Fail("That email does not look right.");
+      const { error } = await admin.from("super_admins").upsert({ email: e }, { onConflict: "email" }); must(error, "The administrator could not be added.");
+      await audit("admin.add", e); return json({ ok: true });
+    }
+    if (action === "admins_remove") {
+      const e = String(body.email ?? "").trim().toLowerCase();
+      if (e === email) throw new Fail("You cannot remove your own access. Ask another administrator.");
+      const { data: all2 } = await admin.from("super_admins").select("email");
+      if ((all2 ?? []).length <= 1) throw new Fail("There must always be at least one administrator.");
+      if (!(all2 ?? []).some((a: any) => a.email === e)) throw new Fail("That person is not an administrator.", 404);
+      const { error } = await admin.from("super_admins").delete().eq("email", e); must(error, "The administrator could not be removed.");
+      await audit("admin.remove", e); return json({ ok: true });
+    }
+    // ---- directory inbox: reports about profiles and contact requests sent to advocates (read only) ----
+    if (action === "dir_reports") {
+      const { data } = await admin.from("profile_reports").select("id,application_id,reason,details,email,created_at,directory_applications(name,enr)").order("created_at", { ascending: false }).limit(300);
+      return json({ reports: (data ?? []).map((r: any) => ({ ...r, name: r.directory_applications?.name ?? "", enr: r.directory_applications?.enr ?? "", directory_applications: undefined })) });
+    }
+    if (action === "dir_enquiries") {
+      const { data } = await admin.from("directory_enquiries").select("id,application_id,name,email,phone,category,language,message,created_at,replied_at,directory_applications(name,enr)").order("created_at", { ascending: false }).limit(300);
+      return json({ enquiries: (data ?? []).map((r: any) => ({ ...r, advocate: r.directory_applications?.name ?? "", enr: r.directory_applications?.enr ?? "", directory_applications: undefined })) });
     }
 
     if (action === "settings") { const { data } = await admin.from("pay_settings").select(KEYS.join(",")).eq("id", 1).single(); return json({ settings: data, admins: ((await admin.from("super_admins").select("email")).data ?? []).map((a: any) => a.email) }); }

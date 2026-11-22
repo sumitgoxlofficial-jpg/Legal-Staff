@@ -81,3 +81,24 @@ court-logic 35 · court-engine 37 · notify 18 · whatsapp-logic 21 · whatsapp-
 ## 8. Production readiness
 
 **READY WITH CONFIGURATION REQUIRED** for the code in this branch, and **NOT READY for a "fully secure SaaS" claim** until the decisions in §5 (a) and (b) are made. Before merge/deploy: apply 0044 and 0045 (0044 changes who counts as platform admin; confirm the one existing `platform_admins` user is the owner, who is a Super Admin by email), set the webhook secret, deploy `razorpay`, `admin`, `notify`, `support-ai`, run one Razorpay test-mode payment + refund, and decide whether to turn on the now-working support AI replies.
+
+## 9. Round 2 (22 Nov): the "no decision needed" items
+
+Fixed and tested (migration `0046`, `functions/admin`, `functions/directory-verify`, `api/*`, `admin.html`):
+
+| Item | Fix | Test |
+|---|---|---|
+| Partner click flooding | Per-code limit of 400 clicks an hour on top of the per-visitor limit | hardening-db |
+| First-touch rule only in the browser | The server now credits the partner whose link the visitor opened first inside the window (`attribution_rule = first_touch`, the setting that was stored but never read) | hardening-db |
+| Override left an approved commission payable | Override also rejects approved/payable commissions; refused while the commission sits in a payout | hardening-db |
+| KYC "verified" was a bare flag | Needs a PAN and a bank proof on file | hardening-db |
+| Read-only after plan end covered only records | Drafts/notes (`user_state`), chat messages and chat files are read-only once a plan has ended; a firm that never started a plan is not locked (onboarding unaffected) | hardening-db |
+| "Delete firm data" left chat and court cases | Also clears team chat and court-case records | hardening-db |
+| Reports and enquiries had no admin view | Admin "Directory inbox" (read only, CSV export) | admin-engine |
+| Advocates were not told about contact requests | The directory-verify sweep emails names and topics once per request (no phone, no message text); existing requests are marked as told so nothing old is sent | directory-notify 6 |
+| No shareable profile pages | `/advocate/:id` (Vercel function): title, description, canonical, Open Graph, JSON-LD, escaped text; profiles whose documents are not checked are `noindex`; `/advocates-sitemap.xml` lists checked profiles only | advocate-page 7 |
+| Admin: no user suspend, super-admin management or exports | Team suspend/reactivate (never the owner), add/remove administrators (never yourself or the last one), CSV export for firms, payments and the directory inbox; all audited | admin-engine 18 |
+
+Still open from §5: the unverified-listing decision, in-firm roles, GST on invoices, proration/cancellation, optimistic concurrency, CSP, a full account-deletion flow (the auth user and Drive files), server-side directory pagination (profile photos still ship in the one directory call), a per-profile "copy link" button in the directory UI (the `/advocate/:id` pages exist), pricing editor and banners.
+
+To go live: apply `0046`, deploy `admin` and `directory-verify`, and let Vercel build the `api/` folder (set `SUPABASE_URL`, `SUPABASE_ANON_KEY` only if the project changes; the defaults are the public values in `config.js`).

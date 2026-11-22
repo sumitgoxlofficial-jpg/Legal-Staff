@@ -139,6 +139,15 @@ ${lines.map((l) => `<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#0A0A0
 <p style="margin:20px 0 0"><a href="${url}" style="display:inline-block;background:#0A0A0A;color:#fff;text-decoration:none;font:600 15px/1 ${FONT};padding:14px 22px;border-radius:10px">Upload my documents</a></p></td></tr></table></td></tr></table></body></html>`;
   return { subject, text, html };
 }
+/** "You have new contact requests": names and topics only, never phone numbers or the message text; the advocate reads those in the dashboard. */
+function enquiryEmail(name: string, items: any[]) {
+  const first = (name || "").split(/\s+/)[0] || "", n = items.length, link = SITE + "/directory#status";
+  const lines = items.slice(0, 5).map((e: any) => "- " + String(e.name || "Someone").slice(0, 60) + (e.category ? " (" + String(e.category).slice(0, 60) + ")" : ""));
+  const subject = n === 1 ? "You have a new contact request on Legal Staff Directory" : `You have ${n} new contact requests on Legal Staff Directory`;
+  const text = `Hello ${first},\n\n${n === 1 ? "Someone" : n + " people"} contacted you through your Legal Staff Directory profile:\n${lines.join("\n")}${n > 5 ? "\n- and " + (n - 5) + " more" : ""}\n\nOpen your dashboard to read the request and reply: ${link}\n\nLegal Staff Directory`;
+  const html = `<!doctype html><html><body style="font:15px/1.6 system-ui,sans-serif;color:#0A0A0A"><p>Hello${first ? " " + esc(first) : ""},</p><p>${n === 1 ? "Someone" : n + " people"} contacted you through your Legal Staff Directory profile:</p><ul>${items.slice(0, 5).map((e: any) => `<li>${esc(String(e.name || "Someone").slice(0, 60))}${e.category ? " (" + esc(String(e.category).slice(0, 60)) + ")" : ""}</li>`).join("")}${n > 5 ? `<li>and ${n - 5} more</li>` : ""}</ul><p><a href="${link}" style="display:inline-block;background:#0A0A0A;color:#fff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:10px">Open my dashboard</a></p><p style="color:#6B6B6B;font-size:13px">Phone numbers and messages are shown only in your dashboard.</p></body></html>`;
+  return { subject, text, html };
+}
 const hasDocs = (a: any) => { const d: any[] = Array.isArray(a.details?.documents) ? a.details.documents : []; const ok = (k: string) => d.some((x) => x.kind === k && (x.preview || x.path)); return ok("cert") && ok("id"); };
 async function sendEmail(to: string, subject: string, text: string, html: string) {
   const key = Deno.env.get("RESEND_API_KEY"), from = Deno.env.get("EMAIL_FROM"); if (!key || !from) return false;
@@ -201,7 +210,20 @@ Deno.serve(async (req: Request) => {
       for (const a of (pend ?? []).filter((x: any) => !hasDocs(x) && x.email && (x.doc_reminders ?? 0) < 3 && Date.parse(x.created_at) < Date.now() - 864e5 && (!x.last_reminder_at || Date.parse(x.last_reminder_at) < Date.now() - 3 * 864e5)).slice(0, 10)) {
         try { const m = reminderEmail(a.name, a.doc_reminders ?? 0); if (await sendEmail(a.email, m.subject, m.text, m.html)) { await admin.from("directory_applications").update({ doc_reminders: (a.doc_reminders ?? 0) + 1, last_reminder_at: new Date().toISOString() }).eq("id", a.id); reminded++; } } catch (e) { console.error("reminder", e); }
       }
-      return json({ checked: ready.length, done, reminded });
+      // Tell advocates about new contact requests (once each): the dashboard shows the details, the email only says someone wrote.
+      let notified = 0;
+      try {
+        const { data: enq } = await admin.from("directory_enquiries").select("id,application_id,name,category,message,created_at").is("notified_at", null).gte("created_at", new Date(Date.now() - 2 * 864e5).toISOString()).order("created_at").limit(100);
+        const byApp: Record<string, any[]> = {}; for (const e of enq ?? []) (byApp[e.application_id] ??= []).push(e);
+        for (const [appId, items] of Object.entries(byApp).slice(0, 15)) {
+          const { data: ap } = await admin.from("directory_applications").select("id,name,email,paid_at,status").eq("id", appId).maybeSingle();
+          const ids = items.map((e: any) => e.id);
+          if (!ap || !ap.email || !ap.paid_at || ap.status === "rejected") { await admin.from("directory_enquiries").update({ notified_at: new Date().toISOString() }).in("id", ids); continue; }   // nobody to tell
+          const m = enquiryEmail(ap.name, items);
+          if (await sendEmail(ap.email, m.subject, m.text, m.html)) { await admin.from("directory_enquiries").update({ notified_at: new Date().toISOString() }).in("id", ids); notified += items.length; }
+        }
+      } catch (e) { console.error("enquiry notices", e); }
+      return json({ checked: ready.length, done, reminded, notified });
     }
     const asUser = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
     const { data: { user } } = await asUser.auth.getUser();

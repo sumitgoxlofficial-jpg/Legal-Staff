@@ -57,5 +57,21 @@ await t('an unpaid payment cannot be refunded', async () => { fresh(); paidPlan(
 await t('a free / promo order (no Razorpay payment) cannot be refunded', async () => { fresh(); paidPlan({ amount_paise: 0, gateway_payment_id: null, utr: null }); eq((await call('admin', { action: 'refund', kind: 'plan', id: 'p1' })).s, 400); eq(rz.refunds.length, 0); });
 await t('if Razorpay refuses, nothing is changed here and the reason is shown', async () => { fresh(); paidPlan(); rz.mode = 'refuse'; const r = await call('admin', { action: 'refund', kind: 'plan', id: 'p1' }); eq(r.s, 502); ok(/already/.test(r.error)); eq(db.rpcCalls.filter(x => x.name === 'apply_refund').length, 0); eq(db.tables.payments[0].status, 'paid'); });
 await t('a directory listing fee refund goes through the same path', async () => { fresh(); db.tables.directory_orders = [{ id: 'o1', status: 'paid', amount_paise: 4900, utr: 'pay_DDD' }]; const r = await call('admin', { action: 'refund', kind: 'directory', id: 'o1', reason: 'duplicate' }); eq(r.s, 200); eq(rz.refunds[0].body.amount, 4900); });
+
+console.log('team, administrators, inbox');
+await t('suspending a team member works, is audited, and never touches the owner', async () => { fresh(); db.tables.members = [{ id: 'm1', firm_id: 'f1', email: 'o@x.in', is_owner: true, status: 'Active' }, { id: 'm2', firm_id: 'f1', email: 'j@x.in', is_owner: false, status: 'Active' }];
+  eq((await call('admin', { action: 'member_status', member_id: 'm1', status: 'Suspended' })).s, 400); eq(db.tables.members[0].status, 'Active');
+  eq((await call('admin', { action: 'member_status', member_id: 'm2', status: 'Suspended' })).s, 200); eq(db.tables.members[1].status, 'Suspended'); eq(db.tables.admin_audit_log.at(-1).action, 'member.suspended');
+  eq((await call('admin', { action: 'member_status', member_id: 'm2', status: 'Banned' })).s, 400); eq((await call('admin', { action: 'member_status', member_id: 'nope', status: 'Active' })).s, 404); });
+await t('a normal user cannot change members or administrators', async () => { fresh(); for (const a of ['member_status', 'admins_add', 'admins_remove', 'firm_members', 'dir_reports', 'dir_enquiries']) eq((await call('user', { action: a })).s, 403, a); });
+await t('administrators: add (validated, audited), cannot remove yourself or the last one, can remove another', async () => { fresh();
+  eq((await call('admin', { action: 'admins_add', email: 'not-an-email' })).s, 400);
+  eq((await call('admin', { action: 'admins_remove', email: 'owner@legalstaff.test' })).s, 400);   // yourself
+  eq((await call('admin', { action: 'admins_add', email: ' Second@Example.in ' })).s, 200); eq(db.tables.super_admins.map(a => a.email).sort(), ['owner@legalstaff.test', 'second@example.in']);
+  eq((await call('admin', { action: 'admins_remove', email: 'second@example.in' })).s, 200); eq(db.tables.super_admins.map(a => a.email), ['owner@legalstaff.test']);
+  eq((await call('admin', { action: 'admins_remove', email: 'ghost@example.in' })).s, 400);   // last administrator is protected before anything else
+  eq(db.tables.admin_audit_log.map(x => x.action), ['admin.add', 'admin.remove']); });
+await t('the directory inbox lists reports and enquiries', async () => { fresh(); db.tables.profile_reports = [{ id: 1, reason: 'spam' }]; db.tables.directory_enquiries = [{ id: 1, name: 'C', message: 'hi' }];
+  const a = await call('admin', { action: 'dir_reports' }), b = await call('admin', { action: 'dir_enquiries' }); eq([a.s, a.reports.length, b.s, b.enquiries.length], [200, 1, 200, 1]); });
 globalThis.fetch = realFetch;
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

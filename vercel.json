@@ -3,6 +3,14 @@
   "trailingSlash": false,
   "rewrites": [
     {
+      "source": "/advocate/:id",
+      "destination": "/api/advocate?id=:id"
+    },
+    {
+      "source": "/advocates-sitemap.xml",
+      "destination": "/api/advocates-sitemap"
+    },
+    {
       "source": "/api/whatsapp/:path*",
       "destination": "https://ihbbfgzzbpxznbpspyam.supabase.co/functions/v1/whatsapp/:path*"
     }
