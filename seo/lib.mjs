@@ -124,7 +124,7 @@ export function header(active = '') {
   const featItems = features.map(f => item(`/features/${f.slug}`, f.icon, f.navLabel, f.navHint)).join('');
   const courtItems = TOP_COURTS.map(sl => courts.find(c => c.slug === sl)).filter(Boolean).map(c => `<a href="/courts/${c.slug}" class="nav-dd-item nav-dd-plain"><span class="nav-dd-ic">${icon('gavel', 18)}</span><span><b>${esc(c.name)}</b></span></a>`).join('') + `<a href="/courts" class="nav-dd-item nav-dd-plain"><span class="nav-dd-ic">${icon('arrow', 18)}</span><span><b>All courts &amp; tribunals</b></span></a>`;
   const toolItems = tools.map(t => item(`/tools/${t.slug}`, t.icon, t.navLabel, t.navHint)).join('');
-  const cmpItems = comparisons.map(c => item(`/compare/${c.slug}`, 'scale', c.navLabel, c.navHint)).join('');
+  const cmpItems = comparisons.map(c => item(`/compare/${c.slug}`, 'scale', c.navLabel, c.navHint)).join('') + item('/switch-to-legal-staff', 'arrow', 'Switch to Legal Staff', 'Bring your cases, clients and files from other software');
   const dd = (key, label, items, wide) => `<div class="nav-dd${active === key ? ' is-active' : ''}"><button class="nav-link nav-dd-btn" type="button" aria-expanded="false">${label}${icon('chevron', 14)}</button><div class="nav-dd-panel${wide ? ' wide' : ''}" role="menu">${items}</div></div>`;
   return `<a class="skip" href="#main">Skip to content</a>
 <header class="site-header" id="top">
@@ -148,7 +148,7 @@ export function header(active = '') {
       <p class="mn-h">Features</p>${features.map(f => `<a href="/features/${f.slug}">${esc(f.navLabel)}</a>`).join('')}
       <p class="mn-h">Courts</p>${TOP_COURTS.slice(0, 6).map(sl => courts.find(c => c.slug === sl)).filter(Boolean).map(c => `<a href="/courts/${c.slug}">${esc(c.name)}</a>`).join('')}<a href="/courts">All courts &amp; tribunals</a>
       <p class="mn-h">Free advocate tools</p>${tools.map(t => `<a href="/tools/${t.slug}">${esc(t.navLabel)}</a>`).join('')}
-      <p class="mn-h">More</p>${comparisons.map(c => `<a href="/compare/${c.slug}">${esc(c.navLabel)}</a>`).join('')}<a href="/blog">Blog</a><a href="/directory">Find an advocate</a><a href="/app">Sign in</a>
+      <p class="mn-h">More</p>${comparisons.map(c => `<a href="/compare/${c.slug}">${esc(c.navLabel)}</a>`).join('')}<a href="/switch-to-legal-staff">Switch to Legal Staff</a><a href="/blog">Blog</a><a href="/directory">Find an advocate</a><a href="/app">Sign in</a>
       <a class="btn btn-light" href="/#pricing">Start free</a>
       <button class="btn btn-ghost-light" type="button" data-book="Mobile menu" style="margin-top:8px;width:100%">Book a demo</button>
     </div>
@@ -168,7 +168,7 @@ export function footer() {
         <a class="btn btn-light btn-sm" href="/#pricing">Start free</a></div>
       ${col('Features', features.map(f => [`/features/${f.slug}`, f.navLabel]))}
       ${col('Free advocate tools', [...tools.map(t => [`/tools/${t.slug}`, t.navLabel]), ['/blog', 'Blog & guides']])}
-      ${col('Compare', comparisons.map(c => [`/compare/${c.slug}`, c.navLabel]))}
+      ${col('Compare', [...comparisons.map(c => [`/compare/${c.slug}`, c.navLabel]), ['/switch-to-legal-staff', 'Switch to Legal Staff']])}
       ${col('Guides by topic', pillars.map(p => [`/blog#${p.id}`, p.name]))}
     </div>
     <div class="f-cities">
@@ -242,6 +242,7 @@ ${app ? '' : bookingModal()}
 ${app ? '' : '<script src="/static/site.js" defer></script>'}
 <script src="/static/consent.js" defer></script>
 ${scripts.filter(s => s !== '/static/consent.js').map(s => `<script src="${s}" defer></script>`).join('\n')}
+${app ? '' : '<script src="/static/ambient.js" defer></script>'}
 </body>
 </html>
 `;

@@ -79,9 +79,23 @@ await t('Excel: shared and inline strings, rich text, gaps between cells, date s
   assert.equal(I.guessKind(files[1].rows[0], files[1].name), 'clients');
   const m = I.guessMap('cases', files[0].rows[0]); assert.equal(m.next, 3);
 });
-await t('Old .xls and Legal Staff backups are refused with a clear message', async () => {
-  await assert.rejects(I.readFile({ name: 'diary.xls' }), /save it as \.xlsx or CSV/);
+await t('Old Excel (.xls): every cell type, Hindi text, several sheets, small and large workbooks (fixtures made with xlwt)', async () => {
+  const fx = f => readFileSync(new URL('./fixtures/' + f, import.meta.url));
+  const small = await I.readFile({ name: 'diary.xls', arrayBuffer: async () => fx('small.xls') });
+  assert.deepEqual(small.map(s => s.name), ['diary.xls · Matters', 'diary.xls · Clients & Contacts']);   // the empty sheet is dropped
+  assert.deepEqual(small[0].rows, [['Matter Name', 'Case No.', 'NDOH', 'Fee', 'Mobile', 'Done', 'Formula'], ['Sharma v. Union of India', 'W.P.(C) 55/2024', '46767', '25000.5', '9876543210', 'TRUE'], ['राम कुमार बनाम राज्य', 'CS 12/2025', '', '100', '12', '', '5']]);
+  assert.equal(I.date(small[0].rows[1][2]), '2028-01-15');
+  assert.equal(I.guessKind(small[1].rows[0], small[1].name), 'clients');
+  // 700 rows: the shared-string table is split across CONTINUE records, some strings in the middle of one
+  const rows = I.parseXls(fx('large.xls'))[0].rows;
+  assert.equal(rows.length, 700);
+  assert.deepEqual(rows[699], ['Client 0699 ' + 'x'.repeat(699 % 37), 'टिप्पणी 699 '.repeat(1 + 699 % 5)]);
+  rows.slice(1).forEach((r, i) => { const n = i + 1; assert.equal(r[0], 'Client ' + String(n).padStart(4, '0') + ' ' + 'x'.repeat(n % 37)); assert.equal(r[1], n % 3 === 0 ? ('टिप्पणी ' + n + ' ').repeat(1 + n % 5) : 'note ' + n); });
+});
+await t('Unreadable files and Legal Staff backups are refused with a clear message', async () => {
+  await assert.rejects(I.readFile({ name: 'diary.xls', arrayBuffer: async () => new TextEncoder().encode('not really excel').buffer }), /not an Excel 97–2003/);
   await assert.rejects(I.readFile({ name: 'b.json', text: async () => JSON.stringify({ v: 2, cases: [] }) }), /Restore/);
+  assert.equal(I.time('46767.4375'), '10:30');
 });
 await t('JSON exports: an object of arrays becomes one table per array', () => {
   const ts = I.fromJson('export.json', { matters: [{ title: 'A v. B', number: 'CS 1/2025', court: { name: 'x' } }], contacts: [{ name: 'A' }], meta: 'x' });
@@ -136,5 +150,87 @@ await t('Rows: a case with only a CNR or only a number still imports; missing fi
 });
 await t('Templates read back as the kind they are for, with every column matched', () => {
   for (const k of I.ORDER) { const head = I.TEMPLATE[k][0]; assert.equal(I.guessKind(head, 'legal-staff-' + k + '-template.csv'), k); assert.equal(Object.keys(I.guessMap(k, head)).length, head.length, k); }
+});
+
+await t('Undo: removes what one import added, keeps hand-made work, refuses when a hand-made invoice depends on it', () => {
+  const d = Object.assign(db(), { orders: [], docs: [], deadlines: [], lims: [], log: [] });
+  d.clients.push({ id: 'old', name: 'Meena Devi', phone: '' });
+  const T = (kind, rows) => ({ kind, map: I.guessMap(kind, rows[0]), rows: rows.slice(1) });
+  I.apply(d, [T('cases', [['Title', 'Case No', 'Client', 'Next date'], ['Kumar v State', 'CS 1/2025', 'R. Kumar', '15/01/2027'], ['Devi v Bank', 'OA 2/2025', 'Meena Devi', '']]), T('clients', [['Name', 'Mobile'], ['Meena Devi', '9876543210'], ['Lone Client', '9000000000']])], Object.assign({}, opts, { importId: 'impA' }));
+  I.apply(d, [T('tasks', [['Task', 'Case'], ['Other run task', 'CS 1/2025']])], Object.assign({}, opts, { importId: 'impB' }));
+  const kumar = d.cases.find(c => c.no === 'CS 1/2025'), devi = d.cases.find(c => c.no === 'OA 2/2025');
+  // work done by hand after the import
+  d.hearings.push({ id: 'hand-h', caseId: kumar.id, date: '2027-02-01' });
+  d.orders.push({ id: 'o1', caseId: kumar.id }); d.docs.push({ id: 'od', caseId: kumar.id, orderId: 'o1', file: 'o.txt' }, { id: 'hd', caseId: kumar.id, file: 'brief.pdf' });
+  d.cases.push({ id: 'hand-c', no: 'X/1', title: 'Hand case', status: 'active', clientId: d.clients.find(c => c.name === 'R. Kumar').id });
+  d.invoices.push({ id: 'inv', no: 'INV-1', caseId: devi.id, clientId: 'old' });
+  const list = Object.fromEntries(I.imports(d).map(x => [x.id, x.counts]));
+  assert.deepEqual(list, { impA: { cases: 2, clients: 2, hearings: 1 }, impB: { tasks: 1 } });
+  assert.match(I.undoImport(d, 'impA').blocked, /Invoice INV-1/);
+  assert.equal(d.cases.length, 3);                                   // nothing removed by a refused undo
+  d.invoices = [];
+  const r = I.undoImport(d, 'impA');
+  assert.deepEqual(d.cases.map(c => c.id), ['hand-c']);
+  assert.equal(d.hearings.length, 0); assert.equal(d.orders.length, 0);
+  assert.deepEqual(r.files.map(f => f.id), ['od']);                  // the order's text record goes with its case
+  assert.equal(d.docs.find(x => x.id === 'hd').caseId, '');          // the hand-uploaded brief stays, unlinked
+  assert.equal(d.tasks[0].caseId, '');                               // the other import's task stays, unlinked
+  assert.equal(r.kept, 1);                                           // R. Kumar is used by the hand-made case
+  assert.deepEqual(d.clients.map(c => c.name).sort(), ['Meena Devi', 'R. Kumar']);
+  assert.equal(d.clients.find(c => c.id === 'old').phone, '9876543210');
+  assert.deepEqual(I.imports(d).map(x => x.id), ['impB']);
+});
+await t('Documents: matched to a case by CNR, number, file number or title in the name or folder', () => {
+  const cases = [{ id: 'a', cnr: 'BRHC010012342025', no: 'CWJC 1234/2025', title: 'Ramesh Kumar v. State of Bihar' }, { id: 'b', no: 'CS 12/2025', fileNo: 'F-101', title: 'Sharma v. Union of India' }, { id: 'c', no: 'CS 1/2025', title: 'A v B' }];
+  assert.equal(I.matchDoc('Clients/CWJC_1234_2025/order 12.03.2025.pdf', cases), 'a');
+  assert.equal(I.matchDoc('BRHC010012342025 - reply.pdf', cases), 'a');
+  assert.equal(I.matchDoc('Old cases/Sharma vs Union of India/plaint.docx', cases), 'b');
+  assert.equal(I.matchDoc('F101 vakalatnama.pdf', cases), 'b');
+  assert.equal(I.matchDoc('CS 12-2025 evidence.pdf', cases), 'b');     // the longer number wins over CS 1/2025
+  assert.equal(I.matchDoc('misc/letterhead.png', cases), '');
+  assert.equal(I.docType('Order dated 12.03.2025.pdf'), 'Court order'); assert.equal(I.docType('Written Statement final.docx'), 'Pleading'); assert.equal(I.docType('notice to client.pdf'), 'Correspondence'); assert.equal(I.docType('scan001.jpg'), 'Other');
+});
+await t('Documents: a ZIP is unpacked, folders kept in the path, system files skipped', async () => {
+  const z = zip({ 'CS 12-2025/order.pdf': '%PDF-1.4 test', 'CS 12-2025/': '', '__MACOSX/._order.pdf': 'x', 'notes.txt': 'hello', '.DS_Store': 'x' });
+  const { out, bad } = await I.zipEntries(z, 'old-files.zip');
+  assert.deepEqual(out.map(x => x.path), ['old-files/CS 12-2025/order.pdf', 'old-files/notes.txt']);
+  assert.equal(out[0].file.type, 'application/pdf'); assert.equal(await out[1].file.text(), 'hello'); assert.deepEqual(bad, []);
+});
+
+await t('Presets: Clio, MyCase and PracticePanther column names, first and last names, date-time columns', () => {
+  const matters = ['Matter Number', 'Description', 'Client', 'Responsible Attorney', 'Status', 'Open Date', 'Practice Area'];
+  const m = I.guessMap('cases', matters, 'clio');
+  assert.deepEqual([m.no, m.title, m.client, m.team, m.stage, m.filed, m.notes], [0, 1, 2, 3, 4, 5, 6]);
+  const ev = ['Summary', 'Start', 'End', 'Matter', 'Location'], e = I.guessMap('hearings', ev, 'clio');
+  assert.deepEqual([e.purpose, e.date, e.time, e.case, e.court], [0, 1, 1, 3, 4]);
+  const contacts = ['First Name', 'Last Name', 'Email', 'Mobile Phone', 'City'], c = I.guessMap('clients', contacts, 'mycase');
+  assert.deepEqual([c.first, c.last, c.email, c.phone, c.city], [0, 1, 2, 3, 4]);
+  assert.equal(I.readRow('clients', c, ['Ramesh', 'Kumar', 'r@example.com', '98765 43210', 'Patna']).v.name, 'Ramesh Kumar');
+  assert.equal(I.readRow('clients', c, ['', '', '', '', '']).err, 'Missing client name');
+  // without a preset, general names still find first/last names
+  assert.deepEqual([I.guessMap('clients', ['First Name', 'Surname']).first, I.guessMap('clients', ['First Name', 'Surname']).last], [0, 1]);
+  assert.equal(I.guessMap('cases', ['Matter Name', 'Matter Number', 'Account', 'Assigned To'], 'practicepanther').client, 2);
+  assert.equal(I.time('2027-01-15 14:30:00'), '14:30'); assert.equal(I.time('01/15/2027 2:30 PM'), '14:30'); assert.equal(I.time('2027-01-15T09:05:00.000Z'), '09:05'); assert.equal(I.time('2027-01-15'), '');
+});
+await t('Dates: a column that is month first is read month first; Indian day-first stays the default', () => {
+  const map = { case: 0, date: 1 };
+  assert.equal(I.monthFirst('hearings', map, [['x', '01/15/2027'], ['x', '03/04/2027']]), true);
+  assert.equal(I.monthFirst('hearings', map, [['x', '15/01/2027'], ['x', '03/04/2027']]), false);
+  assert.equal(I.monthFirst('hearings', map, [['x', '03/04/2027']]), false);
+  const d = Object.assign(db(), {}); d.cases.push({ id: 'k', no: 'CS 1/2025', title: 'K', status: 'active' });
+  I.apply(d, [{ kind: 'hearings', map, rows: [['CS 1/2025', '01/15/2027'], ['CS 1/2025', '03/04/2027']] }], opts);
+  assert.deepEqual(d.hearings.map(h => h.date), ['2027-01-15', '2027-03-04']);
+  const d2 = db(); d2.cases.push({ id: 'k', no: 'CS 1/2025', title: 'K', status: 'active' });
+  I.apply(d2, [{ kind: 'hearings', map, rows: [['CS 1/2025', '03/04/2027']] }], opts);
+  assert.equal(d2.hearings[0].date, '2027-04-03');
+});
+await t('Remembered matching: a file with the same columns gets the matching made by hand last time', () => {
+  const store = {}; globalThis.localStorage = { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); } };
+  const head = ['Party', 'Reg', 'Forum'];
+  assert.equal(I.savedMap('cases', head), null);
+  I.saveMap('cases', head, { title: 0, no: 1, court: 2 });
+  assert.deepEqual(I.savedMap('cases', [' party ', 'REG', 'Forum']), { title: 0, no: 1, court: 2 });
+  assert.equal(I.savedMap('clients', head), null); assert.equal(I.savedMap('cases', ['Party', 'Reg']), null);
+  delete globalThis.localStorage;
 });
 console.log(n + ' tests passed');
