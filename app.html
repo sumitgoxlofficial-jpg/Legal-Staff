@@ -12,6 +12,7 @@
 <script src="app-practice.js"></script>
 <script src="app-backend.js"></script>
 <script src="app-views.js"></script>
+<script src="app-templates.js"></script>
 <script src="app-brain.js"></script>
 <script src="app-esign.js"></script>
 <script src="app-sign.js"></script>
@@ -846,8 +847,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       <div style="display:flex;flex-direction:column;gap:20px;max-width:1320px">
         <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-end">
           <div>
-            <div style="font-size:13px;color:#5E5E5E">AI Drafting Studio</div>
+            <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">AI Drafting Studio · {{ draft.group }}</div>
             <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">{{ draft.title }}</h1>
+            <div style="font-size:13.5px;color:#5E5E5E;margin-top:4px">{{ draft.law }}</div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <span style="display:inline-flex;gap:6px;align-items:center">{{ dictLangSel }}<button onClick="{{ toggleDict }}" style="{{ dictBtn }}">{{ dictLabel }}</button></span>
@@ -858,17 +860,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           </div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;align-items:start">
-          <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:18px 18px">
-            <div style="font-size:12px;color:#5E5E5E;font-weight:600;margin:4px 6px 10px">Templates</div>
-            <sc-for list="{{ templates }}" as="t" hint-placeholder-count="8">
-              <button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
-            </sc-for>
-          </section>
+          {{ draft.picker }}
           {{ draft.sheet }}
           <section style="display:flex;flex-direction:column;gap:16px">
+            {{ draft.about }}
             {{ draft.secure }}
             <div style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:20px">
-              <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600;margin-bottom:10px">AI checks</div>
+              <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600;margin-bottom:10px">Document checks</div>
               <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:#363636">
                 {{ draft.checks }}
               </div>
@@ -1076,7 +1074,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
   db = LS.load();
-  tplNames = ['Legal notice', 'Petition', 'Section 138 notice', 'Bail application', 'Affidavit', 'Written statement', 'Reply', 'Appeal', 'Revision', 'Agreement'];
+  tplNames = window.LST.names;
   dirList = [];
   state = { auth: LSB.on ? 'boot' : (this.db.session ? 'in' : 'login'), screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: '', brainThread: '', promo: null, promoInput: '', promoErr: '' };
   SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'causelist', 'ordersdate', 'ordersnotif', 'board', 'labels', 'courts', 'clients', 'documents', 'esign', 'evidence', 'research', 'agents', 'team', 'chat', 'billing', 'portal', 'reports', 'settings'];
@@ -1212,23 +1210,8 @@ class Component extends DCLogic {
     else { const r = LSV.searchAll(d, q); if (r.length) { text = 'I found:\n' + r.slice(0, 5).map(x => `• ${x.kind}: ${x.label} — ${x.sub}`).join('\n'); go = r[0].to; } else text = 'I could not find that in your cases, clients or documents. Ask about today’s hearings, deadlines, overdue tasks, invoices, or name a case.'; }
     this.mut(db => { db.copilot.push({ q, text, go }); db.copilot = db.copilot.slice(-6); }); this.setState({ cq: '' });
   }
-  tplHtml(i) {
-    const d = this.db, T = LS.dmy(LS.today()), u = d.user.title, f = d.firm;
-    const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    const sign = `<div style="margin-top:24px">${esc(u)}<br>${esc(f.name)}, ${esc(f.city)}</div>`, date = `<div style="text-align:right">Date: ${T}</div>`;
-    const court = (t, a, b, ra, rb) => `<div style="text-align:center;font-weight:600">${t}</div><div style="text-align:center;margin-top:4px">[Case type and number]</div><div style="margin-top:16px">${a} ..... ${ra}</div><div>versus</div><div>${b} ..... ${rb}</div>`;
-    const P = { 0: `${date}<div style="margin-top:12px"><b>BY REGD. A.D. / SPEED POST / EMAIL</b></div><div style="margin-top:12px">To,<br>[Name of the addressee]<br>[Address]</div><div style="margin-top:16px"><b>Subject: Legal notice for [cause]</b></div><p>Under instructions from and on behalf of my client, [name and address of client], I serve you with the following notice:</p><p>1. [State the relationship between the parties and the material facts.]</p><p>2. [State the breach or default complained of, with dates.]</p><p>3. You are called upon to [state the demand] within fifteen days of receiving this notice, failing which my client will take legal proceedings at your risk as to costs and consequences.</p><p>A copy of this notice is kept in my office for record.</p>${sign}`,
-      1: `${court('IN THE HIGH COURT OF [STATE]', '[Name of petitioner]', '[Name of respondent]', 'Petitioner', 'Respondent')}<div style="margin-top:16px"><b>PETITION UNDER [PROVISION] SEEKING [RELIEF]</b></div><p>The petitioner respectfully submits:</p><p>1. That the petitioner is [description and standing].</p><p>2. That the facts giving rise to this petition are: [facts in order of date].</p><p>3. That the petitioner has no other equally efficacious remedy, and no similar petition has been filed before any other court.</p><p><b>PRAYER</b></p><p>It is therefore prayed that this Hon'ble Court may be pleased to: (a) [principal relief]; (b) pass any other order it deems fit.</p><div style="margin-top:16px">New Delhi<br>Dated: ${T}</div>${sign}`,
-      2: `${date}<div style="margin-top:12px"><b>BY REGD. A.D. / SPEED POST / EMAIL</b></div><div style="margin-top:12px">To,<br>[Name of the drawer]<br>[Address]</div><div style="margin-top:16px"><b>Subject: Legal notice under Section 138 of the Negotiable Instruments Act, 1881 for dishonour of Cheque No. [number]</b></div><p>Under instructions from and on behalf of my client, [name of client], I serve you with the following notice:</p><p>1. You issued Cheque No. [number] dated [date] for ₹[amount], drawn on [bank and branch], to discharge a legally enforceable liability for [nature of liability].</p><p>2. My client presented the cheque. It was returned unpaid on [dd.mm.yyyy] with the remark "[reason]", as stated in the return memo of the same date.</p><p>3. You are called upon to pay ₹[amount] within fifteen days of receiving this notice. If you fail to pay, my client will start proceedings under Section 138 at your risk as to costs and consequences.</p>${sign}`,
-      3: `${court('IN THE COURT OF THE SESSIONS JUDGE, [DISTRICT]', '[Name of applicant]', 'State', 'Applicant', 'Respondent')}<div style="margin-top:16px"><b>APPLICATION FOR REGULAR BAIL UNDER SECTION 483 OF THE BHARATIYA NAGARIK SURAKSHA SANHITA, 2023</b></div><div>FIR No. [number] · P.S. [police station] · Offences under [sections]</div><p>The applicant respectfully submits:</p><p>1. That the applicant was arrested on [date] and has been in custody since then.</p><p>2. That the applicant has been falsely implicated. [Grounds on merits.]</p><p>3. That the applicant has roots in society, is not a flight risk, and undertakes not to tamper with evidence or influence witnesses.</p><p>4. That the applicant will abide by any condition this Hon'ble Court imposes.</p><p><b>PRAYER</b></p><p>It is prayed that the applicant be released on regular bail in the above FIR.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
-      4: `<div style="text-align:center;font-weight:600">AFFIDAVIT</div><p>I, [name], aged [age] years, son/daughter of [parent's name], resident of [address], do solemnly affirm and state as follows:</p><p>1. That I am the [party] in the above matter and am conversant with its facts.</p><p>2. That the contents of the accompanying [pleading] are true to my knowledge and belief, and nothing material has been concealed.</p><p>3. That the annexures are true copies of their originals.</p><div style="margin-top:24px;text-align:right">DEPONENT</div><p><b>VERIFICATION</b></p><p>Verified at [place] on ${T} that the contents of this affidavit are true to my knowledge and belief. No part of it is false and nothing material has been concealed.</p><div style="margin-top:24px;text-align:right">DEPONENT</div>`,
-      5: `${court('IN THE COURT OF [COURT]', '[Name of plaintiff]', '[Name of defendant]', 'Plaintiff', 'Defendant')}<div style="margin-top:16px"><b>WRITTEN STATEMENT ON BEHALF OF THE DEFENDANT</b></div><p><b>PRELIMINARY OBJECTIONS</b></p><p>1. That the suit is not maintainable because [ground].</p><p>2. That the plaint discloses no cause of action against the defendant.</p><p><b>REPLY ON MERITS</b></p><p>1. Para 1 of the plaint is [admitted / denied]. [Para-wise reply.]</p><p>2. Each allegation not specifically admitted is denied.</p><p><b>PRAYER</b></p><p>It is prayed that the suit be dismissed with costs.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}<p><b>VERIFICATION</b></p><p>Verified at [place] on ${T} that the contents of paras [numbers] are true to my knowledge and the rest are believed to be true on legal advice.</p>`,
-      6: `${court('IN THE [COURT]', '[Name of plaintiff]', '[Name of defendant]', 'Plaintiff', 'Defendant')}<div style="margin-top:16px"><b>REPLY ON BEHALF OF THE [PARTY] TO THE APPLICATION UNDER [PROVISION]</b></div><p>The [party] respectfully submits:</p><p>1. That the application is misconceived and liable to be dismissed because [ground].</p><p>2. [Para-wise reply to the application.]</p><p>3. That the balance of convenience lies with the [party].</p><p><b>PRAYER</b></p><p>It is prayed that the application be dismissed with costs.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
-      7: `${court('IN THE HIGH COURT OF [STATE] · COMMERCIAL APPELLATE DIVISION', '[Name of appellant]', '[Name of respondent]', 'Appellant', 'Respondent')}<div style="margin-top:16px"><b>APPEAL UNDER SECTION 13(1A) OF THE COMMERCIAL COURTS ACT, 2015 AGAINST THE JUDGMENT AND DECREE DATED [DATE]</b></div><p>The appellant respectfully submits:</p><p>1. That this appeal is against the judgment and decree dated [date] in [case number]. A certified copy is annexed.</p><p>2. <b>Brief facts:</b> [facts]</p><p>3. <b>Grounds:</b> (A) The court below erred in [ground]. (B) [Further grounds.]</p><p>4. <b>Limitation:</b> The appeal is within sixty days of the judgment after excluding the time taken to obtain the certified copy.</p><p><b>PRAYER</b></p><p>It is prayed that the impugned judgment and decree be set aside.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
-      8: `${court('IN THE HIGH COURT OF [STATE]', '[Name of petitioner]', '[Name of respondent]', 'Petitioner', 'Respondent')}<div style="margin-top:16px"><b>REVISION PETITION UNDER [SECTION 115 CPC / SECTION 438 BNSS] AGAINST THE ORDER DATED [DATE]</b></div><p>The petitioner respectfully submits:</p><p>1. That the impugned order was passed by [court] in [case number].</p><p>2. That the court below exercised jurisdiction illegally or with material irregularity because [ground].</p><p>3. That the order, if allowed to stand, will cause a failure of justice.</p><p><b>PRAYER</b></p><p>It is prayed that the records be called for and the impugned order be set aside.</p><div style="margin-top:16px">Dated: ${T}</div>${sign}`,
-      9: `<div style="text-align:center;font-weight:600">AGREEMENT</div><p>This Agreement is made at ${esc(f.city)} on ${T} between:</p><p><b>[First party]</b>, having its office at [address] (the "First Party"); and</p><p><b>[Second party]</b>, having its office at [address] (the "Second Party").</p><p>1. <b>Scope.</b> [Describe what each party will do.]</p><p>2. <b>Consideration.</b> The [party] will pay ₹[amount] on [terms].</p><p>3. <b>Term and termination.</b> This Agreement runs for [period]. Either party may end it with [notice period] written notice.</p><p>4. <b>Confidentiality.</b> Each party will keep the other's information confidential.</p><p>5. <b>Disputes.</b> Disputes will be referred to a sole arbitrator under the Arbitration and Conciliation Act, 1996, seated at ${esc(f.city)}.</p><p>6. <b>Governing law.</b> The laws of India apply.</p><div style="margin-top:24px">For the First Party &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; For the Second Party</div>` };
-    return P[i];
-  }
+  /* Template text comes from the library in app-templates.js (positions never change: saved drafts are keyed by them). */
+  tplHtml(i) { return window.LST.html(i, this.db); }
   clean(html) { return window.LSSanitize ? window.LSSanitize.clean(html) : ''; }   /* static/sanitize.js: DOM-based; if it failed to load, drafts render empty rather than unsanitised */
   dictate() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1418,12 +1401,10 @@ class Component extends DCLogic {
       act: V.can(this, 'draft.edit') ? h('span', { style: { display: 'inline-flex', gap: 4, flexShrink: 0 } }, h(V.IconBtn, { label: 'Rename ' + name, onClick: () => verName(i, x) }, '✎'), h(V.IconBtn, { label: 'Delete ' + name, danger: true, onClick: () => verDel(i, x, name) }, '×')) : null }; }), { v: 'v1' + (saved.length ? '' : ' · current'), meta: 'From template', html: this.tplHtml(S.tpl), act: null }];
     const vi = Math.min(S.ver, vlist.length - 1), dHtml = this.clean(vlist[vi].html), liveHtml = this.buf != null ? this.buf : dHtml, plain = liveHtml.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
     const dv = vi < saved.length ? saved[vi] : null, lockd = LSG.locked(dv), sealed = !!(dv && dv.seal), canEdit = V.can(this, 'draft.edit');
-    const templates = this.tplNames.map((label, i) => ({ label, go: () => { this.buf = null; this.setState({ tpl: i, ver: 0 }); },
-      style: { display: 'block', width: '100%', textAlign: 'left', border: 0, borderRadius: 8, padding: '9px 10px', fontSize: 14, background: S.tpl === i ? '#F0F0EF' : 'transparent', color: '#0A0A0A', fontWeight: S.tpl === i ? 600 : 400 } }));
     const versions = vlist.map((x, i) => ({ v: x.v, meta: x.meta, act: x.act, go: () => { this.buf = null; this.setState({ ver: i }); },
       style: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, textAlign: 'left', border: 0, padding: '10px 4px', fontSize: 14, background: vi === i ? '#FFFFFF' : 'transparent', color: '#0A0A0A', fontWeight: vi === i ? 600 : 400 } }));
     const ph = (plain.match(/\[[^\]]+\]/g) || []).length, dm = (d1, d2) => { const p = x => x.slice(6) + '-' + x.slice(3, 5) + '-' + x.slice(0, 2); return LS.diffDays(p(d1), p(d2)); };
-    const chk = [ph ? ['•', `${ph} placeholder${ph > 1 ? 's' : ''} in [brackets] still to be filled in`] : ['✓', 'No unfilled placeholders'], /\b\d{2}\.\d{2}\.\d{4}\b/.test(plain) ? ['✓', 'The document is dated'] : ['•', 'No date found in the document'], plain.includes(D.user.name) ? ['✓', 'Signature block is present'] : ['•', `The signature block for ${D.user.title} is missing`]];
+    const chk = [ph ? ['•', `${ph} placeholder${ph > 1 ? 's' : ''} in [brackets] still to be filled in`] : ['✓', 'No unfilled placeholders'], /\b\d{2}\.\d{2}\.\d{4}\b/.test(plain) ? ['✓', 'The document is dated'] : ['•', 'No date found in the document'], LST.kind(S.tpl) === 'deed' ? (/witness/i.test(plain) ? ['✓', 'Execution and witness block is present'] : ['•', 'No execution or witness block found']) : LST.kind(S.tpl) === 'affidavit' ? (/verification|verified/i.test(plain) ? ['✓', 'Verification is present'] : ['•', 'The verification clause is missing']) : (plain.includes(D.user.name) ? ['✓', 'Signature block is present'] : ['•', `The signature block for ${D.user.title} is missing`])];
     if (S.tpl === 2 || S.tpl === 0) chk.push(/fifteen days|15 days/i.test(plain) ? ['✓', 'The 15-day payment period is stated'] : ['•', 'The 15-day period for compliance is not stated']);
     if (S.tpl === 2) { const r = /returned unpaid on (\d{2}\.\d{2}\.\d{4})/.exec(plain), dt = /Date:\s*(\d{2}\.\d{2}\.\d{4})/.exec(plain); if (r && dt) { const n = dm(dt[1], r[1]); chk.push(n <= 30 && n >= 0 ? ['✓', `Notice is within 30 days of the return memo dated ${r[1]}, as s.138(b) requires`] : ['•', `Notice is dated ${n} days after the return memo. Section 138(b) allows 30 days.`]); } else chk.push(['•', 'Could not find the return memo date to check the 30-day period']);  }
     if (dv && dv.stamp) chk.push(['✓', 'eStamp recorded (' + dv.stamp.state + ', ₹' + Number(dv.stamp.amount).toLocaleString('en-IN') + ')']);
@@ -1442,29 +1423,32 @@ class Component extends DCLogic {
       const idx = dv ? vi : 0, got = (this.db.drafts[S.tpl] || [])[idx]; if (!got) return null; if (!dv) this.setState({ ver: 0 }); return idx;
     };
     this.copyEditable = () => { if (!dv) return; V.confirmBox(this, 'Make an editable copy?', 'A new version with the same text is created. The signatures, seal and audit trail stay with the original version.', 'Create copy', () => { const html = dv.html; this.mut(db => { db.drafts[S.tpl].unshift({ at: auditAt(), by: 'you', label: 'Editable copy', html, ref: newRef(), audit: [{ at: auditAt(), who: db.user.name, what: 'Editable copy made from ' + (dv.seal ? dv.seal.id : (dv.ref || 'an earlier version')) }] }); V.logIt(db, `${db.user.name} made an editable copy of the ${this.tplNames[S.tpl]}`); }, 'Editable copy created'); this.setState({ ver: 0 }); }); };
-    const refTxt = (dv && dv.ref) || 'LS/' + LSG.TPL_CODE[S.tpl] + '/' + new Date().getFullYear() + '/____', docDate = LS.dmy(dv ? dv.at.slice(0, 10) : T), words = plain.trim().split(/\s+/).length;
+    const refTxt = (dv && dv.ref) || 'LS/' + LSG.TPL_CODE[S.tpl] + '/' + new Date().getFullYear() + '/____', words = plain.trim().split(/\s+/).length;
     const letterhead = h('div', { contentEditable: false, style: { textAlign: 'center', paddingBottom: 10, lineHeight: 1.4 } },
       h('div', { style: { fontSize: 11, letterSpacing: '.34em', color: '#444', textTransform: 'uppercase' } }, 'Advocates & Legal Consultants'),
       h('div', { style: { fontSize: 25, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', lineHeight: 1.25, margin: '4px 0 2px' } }, D.firm.name || 'Chamber of the Advocate'),
       h('div', { style: { fontSize: 12.5, color: '#333' } }, [D.firm.address, D.firm.city].filter(Boolean).join(', ')),
       (D.user.phone || D.user.email || D.firm.gstin) && h('div', { style: { fontSize: 11.5, color: '#555', fontFamily: 'system-ui,sans-serif' } }, [D.user.phone ? 'Tel: ' + D.user.phone : '', D.user.email, D.firm.gstin ? 'GSTIN: ' + D.firm.gstin : ''].filter(Boolean).join('  ·  ')),
       h('div', { style: { borderTop: '3px solid #111', borderBottom: '1px solid #111', height: 5, marginTop: 10 } }));
-    const metaRow = h('div', { contentEditable: false, style: { display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 13.5, fontWeight: 600, margin: '8px 0 22px' } }, h('span', null, 'Ref. No.: ' + refTxt), h('span', null, 'Date: ' + docDate));
-    const draft = { title: S.tpl === 2 ? 'Legal notice, s.138 NI Act' : this.tplNames[S.tpl], footer: `Draft ${vlist[vi].v.split(' ')[0]} · Prepared on Legal Staff · ${plain.trim().split(/\s+/).length} words`,
+    const metaRow = h('div', { contentEditable: false, style: { display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 13.5, fontWeight: 600, margin: '8px 0 22px' } }, h('span', null, 'Ref. No.: ' + refTxt));
+    const tt = LST.LIST[S.tpl] || {}, onHead = ['notice', 'letter'].includes(LST.kind(S.tpl));
+    const draft = { title: LST.title(S.tpl), group: tt.g || '', law: [tt.law, tt.forum].filter(Boolean).join(' · '), footer: `Draft ${vlist[vi].v.split(' ')[0]} · Prepared on Legal Staff · ${plain.trim().split(/\s+/).length} words`,
       sheet: null, secure: null, audit: null,
       body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length, ref: el => { this.ed = el; }, contentEditable: !lockd && canEdit, suppressContentEditableWarning: true, spellCheck: true, 'aria-readonly': lockd, style: { position: 'relative', outline: 'none', minHeight: 240 }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
       checks: h(React.Fragment, null, chk.map(([m, t], i) => h('div', { key: i, style: { color: m === '✓' ? '#0A0A0A' : '#B42318' } }, m + ' ' + t))),
       aiBtn: LSB.on && LSB.ai && !lockd ? h(V.Btn, { onClick: () => V.aiDraft(this, S.tpl, this.tplNames[S.tpl]) }, '✦ Draft with AI') : null,
       saveBtn: h(V.Btn, { disabled: lockd, title: lockd ? 'Signed or sealed: make an editable copy to change the text' : '', onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html, ref: newRef(), audit: [{ at: auditAt(), who: db.user.name, what: 'Version saved' }] }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
-      docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }], ...LS.htmlToRuns(this.ed), ...(dv && dv.stamp ? [[{ t: `Non-judicial stamp: ${dv.stamp.state}, Rs ${dv.stamp.amount}, certificate ${dv.stamp.certNo} (${dv.stamp.issuer})` }]] : []), ...sgl.map(x => [{ t: x.name + ', ' + x.role + (x.sigImg ? ' · signed electronically ' + x.signedAt : ' · signature pending'), b: false }]), ...(sealed ? [[{ t: `Sealed ${dv.seal.id} · SHA-256 ${dv.seal.hash}` }]] : [])]); this.toast('DOCX downloaded'); },
+      docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [...(onHead ? [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }]] : []), ...LS.htmlToRuns(this.ed), ...(dv && dv.stamp ? [[{ t: `Non-judicial stamp: ${dv.stamp.state}, Rs ${dv.stamp.amount}, certificate ${dv.stamp.certNo} (${dv.stamp.issuer})` }]] : []), ...sgl.map(x => [{ t: x.name + ', ' + x.role + (x.sigImg ? ' · signed electronically ' + x.signedAt : ' · signature pending'), b: false }]), ...(sealed ? [[{ t: `Sealed ${dv.seal.id} · SHA-256 ${dv.seal.hash}` }]] : [])]); this.toast('DOCX downloaded'); },
       pdf: () => { const sec = this.ed && this.ed.closest('section'); if (!sec) return; sec.classList.add('ls-print'); const done = () => { sec.classList.remove('ls-print'); window.removeEventListener('afterprint', done); }; window.addEventListener('afterprint', done); window.print(); } };
     draft.sheet = h('section', { className: 'ls-paperwrap', 'aria-label': 'Document', style: { background: '#E4E4E1', border: '1px solid #E5E5E5', borderRadius: 12, padding: '26px 16px', gridColumn: 'span 2', minWidth: 0, overflowX: 'auto' } },
       h('div', { className: 'ls-paper', 'data-wm': sealed ? '' : lockd ? 'SIGNING' : 'DRAFT' },
         h('div', { className: 'ls-sheet' + (lockd ? ' ls-ro' : ''), style: { border: '3px double #1B1B1B', padding: '34px 42px 22px' } },
-          letterhead, metaRow, LSG.stampBlock(dv), draft.body, LSG.signBlock(dv), LSG.sealBlock(dv),
+          onHead && letterhead, metaRow, LSG.stampBlock(dv), draft.body, LSG.signBlock(dv), LSG.sealBlock(dv),
           h('div', { contentEditable: false, style: { marginTop: 30, paddingTop: 8, borderTop: '1px solid #999', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 10.5, color: '#555', fontFamily: 'system-ui,sans-serif' } }, h('span', null, refTxt + ' · ' + words + ' words'), h('span', null, sealed ? dv.seal.id + ' · sealed' : 'Draft, not yet sealed'), h('span', null, 'Prepared on Legal Staff')))));
     draft.secure = LSG.panel({ app: this, tpl: S.tpl, vi, cur: dv, saved, ensure, html: liveHtml, caseId: (D.cases[0] || {}).id, canEdit });
     draft.audit = LSG.auditCard(dv);
+    draft.picker = h(LST.Picker, { app: this, sel: S.tpl, onPick: i => { this.buf = null; this.setState({ tpl: i, ver: 0 }); } });
+    draft.about = h(LST.About, { i: S.tpl });
 
     /* ---- pricing ---- */
     const cycles = [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14, background: S.cycle === k ? '#0A0A0A' : 'transparent', color: S.cycle === k ? '#fff' : '#363636' } }));
@@ -1660,7 +1644,7 @@ class Component extends DCLogic {
       missingOpen: !limFilled, missingFilled: limFilled, fillMissing,
       derivation: lim.rows, approved: LM.approved && !lim.none, notApproved: !LM.approved && !lim.none, approve: () => V.approveLim(this, LM.id),
      
-      templates, versions, draft,
+      versions, draft,
       toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate',
       dictLangSel: h('select', { 'aria-label': 'Dictation language', title: 'Dictation language', value: st.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: S.dict, onChange: e => { const v = e.target.value; this.mut(db => { db.settings.dictLang = v; }); }, style: { height: 34, border: '1px solid #E5E5E5', borderRadius: 8, background: '#FFFFFF', fontSize: 13.5, padding: '0 8px', color: '#0A0A0A' } }, h('option', { value: 'en-IN' }, 'English (India)'), h('option', { value: 'hi-IN' }, 'Hindi')),
       dictBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, border: S.dict ? '1px solid #B42318' : '1px solid #E5E5E5', background: S.dict ? '#FDECEA' : '#FFFFFF', color: S.dict ? '#B42318' : '#0A0A0A' },

@@ -403,7 +403,7 @@ async function exportsAndSearch(o) {
   });
   await step('drafting studio: fill details, eStamp, eSign, seal, verify, audit trail', async () => {
     await o.go('#/drafting');
-    await o.click('Affidavit');
+    await page.fill('[aria-label="Search templates"]', 'affidavit'); await o.click('Affidavit (supporting a pleading)');
     await o.see('Ref. No.');
     await o.click('Fill details');
     await o.set('name', 'Rohit Sharma');
@@ -430,7 +430,7 @@ async function exportsAndSearch(o) {
     /* a sealed version that is altered in storage no longer verifies */
     await o.ls(() => { const k = Object.keys(localStorage).find(k => /ls/i.test(k) && localStorage[k].includes('NON-JUDICIAL') === false && localStorage[k].includes('"seal"')); const d = JSON.parse(localStorage[k]); const v = Object.values(d.drafts)[0][0]; v.html = v.html.replace('Rohit Sharma', 'Rohit Verma'); localStorage[k] = JSON.stringify(d); });
     await page.reload(); await page.locator('main, body').first().waitFor(); await sleep(800); await o.go('#/drafting');
-    await o.click('Affidavit'); await o.click('Verify integrity'); await o.see('Verification failed');
+    await page.fill('[aria-label="Search templates"]', 'affidavit'); await o.click('Affidavit (supporting a pleading)'); await o.click('Verify integrity'); await o.see('Verification failed');
   });
   await step('search finds the case and opens it', async () => {
     await o.go('#/dashboard');
