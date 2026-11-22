@@ -102,3 +102,13 @@ Fixed and tested (migration `0046`, `functions/admin`, `functions/directory-veri
 Still open from §5: the unverified-listing decision, in-firm roles, GST on invoices, proration/cancellation, optimistic concurrency, CSP, a full account-deletion flow (the auth user and Drive files), server-side directory pagination (profile photos still ship in the one directory call), a per-profile "copy link" button in the directory UI (the `/advocate/:id` pages exist), pricing editor and banners.
 
 To go live: apply `0046`, deploy `admin` and `directory-verify`, and let Vercel build the `api/` folder (set `SUPABASE_URL`, `SUPABASE_ANON_KEY` only if the project changes; the defaults are the public values in `config.js`).
+
+## 10. Unverified listings (22 Nov): fixed
+
+Problem: since migration 0030 a profile went public the moment ₹49 was paid, labelled "Not verified yet". Anyone could pay with a real advocate's enrolment number, appear in the directory, rank in search and receive that advocate's client enquiries.
+
+Fix (migration `0047_list_verified_only.sql`, `directory.html`, `directory-verify`, `support-ai`): a profile is public only when it is **paid and its documents have been checked** (`status = 'verified'`). The check is automatic (about a minute after the certificate and photo ID are uploaded), so an honest advocate waits minutes, not days. Enforced in the database, not just the page: `directory_profiles()`, response stats, review summaries and `dir_is_listed()` (the gate for client enquiries and reports) all require `verified`. A paid-but-unchecked advocate still sees their own application and its status. Refunds and rejections unlist as before. All wording that promised "listed as soon as the fee is paid" now says the profile goes live once the fee is paid and the documents have been checked; the reminder email and the support-AI knowledge text match.
+
+Production effect when applied (read-only count on 22 Nov): 3 verified and paid profiles stay public; 3 paid profiles that are not verified (1 "needs information", 2 with no documents uploaded) leave the directory until their documents match. Tests: hardening-db section 9 (11 checks).
+
+Still not enforced: the check reads documents with AI and compares them with what was typed; it does not look the number up on a Bar Council roll, so the tick remains "Legal Staff's own check, not a Bar Council certificate".
