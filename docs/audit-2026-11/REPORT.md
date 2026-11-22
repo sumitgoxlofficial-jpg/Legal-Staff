@@ -122,3 +122,6 @@ Settings → Delete my account (type your email). Server side: `erase_user_accou
 ### Admin: delete a person's account
 Admin → firm → Team → "Delete account" (type their email). Same rules and same database function as "Delete my account" (refuses for an owner with colleagues or partner earnings still settling; never for an administrator), plus the firm's files and the sign-in; audited as `user.delete`. Needs the `admin` function redeployed and migration 0049.
 **Not built, needs your decision:** a price editor (plan prices are fixed in three server functions and the checkout, and a price change moves real money, so it should be a deliberate change with a migration and a test, not a form field) and site banners (no banner feature exists yet; say what it should show, to whom, and where).
+
+### Partner UI test refreshed and back in the suite
+`tests/partner-ui/ui.test.mjs` was stale (the dashboard now shows KPI cards, the admin sidebar is grouped and a refused admin call carries a 403 status). Updated to match; it now passes 112 of 112 and runs in `tests/run-all.sh`. Also: partner documents can be accepted or rejected one by one (migration 0050).

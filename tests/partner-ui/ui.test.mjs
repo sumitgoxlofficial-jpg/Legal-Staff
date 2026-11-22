@@ -115,13 +115,14 @@ try {
   /* ---- 5. partner portal ---- */
   await asha.p.goto(BASE + '/partners/login');
   await asha.p.waitForFunction(() => location.pathname === '/partners/dashboard');   // session already exists, so login forwards
-  await asha.p.waitForSelector('.pn-stats');
+  await asha.p.waitForSelector('.pn-kpis');
   ok((await asha.p.inputValue('#pn-url')) === 'https://legalstaff.in/directory/?ref=LS10001', 'referral link uses the partner ID');
   ok(!!(await asha.p.$('#pn-qr svg')), 'QR code is drawn');
   const dl = asha.p.waitForEvent('download'); await asha.p.click('#pn-dl'); const file = await dl;
   ok(/LS10001-qr\.png$/.test(file.suggestedFilename()), 'QR download works');
   const png = readFileSync(await file.path()); ok(png.slice(1, 4).toString() === 'PNG', 'QR download is a PNG');
-  ok((await asha.p.$$('#v-dashboard .pn-stat')).length === 9, 'dashboard shows the nine required figures');
+  ok((await asha.p.$$('#v-dashboard .pn-kpi')).length === 4, 'dashboard shows the four headline cards (clicks, advocates referred, approved listings, available balance)');
+  { const txt = await asha.p.textContent('#v-dashboard'); ok(['Pending', 'Eligible', 'Paid', 'Link clicks', 'Advocates referred', 'Paid registrations', 'Approved listings', 'Available balance'].every(w => txt.includes(w)), 'dashboard still shows every required figure (cards, earnings breakdown and referral funnel)'); }
   for (const v of ['referrals', 'earnings', 'payouts', 'profile', 'resources', 'support']) {
     await asha.p.goto(BASE + '/partners/' + v); await asha.p.waitForFunction(() => !/Loading…/.test(document.querySelector('#pn-view').textContent));
     ok(!(await asha.p.$('#pn-view .pn-err:not([hidden])')), `partner page /${v} renders`);
@@ -228,6 +229,8 @@ try {
   callRpc('admin_staff_save', { p_email: FIN, p_role: 'finance_manager', p_active: true }, OWNER);
   const fin = await ctxFor('finance');
   await fin.p.goto(BASE + '/admin.html'); await otpLogin(fin.p, FIN, '#em', '#b1', '#code', '#b2');
+  await fin.p.waitForSelector('#tabs a.nav-item[data-k="partners"]');   // the sidebar is grouped now: the section's links show once it is open
+  if (!(await fin.p.isVisible('#tabs a[data-k^="partners/"]'))) await fin.p.click('#tabs a.nav-item[data-k="partners"]');
   await fin.p.waitForSelector('#tabs a[data-k^="partners/"]');
   ok((await fin.p.$$eval('#tabs a.nav-item', (b) => b.map((x) => x.textContent.trim()))).join() === 'Partner Network', 'a staff member sees only the Partner Network tab, not the Super Admin tabs');
   const fm = (await fin.p.$$eval('#tabs a[data-k^="partners/"]', (a) => a.map((x) => x.dataset.k.split('/')[1])));

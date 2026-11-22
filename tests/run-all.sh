@@ -9,6 +9,6 @@ if [ -z "${SKIP_BROWSER:-}" ]; then
   run "node tests/sanitize.test.mjs" node tests/sanitize.test.mjs
   run "node tests/site-smoke.mjs" node tests/site-smoke.mjs
   run "node tests/e2e.js local" node tests/e2e.js local
-  # tests/partner-ui/ui.test.mjs is NOT run here: on main it already fails at step 5 (the partner dashboard stats stay hidden after the "instant access" change, so the test is stale). 63 of 64 checks pass; see docs/audit-2026-11/REPORT.md.
+  run "node tests/partner-ui/ui.test.mjs" node tests/partner-ui/ui.test.mjs
 fi
 exit $fail
