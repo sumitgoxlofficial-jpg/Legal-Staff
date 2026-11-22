@@ -102,7 +102,21 @@
       const tags = [...new Set((r.text.match(/\[([^\]\n]{3,80})\]/g) || []).map(x => x.slice(1, -1)).filter(x => /^(Order|Hearing|Case details|Documents|Tasks|Attachment:)/.test(x)))];
       put({ text: r.text, cites: tags }); if (r.used != null) app.db.sub.aiUsed = r.used;
       if (caseId && /hearing brief/i.test(q)) app.mut(db => { const nh = V.nextHearing(db, caseId); if (nh) nh.brief = true; }, null, true);
-    }).catch(e => local('The AI could not answer (' + e.message + ').' + (caseId && !files.length ? ' Here is the answer from the case details instead:' : '')));
+    }).catch(e => {
+      /* A server still running the earlier AI function answers a chat that has no case with "Choose a case first".
+         Ask it again as a general question (Legal Research mode, which every version accepts), with the recent
+         conversation and the start of any attached text folded into the question so follow-ups still make sense. */
+      if (!caseId && /choose a case first/i.test(e.message || '')) {
+        const clip = (t, n) => { t = String(t || '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t; };
+        const ctx = hist.slice(-4).map(m => (m.role === 'user' ? 'Advocate: ' : 'Assistant: ') + clip(m.text, 400)).join('\n');
+        const att = docs.slice(0, 2).map(d => '[' + d.name + '] ' + clip(d.text, 900)).join('\n');
+        const room = 3900 - q.length, extra = [ctx && 'Earlier in this chat:\n' + ctx, att && 'Attached text (start):\n' + att].filter(Boolean).join('\n\n').slice(0, Math.max(0, room - 40));
+        return LSB.ai({ mode: 'research', question: extra ? extra + '\n\nQuestion: ' + q : q }).then(r => {
+          put({ text: r.text + (images.length ? '\n\n(Images could not be read in a chat without a case on this server. Link a case, or attach a PDF or Word file.)' : ''), cites: [] }); if (r.used != null) app.db.sub.aiUsed = r.used;
+        }).catch(e2 => local('The AI could not answer (' + e2.message + ').'));
+      }
+      local('The AI could not answer (' + e.message + ').' + (caseId && !files.length ? ' Here is the answer from the case details instead:' : ''));
+    });
   }
   function stop(app) { if (!app.brainBusy) return; app.brainBusy = null; app.mut(db => { threads(db).forEach(t => t.msgs.forEach(m => { if (m.pending) { delete m.pending; m.text = 'Stopped.'; m.err = true; } })); }, null, true); app.setState({ thinking: '' }); }
   /* Entry point used elsewhere in the app ("Prepare hearing briefs", the case page): a new chat on that case, asked at once. */
