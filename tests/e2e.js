@@ -641,7 +641,8 @@ async function practiceArea(browser) {
     await o.notSee('Active cases by stage');
     await o.page.locator('aside').getByText('Evidence', { exact: true }).first().waitFor();
     const tops = await o.page.evaluate(() => [...document.querySelectorAll('aside nav button')].map(b => b.textContent.trim()));
-    assert(tops.indexOf('Evidence') < tops.indexOf('Court Intelligence'), 'criminal sidebar leads with evidence: ' + tops.join(','));
+    // the sidebar is grouped (Case management / Court & orders / Records); within Records a criminal chamber's list leads with Evidence
+    assert(tops.indexOf('Evidence') >= 0 && tops.indexOf('Evidence') < tops.indexOf('Documents') && tops.indexOf('Evidence') < tops.indexOf('Legal Deadlines'), 'criminal sidebar leads with evidence in Records: ' + tops.join(','));
   });
   await step('criminal labels, stages and limitation presets', async () => {
     await o.go('#/labels'); await o.see('Anticipatory bail'); await o.see('In custody');

@@ -7,6 +7,7 @@
 <script src="vendor/react-dom.production.min.js"></script>
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
+<script src="static/sanitize.js"></script>
 <script src="app-store.js"></script>
 <script src="app-practice.js"></script>
 <script src="app-backend.js"></script>
@@ -1277,7 +1278,7 @@ class Component extends DCLogic {
       9: `<div style="text-align:center;font-weight:600">AGREEMENT</div><p>This Agreement is made at ${esc(f.city)} on ${T} between:</p><p><b>[First party]</b>, having its office at [address] (the "First Party"); and</p><p><b>[Second party]</b>, having its office at [address] (the "Second Party").</p><p>1. <b>Scope.</b> [Describe what each party will do.]</p><p>2. <b>Consideration.</b> The [party] will pay ₹[amount] on [terms].</p><p>3. <b>Term and termination.</b> This Agreement runs for [period]. Either party may end it with [notice period] written notice.</p><p>4. <b>Confidentiality.</b> Each party will keep the other's information confidential.</p><p>5. <b>Disputes.</b> Disputes will be referred to a sole arbitrator under the Arbitration and Conciliation Act, 1996, seated at ${esc(f.city)}.</p><p>6. <b>Governing law.</b> The laws of India apply.</p><div style="margin-top:24px">For the First Party &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; For the Second Party</div>` };
     return P[i];
   }
-  clean(html) { return String(html).replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+="[^"]*"/gi, '').replace(/\son\w+='[^']*'/gi, ''); }
+  clean(html) { return window.LSSanitize ? window.LSSanitize.clean(html) : ''; }   /* static/sanitize.js: DOM-based; if it failed to load, drafts render empty rather than unsanitised */
   dictate() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (this.state.dict) { this.rec && this.rec.stop(); return this.setState({ dict: false }); }

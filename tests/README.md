@@ -63,3 +63,19 @@ It makes one `GET /api/partner/case/{cnr}` call (about ₹1.50 on pay-as-you-go)
 | `bash tests/partner-db/run.sh` | Migration 0039 on real PostgreSQL 16: permissions per role, registration and duplicate blocking, attribution rules, commission gating and duplicate prevention, payouts, fraud flags, audit immutability, global switches, isolation between partners, and that advocate registration survives a partner-network fault. |
 | `node tests/partner-ui/ui.test.mjs` | Real Chromium against the real pages and database (through `tests/partner-ui/bridge.mjs`): registration with OTP, admin approval, legal approval before commission, referral capture on the directory, payment, commission, KYC, payout, CSV/Excel export, staff roles, mobile layouts. Needs Playwright and PostgreSQL 16. |
 | `node tests/partner-export.test.mjs`, `node tests/partner-mail.test.mjs` | CSV/Excel writer (formula-injection guard, valid xlsx) and email helpers. |
+
+
+## Audit suites (2026-11-21)
+
+`bash tests/run-all.sh` runs everything below plus the older suites.
+
+| Command | What it proves |
+| --- | --- |
+| `node tests/razorpay-engine.test.mjs` | The real `functions/razorpay` against an in-memory database and a mock of api.razorpay.com: checkout signature, webhook signature (raw body), replay by event id, amount/ownership checks, payment is never applied twice, failed and refund events, nothing listed or activated without a confirmed payment, promo claims, Solo seat limit, secret never in a response. Proves our logic, not Razorpay: run one `rzp_test_` payment end to end to prove the account set-up. |
+| `node tests/admin-engine.test.mjs` | The real `functions/admin`: 401 / 403 for no sign-in, a normal user and an unconfirmed email on every action; every change audited; refunds (full amount, paid Razorpay payments only, Razorpay refusal changes nothing); free coupons must name their plans; database failures are errors, not "ok". |
+| `bash tests/hardening-db/run.sh` | Migrations 0001 to 0045 (the ones that matter) on real PostgreSQL 16: no hidden platform admin, legacy RPC closed, public insert limits and rate limit, duplicate enrolment numbers, refunds (`apply_refund`), atomic promo claims, partner self-referral and payout holds, owner row and firm profile guards, chat meeting cards. Re-runnable. |
+| `node tests/sanitize.test.mjs` | The draft HTML sanitiser in Chromium: 20 XSS vectors neutralised, normal drafting markup kept. |
+| `node tests/site-smoke.mjs` | Every public page on a Vercel-like server (clean URLs, redirects, 404), desktop and phone: no script errors, title, description, canonical, one h1, no broken image, no sideways scroll, private pages noindex, sitemap matches the public pages. |
+| `node tests/e2e.js local` | The browser-only app, 25 steps (updated: the sidebar is grouped). |
+
+Known stale: `node tests/partner-ui/ui.test.mjs` passes 63 of 64 and then fails at the partner dashboard (`.pn-stats` hidden) on main as well; the test predates the "instant access" change.

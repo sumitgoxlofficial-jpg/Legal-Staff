@@ -1,0 +1,12 @@
+name: tests
+on: { pull_request: {}, push: { branches: [main] } }
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm i -g typescript playwright && npx playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-16 || sudo apt-get install -y postgresql
+      - run: PGBIN=$(dirname $(ls /usr/lib/postgresql/*/bin/initdb | tail -1)) bash tests/run-all.sh

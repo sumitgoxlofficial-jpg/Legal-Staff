@@ -13,6 +13,8 @@ class Q {
   update(p) { this.op = 'update'; this.patch = p; return this; }
   eq(c, v) { this.f.push(r => String(r[c]) === String(v)); return this; }
   is(c, v) { this.f.push(r => (v === null ? r[c] == null : r[c] === v)); return this; }
+  gt(c, v) { this.f.push(r => r[c] > v); return this; } in(c, vs) { this.f.push(r => vs.includes(r[c])); return this; }
+  range(a, b) { this.off = a; this.lim = b - a + 1; return this; }
   limit(n) { this.lim = n; return this; } order() { return this; } single() { this.one = 'single'; return this; } maybeSingle() { this.one = 'maybe'; return this; }
   then(res, rej) { try { res(this.run()); } catch (e) { (rej || (x => { throw x; }))(e); } }
   run() {
@@ -30,16 +32,16 @@ class Q {
     }
     let m = rows.filter(r => this.f.every(fn => fn(r)));
     if (this.op === 'update') { m.forEach(r => Object.assign(r, this.patch)); return { data: this.ret ? m.map(r => ({ id: r.id })) : null, error: null }; }
-    m = m.slice(0, this.lim);
-    if (this.head) return { data: null, error: null, count: m.length };
+    const total = m.length; m = m.slice(this.off || 0, (this.off || 0) + this.lim).map(r => ({ ...r }));   // snapshots, like a real database
+    if (this.head) return { data: null, error: null, count: total };
     if (this.one === 'single') return m.length ? { data: m[0], error: null } : { data: null, error: { message: 'no row' } };
     if (this.one === 'maybe') return { data: m[0] ?? null, error: null };
-    return { data: m, error: null, count: m.length };
+    return { data: m, error: null, count: total };
   }
 }
 const mk = ctx => ({
   from: t => new Q(t),
   rpc: async (name, a = {}) => { db.rpcCalls.push({ name, a }); const r = db.rpcResults[name]; return { data: typeof r === 'function' ? r(a) : r ?? null, error: null }; },
-  auth: { getUser: async () => ({ data: { user: ctx.user || null } }) }
+  auth: { getUser: async () => ({ data: { user: ctx.user || null } }), admin: { listUsers: async () => ({ data: { users: [] }, error: null }) } }
 });
 export const createClient = (_url, key, opts) => { const tok = (opts?.global?.headers?.Authorization || '').replace('Bearer ', ''); return mk({ user: db.users[tok] || null }); };

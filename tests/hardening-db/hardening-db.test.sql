@@ -108,6 +108,26 @@ select t.a($q$(select uses from public.promo_codes where code = 'MANY') = 1$q$, 
 select t.a($q$not public.promo_claim('NOSUCH', null, '00000000-0000-0000-0000-00000000000a')$q$, 'an unknown code cannot be claimed');
 reset role;
 
+-- ===== 7. core app: owner row, firm profile, chat meeting cards =====
+insert into public.members (firm_id, user_id, email, name, role, status, is_owner) values ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-00000000000a', 'asha@example.in', 'Asha', 'Partner', 'Active', true), ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-00000000000b', 'bina@example.in', 'Bina', 'Associate', 'Active', false);
+set role authenticated; select t.as_user(:B, 'bina@example.in');
+select t.raises($q$update public.firms set name = 'Hijacked' where id = '11111111-1111-1111-1111-111111111111'$q$, '%Only the firm owner%', 'a member cannot rename the firm or change its GSTIN');
+select t.raises($q$update public.firms set gstin = '07AAAAA0000A1Z5' where id = '11111111-1111-1111-1111-111111111111'$q$, '%Only the firm owner%', 'a member cannot change the GSTIN printed on invoices');
+select t.ok($q$update public.firms set state = '{"labels":[]}'::jsonb where id = '11111111-1111-1111-1111-111111111111'$q$, 'a member can still write the shared working state');
+update public.members set is_owner = true where user_id = '00000000-0000-0000-0000-00000000000b';
+reset role;
+select t.a($q$t.cnt('select count(*) from public.members where is_owner and user_id = ''00000000-0000-0000-0000-00000000000b''') = 0$q$, 'a member cannot make themselves owner');
+set role authenticated; select t.as_user(:A, 'asha@example.in');
+select t.ok($q$update public.firms set name = 'Rao & Rao Chambers' where id = '11111111-1111-1111-1111-111111111111'$q$, 'the owner can rename the firm');
+select t.raises($q$update public.members set status = 'Suspended' where user_id = '00000000-0000-0000-0000-00000000000a'$q$, '%owner cannot be suspended%', 'the owner cannot suspend themselves (firm lock-out)');
+select t.raises($q$update public.members set is_owner = false where user_id = '00000000-0000-0000-0000-00000000000a'$q$, '%owner cannot be suspended%', 'the owner cannot clear their own ownership (second trial)');
+select t.ok($q$update public.members set name = 'Asha R.', title = 'Adv.' where user_id = '00000000-0000-0000-0000-00000000000a'$q$, 'the owner can still edit their own name and title');
+select t.ok($q$insert into public.chat_messages (firm_id, channel, body, kind, data) values ('11111111-1111-1111-1111-111111111111', 'team', 'Hearing prep', 'meeting', '{"link":"https://meet.google.com/abc-defg-hij","start":"2026-12-01T10:00:00.000Z"}')$q$, 'a proper Google Meet card is accepted');
+select t.raises($q$insert into public.chat_messages (firm_id, channel, body, kind, data) values ('11111111-1111-1111-1111-111111111111', 'team', 'x', 'meeting', '{"link":"javascript:alert(1)","start":"2026-12-01T10:00:00.000Z"}')$q$, '%chat_meeting_check%', 'a meeting card with a javascript: link is rejected');
+select t.raises($q$insert into public.chat_messages (firm_id, channel, body, kind, data) values ('11111111-1111-1111-1111-111111111111', 'team', 'x', 'meeting', '{"link":"https://evil.example/meet.google.com/abc","start":"2026-12-01T10:00:00.000Z"}')$q$, '%chat_meeting_check%', 'a meeting card pointing at another site is rejected');
+select t.raises($q$insert into public.chat_messages (firm_id, channel, body, kind, data) values ('11111111-1111-1111-1111-111111111111', 'team', 'x', 'meeting', '{"link":"https://meet.google.com/abc-defg-hij"}')$q$, '%chat_meeting_check%', 'a meeting card without a start time is rejected');
+reset role;
+
 \echo
 select 'RESULT', count(*) filter (where ok), count(*) filter (where not ok) from t.r;
 select 'FAIL: ' || name from t.r where not ok;

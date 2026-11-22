@@ -114,7 +114,7 @@ Deno.serve(async (req: Request) => {
     if (!allowed) return json({ error: "Not allowed." }, 403);
 
     const since = new Date(Date.now() - MAX_AGE_MS).toISOString(), ripe = new Date(Date.now() - MIN_AGE_MS).toISOString();
-    const { data: rows } = await admin.from("contact_requests").select("*").eq("status", "open").is("reply", null).is("ai_note", null)
+    const { data: rows } = await admin.from("contact_requests").select("*").eq("status", "open").eq("reply", "").is("ai_note", null)
       .gte("created_at", since).lte("created_at", ripe).order("created_at").limit(MAX_PER_RUN);
     if (!rows?.length) return json({ ok: true, replied: 0, escalated: 0 });
     const { count: today } = await admin.from("contact_requests").select("id", { count: "exact", head: true }).eq("ai_replied", true).gte("replied_at", since);
@@ -132,9 +132,9 @@ Deno.serve(async (req: Request) => {
       const { count: dup } = await admin.from("contact_requests").select("id", { count: "exact", head: true }).eq("ai_replied", true).ilike("email", email).gte("replied_at", since);
       if ((dup ?? 0) > 0) { await hold("Needs a person: this address already got an AI reply in the last 24 hours."); continue; }
       // Claim the row so two overlapping runs cannot answer the same message twice.
-      const { data: claimed } = await admin.from("contact_requests").update({ status: "replied", replied_at: new Date().toISOString(), reply: "(AI reply in progress)" }).eq("id", m.id).eq("status", "open").is("reply", null).select("id");
+      const { data: claimed } = await admin.from("contact_requests").update({ status: "replied", replied_at: new Date().toISOString(), reply: "(AI reply in progress)" }).eq("id", m.id).eq("status", "open").eq("reply", "").select("id");
       if (!claimed?.length) continue;
-      const release = async (note: string) => { await admin.from("contact_requests").update({ status: "open", replied_at: null, reply: null, ai_note: note.slice(0, 300) }).eq("id", m.id); };
+      const release = async (note: string) => { await admin.from("contact_requests").update({ status: "open", replied_at: null, reply: "", ai_note: note.slice(0, 300) }).eq("id", m.id); };
       try {
         const d = await draft(key, m);
         if (d.action !== "reply" || d.reply.length < 20) {

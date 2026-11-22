@@ -162,6 +162,10 @@ async function briefFirm(admin: any, firm: any, opts: { onlyUser: string | null;
   const { data: states } = await admin.from("user_state").select("user_id,data").eq("firm_id", firm.id);
   const settingsOf = (uid: string) => ((states ?? []).find((s: any) => s.user_id === uid)?.data ?? {}).settings ?? {};
   const due = (members ?? []).filter((m: any) => m.user_id && (opts.onlyUser ? m.user_id === opts.onlyUser : dueThisHour(settingsOf(m.user_id), clock.hour)));
+  if (opts.onlyUser) {   // "Send now" is capped (3 a day, two channels each): it must not be usable as a message relay
+    const { count } = await admin.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", opts.onlyUser).eq("kind", "briefing_now").gte("created_at", new Date(opts.now - 864e5).toISOString());
+    if ((count ?? 0) >= 6) return [{ channel: "all", to: "", skipped: "Send now is limited to 3 times a day. Your scheduled briefing still arrives every morning." }];
+  }
   if (!due.length) return [];
   let sent: any[] = [];
   if (!opts.onlyUser) { const { data, error } = await admin.from("notifications").select("user_id,channel,kind,status,created_at").eq("firm_id", firm.id).eq("kind", "briefing").gte("created_at", new Date(opts.now - 36 * 3600e3).toISOString()); if (error) throw error; sent = data ?? []; }
