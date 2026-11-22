@@ -212,10 +212,10 @@
      Returns a report: { added: { kind: n }, skipped: [{ table, row, why }], linked, created, capped }. Nothing in db is changed or deleted. */
   function apply(db, tables, opts) {
     const o = Object.assign({ uid: p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), today: new Date().toISOString().slice(0, 10), user: (db.user && db.user.name) || '', caseCap: Infinity, stages: [] }, opts);
-    const rep = { added: { clients: 0, cases: 0, hearings: 0, tasks: 0, invoices: 0 }, skipped: [], createdClients: 0, unlinked: 0, capped: 0 };
+    const rep = { added: { clients: 0, cases: 0, hearings: 0, tasks: 0, invoices: 0 }, skipped: [], createdClients: 0, unlinked: 0, capped: 0 }, tag = o.importId ? { importId: o.importId, imported: o.today } : {};
     const skip = (t, i, why) => rep.skipped.push({ table: t.name || KINDS[t.kind].label, row: i + 2, why });
     const clientBy = name => { const k = norm(name); return k ? db.clients.find(c => norm(c.name) === k) : null; };
-    const ensureClient = name => { if (!String(name || '').trim()) return ''; let c = clientBy(name); if (!c) { c = { id: o.uid('cl'), name: String(name).trim(), type: /\b(ltd|limited|llp|pvt|private|corporation|bank|inc|company|co\.)\b/i.test(name) ? 'Company' : 'Individual', city: '', contact: '', phone: '', email: '', notes: 'Added while importing', portal: false, share: { dates: true, orders: true, invoices: false } }; db.clients.unshift(c); rep.createdClients++; } return c.id; };
+    const ensureClient = name => { if (!String(name || '').trim()) return ''; let c = clientBy(name); if (!c) { c = { ...tag, id: o.uid('cl'), name: String(name).trim(), type: /\b(ltd|limited|llp|pvt|private|corporation|bank|inc|company|co\.)\b/i.test(name) ? 'Company' : 'Individual', city: '', contact: '', phone: '', email: '', notes: 'Added while importing', portal: false, share: { dates: true, orders: true, invoices: false } }; db.clients.unshift(c); rep.createdClients++; } return c.id; };
     const caseBy = ref => { const s = String(ref || '').trim(); if (!s) return null; const cnr = cnrOf(s), k = key(s), n = norm(s);
       return (cnr && db.cases.find(c => c.cnr === cnr)) || db.cases.find(c => key(c.no) === k) || db.cases.find(c => c.fileNo && key(c.fileNo) === k) || db.cases.find(c => norm(c.title) === n || norm(c.full) === n) || null; };
     const fresh = new Set();   // hearings made in this run from a case's next date: a hearings sheet may add their time and purpose
@@ -228,7 +228,7 @@
         const dup = clientBy(v.name) || (v.email && db.clients.find(c => c.email && c.email.toLowerCase() === v.email.toLowerCase())) || (v.phone && key(v.phone).length >= 10 && db.clients.find(c => c.phone && key(c.phone).slice(-10) === key(v.phone).slice(-10)));
         if (dup) { ['phone', 'email', 'city', 'contact', 'address'].forEach(k => { if (!dup[k] && v[k]) dup[k] = k === 'phone' ? phoneOf(v[k]) : v[k]; }); return skip(t, i, 'Already here: ' + dup.name + ' (blank details filled in)'); }
         const type = /compan|ltd|pvt|corporate|llp/i.test(v.type) ? 'Company' : /firm|partnership/i.test(v.type) ? 'Firm' : /gov|state|union|department|ministry/i.test(v.type) ? 'Government body' : /\b(ltd|limited|llp|pvt|private|bank)\b/i.test(v.name) ? 'Company' : 'Individual';
-        db.clients.unshift({ id: o.uid('cl'), name: v.name, type, city: v.city, contact: v.contact, phone: phoneOf(v.phone), email: v.email, address: v.address, notes: v.notes, portal: false, share: { dates: true, orders: true, invoices: false } });
+        db.clients.unshift({ ...tag, id: o.uid('cl'), name: v.name, type, city: v.city, contact: v.contact, phone: phoneOf(v.phone), email: v.email, address: v.address, notes: v.notes, portal: false, share: { dates: true, orders: true, invoices: false } });
         rep.added.clients++;
       } else if (t.kind === 'cases') {
         const cnr = cnrOf(v.cnr), dup = (cnr && db.cases.find(c => c.cnr === cnr)) || db.cases.find(c => key(c.no) === key(v.no) && norm(c.title) === norm(v.title));
@@ -236,10 +236,10 @@
         const status = caseStatus(v.stage);
         if (status !== 'disposed' && live >= o.caseCap) { rep.capped++; return skip(t, i, 'Over the plan\'s active-case limit'); }
         const stage = (o.stages.find(s => key(s) === key(v.stage)) || v.stage || o.stages[0] || 'Pleadings'), court = v.court || 'Not recorded', team = v.team || o.user, id = o.uid('c');
-        db.cases.unshift({ id, title: v.title, full: v.title, no: v.no, cnr, court, forum: court, purpose: stage, stage, status, team: [team].filter(Boolean), clientId: ensureClient(v.client), fileNo: v.fileNo, bench: v.bench, state: v.state, district: v.district, oppAdv: v.oppAdv, labels: [], idKind: cnr ? 'cnr' : v.filingNo ? 'filing_number' : v.diaryNo ? 'diary_number' : 'case_number', category: category(court, cnr), tribunal: tribunal(court), filingNo: v.filingNo, diaryNo: v.diaryNo, createdBy: o.user, createdOn: date(v.filed) || o.today, summary: v.notes, summaryMeta: v.notes ? 'Imported note' : '', parties: v.opp ? [v.opp] : [], issues: [], missing: [], args: '', imported: o.today });
+        db.cases.unshift({ ...tag, id, title: v.title, full: v.title, no: v.no, cnr, court, forum: court, purpose: stage, stage, status, team: [team].filter(Boolean), clientId: ensureClient(v.client), fileNo: v.fileNo, bench: v.bench, state: v.state, district: v.district, oppAdv: v.oppAdv, labels: [], idKind: cnr ? 'cnr' : v.filingNo ? 'filing_number' : v.diaryNo ? 'diary_number' : 'case_number', category: category(court, cnr), tribunal: tribunal(court), filingNo: v.filingNo, diaryNo: v.diaryNo, createdBy: o.user, createdOn: date(v.filed) || o.today, summary: v.notes, summaryMeta: v.notes ? 'Imported note' : '', parties: v.opp ? [v.opp] : [], issues: [], missing: [], args: '', imported: o.today });
         if (status !== 'disposed') live++;
         const nd = date(v.next);
-        if (nd) { const hid = o.uid('h'); fresh.add(hid); db.hearings.push({ id: hid, caseId: id, date: nd, time: time(v.time) || '10:30', court, item: '', purpose: stage, assignee: team, outcome: '', brief: false }); }
+        if (nd) { const hid = o.uid('h'); fresh.add(hid); db.hearings.push({ ...tag, id: hid, caseId: id, date: nd, time: time(v.time) || '10:30', court, item: '', purpose: stage, assignee: team, outcome: '', brief: false }); }
         rep.added.cases++;
       } else {
         const c = caseBy(v.case);
@@ -249,26 +249,81 @@
           const same = db.hearings.find(x => x.caseId === c.id && x.date === d);
           if (same && fresh.has(same.id)) { fresh.delete(same.id); Object.assign(same, { time: time(v.time) || same.time, purpose: v.purpose || same.purpose, item: v.item || same.item, court: v.court || same.court, assignee: v.assignee || same.assignee }); return; }
           if (same) return skip(t, i, 'Already on the calendar: ' + c.title + ' on ' + d);
-          db.hearings.push({ id: o.uid('h'), caseId: c.id, date: d, time: time(v.time) || '10:30', court: v.court || c.court, item: v.item, purpose: v.purpose || c.stage || 'Hearing', assignee: v.assignee || (c.team || [])[0] || o.user, outcome: d < o.today ? v.outcome : '', brief: false });
+          db.hearings.push({ ...tag, id: o.uid('h'), caseId: c.id, date: d, time: time(v.time) || '10:30', court: v.court || c.court, item: v.item, purpose: v.purpose || c.stage || 'Hearing', assignee: v.assignee || (c.team || [])[0] || o.user, outcome: d < o.today ? v.outcome : '', brief: false });
           rep.added.hearings++;
         } else if (t.kind === 'tasks') {
           if (v.case && !c) rep.unlinked++;
           const due = date(v.due) || '';
           if (db.tasks.some(x => key(x.t) === key(v.t) && (x.caseId || '') === (c ? c.id : '') && (x.due || '') === due)) return skip(t, i, 'Already here: ' + v.t);
-          db.tasks.push({ id: o.uid('t'), caseId: c ? c.id : '', t: v.t, who: v.who || o.user, due, done: yes(v.done) });
+          db.tasks.push({ ...tag, id: o.uid('t'), caseId: c ? c.id : '', t: v.t, who: v.who || o.user, due, done: yes(v.done) });
           rep.added.tasks++;
         } else if (t.kind === 'invoices') {
           if (v.case && !c) rep.unlinked++;
           if (v.no && db.invoices.some(x => key(x.no) === key(v.no))) return skip(t, i, 'Already here: invoice ' + v.no);
           const clientId = c && c.clientId ? c.clientId : ensureClient(v.client), paidOn = date(v.paidOn);
           if (!clientId && !c) return skip(t, i, 'No client or case to bill it to');
-          db.invoices.unshift({ id: o.uid('i'), no: v.no || 'IMP-' + (date(v.date) || o.today).slice(0, 4) + '-' + pad(rep.added.invoices + 1).padStart(3, '0'), clientId, caseId: c ? c.id : '', date: date(v.date), amount: money(v.amount), paid: yes(v.paid) || !!paidOn, paidOn: paidOn || (yes(v.paid) ? date(v.date) : ''), desc: v.desc || 'Imported invoice' });
+          db.invoices.unshift({ ...tag, id: o.uid('i'), no: v.no || 'IMP-' + (date(v.date) || o.today).slice(0, 4) + '-' + pad(rep.added.invoices + 1).padStart(3, '0'), clientId, caseId: c ? c.id : '', date: date(v.date), amount: money(v.amount), paid: yes(v.paid) || !!paidOn, paidOn: paidOn || (yes(v.paid) ? date(v.date) : ''), desc: v.desc || 'Imported invoice' });
           rep.added.invoices++;
         }
       }
     }));
     return rep;
   }
+
+  /* ---------- undoing an import ----------
+     Every record an import adds carries its importId. imports() lists the runs still present; undoImport() removes what a run
+     added. Hearings and orders of a removed case go with it (as when a case is deleted); tasks, documents and deadlines that were
+     added by hand stay, unlinked. An invoice added by hand to an imported case blocks the undo: invoices are financial records.
+     An imported client that a case or invoice added by hand now uses is kept. Details filled into existing clients stay. */
+  const COLS = ['clients', 'cases', 'hearings', 'tasks', 'invoices', 'docs'];
+  function imports(db) {
+    const by = {};
+    COLS.forEach(k => (db[k] || []).forEach(r => { if (!r || !r.importId) return; const x = by[r.importId] || (by[r.importId] = { id: r.importId, date: '', counts: {}, label: '' }); x.counts[k] = (x.counts[k] || 0) + 1; if (r.imported && (!x.date || r.imported < x.date)) x.date = r.imported; }));
+    (db.log || []).forEach(l => { const x = l.importId && by[l.importId]; if (x) { if (!x.label) x.label = l.x; if (!x.date) x.date = (l.ts || '').slice(0, 10); } });
+    return Object.values(by).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
+  function undoImport(db, id) {
+    const mine = r => r && r.importId === id, gone = new Set(db.cases.filter(mine).map(c => c.id));
+    const held = db.invoices.filter(i => !mine(i) && gone.has(i.caseId));
+    if (held.length) return { blocked: `${held.length === 1 ? 'Invoice ' + held[0].no + ' was' : held.length + ' invoices were'} raised by hand on a case from this import. Delete ${held.length === 1 ? 'it' : 'them'} or move ${held.length === 1 ? 'it' : 'them'} to another case first.` };
+    const removed = { clients: 0, cases: 0, hearings: 0, tasks: 0, invoices: 0, docs: 0, orders: 0 }, files = [];
+    const cut = (k, test) => { const before = db[k].length; db[k] = db[k].filter(r => !test(r)); removed[k] += before - db[k].length; };
+    cut('cases', mine);
+    cut('hearings', h => mine(h) || gone.has(h.caseId));
+    cut('orders', x => gone.has(x.caseId));
+    cut('tasks', mine); db.tasks.forEach(t => { if (gone.has(t.caseId)) t.caseId = ''; });
+    db.docs.filter(x => mine(x) || (gone.has(x.caseId) && x.orderId)).forEach(x => files.push(x));
+    cut('docs', x => mine(x) || (gone.has(x.caseId) && x.orderId)); db.docs.forEach(x => { if (gone.has(x.caseId)) x.caseId = ''; });
+    cut('invoices', mine);
+    ['deadlines', 'lims'].forEach(k => (db[k] || []).forEach(x => { if (gone.has(x.caseId)) x.caseId = ''; }));
+    const used = new Set([...db.cases.map(c => c.clientId), ...db.invoices.map(i => i.clientId)]);
+    const kept = db.clients.filter(c => mine(c) && used.has(c.id));
+    kept.forEach(c => { delete c.importId; });
+    cut('clients', mine);
+    return { removed, kept: kept.length, files };
+  }
+
+  /* ---------- documents: which case a file belongs to, from its file name or the folders it sits in ---------- */
+  function matchDoc(path, cases) {
+    const k = key(path), n = norm(path); let best = '', score = 0;
+    (cases || []).forEach(c => [[c.cnr, 1000, key], [c.no, 500, key], [c.fileNo, 400, key], [c.title, 300, norm], [c.full, 300, norm]].forEach(([v, w, f]) => {
+      const kv = f(v); if (!kv || kv.length < (f === norm ? 6 : 4) || !(f === norm ? n : k).includes(kv)) return;
+      if (w + kv.length > score) { score = w + kv.length; best = c.id; } }));
+    return best;
+  }
+  const docType = name => /\b(order|judg(e)?ment|decree|proceedings?|daily ?order|interim)\b/i.test(name) ? 'Court order' : /\b(petition|plaint|reply|written ?statement|w\.?s\.?|affidavit|application|appeal|rejoinder|vakalat(nama)?|complaint|counter|objection)\b/i.test(name) ? 'Pleading' : /\bdraft\b/i.test(name) ? 'Draft' : /\b(letter|notice|e-?mail|mail|correspondence|reminder)\b/i.test(name) ? 'Correspondence' : 'Other';
+  const MIME = { pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', txt: 'text/plain', rtf: 'application/rtf', tif: 'image/tiff', tiff: 'image/tiff' };
+  /* A .zip of a document folder → [{ path, file }], skipping folders and system files. Files stored in a way the browser cannot unpack are listed in bad. */
+  async function zipEntries(buf, name) {
+    const z = await unzip(buf), out = [], bad = [];
+    Object.keys(z).filter(p => !p.endsWith('/') && !/(^|\/)(__MACOSX|\.DS_Store|Thumbs\.db|desktop\.ini)(\/|$)/i.test(p) && !/(^|\/)\._/.test(p)).forEach(p => {
+      if (!z[p]) return bad.push(p);
+      const base = p.split('/').pop(), ext = (base.split('.').pop() || '').toLowerCase();
+      out.push({ path: (name ? name.replace(/\.zip$/i, '') + '/' : '') + p, file: new File([z[p]], base, { type: MIME[ext] || 'application/octet-stream' }) });
+    });
+    return { out, bad };
+  }
+
   /* A blank template for each kind: the header row plus one example row. */
   const TEMPLATE = {
     clients: [['Client name', 'Type', 'Phone', 'Email', 'City', 'Contact person', 'Address', 'Notes'], ['Ramesh Kumar', 'Individual', '9876543210', 'ramesh@example.com', 'Patna', '', 'Boring Road, Patna', '']],
@@ -278,7 +333,7 @@
     invoices: [['Invoice number', 'Invoice date', 'Fee (before GST)', 'Client', 'Case number', 'Paid', 'Paid on', 'Description'], ['INV-2025-001', '01/12/2025', '25000', 'Ramesh Kumar', 'CWJC 1234/2025', 'Yes', '05/12/2025', 'Appearance fee']]
   };
 
-  window.LSI = { parseCsv, parseXlsx, readFile, fromJson, date, time, money, cnrOf, guessMap, guessKind, readRow, apply, KINDS, ORDER, TEMPLATE };
+  window.LSI = { parseCsv, parseXlsx, readFile, fromJson, date, time, money, cnrOf, guessMap, guessKind, readRow, apply, imports, undoImport, matchDoc, docType, zipEntries, KINDS, ORDER, TEMPLATE };
 
   /* ---------- the screen (needs the app's views; absent under Node) ---------- */
   if (!window.React || !window.LSV) return;
@@ -300,11 +355,11 @@
     const live = tables.filter(t => t.on);
     const checked = live.map(t => { const res = t.rows.map(r => readRow(t.kind, t.map, r)); return { t, ok: res.filter(r => !r.err).length, bad: res.map((r, i) => r.err ? { row: i + 2, why: r.err } : null).filter(Boolean) }; });
     const run = () => {
-      let r; const acc = L.access(app.db.sub);
-      app.mut(db => { r = apply(db, live.map(t => ({ kind: t.kind, map: t.map, rows: t.rows, name: t.name })), { uid: L.uid, today: L.today(), user: db.user.name, caseCap: acc.limits.cases, stages: window.LSP ? LSP.stages(db.firm) : [] });
+      let r; const acc = L.access(app.db.sub), importId = L.uid('imp');
+      app.mut(db => { r = apply(db, live.map(t => ({ kind: t.kind, map: t.map, rows: t.rows, name: t.name })), { uid: L.uid, today: L.today(), user: db.user.name, caseCap: acc.limits.cases, stages: window.LSP ? LSP.stages(db.firm) : [], importId });
         const n = Object.values(r.added).reduce((a, b) => a + b, 0);
-        V.logIt(db, `Imported from ${source.toLowerCase()} by ${db.user.name}: ` + ORDER.filter(k => r.added[k]).map(k => plural(r.added[k], KINDS[k].one)).join(', ') + (n ? '' : 'nothing new')); }, null);
-      if (r) setRep(r);
+        V.logIt(db, `Imported from ${source.toLowerCase()} by ${db.user.name}: ` + ORDER.filter(k => r.added[k]).map(k => plural(r.added[k], KINDS[k].one)).join(', ') + (n ? '' : 'nothing new'), '', { importId }); }, null);
+      if (r) setRep(Object.assign(r, { importId }));
     };
     const dl = k => L.csv('legal-staff-' + k + '-template.csv', TEMPLATE[k]);
     const box = (children, extra) => h('div', { style: Object.assign({ border: '1px solid ' + K.line, borderRadius: 10, padding: '14px 16px' }, extra) }, children);
@@ -322,11 +377,12 @@
           h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, ORDER.map(k => h(Chip, { key: k, tone: rep.added[k] ? null : 'grey' }, plural(rep.added[k], KINDS[k].one)))),
           rep.createdClients > 0 && note(plural(rep.createdClients, 'client') + ' created from names in the cases or invoices. Add their phone and email under Clients.'),
           rep.unlinked > 0 && note(plural(rep.unlinked, 'task or invoice') + ' named a case that was not found, so they were added without one.'),
+          note('Imported the wrong thing? Settings → Imports → Undo removes everything this import added.'),
           rep.capped > 0 && note(plural(rep.capped, 'active case') + ' were not imported because the plan\'s case limit was reached. Upgrade under Subscription and import the same file again: what is already here is skipped.', 'red'))),
         rep.skipped.length > 0 && box(h('div', null, h('div', { style: { fontSize: 13.5, fontWeight: 600, marginBottom: 6 } }, plural(rep.skipped.length, 'row') + ' skipped'),
           h('div', { style: { maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 } }, rep.skipped.slice(0, 300).map((s, i) => h('div', { key: i, style: { fontSize: 12.5, color: K.txt } }, h('span', { style: { color: K.mut } }, s.table + ', row ' + s.row + ': '), s.why))),
           h('div', { style: { marginTop: 10 } }, h(Btn, { small: true, onClick: () => L.csv('legal-staff-import-skipped.csv', [['File', 'Row', 'Reason'], ...rep.skipped.map(s => [s.table, s.row, s.why])]) }, 'Download the skipped rows')))),
-        h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' } }, h(Btn, { onClick: () => { setRep(null); setTables([]); setStep(1); } }, 'Import more'), h(Btn, { primary: true, onClick: () => { close(); app.go(rep.added.cases ? 'cases' : rep.added.clients ? 'clients' : 'dashboard'); } }, 'Done')));
+        h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' } }, h(Btn, { onClick: () => { setRep(null); setTables([]); setStep(1); } }, 'Import more'), h(Btn, { onClick: () => docs(app, rep.importId) }, 'Bring documents too'), h(Btn, { primary: true, onClick: () => { close(); app.go(rep.added.cases ? 'cases' : rep.added.clients ? 'clients' : 'dashboard'); } }, 'Done')));
     } else if (step === 0) {
       body = h(React.Fragment, null,
         note('Bring your clients, cases, hearing dates, tasks and invoices from the software or diary you use now. Export them from there as Excel (.xlsx) or CSV, then add the files here. The files are read in your browser and are not uploaded anywhere.'),
@@ -336,6 +392,7 @@
           note(source === SOURCES[1] ? 'In Excel: File → Save As → Excel Workbook (.xlsx) or CSV. In Google Sheets: File → Download → .xlsx or .csv. Keep one header row at the top of each sheet. One sheet per kind (Clients, Cases, Hearings…) works best.'
             : source === SOURCES[2] ? 'Export your customers as a client list and your sales invoices as a report to Excel or CSV. The fee before GST is used as the invoice amount.'
             : 'Most practice-management products have an Export, Download or Reports option on their cases (matters), clients (contacts), calendar and billing screens. Export each one to Excel or CSV. If yours only gives a JSON export, add that as it is. If it offers no export, ask its support for a copy of your data: you are entitled to it.'),
+          h('div', { style: { fontSize: 13, color: K.mut } }, 'Documents too? ', h('button', { type: 'button', onClick: () => docs(app), style: { border: 0, background: 'none', padding: 0, color: K.ink, textDecoration: 'underline', cursor: 'pointer', fontSize: 13 } }, 'Bring a folder or ZIP of documents'), ' (import the cases first, so each file finds its case).'),
           h('div', { style: { fontSize: 13, color: K.mut } }, 'Or fill in a template: ', ORDER.map((k, i) => h(React.Fragment, { key: k }, i ? ' · ' : '', h('button', { type: 'button', onClick: () => dl(k), style: { border: 0, background: 'none', padding: 0, color: K.ink, textDecoration: 'underline', cursor: 'pointer', fontSize: 13 } }, KINDS[k].label)))))),
         nav(null, () => setStep(1), 'Next'));
     } else if (step === 1) {
@@ -375,8 +432,85 @@
     }
     return h(Modal, { title: rep ? 'Import finished' : 'Move your data from other software', sub: rep ? null : 'Clients, cases, hearings, tasks and invoices', onClose: close, width: 680 }, !rep && bar, body);
   }
+
+  /* ---------- bringing documents: files, a folder or a ZIP; each file is matched to a case by its name or folder ---------- */
+  const pickDir = () => new Promise(res => { const i = document.createElement('input'); i.type = 'file'; i.multiple = true; i.webkitdirectory = true; i.onchange = () => res([...i.files]); i.click(); });
+  function DocsFlow({ app, importId }) {
+    const d = app.db, [items, setItems] = useState([]), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [done, setDone] = useState(null), [only, setOnly] = useState('');
+    const close = () => app.modal(null), opts = [['', 'No case (keep unlinked)'], ...V.caseOpts(d)];
+    const add = async fs => {
+      if (!fs.length) return; setBusy('Reading ' + plural(fs.length, 'file') + '…'); setErr('');
+      const got = [], bad = [];
+      for (const f of fs) {
+        const path = f.webkitRelativePath || f.name;
+        if (/\.zip$/i.test(f.name)) { try { const z = await zipEntries(await f.arrayBuffer(), f.name); z.out.forEach(x => got.push(x)); z.bad.forEach(p => bad.push(f.name + ': ' + p + ' could not be unpacked')); } catch (e) { bad.push(f.name + ': ' + (e.message || 'not a ZIP file')); } }
+        else if (!/(^|\/)(\.DS_Store|Thumbs\.db|desktop\.ini)$/i.test(path) && !/(^|\/)\./.test(path)) got.push({ path, file: f });
+      }
+      const have = new Set(items.map(x => x.path));
+      setItems(items.concat(got.filter(x => !have.has(x.path)).map(x => ({ id: L.uid('d'), path: x.path, file: x.file, caseId: matchDoc(x.path, d.cases), type: docType(x.path.split('/').pop()), on: true }))));
+      setBusy(''); if (bad.length) setErr(bad.slice(0, 5).join(' · ') + (bad.length > 5 ? ' and ' + (bad.length - 5) + ' more' : ''));
+    };
+    const upd = (id, ch) => setItems(xs => xs.map(x => x.id === id ? Object.assign({}, x, ch) : x));
+    const live = items.filter(x => x.on), matched = live.filter(x => x.caseId).length, total = live.reduce((a, x) => a + x.file.size, 0);
+    const go = async () => {
+      if (app.locked && app.locked()) return app.toast('Your plan has ended. Subscribe to import documents.');
+      const tag = importId || L.uid('imp'), ok = [], failed = [];
+      for (let i = 0; i < live.length; i++) {
+        const x = live[i], f = x.file, ext = (f.name.split('.').pop() || 'FILE').toUpperCase().slice(0, 4);
+        setBusy(`Saving ${i + 1} of ${live.length}: ${f.name}`);
+        try {
+          const drive = await V.storeFile(app, x.id, f);
+          app.mut(db => { db.docs.unshift({ id: x.id, caseId: x.caseId, kind: 'document', type: x.type, ext, ...(drive ? { drive } : {}), name: f.name.replace(/\.[^.]+$/, ''), meta: `${x.type} · ${L.size(f.size)} · imported by ${db.user.name}`, v: 'v1', added: L.today(), file: f.name, exhibit: '', custody: '', importId: tag, imported: L.today(), tags: x.path.includes('/') ? [x.path.split('/').slice(-2, -1)[0]] : [] }); }, null);
+          ok.push(x);
+        } catch (e) { failed.push({ path: x.path, why: (e && e.message) || 'could not be saved' }); }
+      }
+      app.mut(db => { V.logIt(db, `Imported ${plural(ok.length, 'document')} by ${db.user.name}` + (failed.length ? ` (${failed.length} failed)` : ''), '', { importId: tag }); }, null);
+      setBusy(''); setDone({ ok: ok.length, linked: ok.filter(x => x.caseId).length, failed });
+    };
+    const box = (children, extra) => h('div', { style: Object.assign({ border: '1px solid ' + K.line, borderRadius: 10, padding: '14px 16px' }, extra) }, children);
+    const note = (txt, tone) => h('div', { style: { fontSize: 13, lineHeight: 1.55, color: tone === 'red' ? K.red : K.mut } }, txt);
+    const sel = (value, onChange, options, label) => h('select', { value, 'aria-label': label, onChange: e => onChange(e.target.value), style: Object.assign({}, X.input, { height: 32, fontSize: 13, minWidth: 0, width: '100%' }) }, options.map(o => Array.isArray(o) ? h('option', { key: o[0], value: o[0] }, o[1]) : h('option', { key: o, value: o }, o)));
+    if (done) return h(Modal, { title: 'Documents imported', onClose: close, width: 600 },
+      box(h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } }, h('div', { style: { fontSize: 15, fontWeight: 600 } }, 'Saved ' + plural(done.ok, 'document')), note(done.linked + ' linked to a case, ' + (done.ok - done.linked) + ' kept without one. Link them later from Documents → Edit.'),
+        done.failed.length > 0 && note(plural(done.failed.length, 'file') + ' could not be saved: ' + done.failed.slice(0, 5).map(x => x.path + ' (' + x.why + ')').join('; '), 'red'))),
+      h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 10 } }, h(Btn, { primary: true, onClick: () => { close(); app.go('documents'); } }, 'Open Documents')));
+    const shown = live.length > 60 && only ? items.filter(x => only === 'none' ? !x.caseId : x.caseId) : items;
+    return h(Modal, { title: 'Bring your documents', sub: V.driveOn(app) ? 'Files are encrypted and saved to the hidden Legal Staff folder in your Google Drive.' : window.LSB && LSB.on ? 'Files are stored privately for your firm.' : 'Files stay in this browser. Nothing is uploaded to a server.', onClose: busy ? () => {} : close, width: 760 },
+      note('Add the files, a whole folder, or a ZIP of your old case files. Each file is matched to a case when its name or folder contains the case\'s CNR, case number, file number or title (for example "CWJC 1234-2025/Order 12.03.2025.pdf"). Check the matches, then save.'),
+      h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+        h(Btn, { disabled: !!busy, onClick: () => L.pickFile('', true).then(add) }, '+ Files or a ZIP'),
+        h(Btn, { disabled: !!busy, onClick: () => pickDir().then(add) }, '+ A folder')),
+      err && note(err, 'red'),
+      items.length > 0 && h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 13.5 } },
+        h('span', null, plural(live.length, 'file') + ' · ' + L.size(total) + ' · ', h('b', null, matched + ' matched to a case')),
+        live.length > 60 && sel(only, setOnly, [['', 'Show all'], ['none', 'Show unmatched'], ['some', 'Show matched']], 'Filter')),
+      items.length > 0 && h('div', { style: { maxHeight: '46vh', overflowY: 'auto', border: '1px solid ' + K.line, borderRadius: 10 } },
+        shown.slice(0, 400).map((x, i) => h('div', { key: x.id, style: { display: 'grid', gridTemplateColumns: 'auto minmax(0,1.4fr) minmax(0,1.3fr) minmax(0,.8fr)', gap: 8, alignItems: 'center', padding: '8px 12px', borderTop: i ? '1px solid ' + K.line : 0, opacity: x.on ? 1 : .5 } },
+          h('input', { type: 'checkbox', checked: x.on, 'aria-label': 'Import ' + x.path, onChange: e => upd(x.id, { on: e.target.checked }) }),
+          h('div', { style: { minWidth: 0, fontSize: 13 } }, h('div', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: x.path }, x.path.split('/').pop()), h('div', { style: { fontSize: 11.5, color: K.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (x.path.includes('/') ? x.path.split('/').slice(0, -1).join(' / ') + ' · ' : '') + L.size(x.file.size))),
+          sel(x.caseId, v => upd(x.id, { caseId: v }), opts, 'Case for ' + x.path),
+          sel(x.type, v => upd(x.id, { type: v }), ['Pleading', 'Court order', 'Draft', 'Correspondence', 'Other'], 'Type of ' + x.path))),
+        shown.length > 400 && h('div', { style: { padding: 10, fontSize: 12.5, color: K.mut } }, 'Showing the first 400. All ' + shown.length + ' are imported.')),
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' } },
+        h('span', { style: { fontSize: 13, color: K.mut } }, busy),
+        h('div', { style: { display: 'flex', gap: 10 } }, h(Btn, { disabled: !!busy, onClick: close }, 'Cancel'), h(Btn, { primary: true, disabled: !!busy || !live.length, onClick: go }, busy && live.length ? 'Saving…' : 'Save ' + plural(live.length, 'document')))));
+  }
+  function docs(app, importId) { if (!app.db.cases.length) app.toast('No cases yet: the documents are kept without a case. Import your cases first to link them.'); app.modal(() => h(DocsFlow, { app, importId })); }
+
+  /* ---------- Settings: the imports still present, each with Undo ---------- */
+  const LABEL = { clients: 'client', cases: 'case', hearings: 'hearing', tasks: 'task', invoices: 'invoice', docs: 'document' };
+  function ImportsList({ app }) {
+    const list = imports(app.db); if (!list.length) return null;
+    const undo = x => V.confirmBox(app, 'Undo this import?', `Everything this import added is deleted: ${Object.keys(x.counts).map(k => plural(x.counts[k], LABEL[k])).join(', ')}. Hearings and orders added since to its cases go with them; tasks and documents added by hand stay, without a case. Details filled into clients that were already here stay.`, 'Undo import', () => {
+      let r; app.mut(db => { r = undoImport(db, x.id); if (!r.blocked) V.logIt(db, `Import undone by ${db.user.name}: ` + Object.keys(r.removed).filter(k => r.removed[k]).map(k => plural(r.removed[k], LABEL[k] || 'order')).join(', ')); }, null);
+      if (!r) return; if (r.blocked) return app.toast(r.blocked);
+      r.files.forEach(f => { try { V.dropFile(f); } catch (e) {} });
+      app.toast('Import undone' + (r.kept ? ` · ${plural(r.kept, 'client')} kept because cases or invoices added by hand use them` : ''));
+    });
+    return h('div', null, list.map(x => h(V.Line, { key: x.id }, h('div', { style: { flex: 1, minWidth: 0 } }, 'Import' + (x.date ? ' of ' + L.fmt(x.date) : ''), h('div', { style: { fontSize: 12.5, color: K.mut } }, Object.keys(x.counts).map(k => plural(x.counts[k], LABEL[k])).join(', '))), h(Btn, { small: true, danger: true, onClick: () => undo(x) }, 'Undo'))));
+  }
   function migrate(app) {
     app.modal(() => h(MigrateFlow, { app }));
   }
-  Object.assign(window.LSI, { MigrateFlow, migrate });
+  Object.assign(window.LSI, { MigrateFlow, migrate, DocsFlow, docs, ImportsList });
 })();

@@ -137,4 +137,49 @@ await t('Rows: a case with only a CNR or only a number still imports; missing fi
 await t('Templates read back as the kind they are for, with every column matched', () => {
   for (const k of I.ORDER) { const head = I.TEMPLATE[k][0]; assert.equal(I.guessKind(head, 'legal-staff-' + k + '-template.csv'), k); assert.equal(Object.keys(I.guessMap(k, head)).length, head.length, k); }
 });
+
+await t('Undo: removes what one import added, keeps hand-made work, refuses when a hand-made invoice depends on it', () => {
+  const d = Object.assign(db(), { orders: [], docs: [], deadlines: [], lims: [], log: [] });
+  d.clients.push({ id: 'old', name: 'Meena Devi', phone: '' });
+  const T = (kind, rows) => ({ kind, map: I.guessMap(kind, rows[0]), rows: rows.slice(1) });
+  I.apply(d, [T('cases', [['Title', 'Case No', 'Client', 'Next date'], ['Kumar v State', 'CS 1/2025', 'R. Kumar', '15/01/2027'], ['Devi v Bank', 'OA 2/2025', 'Meena Devi', '']]), T('clients', [['Name', 'Mobile'], ['Meena Devi', '9876543210'], ['Lone Client', '9000000000']])], Object.assign({}, opts, { importId: 'impA' }));
+  I.apply(d, [T('tasks', [['Task', 'Case'], ['Other run task', 'CS 1/2025']])], Object.assign({}, opts, { importId: 'impB' }));
+  const kumar = d.cases.find(c => c.no === 'CS 1/2025'), devi = d.cases.find(c => c.no === 'OA 2/2025');
+  // work done by hand after the import
+  d.hearings.push({ id: 'hand-h', caseId: kumar.id, date: '2027-02-01' });
+  d.orders.push({ id: 'o1', caseId: kumar.id }); d.docs.push({ id: 'od', caseId: kumar.id, orderId: 'o1', file: 'o.txt' }, { id: 'hd', caseId: kumar.id, file: 'brief.pdf' });
+  d.cases.push({ id: 'hand-c', no: 'X/1', title: 'Hand case', status: 'active', clientId: d.clients.find(c => c.name === 'R. Kumar').id });
+  d.invoices.push({ id: 'inv', no: 'INV-1', caseId: devi.id, clientId: 'old' });
+  const list = Object.fromEntries(I.imports(d).map(x => [x.id, x.counts]));
+  assert.deepEqual(list, { impA: { cases: 2, clients: 2, hearings: 1 }, impB: { tasks: 1 } });
+  assert.match(I.undoImport(d, 'impA').blocked, /Invoice INV-1/);
+  assert.equal(d.cases.length, 3);                                   // nothing removed by a refused undo
+  d.invoices = [];
+  const r = I.undoImport(d, 'impA');
+  assert.deepEqual(d.cases.map(c => c.id), ['hand-c']);
+  assert.equal(d.hearings.length, 0); assert.equal(d.orders.length, 0);
+  assert.deepEqual(r.files.map(f => f.id), ['od']);                  // the order's text record goes with its case
+  assert.equal(d.docs.find(x => x.id === 'hd').caseId, '');          // the hand-uploaded brief stays, unlinked
+  assert.equal(d.tasks[0].caseId, '');                               // the other import's task stays, unlinked
+  assert.equal(r.kept, 1);                                           // R. Kumar is used by the hand-made case
+  assert.deepEqual(d.clients.map(c => c.name).sort(), ['Meena Devi', 'R. Kumar']);
+  assert.equal(d.clients.find(c => c.id === 'old').phone, '9876543210');
+  assert.deepEqual(I.imports(d).map(x => x.id), ['impB']);
+});
+await t('Documents: matched to a case by CNR, number, file number or title in the name or folder', () => {
+  const cases = [{ id: 'a', cnr: 'BRHC010012342025', no: 'CWJC 1234/2025', title: 'Ramesh Kumar v. State of Bihar' }, { id: 'b', no: 'CS 12/2025', fileNo: 'F-101', title: 'Sharma v. Union of India' }, { id: 'c', no: 'CS 1/2025', title: 'A v B' }];
+  assert.equal(I.matchDoc('Clients/CWJC_1234_2025/order 12.03.2025.pdf', cases), 'a');
+  assert.equal(I.matchDoc('BRHC010012342025 - reply.pdf', cases), 'a');
+  assert.equal(I.matchDoc('Old cases/Sharma vs Union of India/plaint.docx', cases), 'b');
+  assert.equal(I.matchDoc('F101 vakalatnama.pdf', cases), 'b');
+  assert.equal(I.matchDoc('CS 12-2025 evidence.pdf', cases), 'b');     // the longer number wins over CS 1/2025
+  assert.equal(I.matchDoc('misc/letterhead.png', cases), '');
+  assert.equal(I.docType('Order dated 12.03.2025.pdf'), 'Court order'); assert.equal(I.docType('Written Statement final.docx'), 'Pleading'); assert.equal(I.docType('notice to client.pdf'), 'Correspondence'); assert.equal(I.docType('scan001.jpg'), 'Other');
+});
+await t('Documents: a ZIP is unpacked, folders kept in the path, system files skipped', async () => {
+  const z = zip({ 'CS 12-2025/order.pdf': '%PDF-1.4 test', 'CS 12-2025/': '', '__MACOSX/._order.pdf': 'x', 'notes.txt': 'hello', '.DS_Store': 'x' });
+  const { out, bad } = await I.zipEntries(z, 'old-files.zip');
+  assert.deepEqual(out.map(x => x.path), ['old-files/CS 12-2025/order.pdf', 'old-files/notes.txt']);
+  assert.equal(out[0].file.type, 'application/pdf'); assert.equal(await out[1].file.text(), 'hello'); assert.deepEqual(bad, []);
+});
 console.log(n + ' tests passed');
