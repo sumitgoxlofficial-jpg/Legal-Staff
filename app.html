@@ -260,6 +260,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
   </sc-if>
 
+  <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ false }}">{{ bannerBar }}</sc-if>
+
   <main style="{{ mainStyle }}">
     <sc-if value="{{ showWall }}" hint-placeholder-val="{{ true }}">
       <div aria-hidden="true" style="position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden">
@@ -1130,6 +1132,7 @@ class Component extends DCLogic {
       this.onHide = () => { LSB.hiding(true); if (this.syncT) this.flush().catch(() => {}); };
       this.onBU = e => { if (this.syncT || LSB.pending()) { if (this.syncT) this.flush().catch(() => {}); e.preventDefault(); e.returnValue = ''; return ''; } };
       document.addEventListener('visibilitychange', this.onVis); window.addEventListener('pagehide', this.onHide); window.addEventListener('beforeunload', this.onBU);
+      LSB.banner().then(b => { if (b) this.setState({ banner: b }); });
       LSB.session().then(s => s ? this.enter(s) : this.setState({ auth: 'login' })).catch(e => { this.setState({ auth: 'login' }); this.toast('Could not reach the server: ' + e.message); }); }
     else if (this.state.auth === 'in' && !this.db.firm.name) LSV.onboard(this);
   }
@@ -1654,6 +1657,11 @@ class Component extends DCLogic {
       searchQ: S.search, setSearch: e => this.setState({ search: e.target.value, searchOpen: true }), searchFocus: () => this.setState({ searchOpen: true, menu: null }), searchBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 150), searchKey: e => { if (e.key === 'Enter' && results[0]) pick(results[0]); }, searchDrop,
       newCase: () => V.newCase(this), importCnr: () => V.importCnr(this), help: () => V.help(this), alertsMenu: openMenu('alerts'), alertCount: alerts.length, hasAlerts: alerts.length > 0, overlay,
       toast: S.toast, hasToast: !!S.toast, goCases: () => this.go('cases'),
+      showBanner: !!(S.banner && !(() => { try { return sessionStorage.getItem('ls-banner-x') === S.banner.message; } catch (e) { return false; } })()),
+      bannerBar: S.banner ? (() => { const tone = { info: ['#EEF4FF', '#1D3B8B', '#C9D9FF'], warning: ['#FFF6E5', '#7A4B00', '#F5D9A0'], success: ['#E7F6EC', '#137333', '#BFE3CB'] }[S.banner.tone] || ['#EEF4FF', '#1D3B8B', '#C9D9FF'];
+        return h('div', { role: 'status', style: { background: tone[0], color: tone[1], borderBottom: '1px solid ' + tone[2], padding: '9px 16px', fontSize: 13.5, display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', position: 'relative' } },
+          h('span', null, S.banner.message), S.banner.link_url ? h('a', { href: S.banner.link_url, target: '_blank', rel: 'noopener noreferrer', style: { color: tone[1], fontWeight: 600, textDecoration: 'underline' } }, S.banner.link_text || 'Learn more') : null,
+          h('button', { type: 'button', 'aria-label': 'Dismiss', onClick: () => { try { sessionStorage.setItem('ls-banner-x', S.banner.message); } catch (e) {} this.setState({ bannerX: Date.now() }); }, style: { border: 0, background: 'none', color: tone[1], fontSize: 18, lineHeight: 1, cursor: 'pointer', padding: '0 4px' } }, '×')); })() : null,
       hasCrumbs: false, crumb: '', crumbBar: {},
       quick: PA.quick.map(k => { const [label, sub, ic] = LSP.QUICK[k], go = { newcase: () => V.newCase(this), upload: () => V.addOrder(this), limit: () => this.go('limitation'), draft: () => this.go('drafting'), cnr: () => V.importCnr(this), evidence: () => this.go('evidence'), causelist: () => this.go('causelist'), research: () => this.go('research'), board: () => this.go('board'), clients: () => this.go('clients') }[k]; return { label: renameNav[k === 'clients' ? 'clients' : ''] || label, sub, icon: icon(ic, 20), go }; }),
       caseFilters: [['all', 'All'], ['active', 'Active'], ['pending', 'Pending'], ['disposed', 'Disposed'], ['archived', 'Archived']].map(([k, label]) => ({ label, count: k === 'all' ? D.cases.length : D.cases.filter(x => x.status === k).length, go: () => this.setState({ caseFilter: k }),

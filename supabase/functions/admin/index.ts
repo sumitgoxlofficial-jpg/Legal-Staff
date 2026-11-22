@@ -1,7 +1,7 @@
 // Super admin console API (admin.html). Every call: a signed-in user whose verified email is in public.super_admins.
 // actions: overview · firms · firm_update · payments · coupons · coupon_save · coupon_delete · support · support_reply ·
 //          support_status · expenses · expense_add · expense_delete · settings · settings_save · refund · audit_log · directory_counts · directory_get ·
-//          firm_members · member_status · user_delete · admins_add · admins_remove · dir_reports · dir_enquiries
+//          firm_members · member_status · user_delete · banner_get · banner_save · admins_add · admins_remove · dir_reports · dir_enquiries
 // Every change made here is written to admin_audit_log (append-only): who, what, which record, the details.
 // Deploy with JWT verification off; it checks every caller itself.
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -388,6 +388,27 @@ Deno.serve(async (req: Request) => {
     if (action === "dir_enquiries") {
       const { data } = await admin.from("directory_enquiries").select("id,application_id,name,email,phone,category,language,message,created_at,replied_at,directory_applications(name,enr)").order("created_at", { ascending: false }).limit(300);
       return json({ enquiries: (data ?? []).map((r: any) => ({ ...r, advocate: r.directory_applications?.name ?? "", enr: r.directory_applications?.enr ?? "", directory_applications: undefined })) });
+    }
+
+    // ---- the site-wide banner (plain text, https link only, optional start/end dates in India time) ----
+    if (action === "banner_get") {
+      const { data } = await admin.from("site_banner").select("enabled,message,tone,link_url,link_text,starts_on,ends_on,updated_at,updated_by").eq("id", 1).maybeSingle();
+      return json({ banner: data ?? null });
+    }
+    if (action === "banner_save") {
+      const b = body.banner ?? {}, message = String(b.message ?? "").trim(), tone = String(b.tone ?? "info"), linkUrl = String(b.link_url ?? "").trim(), linkText = String(b.link_text ?? "").trim();
+      const day = (v: unknown) => { const s = String(v ?? "").trim(); if (!s) return null; if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw new Fail("Dates look like 2026-12-01."); return s; };
+      const starts = day(b.starts_on), ends = day(b.ends_on), enabled = b.enabled === true;
+      if (message.length > 300) throw new Fail("The message is at most 300 characters.");
+      if (enabled && !message) throw new Fail("Write the message before switching the banner on.");
+      if (!["info", "warning", "success"].includes(tone)) throw new Fail("Choose a colour.");
+      if (linkUrl && !/^https:\/\/[^\s]+$/.test(linkUrl)) throw new Fail("A link must start with https://");
+      if (linkText.length > 40) throw new Fail("The link text is at most 40 characters.");
+      if (starts && ends && ends < starts) throw new Fail("The end date cannot be before the start date.");
+      const { error } = await admin.from("site_banner").upsert({ id: 1, enabled, message, tone, link_url: linkUrl, link_text: linkText, starts_on: starts, ends_on: ends, updated_at: new Date().toISOString(), updated_by: email });
+      must(error, "The banner could not be saved.");
+      await audit("banner.save", "site_banner", { enabled, tone, starts_on: starts, ends_on: ends, message: message.slice(0, 120) });
+      return json({ ok: true });
     }
 
     if (action === "settings") { const { data } = await admin.from("pay_settings").select(KEYS.join(",")).eq("id", 1).single(); return json({ settings: data, admins: ((await admin.from("super_admins").select("email")).data ?? []).map((a: any) => a.email) }); }

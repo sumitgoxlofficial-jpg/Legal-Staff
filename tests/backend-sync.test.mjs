@@ -61,4 +61,11 @@ await t('deleting a record still works, and a conflict on one record does not bl
   ok(err && err.conflict && /not saved/.test(err.message)); eq(db.records.find(r => r.id === 'd2').data.title, 'Edited d2', 'the other edit was saved'); ok(!db.records.find(r => r.id === 'd3'), 'the delete went through'); eq(db.records.find(r => r.id === 'd1').data.title, 'T-d1', 'the conflicting edit was refused'); });
 await t('a large batch (a restored backup) is still sent in one go', async () => { db.records = Array.from({ length: 80 }, (_, i) => mkRec('b' + i)); db.calls = []; const d = await open(); d.cases.forEach(c => { c.title = 'Restored ' + c.id; }); await LSB.sync(d);
   ok(db.calls.filter(c => c[0] === 'upsert').length === 80 && !db.calls.some(c => c[0] === 'update'), 'bulk path used'); eq(db.records[0].data.title.startsWith('Restored'), true); });
+await t('banner(): returns the live notice, or null when there is none, on an error, or when the call throws', async () => {
+  const real = client.rpc; try {
+    client.rpc = async n => ({ data: n === 'site_banner' ? { message: 'Maintenance', tone: 'warning', link_url: '', link_text: '' } : null, error: null }); eq((await LSB.banner()).message, 'Maintenance');
+    client.rpc = async () => ({ data: null, error: null }); eq(await LSB.banner(), null);
+    client.rpc = async () => ({ data: { message: 'x' }, error: { message: 'boom' } }); eq(await LSB.banner(), null);
+    client.rpc = async () => { throw new Error('offline'); }; eq(await LSB.banner(), null);
+  } finally { client.rpc = real; } });
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

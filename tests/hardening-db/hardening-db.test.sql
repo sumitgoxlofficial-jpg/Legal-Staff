@@ -331,6 +331,40 @@ select t.a($q$t.kyc() = 'submitted'$q$, 'rejecting the only PAN sends a verified
 select t.a($q$t.cnt('select count(*) from public.partner_documents where status = ''rejected'' and note = ''The PAN card is not readable'' and reviewed_by = ''owner@legalstaff.test''') = 1$q$, 'the reason and the reviewer are recorded');
 select t.a($q$t.cnt('select count(*) from public.partner_audit_logs where action = ''partner.document_rejected''') = 1$q$, 'the review is in the audit log');
 
+-- ===== 0051: site banner =================================================================================
+\echo 0051 site banner
+select t.as_user(null, null);
+select t.a($q$public.site_banner() is null$q$, 'no banner while it is off');
+set role anon;
+select count(*) as bn_anon from public.site_banner \gset
+update public.site_banner set enabled = true, message = 'hacked';
+reset role;
+select t.a('(' || :bn_anon || ' = 0)', 'anon cannot read the banner table directly');
+select t.a($q$t.cnt('select count(*) from public.site_banner where enabled or message = ''hacked''') = 0$q$, 'anon cannot write the banner table');
+set role authenticated;
+select count(*) as bn_auth from public.site_banner \gset
+update public.site_banner set enabled = true, message = 'hacked';
+reset role;
+select t.a('(' || :bn_auth || ' = 0)', 'a signed-in user sees no rows of the banner table (row level security, no policy)');
+select t.a($q$t.cnt('select count(*) from public.site_banner where enabled or message = ''hacked''') = 0$q$, 'a signed-in user cannot write the banner');
+update public.site_banner set enabled = true, message = 'Maintenance tonight 11pm', tone = 'warning' where id = 1;
+set role anon;
+select t.a($q$(public.site_banner() ->> 'message') = 'Maintenance tonight 11pm' and (public.site_banner() ->> 'tone') = 'warning'$q$, 'an enabled banner is visible to everyone');
+reset role;
+update public.site_banner set starts_on = (now() at time zone 'Asia/Kolkata')::date + 2 where id = 1;
+select t.a($q$public.site_banner() is null$q$, 'not shown before its start date');
+update public.site_banner set starts_on = null, ends_on = (now() at time zone 'Asia/Kolkata')::date - 1 where id = 1;
+select t.a($q$public.site_banner() is null$q$, 'not shown after its end date');
+update public.site_banner set starts_on = (now() at time zone 'Asia/Kolkata')::date, ends_on = (now() at time zone 'Asia/Kolkata')::date where id = 1;
+select t.a($q$public.site_banner() is not null$q$, 'shown on its last day');
+update public.site_banner set message = '   ' where id = 1;
+select t.a($q$public.site_banner() is null$q$, 'a blank message shows nothing');
+select t.raises($q$update public.site_banner set link_url = 'javascript:alert(1)'$q$, '%site_banner_link_url_check%', 'only https links are allowed');
+select t.raises($q$update public.site_banner set message = repeat('x', 301)$q$, '%site_banner_message_check%', 'a message is at most 300 characters');
+select t.raises($q$update public.site_banner set starts_on = '2026-12-10', ends_on = '2026-12-01'$q$, '%site_banner_check%', 'the end cannot be before the start');
+select t.raises($q$insert into public.site_banner (id) values (2)$q$, '%site_banner_id_check%', 'there is only ever one banner');
+update public.site_banner set enabled = false, message = '', starts_on = null, ends_on = null where id = 1;
+
 \echo
 select 'RESULT', count(*) filter (where ok), count(*) filter (where not ok) from t.r;
 select 'FAIL: ' || name from t.r where not ok;

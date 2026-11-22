@@ -271,7 +271,7 @@
   }
 
   // ---------- layout ----------
-  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['dirinbox', 'Directory inbox'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['activity', 'Activity log'], ['settings', 'Settings', [[null, [['general', 'General'], ['integrations', 'Integrations']]]]]];
+  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['directory', 'Directory'], ['dirinbox', 'Directory inbox'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['activity', 'Activity log'], ['settings', 'Settings', [[null, [['general', 'General'], ['banner', 'Site banner'], ['integrations', 'Integrations']]]]]];
   // sidebar sections (anything an extension adds that is not listed here lands under "More")
   const NAV = [['', ['overview']], ['Business', ['firms', 'payments', 'coupons', 'expenses']], ['Growth', ['directory', 'dirinbox', 'email', 'partners']], ['Help', ['support']], ['System', ['settings', 'activity']]];
   const IC = {
@@ -627,6 +627,27 @@
   const wireSettingsNav = p => p.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => go('settings' + (b.dataset.sub ? '/' + b.dataset.sub : '')));
   VIEWS.settings = async (p, sub) => {
     if (sub === 'whatsapp') return VIEWS.whatsapp(p);
+    if (sub === 'banner') {
+      let bn = {}; try { bn = (await api('banner_get')).banner || {}; } catch (e) { p.innerHTML = `<h1>Settings</h1><p class="sub">Site banner</p><div class="card"><span class="err">${esc(e.message)}</span></div>`; return; }
+      p.innerHTML = `<h1>Settings</h1><p class="sub">Site banner</p>
+        <div class="card" style="max-width:640px;display:flex;flex-direction:column;gap:12px">
+          <div class="muted small">A one-line notice shown at the top of the app for everyone (maintenance, an offer, news). Plain text only. Dates are in India time; leave them empty to show it until you switch it off.</div>
+          <label class="row" style="gap:8px"><input type="checkbox" id="bn-on" ${bn.enabled ? 'checked' : ''}> <span class="strong">Show the banner</span></label>
+          <label class="f">Message (up to 300 characters)<textarea id="bn-msg" rows="2" maxlength="300">${esc(bn.message || '')}</textarea></label>
+          <div class="two"><label class="f">Colour<select id="bn-tone"><option value="info">Blue: information</option><option value="warning">Amber: warning</option><option value="success">Green: good news</option></select></label>
+            <label class="f">Link text (optional)<input id="bn-lt" maxlength="40" value="${esc(bn.link_text || '')}" placeholder="Learn more"></label></div>
+          <label class="f">Link (optional, must start with https://)<input id="bn-url" value="${esc(bn.link_url || '')}" placeholder="https://"></label>
+          <div class="two"><label class="f">Show from<input type="date" id="bn-from" value="${esc(bn.starts_on || '')}"></label><label class="f">Show until (included)<input type="date" id="bn-to" value="${esc(bn.ends_on || '')}"></label></div>
+          <div class="row between"><span class="err" id="er"></span><button class="btn pri" id="bn-save">Save banner</button></div>
+          ${bn.updated_by ? `<div class="muted small">Last changed by ${esc(bn.updated_by)}.</div>` : ''}
+        </div>`;
+      p.querySelector('#bn-tone').value = ['info', 'warning', 'success'].includes(bn.tone) ? bn.tone : 'info';
+      p.querySelector('#bn-save').onclick = async () => {
+        const v = id => p.querySelector(id).value;
+        try { await api('banner_save', { banner: { enabled: p.querySelector('#bn-on').checked, message: v('#bn-msg'), tone: v('#bn-tone'), link_text: v('#bn-lt'), link_url: v('#bn-url'), starts_on: v('#bn-from'), ends_on: v('#bn-to') } }); p.querySelector('#er').textContent = ''; toast('Banner saved'); } catch (e) { p.querySelector('#er').textContent = e.message; }
+      };
+      return;
+    }
     if (sub === 'integrations') {
       let st = null; try { st = await wa('/connection/status'); } catch (e) { /* shown on the WhatsApp page */ }
       const [lbl, cls] = st ? WA_STATUS[st.config.status] || ['—', 'c-mut'] : ['Unavailable', 'c-mut'];
