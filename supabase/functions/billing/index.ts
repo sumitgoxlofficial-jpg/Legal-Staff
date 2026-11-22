@@ -1,6 +1,6 @@
 // Billing: invoices for plan payments (no GST is charged), as PDF, emailed to the buyer.
 // actions:
-//   issue  (server only: Authorization = service role key; called by upi-pay when a payment is confirmed)
+//   issue  (server only: Authorization = service role key; called by razorpay when a payment is confirmed)
 //          → creates the payment's invoice (once) and emails it with the PDF attached.
 //   list   (firm member) → { sub, invoices[] }; creates any missing invoice for a paid payment first.
 //   pdf    (firm member) → { filename, pdf (base64) } for one invoice.
@@ -15,7 +15,7 @@ class Fail extends Error { status: number; constructor(msg: string, status = 400
 
 const SITE = (Deno.env.get("APP_URL") ?? "https://legalstaff.in").replace(/\/$/, "");
 const PRICES: Record<string, Record<string, number>> = { Solo: { monthly: 299, annual: 2999 }, Professional: { monthly: 799, annual: 7999 }, Firm: { monthly: 3999, annual: 39999 } };
-// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with upi-pay, billing and admin.
+// Professional: PRICES covers the first user; each additional user costs PER_USER. Keep in step with razorpay, billing and admin.
 const PER_USER: Record<string, number> = { monthly: 249, annual: 2499 }, MAX_USERS = 15;
 /** List price in rupees for a plan and cycle; seats only counts for Professional (missing → 1). */
 const listPrice = (plan: string, cycle: string, seats?: number | null) => {
@@ -85,7 +85,7 @@ async function buildInvoice(admin: any, p: any, s: any) {
     period: sub ? { from: sub.since, to: sub.renews } : null,
     list, promo: p.promo_code || "", adjust: t.taxable - list,   // negative: discount; small positive: unique-amount paise
     ...t, total: p.amount_paise,
-    paidAt: p.paid_at, method: p.method === "promo" ? "Promo code" : "UPI", utr: p.utr || "", orderNo: p.order_no || "",
+    paidAt: p.paid_at, method: p.method === "promo" ? "Promo code" : p.method === "razorpay" ? "Razorpay" : "UPI", utr: p.utr || "", orderNo: p.order_no || "",
   };
 }
 
@@ -189,7 +189,7 @@ async function invoicePdf(inv: any) {
   // payment
   y -= 14; hr(y); y -= 20;
   T("PAYMENT", M, y, { size: 7.5, bold: true, color: mut }); y -= 15;
-  T(`Paid by ${d.method} on ${d.paidAt ? fmtDate(d.paidAt) : fmtDate(inv.issued_at)}${d.utr ? "   ·   UPI reference " + d.utr : ""}`, M, y); y -= 13;
+  T(`Paid by ${d.method} on ${d.paidAt ? fmtDate(d.paidAt) : fmtDate(inv.issued_at)}${d.utr ? "   ·   " + (d.method === "Razorpay" ? "Payment ID " : "UPI reference ") + d.utr : ""}`, M, y); y -= 13;
   if (d.promo) { T(`Promo code applied: ${d.promo}`, M, y, { color: mut }); y -= 13; }
   if (!d.gst) { T("No GST is charged on this invoice.", M, y, { color: mut, size: 8.5 }); y -= 12; }
 
@@ -258,7 +258,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const action = body.action ?? "";
 
-    // ---- called by upi-pay right after a payment is confirmed ----
+    // ---- called by razorpay right after a payment is confirmed ----
     if (action === "issue") {
       if (req.headers.get("Authorization") !== "Bearer " + service) return json({ error: "Not allowed." }, 403);
       const { data: p } = await admin.from("payments").select("*").eq("id", body.payment_id).eq("status", "paid").maybeSingle();

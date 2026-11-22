@@ -21,6 +21,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - Each page is a template plus a logic class, rendered by `support.js` on React 18 (bundled in `vendor/`).
 - `app-store.js` holds the app's data layer: storage, local accounts, the limitation calculator, order reading, and exports (ICS, CSV, DOCX).
 - `app-views.js` holds the module screens, dialogs and forms.
+- `app-sign.js` holds the Drafting Studio extras: eStamp record, electronic signatures, fill-details automation, sealing (SHA-256) and audit trail.
 - `config.js` holds site settings such as the Google Client ID.
 
 ## Accounts and data
@@ -40,7 +41,7 @@ The Client ID is public and safe to commit. No client secret is needed. Until it
 
 ## What needs outside accounts
 
-The app runs on Supabase (see `supabase/README.md`): sign-in, firm data, Google Drive backup, AI (Groq), UPI payments
+The app runs on Supabase (see `supabase/README.md`): sign-in, firm data, Google Drive backup, AI (Groq), Razorpay payments
 confirmed from bank alert emails, invoices, morning briefings, trial and plan-ending reminders, and team invitations are live.
 Two features wait for an outside account:
 

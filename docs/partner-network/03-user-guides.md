@@ -1,0 +1,36 @@
+# Partner Network — user guides
+
+## Admin guide (Admin → **Partner Network**)
+* **Overview** – counts, pending liability, and global switches (network, registration, referral tracking, commission generation, payouts, campaigns). Switching off keeps all records and is audited.
+* **Page Content** – edit the headline, steps, benefits, FAQ and rewards note of the public Partners page. *Restore built-in* removes your edit. Keep the rewards note free of income promises.
+* **Instant dashboard** (System Settings): on by default. Off = every application waits in Partner Applications for you to approve.
+* **Partner Applications** – Start review / Approve / Reject (reason shown to the applicant). Approval creates the partner ID (LS10001…).
+* **All Partners** – search; open a partner to see documents (signed links), referrals, commissions, activity; suspend, reactivate, terminate, edit, set KYC. Suspending holds unpaid commissions.
+* **Partner Categories** – create/edit/activate/deactivate/archive; per-category eligibility, terms, referral tracking and commission amount. *Commission on* is refused until a legal approval is recorded.
+* **Referral Management / Advocate Registrations** – links and QR codes; every attribution with click match and risk; confirm or override (reason required); **Record payment** (only after confirming it in the bank/gateway; a reference works once).
+* **Monthly Earnings** – pick a month: for each partner, advocates referred (by the date they applied), how many paid and were verified, and the ledger's earned / already paid / **to pay** / waiting amounts, with CSV and Excel export. Money columns stay at ₹0 until a category has legal approval and commission on; the counts are always real.
+* **Commission Management** – the ledger. Approve eligible entries, make approved payable (one by one or in bulk monthly), hold/release, reject, reverse (reason required).
+* **Payout Management** – review → approve → processing → mark paid (UTR required). View destination (audited).
+* **Marketing Campaigns / Resources** – create, assign to categories, publish. `{{code}}` and `{{link}}` in text are personalised per partner. Clear material with counsel first.
+* **Partner Notifications** – edit templates, test send, broadcast in-dashboard messages.
+* **Leaderboard**, **Fraud Detection** (dismiss/confirm, add flag), **Compliance Management** (record/revoke counsel approvals), **Partner Support**, **Reports & Analytics** (preview, CSV, Excel, print/PDF), **System Settings** (all business settings; roles and staff for Super Admin), **Audit Logs**.
+* **Before switching commission on**: (1) counsel approves the activity and amount; (2) record it under Compliance; (3) confirm the listing price setting matches the live Razorpay fee (payments are picked up automatically from paid directory orders); (4) turn the category on; (5) turn *Commission generation* on.
+
+## Partner guide
+1. Apply at `/partners/register`: click **Continue with Google** (no code to type; an email code is available as a small fallback), check the pre-filled name, fill in the rest, accept terms and privacy.
+2. You land on your dashboard straight away (no approval wait while **Instant dashboard** is on in System Settings). Sign in again any time at `/partners/login` with the same Google account.
+3. The dashboard is one page: your referral link (copy, share on WhatsApp), QR code (download PNG), figures, monthly earnings, payouts, referrals, resources, profile and support, with quick links at the top.
+4. Share only approved material; never promise clients, cases or income.
+5. Earnings page shows each entry and its status. Rewards exist only for categories whose terms are active, and only for verified listings.
+6. To withdraw: upload KYC (Profile), add UPI or bank details (Payouts), request withdrawal once the balance reaches the minimum.
+7. Support page for questions.
+
+## Outstanding dependencies and limitations
+* **Legal approval** (BCI Rule 36, remuneration sharing, DPDP) is required before any commission; terms/privacy pages are drafts.
+* **₹15 commission is a proposal only** and off everywhere. The ₹49 listing fee is live through Razorpay; commission counts only paid orders above zero.
+* "Documents submitted" is read from `directory_applications.details.documents`; confirm it matches the directory's current document flow before enabling commission.
+* **Mobile OTP** needs an SMS provider; email OTP is live. WhatsApp automation is off.
+* Header/footer of the existing ~600 pages were deliberately not changed, so there is no site-wide "Partners" nav link yet (add it in `seo/lib.mjs` and rebuild when ready).
+* The directory's multi-step form was verified through its submit contract (insert with referral claim) and the DB, not by clicking every step.
+* Not tested against production Supabase, real Resend, or real payment gateways; nothing has been deployed.
+* Excel export is a plain single-sheet `.xlsx`; PDF uses the browser print dialog.
