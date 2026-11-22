@@ -1234,7 +1234,8 @@
       ? h(React.Fragment, null, h(DriveCard, { app }), h(Card, { title: 'Your firm\'s data' }, backup, restore,
           row('Clear this device', 'Remove what this browser keeps and sign out. The firm\'s data on the server is not touched.', h(Btn, { small: true, onClick: () => confirmBox(app, 'Clear this device?', 'Everything Legal Staff keeps in this browser is removed and you are signed out. Your firm\'s data on the server stays as it is.', 'Clear and sign out', () => clearDevice(app)) }, 'Clear')),
           owner && row('Delete firm data', 'Permanently delete every record and file of ' + (d.firm.name || 'the firm') + ', for everyone in the firm', h(Btn, { small: true, danger: true, onClick: () => eraseFirm(app) }, 'Delete')),
-          signOut))
+          signOut,
+          row('Delete my account', 'Permanently delete your sign-in and personal data. Payment records are kept as the law requires.', h(Btn, { small: true, danger: true, onClick: () => deleteAccount(app) }, 'Delete'))))
       : h(Card, { title: 'Data on this device' }, backup, restore, row('Erase all data', 'Delete every case, client, invoice, file and setting on this device', h(Btn, { small: true, danger: true, onClick: () => confirmBox(app, 'Erase all data?', 'Every case, client, invoice, document and setting on this device will be deleted, including uploaded files. Export a backup first if you may need it. This cannot be undone.', 'Erase everything', () => { const s0 = d.session, u0 = d.user; L.files.clear(); const x = L.reset(); x.session = s0; x.user = u0; x.team = [{ id: 'u1', name: u0.name, title: u0.title, role: u0.role, email: u0.email, status: 'Active' }]; app.replace(x, 'All data erased'); onboard(app); }) }, 'Erase')), signOut);
     return h(Page, { art: 'settings', kicker: 'Firm', title: 'Settings', sub: server ? 'Saved to your firm\'s account' : 'Everything here is saved on this device', max: 1100 },
       h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,440px),1fr))', gap: 20, alignItems: 'start' } },
@@ -1271,6 +1272,14 @@
       h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `This permanently deletes every case, client, hearing, order, task, invoice, deadline and uploaded file of ${name}, for everyone in the firm, and clears each member's saved notes, chats and drafts. Team members, the subscription and payment records are kept. Export a backup first. This cannot be undone.`),
       h(Form, { submit: 'Delete firm data', onCancel: () => app.modal(null), fields: [{ k: 'confirm', label: 'Type the firm name to confirm: ' + name, req: true, ph: name, check: v => v !== name ? 'The name does not match.' : '' }],
         onSubmit: () => { app.modal(null); app.toast('Deleting the firm\'s data…'); app.eraseFirm().then(n => app.toast(`Firm data deleted${n ? ' · ' + n + ' file' + (n === 1 ? '' : 's') + ' removed' : ''}`)).catch(e => app.toast('Could not delete the firm\'s data: ' + e.message)); } })));
+  }
+  /* Deletes the signed-in person's account on the server (function `account`). Refuses with a plain reason while a firm with colleagues or partner earnings would be left behind. */
+  function deleteAccount(app) {
+    const d = app.db, email = ((d.session && d.session.email) || d.user.email || '').trim().toLowerCase();
+    app.modal(() => h(Modal, { title: 'Delete my account?', onClose: () => app.modal(null), width: 500 },
+      h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, 'This permanently deletes your sign-in and your personal data, removes you from your firms and takes your directory profile off the public list. If you are the only member of your firm, its cases, clients, invoices and files are deleted too. If you own a firm with colleagues, hand it over first. Payment and order records are kept. Files saved in your Google Drive\'s hidden Legal Staff folder stay encrypted there and can be removed in Google Drive settings, Manage apps. This cannot be undone.'),
+      h(Form, { submit: 'Delete my account', onCancel: () => app.modal(null), fields: [{ k: 'confirm', label: 'Type your email to confirm: ' + email, req: true, ph: email, check: v => v.trim().toLowerCase() !== email ? 'The email does not match.' : '' }],
+        onSubmit: v => { app.toast('Deleting your account…'); LSB.fn('account', { action: 'delete', confirm: v.confirm }).then(() => { app.modal(null); app.toast('Your account has been deleted.'); return LSB.signOut ? LSB.signOut() : null; }).then(() => location.reload()).catch(e => app.toast('Could not delete the account: ' + e.message)); } })));
   }
   function Orders({ app }) {
     const d = app.db, rows = d.orders.slice().sort((a, b) => b.date.localeCompare(a.date)), need = rows.filter(o => !o.confirmed && o.nextDate).length;

@@ -275,6 +275,41 @@ set role authenticated; select t.as_user(:O, 'owner@legalstaff.test');
 select t.a($q$public.member_tier('11111111-1111-1111-1111-111111111111') = 'none'$q$, 'someone outside the firm has no tier');
 reset role;
 
+-- ===== 0049: erase_user_account ==========================================================================
+\echo 0049 account erase
+insert into public.firms (id, name, city, address, created_by) values ('77777777-7777-7777-7777-777777777771', 'Solo Firm', 'Delhi', 'x', '00000000-0000-0000-0000-0000000000e1'), ('77777777-7777-7777-7777-777777777772', 'Team Firm', 'Delhi', 'x', '00000000-0000-0000-0000-0000000000e2') on conflict do nothing;
+set session_replication_role = replica;
+insert into public.members (firm_id, user_id, email, name, role, status, is_owner) values
+ ('77777777-7777-7777-7777-777777777771', '00000000-0000-0000-0000-0000000000e1', 'solo@example.in', 'Solo', 'Managing Partner', 'Active', true),
+ ('77777777-7777-7777-7777-777777777772', '00000000-0000-0000-0000-0000000000e2', 'team@example.in', 'Team Owner', 'Managing Partner', 'Active', true),
+ ('77777777-7777-7777-7777-777777777772', '00000000-0000-0000-0000-0000000000e3', 'mate@example.in', 'Mate', 'Advocate', 'Active', false);
+set session_replication_role = origin;
+insert into public.records (firm_id, kind, id, data) values ('77777777-7777-7777-7777-777777777771', 'case', 'c-solo', '{}'), ('77777777-7777-7777-7777-777777777772', 'case', 'c-team', '{}');
+insert into public.directory_applications (id, name, enr, council, year, city, email, mobile, user_id, status, paid_at) values ('APP-E1', 'Solo Adv', 'D/4040/2015', 'c', '2015', 'c', 'solo@example.in', '9000000041', '00000000-0000-0000-0000-0000000000e1', 'verified', now());
+-- permissions
+set role authenticated; select t.as_user('00000000-0000-0000-0000-0000000000e1', 'solo@example.in');
+select t.raises($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e1')$q$, '%permission denied%', 'a signed-in user cannot call erase_user_account directly');
+reset role; set role anon;
+select t.raises($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e1')$q$, '%permission denied%', 'anon cannot call erase_user_account');
+reset role;
+-- from here the calls come from the service role (no signed-in user)
+select t.as_user(null, null);
+-- a firm with active colleagues blocks its owner
+select t.raises($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e2')$q$, '%still has other members%', 'an owner with colleagues must hand the firm over first');
+select t.a($q$t.cnt('select count(*) from public.records where id = ''c-team''') = 1$q$, 'nothing was erased when it refused');
+-- a colleague can leave without touching the firm
+select t.ok($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e3')$q$, 'a colleague can delete their account');
+select t.a($q$t.cnt('select count(*) from public.members where email = ''mate@example.in'' and user_id is null and status = ''Suspended''') = 1$q$, 'the colleague no longer belongs to the firm');
+select t.a($q$t.cnt('select count(*) from public.records where id = ''c-team''') = 1$q$, 'the firm and its records are untouched');
+-- a sole owner: the firm's practice data goes, the firm row and money records stay
+select t.a($q$(public.erase_user_account('00000000-0000-0000-0000-0000000000e1')->'firms')::text like '%77777777-7777-7777-7777-777777777771%'$q$, 'it reports which firm was erased');
+select t.a($q$t.cnt('select count(*) from public.records where id = ''c-solo''') = 0$q$, 'the sole owner''s records are erased');
+select t.a($q$t.cnt('select count(*) from public.firms where id = ''77777777-7777-7777-7777-777777777771''') = 1$q$, 'the firm row stays (payments reference it)');
+select t.a($q$t.cnt('select count(*) from public.directory_applications where id = ''APP-E1'' and status = ''rejected''') = 1$q$, 'the directory profile is taken off the public list');
+select t.a($q$t.cnt('select count(*) from public.directory_profiles() where id = ''APP-E1''') = 0$q$, 'and it no longer appears in the directory');
+select t.ok($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e1')$q$, 'running it twice is harmless');
+select t.raises($q$select public.erase_user_account(null)$q$, '%No user%', 'a missing user is refused');
+
 \echo
 select 'RESULT', count(*) filter (where ok), count(*) filter (where not ok) from t.r;
 select 'FAIL: ' || name from t.r where not ok;
