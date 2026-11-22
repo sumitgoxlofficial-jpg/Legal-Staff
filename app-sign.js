@@ -54,7 +54,7 @@
   G.ROLES = ['Advocate', 'Client', 'Deponent', 'First party', 'Second party', 'Witness', 'Notary'];
   G.stampValid = s => !!(s && s.state && s.certNo && +s.amount > 0);
   G.refNo = (tplCode, count, d) => 'LS/' + tplCode + '/' + (d || new Date()).getFullYear() + '/' + String(count + 1).padStart(4, '0');
-  G.TPL_CODE = ['LN', 'PET', 'S138', 'BAIL', 'AFF', 'WS', 'RPL', 'APL', 'REV', 'AGR'];
+  G.TPL_CODE = window.LST ? window.LST.codes : ['LN', 'PET', 'S138', 'BAIL', 'AFF', 'WS', 'RPL', 'APL', 'REV', 'AGR'];
 
   if (NODE) { module.exports = G; return; }
   window.LSG = G;

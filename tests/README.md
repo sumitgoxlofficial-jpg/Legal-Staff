@@ -2,6 +2,10 @@
 
 Nothing here is deployed.
 
+## Drafting templates
+
+`node tests/templates.test.mjs` checks the template library: the first ten keep their positions and codes (saved drafts depend on them), every template is complete and renders without broken values, deeds carry a witness block and affidavits a verification, and criminal templates cite the BNSS / BNS.
+
 ## Importing from other software
 
 `node tests/import.test.mjs` runs the core of `app-import.js` under Node: CSV dialects, a real .xlsx built in the test (shared, inline and rich-text strings, sparse cells, date serials, two sheets), Indian date formats, times and amounts, column and kind guessing, JSON exports, linking clients, cases, hearings, tasks and invoices, duplicate skipping on a second import, and the plan's active-case limit; old Excel (.xls) files against fixtures made by an independent writer (`tests/fixtures/make-xls.py`, needs `pip install xlwt`; the large one was also checked cell by cell against the `xlrd` reader); documents matched to cases and ZIPs unpacked; undoing an import; product presets, month-first date columns and remembered matching.

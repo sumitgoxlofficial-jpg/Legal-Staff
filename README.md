@@ -23,6 +23,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - `app-views.js` holds the module screens, dialogs and forms.
 - `app-brain.js` holds AI Case Brain: a chat assistant with saved chats (search, rename, archive, delete), file and image attachments (PDF, Word .docx, text, photos; scanned PDFs are read as images), voice typing (English or Hindi), ready-made tasks, and an optional link to one case so answers cite its records. Chats are private to each user.
 - `app-sign.js` holds the Drafting Studio extras: eStamp record, electronic signatures, fill-details automation, sealing (SHA-256) and audit trail.
+- `app-templates.js` is the Drafting Studio's template library: 80 Indian court, criminal, family, arbitration, consumer, conveyancing, contract, affidavit and office templates in 12 groups, each with its law, forum and a check-before-filing list. Saved drafts are keyed by a template's position, so templates are only ever added at the end.
 - `app-import.js` moves a firm's data in from other software: clients, cases, hearings, tasks and invoices from Excel (.xlsx and old .xls), CSV or JSON exports, plus documents from files, a folder or a ZIP, with column matching, a row check, linking and duplicate skipping. It runs in the browser; files are not uploaded.
 - `config.js` holds site settings such as the Google Client ID.
 
