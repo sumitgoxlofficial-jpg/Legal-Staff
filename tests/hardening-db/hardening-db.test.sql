@@ -47,7 +47,7 @@ select t.raises($q$insert into public.directory_applications (id, name, enr, cou
 select t.raises($q$insert into public.directory_applications (id, name, enr, council, year, city, user_id) values ('APP-B1', 'Bina', 'D-1234-2016', 'c', '2016', 'c', '00000000-0000-0000-0000-00000000000b')$q$, '%directory_enr_norm_idx%', 'the same enrolment number written differently is a duplicate');
 select t.ok($q$insert into public.directory_applications (id, name, enr, council, year, city, user_id) values ('APP-B2', 'Bina', 'D/777/2010', 'c', '2010', 'c', '00000000-0000-0000-0000-00000000000b')$q$, 'a different enrolment number is accepted');
 reset role;
-update public.directory_applications set paid_at = now() where id = 'APP-B2';
+update public.directory_applications set paid_at = now(), status = 'verified' where id = 'APP-B2';
 set role anon; select t.as_user(null, null);
 select t.ok($q$insert into public.directory_enquiries (application_id, name, message) values ('APP-B2', 'Client', 'Need help')$q$, 'anon can contact a listed advocate');
 select t.raises($q$insert into public.directory_enquiries (application_id, name, message) values ('NOPE', 'Client', 'x')$q$, '%row-level security%', 'anon cannot send an enquiry to a profile that is not listed');
@@ -202,6 +202,35 @@ select t.a($q$t.cnt('select count(*) from public.legal_cases where firm_id = ''1
 
 select t.a($q$exists (select 1 from information_schema.columns where table_name = 'directory_enquiries' and column_name = 'notified_at')$q$, 'enquiries carry a notified_at marker for the advocate email');
 select t.a($q$t.cnt('select count(*) from public.directory_enquiries where notified_at is null') > 0$q$, 'enquiries created after the migration are waiting to be announced');
+
+-- ===== 9. only verified, paid profiles are public (migration 0047) =====
+insert into public.directory_applications (id, name, enr, council, year, city, user_id, paid_at, status) values
+  ('APP-V-OK', 'Verified Paid', 'D/3001/2015', 'c', '2015', 'Delhi', :A, now(), 'verified'),
+  ('APP-V-UNPAID', 'Verified Unpaid', 'D/3002/2015', 'c', '2015', 'Delhi', :A, null, 'verified'),
+  ('APP-PAID-PENDING', 'Paid Not Checked', 'D/3003/2015', 'c', '2015', 'Delhi', :A, now(), 'pending'),
+  ('APP-PAID-INFO', 'Paid Needs Info', 'D/3004/2015', 'c', '2015', 'Delhi', :A, now(), 'info');
+set role anon; select t.as_user(null, null);
+select t.a($q$exists (select 1 from public.directory_profiles() where id = 'APP-V-OK')$q$, 'a paid, verified profile is in the public directory');
+select t.a($q$not exists (select 1 from public.directory_profiles() where id = 'APP-PAID-PENDING')$q$, 'a paid profile whose documents have not been checked is NOT public');
+select t.a($q$not exists (select 1 from public.directory_profiles() where id = 'APP-PAID-INFO')$q$, 'a paid profile that needs more information is NOT public');
+select t.a($q$not exists (select 1 from public.directory_profiles() where id = 'APP-V-UNPAID')$q$, 'a verified profile that has not paid is NOT public');
+select t.a($q$(select bool_and(verified) from public.directory_profiles())$q$, 'every public profile carries the verified flag');
+select t.ok($q$insert into public.directory_enquiries (application_id, name, message) values ('APP-V-OK', 'Client', 'Hello')$q$, 'a client can contact a verified, paid advocate');
+select t.raises($q$insert into public.directory_enquiries (application_id, name, message) values ('APP-PAID-PENDING', 'Client', 'Hello')$q$, '%row-level security%', 'nobody can send client enquiries to an unverified profile');
+select t.raises($q$insert into public.profile_reports (application_id, reason) values ('APP-PAID-PENDING', 'x')$q$, '%row-level security%', 'an unverified profile is not a public target for reports either');
+reset role;
+update public.directory_applications set status = 'verified' where id = 'APP-PAID-PENDING';
+set role anon; select t.as_user(null, null);
+select t.a($q$exists (select 1 from public.directory_profiles() where id = 'APP-PAID-PENDING')$q$, 'once the check passes, the profile goes live with no other step');
+reset role;
+update public.directory_applications set paid_at = null where id = 'APP-PAID-PENDING';
+set role anon; select t.as_user(null, null);
+select t.a($q$not exists (select 1 from public.directory_profiles() where id = 'APP-PAID-PENDING')$q$, 'a refunded (unpaid) profile disappears again');
+reset role;
+-- the advocate still sees their own unlisted application
+set role authenticated; select t.as_user(:A, 'asha@example.in');
+select t.a($q$exists (select 1 from public.directory_my_applications() where id = 'APP-PAID-INFO')$q$, 'an advocate still sees their own unlisted application and its status');
+reset role;
 
 \echo
 select 'RESULT', count(*) filter (where ok), count(*) filter (where not ok) from t.r;

@@ -129,8 +129,8 @@ ${lines.map((l) => `<p style="margin:0 0 14px;font:15px/1.6 ${FONT};color:#0A0A0
 }
 function reminderEmail(name: string, n: number) {
   const first = (name || "").split(/\s+/)[0] || "", url = `${SITE}/directory#status`;
-  const subject = n === 0 ? "Upload your documents to get the verified tick on your profile" : "Reminder: upload your documents to get the verified tick";
-  const lines = ["Your Legal Staff Directory profile is listed, but it shows “Not verified yet” because your enrolment certificate and photo ID have not been uploaded.", "Please upload them as soon as possible. They are checked automatically in about a minute, and your profile then gets the blue verified tick that clients look for."];
+  const subject = n === 0 ? "Upload your documents to put your directory profile live" : "Reminder: upload your documents to put your directory profile live";
+  const lines = ["Your Legal Staff Directory profile is not live yet because your enrolment certificate and photo ID have not been uploaded.", "Please upload them as soon as possible. They are checked automatically in about a minute, and your profile then goes live with the blue verified tick."];
   const text = `Hello ${first},\n\n${lines.join("\n\n")}\n\nUpload my documents: ${url}\n\nLegal Staff Directory`;
   const html = `<!doctype html><html><body style="margin:0;padding:0;background:#F4F4F2"><table role="presentation" width="100%" style="background:#F4F4F2"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" style="max-width:600px"><tr><td style="background:#fff;border:1px solid #E5E5E5;border-radius:12px;padding:28px 30px">
 <div style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#6B6B6B;padding-bottom:8px">Legal Staff Directory</div>
