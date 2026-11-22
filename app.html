@@ -11,6 +11,7 @@
 <script src="app-practice.js"></script>
 <script src="app-backend.js"></script>
 <script src="app-views.js"></script>
+<script src="app-import.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
@@ -480,6 +481,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div style="font-size:14px;color:#5E5E5E;margin-top:4px">{{ casesSub }}</div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="ls-btn" onClick="{{ migrate }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Import from other software</button>
             <button class="ls-btn" onClick="{{ importCnr }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Import by CNR</button>
             <button class="ls-btn" onClick="{{ newCase }}" style="white-space:nowrap;height:36px;padding:0 16px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px;font-weight:500">+ New case</button>
           </div>
@@ -1604,14 +1606,14 @@ class Component extends DCLogic {
       firmName: D.firm.name || 'Your practice', firmInit: LS.initials(D.firm.name.replace(/&/g, ' ')) || 'LS', firmMark: h(V.FirmMark, { app: this, size: 34, invert: st.sidebar === 'Ink' }), firmLine: [V.planName(acc), D.firm.city].filter(Boolean).join(' · '), firmAddress: D.firm.address, firmMenu: openMenu('firm'),
       userName: D.user.title, userRole: D.user.role, userInit: LS.initials(D.user.name), userAvatar: h(V.Avatar, { app: this, size: 34, invert: st.sidebar === 'Ink' }), userEmail: D.user.email, searchPh: mobile ? 'Search…' : 'Search cases, CNR, parties, documents…', userMenu: openMenu('user'),
       searchQ: S.search, setSearch: e => this.setState({ search: e.target.value, searchOpen: true }), searchFocus: () => this.setState({ searchOpen: true, menu: null }), searchBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 150), searchKey: e => { if (e.key === 'Enter' && results[0]) pick(results[0]); }, searchDrop,
-      newCase: () => V.newCase(this), importCnr: () => V.importCnr(this), help: () => V.help(this), alertsMenu: openMenu('alerts'), alertCount: alerts.length, hasAlerts: alerts.length > 0, overlay,
+      newCase: () => V.newCase(this), importCnr: () => V.importCnr(this), migrate: () => LSI.migrate(this), help: () => V.help(this), alertsMenu: openMenu('alerts'), alertCount: alerts.length, hasAlerts: alerts.length > 0, overlay,
       toast: S.toast, hasToast: !!S.toast, goCases: () => this.go('cases'),
       hasCrumbs: false, crumb: '', crumbBar: {},
       quick: PA.quick.map(k => { const [label, sub, ic] = LSP.QUICK[k], go = { newcase: () => V.newCase(this), upload: () => V.addOrder(this), limit: () => this.go('limitation'), draft: () => this.go('drafting'), cnr: () => V.importCnr(this), evidence: () => this.go('evidence'), causelist: () => this.go('causelist'), research: () => this.go('research'), board: () => this.go('board'), clients: () => this.go('clients') }[k]; return { label: renameNav[k === 'clients' ? 'clients' : ''] || label, sub, icon: icon(ic, 20), go }; }),
       caseFilters: [['all', 'All'], ['active', 'Active'], ['pending', 'Pending'], ['disposed', 'Disposed'], ['archived', 'Archived']].map(([k, label]) => ({ label, count: k === 'all' ? D.cases.length : D.cases.filter(x => x.status === k).length, go: () => this.setState({ caseFilter: k }),
         style: { height: 36, padding: '0 14px', borderRadius: 8, fontSize: 13, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8, border: S.caseFilter === k ? '1px solid #0A0A0A' : '1px solid #E5E5E5', background: S.caseFilter === k ? '#0A0A0A' : '#FFFFFF', color: S.caseFilter === k ? '#fff' : '#363636' },
         countStyle: { fontSize: 12, opacity: .7 } })),
-      caseQ: S.caseQ, setCaseQ: e => this.setState({ caseQ: e.target.value }), caseRows, noRows: caseRows.length === 0, casesArt: h(V.Art, { name: D.cases.length ? 'research' : 'cases', className: 'ls-empty-art', style: { width: 156, height: 'auto' } }), noRowsTitle: D.cases.length ? 'No cases match this filter' : 'No cases yet', noRowsText: D.cases.length ? 'Try another status or search term, or add a case by CNR.' : 'Add your first case by hand, or import it by its CNR number. Hearings, orders and deadlines then gather around it.',
+      caseQ: S.caseQ, setCaseQ: e => this.setState({ caseQ: e.target.value }), caseRows, noRows: caseRows.length === 0, casesArt: h(V.Art, { name: D.cases.length ? 'research' : 'cases', className: 'ls-empty-art', style: { width: 156, height: 'auto' } }), noRowsTitle: D.cases.length ? 'No cases match this filter' : 'No cases yet', noRowsText: D.cases.length ? 'Try another status or search term, or add a case by CNR.' : 'Add your first case by hand, import it by its CNR number, or bring all your cases from other software with Import from other software. Hearings, orders and deadlines then gather around it.',
       casesSub: `${D.cases.length} cases across ${new Set(D.cases.map(x => x.court)).size} courts · click a row to open the case workspace`,
       nav, sideStyle, panelStyle, mobile, s, modView, panel: S.panel,
       drawerScrim: mobile && S.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }),

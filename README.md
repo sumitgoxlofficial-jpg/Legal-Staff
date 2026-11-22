@@ -21,6 +21,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - Each page is a template plus a logic class, rendered by `support.js` on React 18 (bundled in `vendor/`).
 - `app-store.js` holds the app's data layer: storage, local accounts, the limitation calculator, order reading, and exports (ICS, CSV, DOCX).
 - `app-views.js` holds the module screens, dialogs and forms.
+- `app-import.js` moves a firm's data in from other software: clients, cases, hearings, tasks and invoices from Excel (.xlsx), CSV or JSON exports, with column matching, a row check, linking and duplicate skipping. It runs in the browser; files are not uploaded.
 - `config.js` holds site settings such as the Google Client ID.
 
 ## Accounts and data
@@ -29,6 +30,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - Sign-up asks who you are (advocate, chamber, law firm, corporate legal team) and the one area of law you work in (criminal, banking and recovery, family, tax and 10 more, or general practice). The dashboard figures, quick actions, watch panel, case stages, starter labels, limitation presets and sidebar order follow that area; it can be changed in Settings. The definitions are in `app-practice.js`.
 - Sign-in is with Google or a one-time email code.
 - Data is kept on the server (Supabase) when it is configured, otherwise in the browser. Export a backup, restore one, or erase everything from Settings.
+- Firms switching from other practice-management software, an Excel diary or billing software use **Import from other software** (Cases, Clients, or Settings → Move from other software). Each sheet is matched to a kind of record, its columns are matched by name (common names from other products are known), rows are checked before anything is saved, cases are linked to clients and hearings, tasks and invoices to cases by CNR, case number, file number or title. Records already here are skipped, so the same file can be imported again. Blank templates for each kind can be downloaded from the first step.
 
 ## Google sign-in
 
