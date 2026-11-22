@@ -126,7 +126,7 @@
       '.lsb-welcome{margin:auto;width:100%;max-width:820px;display:flex;flex-direction:column;align-items:center;text-align:center}',
       '.lsb-orb{position:relative;width:76px;height:76px;margin:0 auto 18px;animation:lsb-pop .7s cubic-bezier(.34,1.56,.64,1) both}',
       '.lsb-orb-core{position:absolute;inset:10px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#4A4A4A,#0A0A0A 70%);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(10,10,10,.25),inset 0 1px 0 rgba(255,255,255,.18)}',
-      '.lsb-orb-core svg{animation:lsb-twinkle 3.2s ease-in-out infinite}',
+      '.lsb-orb-core img{animation:lsb-twinkle 3.2s ease-in-out infinite}',
       '.lsb-orb::before,.lsb-orb::after{content:"";position:absolute;inset:10px;border-radius:50%;border:1px solid rgba(10,10,10,.35);animation:lsb-ring 2.8s cubic-bezier(.16,1,.3,1) infinite}',
       '.lsb-orb::after{animation-delay:1.4s}',
       '.lsb-orbit{position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(10,10,10,.18);animation:lsb-spin 14s linear infinite}',
@@ -165,7 +165,7 @@
       '@keyframes lsb-pop{0%{opacity:0;transform:scale(.6)}70%{opacity:1;transform:scale(1.06)}100%{transform:scale(1)}}',
       '@keyframes lsb-ring{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.55);opacity:0}}',
       '@keyframes lsb-spin{to{transform:rotate(360deg)}}',
-      '@keyframes lsb-twinkle{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.12) rotate(12deg)}}',
+      '@keyframes lsb-twinkle{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}',
       '@keyframes lsb-shine{0%{background-position:100% 0}100%{background-position:-150% 0}}',
       '@keyframes lsb-blob{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(30px,-20px,0) scale(1.08)}}',
       '@keyframes lsb-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}',
@@ -177,6 +177,8 @@
 
   /* ---------- icons ---------- */
   const PATH = { plus: 'M12 5v14 M5 12h14', clip: 'M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9', mic: 'M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z M5 11a7 7 0 0 0 14 0 M12 18v3', send: 'M12 19V5 M5 12l7-7 7 7', stop: 'M7 7h10v10H7z', dots: 'M5 12h.01 M12 12h.01 M19 12h.01', search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4', archive: 'M3 4h18v4H3z M5 8v12h14V8 M10 12h4', trash: 'M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13', pen: 'M4 20h4L19 9l-4-4L4 16z', copy: 'M8 8h12v12H8z M16 8V4H4v12h4', redo: 'M20 12a8 8 0 1 1-2.3-5.6 M20 4v5h-5', task: 'M9 11l3 3 8-8 M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11', doc: 'M14 3H6v18h12V7z M14 3v4h4', word: 'M14 3H6v18h12V7z M14 3v4h4 M9 12l1.5 5 1.5-4 1.5 4 1.5-5', menu: 'M4 6h16 M4 12h16 M4 18h16', x: 'M6 6l12 12 M18 6L6 18', back: 'M15 6l-6 6 6 6', spark: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', unarchive: 'M3 4h18v4H3z M5 8v12h14V8 M12 18v-6 M9 15l3-3 3 3', case: 'M3 7h18v13H3z M8 7V4h8v3', arrow: 'M5 12h14 M13 6l6 6-6 6' };
+  /* The Legal Staff mark, white on the dark AI badge. */
+  const Mark = ({ s }) => h('img', { src: 'assets/ls-mark-white.png', alt: '', width: s, height: s, draggable: false, style: { width: s, height: s, objectFit: 'contain', display: 'block' } });
   const Ic = ({ n, s }) => h('svg', { width: s || 18, height: s || 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: PATH[n] }));
   const iconBtn = (label, n, onClick, o) => h('button', Object.assign({ type: 'button', onClick, title: label, 'aria-label': label, className: 'ls-btn', style: Object.assign({ width: 36, height: 36, flexShrink: 0, borderRadius: 18, border: 0, background: 'transparent', color: K.txt, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' }, o && o.style) }, o && o.attrs), h(Ic, { n }));
 
@@ -298,7 +300,7 @@
           (m.files || []).length > 0 && h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '85%' } }, m.files.map((f, j) => fileChip(Object.assign({ key: j }, f)))),
           h('div', { style: { background: K.ink, color: '#fff', borderRadius: '18px 18px 4px 18px', padding: '10px 16px', boxShadow: '0 4px 14px rgba(10,10,10,.12)', fontSize: 15, lineHeight: 1.55, maxWidth: '85%', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, m.text))
       : h('div', { key: i, className: 'ls-msg', style: { display: 'flex', gap: 12, alignItems: 'flex-start' } },
-          h('span', { className: 'lsb-ai-av' + (m.pending ? ' on' : ''), style: { width: 30, height: 30, borderRadius: 15, border: '1px solid ' + K.line, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: K.ink } }, h(Ic, { n: 'spark', s: 16 })),
+          h('span', { className: 'lsb-ai-av' + (m.pending ? ' on' : ''), style: { width: 30, height: 30, borderRadius: 15, border: '1px solid ' + K.line, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: K.ink } }, h(Mark, { s: 16 })),
           h('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 } },
             m.pending ? h('span', { className: 'lsb-think', role: 'status', 'aria-label': 'Preparing the answer' }, h('span', { className: 'ls-typing', style: { color: '#8A8A8A', display: 'inline-flex' } }, h('span'), h('span'), h('span')), h('em', null, C ? 'Reading the case records…' : 'Thinking…'))
               : h('div', { className: 'ls-fade', style: { fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', color: m.err ? K.red : '#1A1A1A' } }, m.text.replace(/\*\*/g, '')),
@@ -309,7 +311,7 @@
     const name = String(d.user.title || d.user.name || '').replace(/^Adv\.?\s*/i, '').split(' ')[0];
     const welcome = h('div', { className: 'lsb-welcome', key: 'w-' + (caseId || 'general'), style: { gap: mobile ? 18 : 24, padding: mobile ? '20px 4px' : '28px 8px' } },
       h('div', null,
-        h('div', { className: 'lsb-orb', 'aria-hidden': true }, h('span', { className: 'lsb-orbit' }, h('i')), h('span', { className: 'lsb-orb-core' }, h(Ic, { n: 'spark', s: 26 }))),
+        h('div', { className: 'lsb-orb', 'aria-hidden': true }, h('span', { className: 'lsb-orbit' }, h('i')), h('span', { className: 'lsb-orb-core' }, h(Mark, { s: 28 }))),
         h('h2', { className: 'lsb-title', style: { fontFamily: "'Instrument Sans',system-ui,sans-serif", fontWeight: 600, letterSpacing: '-.025em', fontSize: mobile ? 24 : 32, lineHeight: 1.15, margin: 0 } }, 'How can I help', name ? [', ', h('span', { key: 'n', className: 'lsb-name' }, name)] : null, '?'),
         h('div', { className: 'lsb-sub', style: { fontSize: 14.5, color: K.mut, marginTop: 8, maxWidth: 540, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.55 } }, C ? `This chat is linked to ${C.title}. Answers use its orders, hearings and case details, with links to the source.` : 'Ask anything, attach documents or photos, or give a task. Link a case at the top to ask about its records.')),
       !mobile && h('div', { className: 'lsb-pills', 'aria-hidden': true }, (C ? ['Answers from this case', 'Links to the source', 'English · हिंदी'] : ['Reads PDF, Word and photos', 'Indian law: BNS, BNSS, CPC', 'English · हिंदी']).map(x => h('span', { key: x, className: 'lsb-pill' }, h('b'), x))),
@@ -320,7 +322,7 @@
       h('option', { value: '' }, 'No case · general chat'), d.cases.map(c => h('option', { key: c.id, value: c.id }, (c.no ? c.no + ' · ' : '') + c.title)));
     const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid ' + K.line, background: '#fff', minWidth: 0 } },
       mobile && iconBtn('Show chats', 'menu', () => setSide(true)),
-      !mobile && h('span', { className: 'lsb-head-orb', 'aria-hidden': true }, h(Ic, { n: 'spark', s: 16 })),
+      !mobile && h('span', { className: 'lsb-head-orb', 'aria-hidden': true }, h(Mark, { s: 17 })),
       h('div', { style: { flex: 1, minWidth: 0 } }, h('div', { style: { fontSize: 14.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, t ? t.title : 'New chat'),
         h('div', { style: { fontSize: 12, color: K.mut, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 } }, t && t.archived ? 'Archived · restore it to keep chatting' : [h('span', { key: 'd', className: 'lsb-dot', 'aria-hidden': true }), h('span', { key: 't', style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, busy ? 'Thinking…' : C ? 'Linked to ' + C.title : 'AI Case Brain · general assistant')])),
       h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6, color: K.mut } }, !mobile && h(Ic, { n: 'case', s: 16 }), caseSel),
