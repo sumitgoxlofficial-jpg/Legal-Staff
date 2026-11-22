@@ -65,10 +65,67 @@
       return { name: s.name, rows: rows.filter(r => r.some(c => String(c).trim() !== '')) };
     }).filter(s => s.rows.length);
   }
+
+  /* Old Excel (.xls, Excel 97–2003, BIFF8): a compound file holding a "Workbook" stream of records. Reads the shared strings
+     (including strings split across CONTINUE records), every worksheet's text, number, RK, MULRK, formula-result and boolean
+     cells. Numbers come back as text; dates are Excel serials, which date() reads. Returns [{ name, rows }]. */
+  function cfbStream(buf, names) {
+    const b = new Uint8Array(buf), dv = new DataView(b.buffer, b.byteOffset, b.byteLength), u32 = o => dv.getUint32(o, true);
+    if (b.length < 512 || u32(0) !== 0xE011CFD0 || u32(4) !== 0xE11AB1A1) throw new Error('This file is not an Excel 97–2003 (.xls) workbook. Open it in Excel and save it as .xlsx or CSV.');
+    const ss = 1 << dv.getUint16(30, true), mss = 1 << dv.getUint16(32, true), cutoff = u32(56), at = n => 512 + n * ss, END = 0xFFFFFFFE;
+    const fatSecs = []; for (let i = 0; i < 109; i++) { const v = u32(76 + i * 4); if (v < 0xFFFFFFFA) fatSecs.push(v); }
+    for (let d = u32(68), guard = 0; d < 0xFFFFFFFA && guard++ < 10000;) { for (let i = 0; i < ss / 4 - 1; i++) { const v = u32(at(d) + i * 4); if (v < 0xFFFFFFFA) fatSecs.push(v); } d = u32(at(d) + ss - 4); }
+    const fat = []; fatSecs.forEach(sec => { for (let i = 0; i < ss / 4; i++) fat.push(u32(at(sec) + i * 4)); });
+    const chain = (start, table) => { const out = []; for (let n = start, guard = 0; n < 0xFFFFFFFA && n !== END && guard++ < 1e6; n = table[n]) out.push(n); return out; };
+    const read = start => { const secs = chain(start, fat), out = new Uint8Array(secs.length * ss); secs.forEach((n, i) => out.set(b.subarray(at(n), at(n) + ss), i * ss)); return out; };
+    const dir = read(u32(48)), ddv = new DataView(dir.buffer), ents = [];
+    for (let o = 0; o + 128 <= dir.length; o += 128) { const nl = ddv.getUint16(o + 64, true); ents.push({ name: String.fromCharCode(...new Uint16Array(dir.slice(o, o + Math.max(0, nl - 2)).buffer)), type: dir[o + 66], start: ddv.getUint32(o + 116, true), size: ddv.getUint32(o + 120, true) }); }
+    const e = ents.find(x => x.type === 2 && names.includes(x.name)); if (!e) throw new Error('No workbook found in this .xls file. Open it in Excel and save it as .xlsx or CSV.');
+    if (e.size >= cutoff) return read(e.start).subarray(0, e.size);
+    const mini = read(ents[0].start), mfat = [], mf = read(u32(60)), mdv = new DataView(mf.buffer); for (let i = 0; i + 4 <= mf.length; i += 4) mfat.push(mdv.getUint32(i, true));
+    const secs = chain(e.start, mfat), out = new Uint8Array(secs.length * mss); secs.forEach((n, i) => out.set(mini.subarray(n * mss, n * mss + mss), i * mss)); return out.subarray(0, e.size);
+  }
+  function parseXls(buf) {
+    const w = cfbStream(buf, ['Workbook', 'Book']), dv = new DataView(w.buffer, w.byteOffset, w.byteLength), u16 = o => dv.getUint16(o, true), u32 = o => dv.getUint32(o, true);
+    const recs = []; for (let p = 0; p + 4 <= w.length;) { const type = u16(p), len = u16(p + 2); recs.push({ type, pos: p, off: p + 4, len }); p += 4 + len; }
+    const bof = recs[0]; if (!bof || bof.type !== 0x0809 || u16(bof.off) !== 0x0600) throw new Error('This .xls file is from Excel 95 or older. Open it in Excel and save it as .xlsx or CSV.');
+    if (recs.some(r => r.type === 0x002F)) throw new Error('This .xls file is password protected. Remove the password in Excel, save it, and try again.');
+    /* XLUnicodeString chars: 1 byte each (latin-1) or 2 (UTF-16LE). seg is a list of [start, end) byte ranges (a record and its CONTINUEs). */
+    const reader = segs => { let si = 0, p = segs[0][0]; const left = () => segs[si][1] - p, next = () => { si++; p = segs[si] ? segs[si][0] : 0; };
+      const take = n => { const out = []; while (n > 0) { if (left() <= 0) next(); if (!segs[si]) break; const k = Math.min(n, left()); out.push([p, k]); p += k; n -= k; } return out; };
+      const byte = () => { if (left() <= 0) next(); return w[p++]; }, word = () => { const t = take(2), c = t.flatMap(([q, k]) => Array.from(w.subarray(q, q + k))); return c[0] | (c[1] << 8); }, dword = () => { const t = take(4), c = t.flatMap(([q, k]) => Array.from(w.subarray(q, q + k))); return (c[0] | c[1] << 8 | c[2] << 16) + c[3] * 16777216; };
+      const chars = (cch, high) => { let out = ''; while (cch > 0) { if (left() <= 0) { next(); if (!segs[si]) break; high = w[p++] & 1; } const k = Math.min(cch, Math.floor(left() / (high ? 2 : 1))); for (let i = 0; i < k; i++) out += String.fromCharCode(high ? w[p + 2 * i] | (w[p + 2 * i + 1] << 8) : w[p + i]); p += k * (high ? 2 : 1); cch -= k; } return out; };
+      const str = (cch16) => { const cch = cch16 ? word() : byte(), fl = byte(), rich = fl & 8 ? word() : 0, ext = fl & 4 ? dword() : 0, t = chars(cch, fl & 1); take(rich * 4 + ext); return t; };
+      return { str, done: () => !segs[si] || (si === segs.length - 1 && left() <= 0), dword }; };
+    const withCont = i => { const segs = [[recs[i].off, recs[i].off + recs[i].len]]; for (let j = i + 1; recs[j] && recs[j].type === 0x003C; j++) segs.push([recs[j].off, recs[j].off + recs[j].len]); return segs; };
+    let sst = []; const si = recs.findIndex(r => r.type === 0x00FC);
+    if (si >= 0) { const r = reader(withCont(si)); r.dword(); const n = r.dword(); for (let i = 0; i < n && !r.done(); i++) sst.push(r.str(true)); }
+    const num = x => { const s = String(Number(x.toPrecision(15))); return s; };
+    const rk = v => { let x; if (v & 2) x = v >> 2; else { const t = new DataView(new ArrayBuffer(8)); t.setUint32(4, v & 0xFFFFFFFC, true); t.setUint32(0, 0, true); x = t.getFloat64(0, true); } return num(v & 1 ? x / 100 : x); };
+    const sheets = recs.filter(r => r.type === 0x0085 && w[r.off + 5] === 0).map(r => ({ pos: u32(r.off), name: reader([[r.off + 6, r.off + r.len]]).str(false) }));
+    return sheets.map(sh => {
+      const grid = [], put = (row, col, v) => { (grid[row] || (grid[row] = []))[col] = v; };
+      let i = recs.findIndex(r => r.pos === sh.pos); if (i < 0) return { name: sh.name, rows: [] };
+      let pend = null;
+      for (i++; i < recs.length && recs[i].type !== 0x000A; i++) {
+        const r = recs[i], o = r.off, row = u16(o), col = u16(o + 2);
+        if (r.type === 0x00FD) put(row, col, sst[u32(o + 6)] || '');
+        else if (r.type === 0x0203) put(row, col, num(dv.getFloat64(o + 6, true)));
+        else if (r.type === 0x027E) put(row, col, rk(u32(o + 6)));
+        else if (r.type === 0x00BD) { const last = u16(o + r.len - 2); for (let c = col, q = o + 4; c <= last; c++, q += 6) put(row, c, rk(u32(q + 2))); }
+        else if (r.type === 0x0204) put(row, col, reader([[o + 6, o + r.len]]).str(true));
+        else if (r.type === 0x0205) put(row, col, w[o + 7] ? '' : w[o + 6] ? 'TRUE' : 'FALSE');
+        else if (r.type === 0x0006) { if (u16(o + 12) === 0xFFFF) { const k = w[o + 6]; if (k === 0) pend = [row, col]; else if (k === 1) put(row, col, w[o + 8] ? 'TRUE' : 'FALSE'); } else put(row, col, num(dv.getFloat64(o + 6, true))); }
+        else if (r.type === 0x0207 && pend) { put(pend[0], pend[1], reader(withCont(i)).str(true)); pend = null; }
+      }
+      const rows = Array.from(grid, r => Array.from(r || [], x => x == null ? '' : x)).filter(r => r.some(c => String(c).trim() !== ''));
+      return { name: sh.name, rows };
+    }).filter(s => s.rows.length);
+  }
   /* A File (or { name, text() / arrayBuffer() }) → [{ name, rows }] tables. */
   async function readFile(f) {
     const ext = (f.name.split('.').pop() || '').toLowerCase();
-    if (ext === 'xls') throw new Error(f.name + ' is an old Excel (.xls) file. Open it in Excel and save it as .xlsx or CSV.');
+    if (ext === 'xls') return parseXls(await f.arrayBuffer()).map(s => ({ name: f.name + ' · ' + s.name, rows: s.rows }));
     if (ext === 'xlsx' || ext === 'xlsm') return (await parseXlsx(await f.arrayBuffer())).map(s => ({ name: f.name + ' · ' + s.name, rows: s.rows }));
     if (ext === 'json') return fromJson(f.name, JSON.parse(await f.text()));
     return [{ name: f.name, rows: parseCsv(await f.text()) }];
@@ -103,6 +160,7 @@
   }
   function time(v) {
     const s = String(v == null ? '' : v).trim(); if (!s) return '';
+    if (/^\d{5}\.\d+$/.test(s) && +s > 20000) return time(String(+s % 1));
     if (/^0?\.\d+$/.test(s)) { const mins = Math.round(+s * 1440); return pad(Math.floor(mins / 60) % 24) + ':' + pad(mins % 60); }
     const re = /^(\d{1,2})(?:[:.](\d{2}))?(?::\d{2})?\s*([ap])?\.?\s*m?\.?$/i, dt = /[\sT](\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?\s*(?:[ap]\.?m\.?)?)\s*(?:z|[+-]\d{2}:?\d{2})?$/i.exec(s);
     const m = re.exec(s) || (dt && re.exec(dt[1].replace(/\.\d+$/, '')));
@@ -212,8 +270,9 @@
   }
   /* The kind a table most likely holds, from its name (sheet or JSON key) and how many headers each kind recognises. */
   function guessKind(headers, name, preset) {
-    const n = key(name);
-    const byName = [['invoice', 'invoices'], ['bill', 'invoices'], ['hearing', 'hearings'], ['diary', 'hearings'], ['calendar', 'hearings'], ['event', 'hearings'], ['task', 'tasks'], ['todo', 'tasks'], ['client', 'clients'], ['contact', 'clients'], ['customer', 'clients'], ['case', 'cases'], ['matter', 'cases']].find(([w]) => n.includes(w));
+    /* The sheet's own name (after the file name) decides first, then the file name. */
+    const WORDS = [['invoice', 'invoices'], ['bill', 'invoices'], ['hearing', 'hearings'], ['diary', 'hearings'], ['calendar', 'hearings'], ['event', 'hearings'], ['task', 'tasks'], ['todo', 'tasks'], ['client', 'clients'], ['contact', 'clients'], ['customer', 'clients'], ['case', 'cases'], ['matter', 'cases']];
+    const byName = String(name || '').split(' · ').reverse().map(key).reduce((hit, n) => hit || WORDS.find(([w]) => n.includes(w)), null);
     if (byName) return byName[1];
     const score = k => { const m = guessMap(k, headers, preset); return KINDS[k].fields.reduce((a, [f, , , req]) => a + (m[f] != null ? (req ? 3 : 1) : 0), 0) - (KINDS[k].fields.some(([f, , , req]) => req && m[f] == null) ? 4 : 0); };
     return ORDER.slice().sort((a, b) => score(b) - score(a))[0];
@@ -379,7 +438,7 @@
   const savedMap = (kind, head) => { try { const m = JSON.parse(localStorage.getItem(MAPS) || '{}')[sig(kind, head)]; return m && Object.values(m).every(i => i < head.length) ? m : null; } catch (e) { return null; } };
   const saveMap = (kind, head, map) => { try { const all = JSON.parse(localStorage.getItem(MAPS) || '{}'); all[sig(kind, head)] = map; const ks = Object.keys(all); ks.slice(0, Math.max(0, ks.length - 50)).forEach(k => delete all[k]); localStorage.setItem(MAPS, JSON.stringify(all)); } catch (e) {} };
 
-  window.LSI = { parseCsv, parseXlsx, readFile, fromJson, date, time, money, cnrOf, guessMap, guessKind, readRow, apply, inColumns, monthFirst, PRESETS, savedMap, saveMap, imports, undoImport, matchDoc, docType, zipEntries, KINDS, ORDER, TEMPLATE };
+  window.LSI = { parseCsv, parseXlsx, parseXls, readFile, fromJson, date, time, money, cnrOf, guessMap, guessKind, readRow, apply, inColumns, monthFirst, PRESETS, savedMap, saveMap, imports, undoImport, matchDoc, docType, zipEntries, KINDS, ORDER, TEMPLATE };
 
   /* ---------- the screen (needs the app's views; absent under Node) ---------- */
   if (!window.React || !window.LSV) return;

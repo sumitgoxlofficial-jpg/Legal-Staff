@@ -79,9 +79,23 @@ await t('Excel: shared and inline strings, rich text, gaps between cells, date s
   assert.equal(I.guessKind(files[1].rows[0], files[1].name), 'clients');
   const m = I.guessMap('cases', files[0].rows[0]); assert.equal(m.next, 3);
 });
-await t('Old .xls and Legal Staff backups are refused with a clear message', async () => {
-  await assert.rejects(I.readFile({ name: 'diary.xls' }), /save it as \.xlsx or CSV/);
+await t('Old Excel (.xls): every cell type, Hindi text, several sheets, small and large workbooks (fixtures made with xlwt)', async () => {
+  const fx = f => readFileSync(new URL('./fixtures/' + f, import.meta.url));
+  const small = await I.readFile({ name: 'diary.xls', arrayBuffer: async () => fx('small.xls') });
+  assert.deepEqual(small.map(s => s.name), ['diary.xls · Matters', 'diary.xls · Clients & Contacts']);   // the empty sheet is dropped
+  assert.deepEqual(small[0].rows, [['Matter Name', 'Case No.', 'NDOH', 'Fee', 'Mobile', 'Done', 'Formula'], ['Sharma v. Union of India', 'W.P.(C) 55/2024', '46767', '25000.5', '9876543210', 'TRUE'], ['राम कुमार बनाम राज्य', 'CS 12/2025', '', '100', '12', '', '5']]);
+  assert.equal(I.date(small[0].rows[1][2]), '2028-01-15');
+  assert.equal(I.guessKind(small[1].rows[0], small[1].name), 'clients');
+  // 700 rows: the shared-string table is split across CONTINUE records, some strings in the middle of one
+  const rows = I.parseXls(fx('large.xls'))[0].rows;
+  assert.equal(rows.length, 700);
+  assert.deepEqual(rows[699], ['Client 0699 ' + 'x'.repeat(699 % 37), 'टिप्पणी 699 '.repeat(1 + 699 % 5)]);
+  rows.slice(1).forEach((r, i) => { const n = i + 1; assert.equal(r[0], 'Client ' + String(n).padStart(4, '0') + ' ' + 'x'.repeat(n % 37)); assert.equal(r[1], n % 3 === 0 ? ('टिप्पणी ' + n + ' ').repeat(1 + n % 5) : 'note ' + n); });
+});
+await t('Unreadable files and Legal Staff backups are refused with a clear message', async () => {
+  await assert.rejects(I.readFile({ name: 'diary.xls', arrayBuffer: async () => new TextEncoder().encode('not really excel').buffer }), /not an Excel 97–2003/);
   await assert.rejects(I.readFile({ name: 'b.json', text: async () => JSON.stringify({ v: 2, cases: [] }) }), /Restore/);
+  assert.equal(I.time('46767.4375'), '10:30');
 });
 await t('JSON exports: an object of arrays becomes one table per array', () => {
   const ts = I.fromJson('export.json', { matters: [{ title: 'A v. B', number: 'CS 1/2025', court: { name: 'x' } }], contacts: [{ name: 'A' }], meta: 'x' });
