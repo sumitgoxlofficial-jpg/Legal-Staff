@@ -541,7 +541,7 @@
     p.querySelector('#q').oninput = e => { q = e.target.value.trim().toLowerCase(); draw(); };
     p.querySelectorAll('#fs button').forEach(b => b.onclick = () => { f = b.dataset.k; p.querySelectorAll('#fs button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
     const review = async a0 => {
-      let a; try { a = (await api('directory_get', { id: a0.id })).application; } catch (e) { return toast(e.message); }
+      let a; try { a = (await api('directory_get', { id: a0.id })).application; } catch (e) { a = a0; }   // an older admin function has no directory_get: its list rows already carry the full record
       const d = a.details || {}, docs = Array.isArray(d.documents) ? d.documents : [], KIND = { cert: 'Enrolment certificate', cop: 'Certificate of Practice', id: 'Government photo ID' };
       const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
       const row = (k, v) => `<div style="display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-top:1px solid var(--line)"><span class="muted">${k}</span><span style="text-align:right;overflow-wrap:anywhere">${v || '—'}</span></div>`;
