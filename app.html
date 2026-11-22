@@ -7,16 +7,20 @@
 <script src="vendor/react-dom.production.min.js"></script>
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
+<script src="static/sanitize.js"></script>
 <script src="app-store.js"></script>
 <script src="app-practice.js"></script>
 <script src="app-backend.js"></script>
 <script src="app-views.js"></script>
 <script src="app-brain.js"></script>
+<script src="app-esign.js"></script>
+<script src="app-sign.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
 <x-dc>
 <helmet>
+<meta name="robots" content="noindex,nofollow">
 <title>Legal Staff</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/png" href="assets/ls-favicon.png">
@@ -152,7 +156,15 @@ a:hover{color:#2B2B2B}
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #0A0A0A;outline-offset:2px}
-@media print{body *{visibility:hidden!important}.ls-print,.ls-print *{visibility:visible!important}.ls-print{position:absolute!important;left:0;top:0;width:100%;border:0!important}}
+@media print{body *{visibility:hidden!important}.ls-print,.ls-print *{visibility:visible!important}.ls-print{position:absolute!important;left:0;top:0;width:100%;border:0!important;background:#fff!important;padding:0!important}.ls-paper{box-shadow:none!important;max-width:none!important;padding:0!important}.ls-paper .ls-sheet{padding:0 2mm!important}}@page{size:A4;margin:16mm 14mm 18mm;@bottom-center{content:"Page " counter(page) " of " counter(pages);font:10px system-ui,sans-serif;color:#555}}
+.ls-paper{position:relative;overflow:hidden;max-width:794px;margin:0 auto;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.14),0 10px 30px rgba(0,0,0,.08);padding:14px}
+.ls-paper::before{content:attr(data-wm);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 clamp(64px,14vw,130px) 'Times New Roman',serif;letter-spacing:.18em;color:rgba(11,31,75,.05);transform:rotate(-28deg);pointer-events:none;user-select:none}
+.ls-sheet{position:relative;font-family:'Times New Roman','Noto Serif',Georgia,serif;font-size:15.5px;line-height:1.85;color:#111;text-align:justify;hyphens:auto}
+.ls-sheet p{margin:0 0 .85em;text-align:justify}
+.ls-sheet [contenteditable=true]:focus{outline:none}
+.ls-sheet [contenteditable=false]{user-select:none}
+.ls-sheet.ls-ro{cursor:default}
+@media (max-width:700px){.ls-sheet{padding:22px 18px 18px!important;font-size:14.5px}}
 </style>
 </helmet>
 <div style="display:flex;min-height:100vh;background:#F5F5F4;font-family:'Instrument Sans',system-ui,sans-serif;color:#0A0A0A;font-size:15px;line-height:1.5">
@@ -846,12 +858,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               <button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
             </sc-for>
           </section>
-          <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:48px 52px;position:relative;overflow:hidden;grid-column:span 2;min-width:0;font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;line-height:1.8;color:#1A1A1A">
-            <div contenteditable="false" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:16px;margin-bottom:20px;border-bottom:2px solid #0A0A0A;position:relative"><div style="line-height:1.4"><div style="font-size:20px;font-weight:600">{{ firmName }}</div><div style="font-size:13px;color:#5E5E5E">Advocates · {{ firmAddress }}</div></div><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><img src="assets/ls-mark-black.png" alt="" style="height:20px;display:block"><span style="font-weight:600;font-size:14px;letter-spacing:-.02em;line-height:1;color:#0A0A0A">Legal Staff</span></span></div>
-            {{ draft.body }}
-            <div contenteditable="false" style="margin-top:36px;padding-top:12px;border-top:1px solid #E5E5E5;display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:#5E5E5E;position:relative;font-family:'Instrument Sans',system-ui,sans-serif"><span>{{ draft.footer }}</span></div>
-          </section>
+          {{ draft.sheet }}
           <section style="display:flex;flex-direction:column;gap:16px">
+            {{ draft.secure }}
             <div style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:20px">
               <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600;margin-bottom:10px">AI checks</div>
               <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:#363636">
@@ -864,6 +873,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <div style="display:flex;align-items:center;gap:6px;border-top:1px solid #E5E5E5"><button onClick="{{ v.go }}" style="{{ v.style }}"><span style="font-weight:500">{{ v.v }}</span><span style="color:#5E5E5E;font-size:12px">{{ v.meta }}</span></button>{{ v.act }}</div>
               </sc-for>
             </div>
+            {{ draft.audit }}
           </section>
         </div>
       </div>
@@ -930,7 +940,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#8A8A8A"><span style="flex:1;height:1px;background:#E5E5E5"></span>or pay now<span style="flex:1;height:1px;background:#E5E5E5"></span></div>
               </sc-if>
               <sc-if value="{{ showUpi }}" hint-placeholder-val="{{ false }}">
-                <button class="ls-btn" onClick="{{ payUpi }}" style="{{ upiStyle }}"><span style="display:block;font-weight:600">{{ upiBtn }}</span><span style="display:block;font-size:11.5px;opacity:.8;margin-top:2px">GPay · PhonePe · Paytm · BHIM · straight to our account · confirmed automatically</span></button>
+                <button class="ls-btn" onClick="{{ payRazorpay }}" style="{{ razorpayStyle }}"><span style="display:block;font-weight:600">{{ razorpayBtn }}</span><span style="display:block;font-size:11.5px;opacity:.8;margin-top:2px">UPI · cards · netbanking · wallets · secure Razorpay checkout</span></button>
               </sc-if>
               <sc-if value="{{ showCardPay }}" hint-placeholder-val="{{ true }}">
                 <button class="ls-btn" onClick="{{ pay }}" style="{{ payStyle }}">{{ payBtn }}</button>
@@ -1063,7 +1073,7 @@ class Component extends DCLogic {
   tplNames = ['Legal notice', 'Petition', 'Section 138 notice', 'Bail application', 'Affidavit', 'Written statement', 'Reply', 'Appeal', 'Revision', 'Agreement'];
   dirList = [];
   state = { auth: LSB.on ? 'boot' : (this.db.session ? 'in' : 'login'), screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: '', brainThread: '', promo: null, promoInput: '', promoErr: '' };
-  SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'causelist', 'ordersdate', 'ordersnotif', 'board', 'labels', 'courts', 'clients', 'documents', 'evidence', 'research', 'agents', 'team', 'chat', 'billing', 'portal', 'reports', 'settings'];
+  SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'causelist', 'ordersdate', 'ordersnotif', 'board', 'labels', 'courts', 'clients', 'documents', 'esign', 'evidence', 'research', 'agents', 'team', 'chat', 'billing', 'portal', 'reports', 'settings'];
 
   componentDidMount() {
     this.onR = () => this.setState({ w: window.innerWidth }); window.addEventListener('resize', this.onR);
@@ -1111,7 +1121,7 @@ class Component extends DCLogic {
     this.refreshChat();
   }
   refreshChat() { clearTimeout(this.chatT); this.chatT = setTimeout(() => LSB.chat.unread().then(u => { this.chatUnread = u; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => {}), 250); }
-  loadDrive() { this.startChat(); if (LSB.on && LSB.upi) LSB.upi.config().then(c => { this.upiCfg = c; this.setState(x => ({ rev: x.rev + 1 })); }).catch(() => {});
+  loadDrive() { this.startChat(); 
     if (!LSB.on || !LSB.drive) return; LSB.drive.status().then(s => { this.driveSt = s; this.setState(x => ({ rev: x.rev + 1 })); setTimeout(() => LSV.maybeAskDrive(this), 1500); }).catch(() => { this.driveSt = { configured: false }; }); }
   /* Owner only (Settings): waits for any save in flight, deletes the firm's files and records on the server, then reloads. */
   async eraseFirm() { clearTimeout(this.syncT); this.syncT = null; if (LSB.pending()) await LSB.sync(this.db).catch(() => {}); const n = await LSB.eraseFirm(this.db); await this.reload(); return n; }
@@ -1211,7 +1221,7 @@ class Component extends DCLogic {
       9: `<div style="text-align:center;font-weight:600">AGREEMENT</div><p>This Agreement is made at ${esc(f.city)} on ${T} between:</p><p><b>[First party]</b>, having its office at [address] (the "First Party"); and</p><p><b>[Second party]</b>, having its office at [address] (the "Second Party").</p><p>1. <b>Scope.</b> [Describe what each party will do.]</p><p>2. <b>Consideration.</b> The [party] will pay ₹[amount] on [terms].</p><p>3. <b>Term and termination.</b> This Agreement runs for [period]. Either party may end it with [notice period] written notice.</p><p>4. <b>Confidentiality.</b> Each party will keep the other's information confidential.</p><p>5. <b>Disputes.</b> Disputes will be referred to a sole arbitrator under the Arbitration and Conciliation Act, 1996, seated at ${esc(f.city)}.</p><p>6. <b>Governing law.</b> The laws of India apply.</p><div style="margin-top:24px">For the First Party &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; For the Second Party</div>` };
     return P[i];
   }
-  clean(html) { return String(html).replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+="[^"]*"/gi, '').replace(/\son\w+='[^']*'/gi, ''); }
+  clean(html) { return window.LSSanitize ? window.LSSanitize.clean(html) : ''; }   /* static/sanitize.js: DOM-based; if it failed to load, drafts render empty rather than unsanitised */
   dictate() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (this.state.dict) { this.rec && this.rec.stop(); return this.setState({ dict: false }); }
@@ -1264,13 +1274,17 @@ class Component extends DCLogic {
     /* ---- navigation ---- */
     const navDef = [
       ['Overview', [['Dashboard', 'dashboard', 'dashboard'], ['My Workspace', 'workspace', 'user']]],
-      ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Daily Causelist', 'causelist', 'cal'], ['Orders by Date', 'ordersdate', 'order'], ['Orders by Notification', 'ordersnotif', 'order', pendOrders.length], ['Display Board', 'board', 'court'], ['Labels', 'labels', 'tag'], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', limWait]]],
+      ['Practice', [['Cases', 'cases', 'case'], ['Court Orders', 'orders', 'order', pendOrders.length], ['Court Intelligence', 'courts', 'court'], ['Hearings', 'calendar', 'cal', todayH.length], ['Daily Causelist', 'causelist', 'cal'], ['Orders by Date', 'ordersdate', 'order'], ['Orders by Notification', 'ordersnotif', 'order', pendOrders.length], ['Display Board', 'board', 'court'], ['Labels', 'labels', 'tag'], ['Clients CRM', 'clients', 'users'], ['Documents', 'documents', 'folder'], ['E-Sign', 'esign', 'pen'], ['Evidence', 'evidence', 'archive'], ['Legal Deadlines', 'limitation', 'clock', limWait]]],
       ['AI', [['AI Case Brain', 'brain', 'spark'], ['AI Drafting Studio', 'drafting', 'pen'], ['AI Legal Research', 'research', 'search'], ['AI Agents', 'agents', 'cpu']]],
       ['Firm', [['Team', 'team', 'team'], ['Team chat', 'chat', 'chat', LSB.on ? Object.values(this.chatUnread || {}).reduce((a, b) => a + b, 0) || 0 : 0], ['Billing & Finance', 'billing', 'rupee'], ['Client Portal', 'portal', 'globe'], ['Reports', 'reports', 'chart'], ['Subscription', 'pricing', 'card'], ['Settings', 'settings', 'gear']]]
     ];
     /* The practice area leads the Practice group with its own modules and renames what its work calls them. */
     const PA = LSP.domain(D.firm), isCorp = D.firm.kind === 'corporate', renameNav = Object.assign({}, isCorp ? { clients: 'Business units', portal: 'Business portal' } : {}, PA.rename);
     navDef[1][1].sort((a, b) => { const i = PA.lead.indexOf(a[1]), j = PA.lead.indexOf(b[1]); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
+    /* Split the long Practice list into clear sections (lead order from the practice area is kept inside each). */
+    const NAV_SPLIT = [['Case management', ['cases', 'calendar', 'clients', 'labels']], ['Court & orders', ['orders', 'causelist', 'ordersdate', 'ordersnotif', 'courts', 'board']], ['Records', ['documents', 'evidence', 'limitation']]];
+    const practiceItems = navDef[1][1];
+    navDef.splice(1, 1, ...NAV_SPLIT.map(([t, keys]) => [t, practiceItems.filter(it => keys.includes(it[1]))]).filter(g => g[1].length));
     const nav = navDef.map(([title, items]) => ({ title, items: items.map(([label0, key, ic, badge]) => { const label = renameNav[key] || label0;
       const locked = acc.ok && !LS.hasMod(acc, key); if (locked) badge = LS.MOD_PLAN[key] === 'Firm' ? 'Firm' : 'Pro';
       const active = S.screen === key || (key === 'cases' && S.screen === 'case') || (key === 'orders' && S.screen === 'order');
@@ -1393,6 +1407,7 @@ class Component extends DCLogic {
     const saved = D.drafts[S.tpl] || [], vlist = [...saved.map((x, i) => { const name = 'v' + (saved.length - i + 1); return { v: name + (x.label ? ' · ' + x.label : '') + (i === 0 ? ' · current' : ''), meta: `Saved by ${x.by} · ${LS.dayMon(x.at.slice(0, 10))}, ${x.at.slice(11)}`, html: x.html,
       act: V.can(this, 'draft.edit') ? h('span', { style: { display: 'inline-flex', gap: 4, flexShrink: 0 } }, h(V.IconBtn, { label: 'Rename ' + name, onClick: () => verName(i, x) }, '✎'), h(V.IconBtn, { label: 'Delete ' + name, danger: true, onClick: () => verDel(i, x, name) }, '×')) : null }; }), { v: 'v1' + (saved.length ? '' : ' · current'), meta: 'From template', html: this.tplHtml(S.tpl), act: null }];
     const vi = Math.min(S.ver, vlist.length - 1), dHtml = this.clean(vlist[vi].html), liveHtml = this.buf != null ? this.buf : dHtml, plain = liveHtml.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+    const dv = vi < saved.length ? saved[vi] : null, lockd = LSG.locked(dv), sealed = !!(dv && dv.seal), canEdit = V.can(this, 'draft.edit');
     const templates = this.tplNames.map((label, i) => ({ label, go: () => { this.buf = null; this.setState({ tpl: i, ver: 0 }); },
       style: { display: 'block', width: '100%', textAlign: 'left', border: 0, borderRadius: 8, padding: '9px 10px', fontSize: 14, background: S.tpl === i ? '#F0F0EF' : 'transparent', color: '#0A0A0A', fontWeight: S.tpl === i ? 600 : 400 } }));
     const versions = vlist.map((x, i) => ({ v: x.v, meta: x.meta, act: x.act, go: () => { this.buf = null; this.setState({ ver: i }); },
@@ -1401,13 +1416,45 @@ class Component extends DCLogic {
     const chk = [ph ? ['•', `${ph} placeholder${ph > 1 ? 's' : ''} in [brackets] still to be filled in`] : ['✓', 'No unfilled placeholders'], /\b\d{2}\.\d{2}\.\d{4}\b/.test(plain) ? ['✓', 'The document is dated'] : ['•', 'No date found in the document'], plain.includes(D.user.name) ? ['✓', 'Signature block is present'] : ['•', `The signature block for ${D.user.title} is missing`]];
     if (S.tpl === 2 || S.tpl === 0) chk.push(/fifteen days|15 days/i.test(plain) ? ['✓', 'The 15-day payment period is stated'] : ['•', 'The 15-day period for compliance is not stated']);
     if (S.tpl === 2) { const r = /returned unpaid on (\d{2}\.\d{2}\.\d{4})/.exec(plain), dt = /Date:\s*(\d{2}\.\d{2}\.\d{4})/.exec(plain); if (r && dt) { const n = dm(dt[1], r[1]); chk.push(n <= 30 && n >= 0 ? ['✓', `Notice is within 30 days of the return memo dated ${r[1]}, as s.138(b) requires`] : ['•', `Notice is dated ${n} days after the return memo. Section 138(b) allows 30 days.`]); } else chk.push(['•', 'Could not find the return memo date to check the 30-day period']);  }
+    if (dv && dv.stamp) chk.push(['✓', 'eStamp recorded (' + dv.stamp.state + ', ₹' + Number(dv.stamp.amount).toLocaleString('en-IN') + ')']);
+    const sgl = dv && dv.signers || []; if (sgl.length) { const dn = LSG.signedCount(dv); chk.push(dn === sgl.length ? ['✓', `All ${sgl.length} signature${sgl.length > 1 ? 's' : ''} collected`] : ['•', `${sgl.length - dn} of ${sgl.length} signatures still pending`]); }
+    if (sealed) chk.push(['✓', 'Sealed · ' + dv.seal.id]);
+    /* document reference, saved-version helpers and the printed sheet */
+    const nDrafts = Object.values(D.drafts).reduce((a, b) => a + b.length, 0), newRef = () => LSG.refNo(LSG.TPL_CODE[S.tpl], nDrafts), auditAt = () => T + ' ' + LS.nowHM();
+    /* Makes sure what is on screen is a saved version (with a reference number) and returns its index, or null if it could not be saved. nh: new html from "Fill details". */
+    const ensure = (nh, label) => {
+      const html = nh != null ? this.clean(nh) : (this.buf != null ? this.clean(this.ed ? this.ed.innerHTML : liveHtml) : null);
+      if (dv && html == null && dv.ref) return vi;
+      this.buf = null;
+      this.mut(db => { const arr = db.drafts[S.tpl] = db.drafts[S.tpl] || [];
+        if (dv) { const y = arr[vi]; if (!y || LSG.locked(y)) return; if (html != null) y.html = html; if (!y.ref) y.ref = newRef(); if (nh != null) (y.audit = y.audit || []).push({ at: auditAt(), who: db.user.name, what: label || 'Edited' }); }
+        else { arr.unshift({ at: auditAt(), by: 'you', label: label || '', html: html != null ? html : this.clean(this.ed ? this.ed.innerHTML : liveHtml), ref: newRef(), audit: [{ at: auditAt(), who: db.user.name, what: 'Document created' }] }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${arr.length + 1})`); } });
+      const idx = dv ? vi : 0, got = (this.db.drafts[S.tpl] || [])[idx]; if (!got) return null; if (!dv) this.setState({ ver: 0 }); return idx;
+    };
+    this.copyEditable = () => { if (!dv) return; V.confirmBox(this, 'Make an editable copy?', 'A new version with the same text is created. The signatures, seal and audit trail stay with the original version.', 'Create copy', () => { const html = dv.html; this.mut(db => { db.drafts[S.tpl].unshift({ at: auditAt(), by: 'you', label: 'Editable copy', html, ref: newRef(), audit: [{ at: auditAt(), who: db.user.name, what: 'Editable copy made from ' + (dv.seal ? dv.seal.id : (dv.ref || 'an earlier version')) }] }); V.logIt(db, `${db.user.name} made an editable copy of the ${this.tplNames[S.tpl]}`); }, 'Editable copy created'); this.setState({ ver: 0 }); }); };
+    const refTxt = (dv && dv.ref) || 'LS/' + LSG.TPL_CODE[S.tpl] + '/' + new Date().getFullYear() + '/____', docDate = LS.dmy(dv ? dv.at.slice(0, 10) : T), words = plain.trim().split(/\s+/).length;
+    const letterhead = h('div', { contentEditable: false, style: { textAlign: 'center', paddingBottom: 10, lineHeight: 1.4 } },
+      h('div', { style: { fontSize: 11, letterSpacing: '.34em', color: '#444', textTransform: 'uppercase' } }, 'Advocates & Legal Consultants'),
+      h('div', { style: { fontSize: 25, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', lineHeight: 1.25, margin: '4px 0 2px' } }, D.firm.name || 'Chamber of the Advocate'),
+      h('div', { style: { fontSize: 12.5, color: '#333' } }, [D.firm.address, D.firm.city].filter(Boolean).join(', ')),
+      (D.user.phone || D.user.email || D.firm.gstin) && h('div', { style: { fontSize: 11.5, color: '#555', fontFamily: 'system-ui,sans-serif' } }, [D.user.phone ? 'Tel: ' + D.user.phone : '', D.user.email, D.firm.gstin ? 'GSTIN: ' + D.firm.gstin : ''].filter(Boolean).join('  ·  ')),
+      h('div', { style: { borderTop: '3px solid #111', borderBottom: '1px solid #111', height: 5, marginTop: 10 } }));
+    const metaRow = h('div', { contentEditable: false, style: { display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 13.5, fontWeight: 600, margin: '8px 0 22px' } }, h('span', null, 'Ref. No.: ' + refTxt), h('span', null, 'Date: ' + docDate));
     const draft = { title: S.tpl === 2 ? 'Legal notice, s.138 NI Act' : this.tplNames[S.tpl], footer: `Draft ${vlist[vi].v.split(' ')[0]} · Prepared on Legal Staff · ${plain.trim().split(/\s+/).length} words`,
-      body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length, ref: el => { this.ed = el; }, contentEditable: true, suppressContentEditableWarning: true, spellCheck: true, style: { position: 'relative', outline: 'none' }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
+      sheet: null, secure: null, audit: null,
+      body: h('div', { key: S.tpl + ':' + vi + ':' + saved.length, ref: el => { this.ed = el; }, contentEditable: !lockd && canEdit, suppressContentEditableWarning: true, spellCheck: true, 'aria-readonly': lockd, style: { position: 'relative', outline: 'none', minHeight: 240 }, dangerouslySetInnerHTML: { __html: dHtml }, onInput: e => { this.buf = e.currentTarget.innerHTML; clearTimeout(this.it); this.it = setTimeout(() => this.setState({ dr: Date.now() }), 400); } }),
       checks: h(React.Fragment, null, chk.map(([m, t], i) => h('div', { key: i, style: { color: m === '✓' ? '#0A0A0A' : '#B42318' } }, m + ' ' + t))),
-      aiBtn: LSB.on && LSB.ai ? h(V.Btn, { onClick: () => V.aiDraft(this, S.tpl, this.tplNames[S.tpl]) }, '✦ Draft with AI') : null,
-      saveBtn: h(V.Btn, { onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
-      docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }], ...LS.htmlToRuns(this.ed)]); this.toast('DOCX downloaded'); },
+      aiBtn: LSB.on && LSB.ai && !lockd ? h(V.Btn, { onClick: () => V.aiDraft(this, S.tpl, this.tplNames[S.tpl]) }, '✦ Draft with AI') : null,
+      saveBtn: h(V.Btn, { disabled: lockd, title: lockd ? 'Signed or sealed: make an editable copy to change the text' : '', onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html, ref: newRef(), audit: [{ at: auditAt(), who: db.user.name, what: 'Version saved' }] }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
+      docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }], ...LS.htmlToRuns(this.ed), ...(dv && dv.stamp ? [[{ t: `Non-judicial stamp: ${dv.stamp.state}, Rs ${dv.stamp.amount}, certificate ${dv.stamp.certNo} (${dv.stamp.issuer})` }]] : []), ...sgl.map(x => [{ t: x.name + ', ' + x.role + (x.sigImg ? ' · signed electronically ' + x.signedAt : ' · signature pending'), b: false }]), ...(sealed ? [[{ t: `Sealed ${dv.seal.id} · SHA-256 ${dv.seal.hash}` }]] : [])]); this.toast('DOCX downloaded'); },
       pdf: () => { const sec = this.ed && this.ed.closest('section'); if (!sec) return; sec.classList.add('ls-print'); const done = () => { sec.classList.remove('ls-print'); window.removeEventListener('afterprint', done); }; window.addEventListener('afterprint', done); window.print(); } };
+    draft.sheet = h('section', { className: 'ls-paperwrap', 'aria-label': 'Document', style: { background: '#E4E4E1', border: '1px solid #E5E5E5', borderRadius: 12, padding: '26px 16px', gridColumn: 'span 2', minWidth: 0, overflowX: 'auto' } },
+      h('div', { className: 'ls-paper', 'data-wm': sealed ? '' : lockd ? 'SIGNING' : 'DRAFT' },
+        h('div', { className: 'ls-sheet' + (lockd ? ' ls-ro' : ''), style: { border: '3px double #1B1B1B', padding: '34px 42px 22px' } },
+          letterhead, metaRow, LSG.stampBlock(dv), draft.body, LSG.signBlock(dv), LSG.sealBlock(dv),
+          h('div', { contentEditable: false, style: { marginTop: 30, paddingTop: 8, borderTop: '1px solid #999', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 10.5, color: '#555', fontFamily: 'system-ui,sans-serif' } }, h('span', null, refTxt + ' · ' + words + ' words'), h('span', null, sealed ? dv.seal.id + ' · sealed' : 'Draft, not yet sealed'), h('span', null, 'Prepared on Legal Staff')))));
+    draft.secure = LSG.panel({ app: this, tpl: S.tpl, vi, cur: dv, saved, ensure, html: liveHtml, caseId: (D.cases[0] || {}).id, canEdit });
+    draft.audit = LSG.auditCard(dv);
 
     /* ---- pricing ---- */
     const cycles = [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14, background: S.cycle === k ? '#0A0A0A' : 'transparent', color: S.cycle === k ? '#fff' : '#363636' } }));
@@ -1440,23 +1487,23 @@ class Component extends DCLogic {
         usersNote: perUser ? `${inr(ann ? a : m)} for the first user + ${inr(PER_USER[S.cycle])} for each additional user` + (used > users ? `. Your team has ${used} users.` : '') : '',
         lessUsers: () => setUsers(users - 1), moreUsers: () => setUsers(users + 1), gst: inr(gst), total: inr(base + gst), renew: ann ? 'every year' : 'every month', next: LS.fmt(renews), renews, gstErr: S.gstErr ? h('div', { style: { fontSize: 12.5, color: '#B42318', marginTop: 6 } }, S.gstErr) : null };
     }
-    /* Plans are paid only by UPI straight to our account (Legal Staff's own payment flow, no outside gateway). */
-    const upiOn = !!LSB.on;
+    /* Plans are paid only through Razorpay Checkout (functions/razorpay). */
+    const payOn = !!LSB.on;
     /* Promo code: checked by the server for this plan and billing cycle; the discount comes off before GST. */
     const promoOk = !!(S.promo && co.name && S.promo.plan === co.name && S.promo.cycle === S.cycle && S.promo.users === co.users);
     const applyPromo = () => { const code = String(S.promoInput || '').trim().toUpperCase();
       if (!code) return this.setState({ promoErr: 'Enter a promo code.' });
       if (this.promoBusy) return; this.promoBusy = true; this.setState({ promoErr: '' });
-      LSB.upi.promo(co.name, S.cycle, code, co.users).then(r => this.setState({ promo: Object.assign({ plan: co.name, cycle: S.cycle, users: co.users }, r), promoInput: r.code }))
+      LSB.razorpay.promo(co.name, S.cycle, code, co.users).then(r => this.setState({ promo: Object.assign({ plan: co.name, cycle: S.cycle, users: co.users }, r), promoInput: r.code }))
         .catch(e => this.setState({ promo: null, promoErr: e.message })).finally(() => { this.promoBusy = false; this.setState(s => ({ rev: s.rev + 1 })); }); };
     const removePromo = () => this.setState({ promo: null, promoInput: '', promoErr: '' });
     const rp = p => inr(p / 100);
     const tooFew = () => co.usedTooMany ? (this.setState({ gstErr: `Choose at least ${D.team.length} users, or remove team members first.` }), true) : false;
-    const payUpi = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
+    const payRazorpay = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
       if (tooFew()) return;
-      const o = { plan: co.name, cycle: S.cycle, gstin: g, name: co.name, cycleLabel: co.cycle + (co.perUser ? ' · ' + co.usersLabel : ''), promo: promoOk ? S.promo.code : '', users: co.users }; this.setState({ plan: null, gstErr: '' }); V.upiPay(this, o); };
+      const o = { plan: co.name, cycle: S.cycle, gstin: g, name: co.name, cycleLabel: co.cycle + (co.perUser ? ' · ' + co.usersLabel : ''), promo: promoOk ? S.promo.code : '', users: co.users }; this.setState({ plan: null, gstErr: '' }); V.razorpayPay(this, o); };
     const pay = () => { const g = S.gstin.trim().toUpperCase(); if (g && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(g)) return this.setState({ gstErr: 'A GSTIN has 15 characters, for example 07AAAAA0000A1Z5.' });
-      if (LSB.on) return payUpi();
+      if (LSB.on) return payRazorpay();
       if (tooFew()) return;
       this.mut(db => { db.sub.plan = co.name; db.sub.cycle = S.cycle; db.sub.seats = co.users; db.sub.status = 'active'; db.sub.trialEnds = ''; db.sub.since = T; db.sub.renews = co.renews; db.sub.history.unshift({ plan: co.name + ' · ' + co.cycle, total: co.total, date: T }); if (g) db.firm.gstin = g; V.logIt(db, `Subscription changed to ${co.name} (${co.cycle})`); }); this.setState({ paid: true, gstErr: '' }); };
 
@@ -1549,8 +1596,8 @@ class Component extends DCLogic {
         ...({ Dots: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' }, Grid: { backgroundImage: 'linear-gradient(#ECECEC 1px,transparent 1px),linear-gradient(90deg,#ECECEC 1px,transparent 1px)', backgroundSize: '40px 40px' }, Plain: { backgroundImage: 'none' }, Wallpaper: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' } })[st.backdrop] },
       showWall: st.backdrop === 'Wallpaper',
       goDashboard: () => this.go('dashboard'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'), goOrder: () => this.go('orders'),
-      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, greetingEl: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`.split(' ').map((w, i, a) => h('span', { key: i, className: i === a.length - 1 ? 'ls-greet-w ls-greet-name' : 'ls-greet-w', style: { animationDelay: i === a.length - 1 ? `${120 + i * 80}ms, ${700 + i * 80}ms` : `${120 + i * 80}ms` } }, i < a.length - 1 ? w + ' ' : w)), syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign in with Google or an email code · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'Pay by UPI straight to Legal Staff. The plan switches on by itself once the payment reaches us.' : 'Payments need the server. No money was taken and no tax invoice was issued; the plan is recorded on this device only.', paidLine: LSB.on ? `The invoice has been saved for ${D.user.email}. Next renewal: ${co.next || ''}.` : `Recorded on this device. Next renewal date: ${co.next || ''}.`, payLabel: LSB.on ? 'Paid by UPI' : 'Not charged',
-      payBtn: 'Record the plan on this device', payHint: upiOn ? 'Pay the exact amount shown. Your plan switches on by itself once the payment reaches us, usually within a minute.' : 'Payments need the server. This browser-only version only records the plan choice; no money is taken.', payHead: LSB.on ? 'Payment verified' : 'Plan recorded on this device',
+      todayLong: LS.fmt(T, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), greeting: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`, greetingEl: `Good ${hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening')}, ${D.user.name.split(' ')[0]}`.split(' ').map((w, i, a) => h('span', { key: i, className: i === a.length - 1 ? 'ls-greet-w ls-greet-name' : 'ls-greet-w', style: { animationDelay: i === a.length - 1 ? `${120 + i * 80}ms, ${700 + i * 80}ms` : `${120 + i * 80}ms` } }, i < a.length - 1 ? w + ' ' : w)), syncLine: (LSB.on ? 'Saved to your firm account · ' : 'Saved on this device · ') + LS.t12ap(LS.nowHM()), storageLine: LSB.on ? 'Sign in with Google or an email code · data stored for your firm only' : 'Your data is stored on this device', payNote: LSB.on ? 'Pay securely through Razorpay (UPI, cards, netbanking). The plan switches on by itself once the payment is confirmed.' : 'Payments need the server. No money was taken and no tax invoice was issued; the plan is recorded on this device only.', paidLine: LSB.on ? `The invoice has been saved for ${D.user.email}. Next renewal: ${co.next || ''}.` : `Recorded on this device. Next renewal date: ${co.next || ''}.`, payLabel: LSB.on ? 'Paid via Razorpay' : 'Not charged',
+      payBtn: 'Record the plan on this device', payHint: payOn ? 'Your plan switches on by itself once Razorpay confirms the payment.' : 'Payments need the server. This browser-only version only records the plan choice; no money is taken.', payHead: LSB.on ? 'Payment verified' : 'Plan recorded on this device',
       planBanner: h(V.PlanCard, { app: this, acc }),
       briefText, briefArt: todayH.length ? null : h('div', { className: 'ls-brief-art' }, h(V.Art, { name: 'sunrise', style: { width: '100%', height: 'auto' } })),
       dashEmpty: { hearings: todayH.length ? null : h(V.Empty, { small: true, art: 'calendar', title: 'No hearings today', text: 'Hearings you add to a case appear here on the day.' }), orders: D.orders.length ? null : h(V.Empty, { small: true, art: 'order', title: 'No court orders yet', text: 'Upload an order to pull out the next date and key points.' }), deadlines: dl.length ? null : h(V.Empty, { small: true, art: 'deadline', title: 'No deadlines tracked', text: 'Run a limitation calculation and it is tracked here.' }), stages: live.length ? null : h(V.Empty, { small: true, art: 'cases', title: 'No active cases', text: 'Cases you add are grouped here by stage.' }) },
@@ -1601,19 +1648,19 @@ class Component extends DCLogic {
       toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate',
       dictLangSel: h('select', { 'aria-label': 'Dictation language', title: 'Dictation language', value: st.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: S.dict, onChange: e => { const v = e.target.value; this.mut(db => { db.settings.dictLang = v; }); }, style: { height: 34, border: '1px solid #E5E5E5', borderRadius: 8, background: '#FFFFFF', fontSize: 13.5, padding: '0 8px', color: '#0A0A0A' } }, h('option', { value: 'en-IN' }, 'English (India)'), h('option', { value: 'hi-IN' }, 'Hindi')),
       dictBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, border: S.dict ? '1px solid #B42318' : '1px solid #E5E5E5', background: S.dict ? '#FDECEA' : '#FFFFFF', color: S.dict ? '#B42318' : '#0A0A0A' },
-      cycles, plans, co, checkoutOpen: S.plan !== null, canTrial, startTrial, payUpi, showUpi: upiOn, showCardPay: !upiOn, upiBtn: promoOk ? `Pay ${rp(S.promo.total)} by UPI` : `Pay ${co.total || ''} by UPI`,
-      showPromo: upiOn, hasPromo: promoOk, promoCode: promoOk ? S.promo.code : '', promoLabel: promoOk ? S.promo.label : '', promoOff: promoOk ? rp(S.promo.discount) : '',
+      cycles, plans, co, checkoutOpen: S.plan !== null, canTrial, startTrial, payRazorpay, showUpi: payOn, showCardPay: !payOn,
+      showPromo: payOn, hasPromo: promoOk, promoCode: promoOk ? S.promo.code : '', promoLabel: promoOk ? S.promo.label : '', promoOff: promoOk ? rp(S.promo.discount) : '',
       coTotal: promoOk ? rp(S.promo.total) : co.total,
       promoInput: S.promoInput || '', setPromoInput: e => this.setState({ promoInput: e.target.value.toUpperCase(), promoErr: '' }), promoKey: e => { if (e.key === 'Enter') { e.preventDefault(); promoOk ? null : applyPromo(); } },
       promoBtn: promoOk ? 'Remove' : this.promoBusy ? 'Checking…' : 'Apply', promoBtnClick: promoOk ? removePromo : applyPromo,
       promoMsg: S.promoErr ? h('div', { style: { fontSize: 12.5, color: '#B42318' } }, S.promoErr) : promoOk ? h('div', { style: { fontSize: 12.5, color: '#137333' } }, `Code applied. You save ${rp(S.promo.base - S.promo.total)}.`) : null,
-      upiStyle: { whiteSpace: 'nowrap', padding: '9px 12px', borderRadius: 8, fontSize: 14, textAlign: 'center', background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
+      razorpayBtn: promoOk ? `Pay ${rp(S.promo.total)} with Razorpay` : `Pay ${co.total || ''} with Razorpay`, razorpayStyle: { whiteSpace: 'nowrap', padding: '9px 12px', borderRadius: 8, fontSize: 14, textAlign: 'center', background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
       trialBtn: acc.state === 'trial' ? `Switch my trial to ${co.name || ''}` : 'Start 7-day free trial', trialHint: acc.state === 'trial' ? `No payment needed. Your trial still ends on ${trialEndsTxt}.` : `No payment needed. Full ${co.name || ''} plan until ${trialEndsTxt}; then subscribe to keep working.`,
       payStyle: { whiteSpace: 'nowrap', height: 36, borderRadius: 8, fontSize: 13.5, fontWeight: 500, background: canTrial ? '#FFFFFF' : '#0A0A0A', color: canTrial ? '#0A0A0A' : '#fff', border: canTrial ? '1px solid #0A0A0A' : 0 },
       subPanel: LSB.on && V.SubPanel ? h(V.SubPanel, { app: this }) : null,
       showPlans: acc.state !== 'active' || !LSB.on || !!S.showPlans,
       pricingTitle: acc.state === 'active' ? 'Change or renew your plan' : 'Choose a plan for your practice',
-      coTerms: LSB.on ? `One-time UPI payment for ${S.cycle === 'annual' ? 'one year' : 'one month'}. No automatic charges; you get an invoice by email.` : `Auto-renews ${co.renew || ''}. You can cancel any time from Settings → Subscriptions.`,
+      coTerms: LSB.on ? `One-time payment through Razorpay for ${S.cycle === 'annual' ? 'one year' : 'one month'}. No automatic charges; you get an invoice by email.` : `Auto-renews ${co.renew || ''}. You can cancel any time from Settings → Subscriptions.`,
       pricingNote: acc.state === 'active' ? `You are on the ${D.sub.plan} plan (${D.sub.cycle === 'annual' ? 'annual' : 'monthly'}) until ${LS.fmt(D.sub.renews)}.` : acc.state === 'none' ? 'Every plan starts with a 7-day free trial. No payment needed to start.' : acc.state === 'trial' ? `You are on a free trial of the ${acc.plan} plan, ${acc.daysLeft} day${acc.daysLeft === 1 ? '' : 's'} left. Subscribe any time; unused trial days are kept.` : acc.state === 'expired' ? `Your ${acc.wasTrial ? 'free trial' : 'plan'} has ended. Subscribe to reopen your workspace.` : 'You can change plans at any time.', paid: S.paid, notPaid: !S.paid, gstin: S.gstin, setGstin: e => this.setState({ gstin: e.target.value, gstErr: '' }),
       closeCheckout: () => this.setState({ plan: null }), pay, finishPay: () => { this.setState({ plan: null, paid: false }); this.go('dashboard'); },
       apps, cur, adminNote: S.adminNote, setAdminNote: e => this.setState({ adminNote: e.target.value }), verify: () => this.setStatus('verified', ca), askInfo: () => this.setStatus('info', ca), reject: () => this.setStatus('rejected', ca),

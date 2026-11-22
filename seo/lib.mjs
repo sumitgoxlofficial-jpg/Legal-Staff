@@ -179,7 +179,7 @@ export function footer() {
       <p class="f-h">Practice management software by city</p>
       <ul>${cityLinks.map(([href, label]) => `<li><a href="${href}">${esc(label)}</a></li>`).join('')}<li><a href="/advocate-software-in-india">All cities</a></li></ul>
     </div>
-    <div class="f-bottom"><span>© ${new Date().getFullYear()} ${esc(SITE.name)}</span><span><a href="/">Home</a> · <a href="/#pricing">Pricing</a> · <a href="/directory">Advocate directory</a> · <a href="/app">Sign in</a> · <a href="/sitemap.xml">Sitemap</a></span><span><a href="/about">About</a> · <a href="/privacy">Privacy policy</a> · <a href="/cookies">Cookie policy</a> · <a href="/terms">Terms</a> · <a href="/refund-policy">Refunds</a> · <a href="/data-rights">Your data rights</a></span></div>
+    <div class="f-bottom"><span>© ${new Date().getFullYear()} ${esc(SITE.name)}</span><span><a href="/">Home</a> · <a href="/#pricing">Pricing</a> · <a href="/directory">Advocate directory</a> · <a href="/partners">Partners</a> · <a href="/app">Sign in</a> · <a href="/sitemap.xml">Sitemap</a></span><span><a href="/about">About</a> · <a href="/privacy">Privacy policy</a> · <a href="/cookies">Cookie policy</a> · <a href="/terms">Terms</a> · <a href="/refund-policy">Refunds</a> · <a href="/data-rights">Your data rights</a></span></div>
   </div>
 </footer>`;
 }
@@ -225,21 +225,21 @@ const bookingModal = () => `<div class="modal" id="book" hidden aria-hidden="tru
 </div>`;
 
 /* ---------------- page shell ---------------- */
-export function page({ head, body, active = '', scripts = [] }) {
+export function page({ head, body, active = '', scripts = [], app = false }) {
   return `<!doctype html>
 <html lang="en-IN">
 <head>
 ${head}
 </head>
 <body>
-${header(active)}
+${app ? '' : header(active)}
 <main id="main">
 ${body}
 </main>
-${footer()}
-${bookingModal()}
+${app ? '' : footer()}
+${app ? '' : bookingModal()}
 <script src="/config.js"></script>
-<script src="/static/site.js" defer></script>
+${app ? '' : '<script src="/static/site.js" defer></script>'}
 <script src="/static/consent.js" defer></script>
 ${scripts.filter(s => s !== '/static/consent.js').map(s => `<script src="${s}" defer></script>`).join('\n')}
 </body>
@@ -248,14 +248,14 @@ ${scripts.filter(s => s !== '/static/consent.js').map(s => `<script src="${s}" d
 }
 
 /* ---------------- section helpers ---------------- */
-export const hero = ({ kicker, title, lead, crumbs, primary = 'Start free', primaryHref = '/#pricing', source = 'Hero', secondary, chips = [], art = '' }) => `<section class="hero"><div class="hero-bg" aria-hidden="true"><div class="hero-grid"></div><div class="hero-glow"></div></div>
+export const hero = ({ kicker, title, lead, crumbs, primary = 'Start free', primaryHref = '/#pricing', source = 'Hero', secondary, extra = '', chips = [], art = '' }) => `<section class="hero"><div class="hero-bg" aria-hidden="true"><div class="hero-grid"></div><div class="hero-glow"></div></div>
   <div class="wrap hero-in${art ? ' has-art' : ''}">
     <div class="hero-copy">
       ${crumbs ? breadcrumbs(crumbs) : ''}
       ${kicker ? `<p class="kicker light lh" style="--d:60ms">${esc(kicker)}</p>` : ''}
       <h1 class="h1 lh" style="--d:120ms">${esc(title)}</h1>
       ${lead ? `<p class="lead lh" style="--d:220ms">${esc(lead)}</p>` : ''}
-      <div class="row-btns lh" style="--d:320ms"><a class="btn btn-light" href="${primaryHref}">${esc(primary)} ${icon('arrow', 16)}</a>${secondary ? `<a class="btn btn-ghost-light" href="${secondary.href}">${esc(secondary.label)}</a>` : `<button class="btn btn-ghost-light" type="button" data-book="${esc(source)}">Book a demo</button>`}</div>
+      <div class="row-btns lh" style="--d:320ms">${primary ? `<a class="btn btn-light" href="${primaryHref}">${esc(primary)} ${icon('arrow', 16)}</a>` : ''}${secondary ? `<a class="btn btn-ghost-light" href="${secondary.href}">${esc(secondary.label)}</a>` : `<button class="btn btn-ghost-light" type="button" data-book="${esc(source)}">Book a demo</button>`}${extra}</div>
       ${chips.length ? `<ul class="chips lh" style="--d:420ms">${chips.map(c => `<li>${icon('check', 14)}${esc(c)}</li>`).join('')}</ul>` : ''}
     </div>
     ${art ? `<div class="hero-art lh" style="--d:300ms" aria-hidden="true">${art}</div>` : ''}

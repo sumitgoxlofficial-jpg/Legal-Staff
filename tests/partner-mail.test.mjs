@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { fill, emailHtml, esc, cronAllowed } from '../supabase/functions/_shared/partner-mail.js';
+let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; };
+ok(fill('Hello {{name}}, id {{code}} {{missing}}!', { name: 'Asha', code: 'LS10001' }) === 'Hello Asha, id LS10001 !', 'variables are filled and unknown ones removed');
+ok(fill('{{note}}', { note: '{{code}}' }).length >= 0, 'values that look like variables do not loop');
+ok(!emailHtml('https://legalstaff.in', '<b>x</b>', '<script>alert(1)</script>\n\nSecond').includes('<script>'), 'email body and title are HTML-escaped');
+ok(emailHtml('https://legalstaff.in', 'T', 'a\n\nb').split('<p ').length === 3, 'paragraphs are kept');
+ok(esc('"&<>\'') === '&quot;&amp;&lt;&gt;&#39;', 'escape');
+ok(cronAllowed('s3cret', 's3cret') && !cronAllowed('s3cret!', 's3cret') && !cronAllowed('', 's3cret') && !cronAllowed('x', '') && !cronAllowed(null, 's3cret'), 'only the exact cron secret may drain the queue');
+console.log(`partner-mail: ${n} checks passed`);

@@ -22,6 +22,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - `app-store.js` holds the app's data layer: storage, local accounts, the limitation calculator, order reading, and exports (ICS, CSV, DOCX).
 - `app-views.js` holds the module screens, dialogs and forms.
 - `app-brain.js` holds AI Case Brain: a chat assistant with saved chats (search, rename, archive, delete), file and image attachments (PDF, Word .docx, text, photos; scanned PDFs are read as images), voice typing (English or Hindi), ready-made tasks, and an optional link to one case so answers cite its records. Chats are private to each user.
+- `app-sign.js` holds the Drafting Studio extras: eStamp record, electronic signatures, fill-details automation, sealing (SHA-256) and audit trail.
 - `config.js` holds site settings such as the Google Client ID.
 
 ## Accounts and data
@@ -41,7 +42,7 @@ The Client ID is public and safe to commit. No client secret is needed. Until it
 
 ## What needs outside accounts
 
-The app runs on Supabase (see `supabase/README.md`): sign-in, firm data, Google Drive backup, AI (Groq), UPI payments
+The app runs on Supabase (see `supabase/README.md`): sign-in, firm data, Google Drive backup, AI (Groq), Razorpay payments
 confirmed from bank alert emails, invoices, morning briefings, trial and plan-ending reminders, and team invitations are live.
 Two features wait for an outside account:
 

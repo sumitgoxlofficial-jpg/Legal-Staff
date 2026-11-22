@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { SITE } from './lib.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MODULES = ['feature', 'court', 'compare', 'city', 'tools', 'blog', 'legal'];
+const MODULES = ['feature', 'court', 'compare', 'city', 'tools', 'blog', 'legal', 'partners'];
 const MANIFEST = join(ROOT, 'seo', '.generated.json');
 
 // Remove files written by the previous build so renamed or deleted routes don't linger.
@@ -44,9 +44,9 @@ writeFileSync(MANIFEST, JSON.stringify(written.sort(), null, 1) + '\n');
 // Sitemap: hand-written pages first, then every generated route.
 const today = SITE.updated;
 const staticPages = [{ path: '/', priority: 1.0, changefreq: 'weekly' }, { path: '/directory', priority: 0.6, changefreq: 'daily' }];
-const urls = [...staticPages, ...out].map(p => `  <url><loc>${SITE.url}${p.path === '/' ? '/' : p.path}</loc><lastmod>${p.lastmod || today}</lastmod><changefreq>${p.changefreq || 'monthly'}</changefreq><priority>${(p.priority ?? 0.6).toFixed(1)}</priority></url>`);
+const urls = [...staticPages, ...out.filter(p => !p.noindex)].map(p => `  <url><loc>${SITE.url}${p.path === '/' ? '/' : p.path}</loc><lastmod>${p.lastmod || today}</lastmod><changefreq>${p.changefreq || 'monthly'}</changefreq><priority>${(p.priority ?? 0.6).toFixed(1)}</priority></url>`);
 writeFileSync(join(ROOT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`);
-writeFileSync(join(ROOT, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /app.html\nDisallow: /admin\nDisallow: /admin.html\nDisallow: /supabase/\nDisallow: /seo/\n\nSitemap: ${SITE.url}/sitemap.xml\n`);
+writeFileSync(join(ROOT, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /app.html\nDisallow: /admin\nDisallow: /admin.html\nDisallow: /supabase/\nDisallow: /seo/\nDisallow: /partners/dashboard\nDisallow: /partners/referrals\nDisallow: /partners/earnings\nDisallow: /partners/payouts\nDisallow: /partners/profile\nDisallow: /partners/resources\nDisallow: /partners/support\n\nSitemap: ${SITE.url}/sitemap.xml\nSitemap: ${SITE.url}/advocates-sitemap.xml\n`);
 
 const byType = out.reduce((a, p) => { const k = p.path.split('/')[1].replace(/^advocate-software-in-.*/, 'cities') || 'root'; a[k] = (a[k] || 0) + 1; return a; }, {});
 console.log(`Built ${out.length} pages`, byType, `→ sitemap.xml has ${urls.length} URLs`);
