@@ -1,7 +1,7 @@
 // Super admin console API (admin.html). Every call: a signed-in user whose verified email is in public.super_admins.
 // actions: overview · firms · firm_update · payments · coupons · coupon_save · coupon_delete · support · support_reply ·
 //          support_status · expenses · expense_add · expense_delete · settings · settings_save · refund · audit_log · directory_counts · directory_get ·
-//          firm_members · member_status · admins_add · admins_remove · dir_reports · dir_enquiries
+//          firm_members · member_status · user_delete · admins_add · admins_remove · dir_reports · dir_enquiries
 // Every change made here is written to admin_audit_log (append-only): who, what, which record, the details.
 // Deploy with JWT verification off; it checks every caller itself.
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -342,6 +342,27 @@ Deno.serve(async (req: Request) => {
       const { error } = await admin.from("members").update({ status }).eq("id", m.id); must(error, "The member could not be updated.");
       await audit("member." + status.toLowerCase(), m.firm_id, { member: m.email, before: m.status });
       return json({ ok: true });
+    }
+    // ---- delete a person's account (support request / legal erasure): same rules as "Delete my account" ----
+    if (action === "user_delete") {
+      const { data: m } = await admin.from("members").select("id,email,user_id,firm_id").eq("id", String(body.member_id ?? "")).maybeSingle();
+      if (!m || !m.user_id) throw new Fail("That person has no account to delete.", 404);
+      if (String(body.confirm ?? "").trim().toLowerCase() !== String(m.email).toLowerCase()) throw new Fail("Type the person's email to confirm.");
+      const { data: sa } = await admin.from("super_admins").select("email").eq("email", String(m.email).toLowerCase()).maybeSingle();
+      if (sa) throw new Fail("An administrator account cannot be deleted here. Remove the administrator first.");
+      const { data, error } = await admin.rpc("erase_user_account", { u: m.user_id });
+      if (error) { if (error.code === "P0001") throw new Fail(error.message, 409); must(error, "The account could not be deleted."); }
+      let removed = 0;
+      for (const firm of (data?.firms ?? []) as string[]) for (const bucket of ["documents", "chat"]) {
+        const st = admin.storage.from(bucket), paths: string[] = [];
+        const list = async (pre: string) => { const all: any[] = []; for (let off = 0; ; off += 1000) { const r = await st.list(pre, { limit: 1000, offset: off }); if (r.error) throw r.error; all.push(...(r.data ?? [])); if ((r.data ?? []).length < 1000) return all; } };
+        try { for (const f of await list(firm)) { if (f.id) paths.push(`${firm}/${f.name}`); else for (const g of await list(`${firm}/${f.name}`)) if (g.id) paths.push(`${firm}/${f.name}/${g.name}`); } } catch { /* files can be removed later */ }
+        for (let i = 0; i < paths.length; i += 100) { const r = await st.remove(paths.slice(i, i + 100)); if (!r.error) removed += Math.min(100, paths.length - i); }
+      }
+      const { error: de } = await admin.auth.admin.deleteUser(m.user_id);
+      await audit("user.delete", m.firm_id, { member: m.email, firms_erased: (data?.firms ?? []).length, files_removed: removed, sign_in_removed: !de });
+      if (de) throw new Fail("The data was erased but the sign-in could not be removed. Try again.", 500);
+      return json({ ok: true, files_removed: removed });
     }
     // ---- super admins: add and remove, never the last one and never yourself ----
     if (action === "admins_add") {

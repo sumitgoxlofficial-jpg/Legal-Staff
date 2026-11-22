@@ -44,7 +44,8 @@ class Q {
 }
 const mk = ctx => ({
   from: t => new Q(t),
-  rpc: async (name, a = {}) => { db.rpcCalls.push({ name, a }); const r = db.rpcResults[name]; return { data: typeof r === 'function' ? r(a) : r ?? null, error: null }; },
-  auth: { getUser: async () => ({ data: { user: ctx.user || null } }), admin: { listUsers: async () => ({ data: { users: [] }, error: null }) } }
+  rpc: async (name, a = {}) => { db.rpcCalls.push({ name, a }); const r = db.rpcResults[name]; const v = typeof r === 'function' ? r(a) : r ?? null; return v && v.__error ? { data: null, error: v.__error } : { data: v, error: null }; },
+  storage: { from: () => ({ list: async () => ({ data: [], error: null }), remove: async () => ({ error: null }) }) },
+  auth: { getUser: async () => ({ data: { user: ctx.user || null } }), admin: { listUsers: async () => ({ data: { users: [] }, error: null }), deleteUser: async id => { (db.deletedUsers ||= []).push(id); return { error: null }; } } }
 });
 export const createClient = (_url, key, opts) => { const tok = (opts?.global?.headers?.Authorization || '').replace('Bearer ', ''); return mk({ user: db.users[tok] || null }); };
