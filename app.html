@@ -1141,7 +1141,8 @@ class Component extends DCLogic {
       else { const d = LS.seed(), name = ((session.user.user_metadata || {}).full_name || (session.user.user_metadata || {}).name || '').trim() || session.user.email.split('@')[0]; d.session = { email: session.user.email, provider: (session.user.app_metadata || {}).provider || 'google' }; d.user.name = name; d.user.email = session.user.email; this.replace(d); this.setState({ auth: 'in' }); LSV.onboard(this); }
     } catch (e) { this.setState({ auth: 'login' }); this.toast('Could not load your firm: ' + e.message); }
   }
-  async reload(id) { const d = await LSB.load(id || this.db.firmId, this.sess), mig = d.migrated; delete d.migrated; this.loadedAt = Date.now(); this.buf = null; this.db = d; LS.save(d); this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1, auth: 'in' })); this.loadQueue(); this.loadDrive(); if (mig) this.queueSync(); }
+  async reload(id) { const edits = this.mutN || 0, d = await LSB.load(id || this.db.firmId, this.sess), mig = d.migrated; if (!id && (this.mutN || 0) !== edits) return;   /* something was edited while this loaded: keep the edit, the next sync or focus reloads
+    */ delete d.migrated; this.loadedAt = Date.now(); this.buf = null; this.db = d; LS.save(d); this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1, auth: 'in' })); this.loadQueue(); this.loadDrive(); if (mig) this.queueSync(); }
   /* Is the user's Google Drive connected? Decides where new uploads go (see LSV DriveCard). */
   /* Team chat: listen for new messages in the current firm and keep the unread counts for the sidebar. */
   startChat() {
@@ -1163,7 +1164,7 @@ class Component extends DCLogic {
   async emailSignIn(email, code) { const s = await LSB.verifyOtp(email, code); await this.enter(s); }
   async createFirm(v) { this.setState({ auth: 'boot' }); try { const id = await LSB.createFirm(v); await this.reload(id); this.mut(db => { db.firm.kind = v.kind || 'advocate'; db.firm.domain = v.domain || 'general'; LSP.addLabels(db, v.labels); }); this.toast('Your practice is set up'); this.afterEnter(); } catch (e) { Object.assign(this.db.user, { name: v.name, role: v.role }); Object.assign(this.db.firm, { name: '', city: v.city, address: v.address || '' }); this.pendingFirm = v.firm; this.setState({ auth: 'in' }); this.toast('Could not create the firm: ' + e.message); LSV.onboard(this); } }
   loadQueue() { if (!LSB.on) return; LSB.isAdmin().then(a => { this.isAdmin = a; return a ? LSB.queue() : []; }).then(q => { this.dirList = q; this.setState(s => ({ rev: s.rev + 1 })); }).catch(() => {}); }
-  queueSync() { if (!LSB.on || !this.db.firmId) return; clearTimeout(this.syncT); this.syncT = setTimeout(() => this.flush().catch(e => this.toast('Not saved to the server: ' + e.message)), 500); }
+  queueSync() { if (!LSB.on || !this.db.firmId) return; clearTimeout(this.syncT); this.syncT = setTimeout(() => this.flush().catch(e => { if (e && e.conflict) { this.toast(e.message); this.reload().catch(() => {}); } else this.toast('Not saved to the server: ' + e.message); }), 500); }
   /* Sends pending changes now. Rejects if the server refused them; the view is then redrawn from what the server holds. */
   flush() { if (!LSB.on || !this.db.firmId) return Promise.resolve(false); clearTimeout(this.syncT); this.syncT = null;
     return LSB.sync(this.db).then(changed => { if (changed) this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); return changed; }, e => { this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); throw e; }); }
@@ -1197,7 +1198,7 @@ class Component extends DCLogic {
   go(screen, param, tab) { const hs = '#/' + screen + (param ? '/' + encodeURIComponent(param) : '') + (tab ? '/' + tab : ''); if (location.hash !== hs) location.hash = hs; else this.applyRoute(); }
   /* Read-only once the trial or paid period has ended: changes are refused except on Subscription and Settings. */
   locked() { return !LS.access(this.db.sub).ok && !['pricing', 'settings'].includes(this.state.screen); }
-  mut(fn, msg, force) { if (!force && this.db.session && this.locked()) { this.toast(LS.access(this.db.sub).state === 'none' ? 'Start your free trial to make changes.' : 'Your plan has ended. Subscribe to make changes.'); return; } fn(this.db); if (!LS.save(this.db)) msg = 'Could not save. Browser storage is full or blocked.'; this.queueSync(); this.setState(s => ({ rev: s.rev + 1 })); if (msg) this.toast(msg); }
+  mut(fn, msg, force) { if (!force && this.db.session && this.locked()) { this.toast(LS.access(this.db.sub).state === 'none' ? 'Start your free trial to make changes.' : 'Your plan has ended. Subscribe to make changes.'); return; } fn(this.db); this.mutN = (this.mutN || 0) + 1; if (!LS.save(this.db)) msg = 'Could not save. Browser storage is full or blocked.'; this.queueSync(); this.setState(s => ({ rev: s.rev + 1 })); if (msg) this.toast(msg); }
   replace(db, msg) { LS.migrate(db); if (LSB.on && this.db.firmId) { const o = this.db; Object.assign(db, { firmId: o.firmId, session: o.session, team: o.team, user: o.user, sub: o.sub, isOwner: o.isOwner, firm: db.firm && db.firm.name ? db.firm : o.firm }); } this.db = db; LS.save(db); this.queueSync(); this.buf = null; this.setState(s => ({ rev: s.rev + 1, rev0: s.rev0 + 1 })); if (msg) this.toast(msg); }
   modal(fn) { this._modal = fn; this.setState(s => ({ modalOn: !!fn, menu: null, rev: s.rev + 1 })); }
   toast(t) { this.setState({ toast: t }); clearTimeout(this.tt); this.tt = setTimeout(() => this.setState({ toast: '' }), 3200); }
