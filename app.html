@@ -159,7 +159,16 @@ a:hover{color:#2B2B2B}
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #0A0A0A;outline-offset:2px}
-@media print{body *{visibility:hidden!important}.ls-print,.ls-print *{visibility:visible!important}.ls-print{position:absolute!important;left:0;top:0;width:100%;border:0!important;background:#fff!important;padding:0!important}.ls-paper{box-shadow:none!important;max-width:none!important;padding:0!important}.ls-paper .ls-sheet{padding:0 2mm!important}}@page{size:A4;margin:16mm 14mm 18mm;@bottom-center{content:"Page " counter(page) " of " counter(pages);font:10px system-ui,sans-serif;color:#555}}
+@media print{body *{visibility:hidden!important}.ls-print,.ls-print *{visibility:visible!important}.ls-print{position:absolute!important;left:0;top:0;width:100%;border:0!important;background:#fff!important;padding:0!important}.ls-paper{box-shadow:none!important;max-width:none!important;padding:0!important}.ls-paper .ls-sheet{padding:0 2mm!important}}@page{size:A4;margin:16mm 14mm 18mm;@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-right{content:""}@bottom-center{content:"Page " counter(page) " of " counter(pages);font:10px system-ui,sans-serif;color:#555}}
+/* Document PDF: the document is copied into #ls-print-doc and printed on its own, full A4 width; the app is not printed. */
+@media print{body.ls-printdoc>*:not(#ls-print-doc){display:none!important}body.ls-printdoc{background:#fff!important;margin:0!important}
+#ls-print-doc{display:block!important;visibility:visible!important}#ls-print-doc *{visibility:visible!important}
+#ls-print-doc .ls-paper{max-width:none!important;margin:0!important;padding:0!important;box-shadow:none!important;overflow:visible!important;background:#fff!important}
+#ls-print-doc .ls-paper::before{position:fixed;font-size:120px}
+#ls-print-doc .ls-sheet{padding:9mm 10mm 7mm!important;font-size:12.5pt;line-height:1.7;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+#ls-print-doc .ls-sheet p{orphans:3;widows:3}
+#ls-print-doc table,#ls-print-doc tr{break-inside:avoid}}
+#ls-print-doc{display:none}
 .ls-paper{position:relative;overflow:hidden;max-width:794px;margin:0 auto;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.14),0 10px 30px rgba(0,0,0,.08);padding:14px}
 .ls-paper::before{content:attr(data-wm);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 clamp(64px,14vw,130px) 'Times New Roman',serif;letter-spacing:.18em;color:rgba(11,31,75,.05);transform:rotate(-28deg);pointer-events:none;user-select:none}
 .ls-sheet{position:relative;font-family:'Times New Roman','Noto Serif',Georgia,serif;font-size:15.5px;line-height:1.85;color:#111;text-align:justify;hyphens:auto}
@@ -1439,7 +1448,10 @@ class Component extends DCLogic {
       aiBtn: LSB.on && LSB.ai && !lockd ? h(V.Btn, { onClick: () => V.aiDraft(this, S.tpl, this.tplNames[S.tpl]) }, '✦ Draft with AI') : null,
       saveBtn: h(V.Btn, { disabled: lockd, title: lockd ? 'Signed or sealed: make an editable copy to change the text' : '', onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html, ref: newRef(), audit: [{ at: auditAt(), who: db.user.name, what: 'Version saved' }] }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
       docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [...(onHead ? [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }]] : []), ...LS.htmlToRuns(this.ed), ...(dv && dv.stamp ? [[{ t: `Non-judicial stamp: ${dv.stamp.state}, Rs ${dv.stamp.amount}, certificate ${dv.stamp.certNo} (${dv.stamp.issuer})` }]] : []), ...sgl.map(x => [{ t: x.name + ', ' + x.role + (x.sigImg ? ' · signed electronically ' + x.signedAt : ' · signature pending'), b: false }]), ...(sealed ? [[{ t: `Sealed ${dv.seal.id} · SHA-256 ${dv.seal.hash}` }]] : [])]); this.toast('DOCX downloaded'); },
-      pdf: () => { const sec = this.ed && this.ed.closest('section'); if (!sec) return; sec.classList.add('ls-print'); const done = () => { sec.classList.remove('ls-print'); window.removeEventListener('afterprint', done); }; window.addEventListener('afterprint', done); window.print(); } };
+      pdf: () => { const paper = this.ed && this.ed.closest('.ls-paper'); if (!paper) return; const old = document.getElementById('ls-print-doc'); if (old) old.remove();
+        const box = document.createElement('div'); box.id = 'ls-print-doc'; box.appendChild(paper.cloneNode(true)); box.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+        document.body.appendChild(box); document.body.classList.add('ls-printdoc'); const t0 = document.title; document.title = (draft.title + ' ' + refTxt).replace(/[\\/:*?"<>|]+/g, '-');
+        const done = () => { box.remove(); document.body.classList.remove('ls-printdoc'); document.title = t0; window.removeEventListener('afterprint', done); }; window.addEventListener('afterprint', done); window.print(); } };
     draft.sheet = h('section', { className: 'ls-paperwrap', 'aria-label': 'Document', style: { background: '#E4E4E1', border: '1px solid #E5E5E5', borderRadius: 12, padding: '26px 16px', gridColumn: 'span 2', minWidth: 0, overflowX: 'auto' } },
       h('div', { className: 'ls-paper', 'data-wm': sealed ? '' : lockd ? 'SIGNING' : 'DRAFT' },
         h('div', { className: 'ls-sheet' + (lockd ? ' ls-ro' : ''), style: { border: '3px double #1B1B1B', padding: '34px 42px 22px' } },
