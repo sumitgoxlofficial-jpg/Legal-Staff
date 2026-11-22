@@ -309,7 +309,7 @@
             !m.pending && m.text && !(m.err && m.text === 'Stopped.') && h('div', { style: { display: 'flex', gap: 2, flexWrap: 'wrap', marginLeft: -8 } },
               actBtn('Copy', 'copy', () => copy(m.text)), !m.err && actBtn('Add as task', 'task', () => asTask(m)), !m.err && actBtn('Word file', 'word', () => toWord(m)), i === lastAi && !busy && actBtn('Regenerate', 'redo', regen))));
     const name = String(d.user.title || d.user.name || '').replace(/^Adv\.?\s*/i, '').split(' ')[0];
-    const welcome = h('div', { className: 'lsb-welcome', key: 'w-' + (caseId || 'general'), style: { gap: mobile ? 18 : 24, padding: mobile ? '20px 4px' : '28px 8px' } },
+    const welcome = h('div', { className: 'lsb-welcome', key: 'w-' + (caseId || 'general'), style: { gap: mobile ? 18 : 24, padding: mobile ? '20px 14px' : '28px 24px' } },
       h('div', null,
         h('div', { className: 'lsb-orb', 'aria-hidden': true }, h('span', { className: 'lsb-orbit' }, h('i')), h('span', { className: 'lsb-orb-core' }, h(Mark, { s: 28 }))),
         h('h2', { className: 'lsb-title', style: { fontFamily: "'Instrument Sans',system-ui,sans-serif", fontWeight: 600, letterSpacing: '-.025em', fontSize: mobile ? 24 : 32, lineHeight: 1.15, margin: 0 } }, 'How can I help', name ? [', ', h('span', { key: 'n', className: 'lsb-name' }, name)] : null, '?'),
@@ -357,8 +357,10 @@
         msgs.length ? h('div', { style: { maxWidth: 800, width: '100%', margin: '0 auto', padding: mobile ? '16px 12px' : '24px 20px', display: 'flex', flexDirection: 'column', gap: 22 } }, msgs.map(bubble), h('div', { id: 'ls-brain-end' })) : welcome),
       composer);
 
-    return h('div', { style: { margin: mobile ? '-8px -4px' : 0 } },
-      h('div', { style: { background: '#fff', border: '1px solid ' + K.line, borderRadius: 14, overflow: 'hidden', display: 'grid', gridTemplateColumns: mobile ? '1fr' : '270px 1fr', height: mobile ? 'calc(100vh - 120px)' : 'calc(100vh - 160px)', minHeight: 480, position: 'relative' } },
+    /* Full screen: the page fills the content area below the 56px top bar (main has no padding on this screen). */
+    const zoom = d.settings.density === 'Compact' ? 0.9 : 1;
+    return h('div', null,
+      h('div', { style: { background: '#fff', overflow: 'hidden', display: 'grid', gridTemplateColumns: mobile ? '1fr' : '280px 1fr', height: `calc((100dvh - 56px) / ${zoom})`, minHeight: 420, position: 'relative' } },
         mobile && side ? sidebar : null, !mobile && sidebar, !(mobile && side) && convo));
   }
 
