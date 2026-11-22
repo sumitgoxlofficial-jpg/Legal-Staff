@@ -71,7 +71,6 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
 .lh-vid{position:absolute;left:0;right:0;top:0;height:min(100%,860px);overflow:hidden;pointer-events:none;-webkit-mask-image:linear-gradient(180deg,#000 55%,transparent);mask-image:linear-gradient(180deg,#000 55%,transparent);animation:ls-fade-in 1.6s ease both}
 .lh-vid video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;opacity:.55}
 .lh-vid-scrim{position:absolute;inset:0;background:radial-gradient(ellipse 60% 55% at 50% 42%,rgba(10,10,10,.78),rgba(10,10,10,.35) 70%,rgba(10,10,10,.6)),linear-gradient(180deg,rgba(10,10,10,.7),rgba(10,10,10,.15) 30%,rgba(10,10,10,.55))}
-.lh-vid-lines{position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,.035) 0 1px,transparent 1px 4px)}
 .lh-glow{animation:lpGlow 16s ease-in-out infinite}
 .lh-par{transform:translate3d(0,calc(var(--sy,0) * 1px),0)}
 .lh-rings{-webkit-mask-image:radial-gradient(closest-side,#000 55%,transparent);mask-image:radial-gradient(closest-side,#000 55%,transparent)}
@@ -209,7 +208,6 @@ a,button{transition:background-color .2s,color .2s,border-color .2s,box-shadow .
 
 <section id="top" style="background:#0A0A0A;color:#fff;overflow:hidden;position:relative">
 {{ heroVideo }}
-{{ heroGrid }}
 <div class="lh-glow" style="position:absolute;left:50%;top:-240px;width:900px;height:600px;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(255,255,255,.11),transparent);pointer-events:none"></div>
 {{ heroRings }}
 <div style="position:relative;max-width:1280px;margin:0 auto;padding:clamp(56px,9vw,96px) clamp(20px,4vw,28px) 0;display:flex;flex-direction:column;align-items:center;text-align:center;gap:26px">
@@ -937,8 +935,8 @@ class Component extends DCLogic {
         h('video', { muted: true, loop: true, playsInline: true, autoPlay: !this.calm(), preload: 'metadata', poster: 'assets/hero-advocate-poster.jpg', tabIndex: -1, disablePictureInPicture: true,
           ref: el => { if (el && !el._ls) { el._ls = 1; el.muted = true; if (!this.calm()) { const p = el.play(); if (p && p.catch) p.catch(() => {}); } } } },
           h('source', { src: 'assets/hero-advocate.webm', type: 'video/webm' }), h('source', { src: 'assets/hero-advocate.mp4', type: 'video/mp4' })),
-        h('div', { className: 'lh-vid-lines' }), h('div', { className: 'lh-vid-scrim' })),
-      heroGrid: grid(.07, true), secGrid: grid(.05, false),
+        h('div', { className: 'lh-vid-scrim' })),
+      secGrid: grid(.05, false),
       liveDot: React.createElement('span', { style: { width: 7, height: 7, borderRadius: 4, background: '#16A34A', display: 'block', animation: 'lsPulse 2s ease-out infinite' } }),
       scanLine: React.createElement('div', { 'aria-hidden': true, style: { position: 'absolute', left: 0, right: 0, top: 0, height: '18%', background: 'linear-gradient(180deg,transparent,rgba(10,10,10,.05),transparent)', animation: 'lsScan 3.6s ease-in-out infinite', pointerEvents: 'none' } }),
       modal: this.renderModal(), openContact: open('contact'), openPrivacy: open('privacy'), openTerms: open('terms'), closeMenu,
