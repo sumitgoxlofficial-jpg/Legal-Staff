@@ -310,6 +310,27 @@ select t.a($q$t.cnt('select count(*) from public.directory_profiles() where id =
 select t.ok($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e1')$q$, 'running it twice is harmless');
 select t.raises($q$select public.erase_user_account(null)$q$, '%No user%', 'a missing user is refused');
 
+-- ===== 0050: partner document review =====================================================================
+\echo 0050 partner doc review
+create function t.doc(k text) returns uuid language sql security definer as $$ select id from public.partner_documents where kind = k and partner_id = (select id from public.partners where code = (select (array_agg(code order by created_at))[1] from public.partners)) limit 1 $$;
+create function t.kyc() returns text language sql security definer as $$ select kyc_status from public.partners where code = (select (array_agg(code order by created_at))[1] from public.partners) $$;
+select t.as_user(:A, 'asha@example.in'); set role authenticated;
+select t.raises($q$select public.admin_partner_doc_review(t.doc('pan'), 'rejected', 'blurry')$q$, '%permission%', 'an ordinary user cannot review partner documents');
+reset role; set role anon;
+select t.raises($q$select public.admin_partner_doc_review(t.doc('pan'), 'rejected', 'blurry')$q$, '%permission denied%', 'anon cannot review partner documents');
+reset role;
+select t.as_user(:O, 'owner@legalstaff.test'); set role authenticated;
+select t.raises($q$select public.admin_partner_doc_review(t.doc('pan'), 'rejected', '')$q$, '%Say why%', 'a rejection needs a reason');
+select t.raises($q$select public.admin_partner_doc_review(t.doc('pan'), 'maybe', 'x')$q$, '%accepted or rejected%', 'only accept or reject');
+select t.raises($q$select public.admin_partner_doc_review('00000000-0000-0000-0000-00000000ffff', 'accepted', '')$q$, '%not found%', 'an unknown document is refused');
+select t.ok($q$select public.admin_partner_doc_review(t.doc('bank_proof'), 'accepted', '')$q$, 'a document can be accepted');
+select t.a($q$t.kyc() = 'verified'$q$, 'accepting leaves KYC as it was');
+select t.ok($q$select public.admin_partner_doc_review(t.doc('pan'), 'rejected', 'The PAN card is not readable')$q$, 'a document can be rejected with a reason');
+reset role;
+select t.a($q$t.kyc() = 'submitted'$q$, 'rejecting the only PAN sends a verified KYC back for review');
+select t.a($q$t.cnt('select count(*) from public.partner_documents where status = ''rejected'' and note = ''The PAN card is not readable'' and reviewed_by = ''owner@legalstaff.test''') = 1$q$, 'the reason and the reviewer are recorded');
+select t.a($q$t.cnt('select count(*) from public.partner_audit_logs where action = ''partner.document_rejected''') = 1$q$, 'the review is in the audit log');
+
 \echo
 select 'RESULT', count(*) filter (where ok), count(*) filter (where not ok) from t.r;
 select 'FAIL: ' || name from t.r where not ok;
