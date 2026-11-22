@@ -1308,6 +1308,8 @@ class Component extends DCLogic {
     /* No plan, or the trial / paid period is over: only Subscription and Settings (backup export) stay open. */
     if (!acc.ok && !FREE_SCREENS.includes(scr)) { Object.keys(s).forEach(k => { s[k] = false; }); modView = h(V.PlanLock, { app: this, acc }); }
     else if (acc.ok && !LS.hasMod(acc, scr)) { Object.keys(s).forEach(k => { s[k] = false; }); modView = h(V.PlanUpgrade, { app: this, acc, mod: scr }); }
+    /* AI Case Brain fills the whole content area, with no page padding. */
+    const fullBleed = !!modView && modView.type === V.MODULES.brain;
     s.mod = !!modView;
 
     /* ---- cases ---- */
@@ -1592,7 +1594,7 @@ class Component extends DCLogic {
       drawerScrim: mobile && S.drawer, openDrawer: () => this.setState({ drawer: true }), closeDrawer: () => this.setState({ drawer: false }),
       togglePanel: () => this.setState({ panel: !S.panel }),
       copilotBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, fontWeight: 500, whiteSpace: 'nowrap', border: '1px solid ' + (S.panel ? '#0A0A0A' : '#E5E5E5'), background: S.panel ? '#F0F0EF' : '#FFFFFF', color: '#0A0A0A' },
-      mainStyle: { padding: mobile ? '20px 16px 56px' : '28px 32px 64px', flex: 1, backgroundColor: '#FAFAFA', backgroundAttachment: 'fixed', position: 'relative', isolation: 'isolate', minWidth: 0, zoom: st.density === 'Compact' ? 0.9 : 1,
+      mainStyle: { padding: fullBleed ? 0 : (mobile ? '20px 16px 56px' : '28px 32px 64px'), flex: 1, backgroundColor: '#FAFAFA', backgroundAttachment: 'fixed', position: 'relative', isolation: 'isolate', minWidth: 0, zoom: st.density === 'Compact' ? 0.9 : 1,
         ...({ Dots: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' }, Grid: { backgroundImage: 'linear-gradient(#ECECEC 1px,transparent 1px),linear-gradient(90deg,#ECECEC 1px,transparent 1px)', backgroundSize: '40px 40px' }, Plain: { backgroundImage: 'none' }, Wallpaper: { backgroundImage: 'radial-gradient(#DCDCDC 1px, transparent 1px)', backgroundSize: '22px 22px' } })[st.backdrop] },
       showWall: st.backdrop === 'Wallpaper',
       goDashboard: () => this.go('dashboard'), goCalendar: () => this.go('calendar'), goLimitation: () => this.go('limitation'), goBrain: () => this.go('brain'), goOrder: () => this.go('orders'),
