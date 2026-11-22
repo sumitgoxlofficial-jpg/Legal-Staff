@@ -232,6 +232,49 @@ set role authenticated; select t.as_user(:A, 'asha@example.in');
 select t.a($q$exists (select 1 from public.directory_my_applications() where id = 'APP-PAID-INFO')$q$, 'an advocate still sees their own unlisted application and its status');
 reset role;
 
+-- ===== 10. team roles are enforced in the database (migration 0048) =====
+update public.subscriptions set renews = current_date + 30 where firm_id = '11111111-1111-1111-1111-111111111111';
+insert into public.members (firm_id, user_id, email, name, role, status, is_owner) values ('11111111-1111-1111-1111-111111111111', :C, 'chitra@example.in', 'Chitra', 'Intern', 'Active', false) on conflict do nothing;
+insert into public.records (firm_id, kind, id, data) values
+  ('11111111-1111-1111-1111-111111111111', 'case', 'c-role', '{}'), ('11111111-1111-1111-1111-111111111111', 'task', 't-role', '{}'),
+  ('11111111-1111-1111-1111-111111111111', 'invoice', 'i-role', '{}'), ('11111111-1111-1111-1111-111111111111', 'log', 'l-role', '{}'), ('11111111-1111-1111-1111-111111111111', 'log', 'l-role2', '{}');
+select t.a($q$(select public.member_tier('11111111-1111-1111-1111-111111111111')) is null or true$q$, 'tier function exists');
+-- the Associate (Bina, role "Associate"): works, but cannot delete cases, clients or invoices
+set role authenticated; select t.as_user(:B, 'bina@example.in');
+select t.a($q$public.member_tier('11111111-1111-1111-1111-111111111111') = 'working'$q$, 'an Associate is a working member');
+select t.ok($q$insert into public.records (firm_id, kind, id, data) values ('11111111-1111-1111-1111-111111111111', 'invoice', 'i-assoc', '{}')$q$, 'an Associate can raise an invoice');
+delete from public.records where kind = 'case' and id = 'c-role';
+delete from public.records where kind = 'invoice' and id = 'i-role';
+delete from public.records where kind = 'task' and id = 't-role';
+reset role;
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''case'' and id = ''c-role''') = 1$q$, 'an Associate cannot delete a case');
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''invoice'' and id = ''i-role''') = 1$q$, 'an Associate cannot delete an invoice');
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''task'' and id = ''t-role''') = 0$q$, 'an Associate can delete a task');
+-- the Intern: no invoices, no deleting
+insert into public.records (firm_id, kind, id, data) values ('11111111-1111-1111-1111-111111111111', 'task', 't-role2', '{}');
+set role authenticated; select t.as_user(:C, 'chitra@example.in');
+select t.a($q$public.member_tier('11111111-1111-1111-1111-111111111111') = 'restricted'$q$, 'an Intern is restricted');
+select t.raises($q$insert into public.records (firm_id, kind, id, data) values ('11111111-1111-1111-1111-111111111111', 'invoice', 'i-intern', '{}')$q$, '%row-level security%', 'an Intern cannot raise an invoice');
+select t.ok($q$insert into public.records (firm_id, kind, id, data) values ('11111111-1111-1111-1111-111111111111', 'task', 't-intern', '{}')$q$, 'an Intern can add a task');
+update public.records set data = '{"x":1}' where kind = 'invoice' and id = 'i-role';
+delete from public.records where kind = 'task' and id = 't-role2';
+delete from public.records where kind = 'log' and id = 'l-role';
+reset role;
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''invoice'' and id = ''i-role'' and data = ''{"x":1}''') = 0$q$, 'an Intern cannot edit an invoice');
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''task'' and id = ''t-role2''') = 1$q$, 'an Intern cannot delete a task');
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''log'' and id = ''l-role''') = 0$q$, 'anyone can trim the activity log');
+-- the owner (a lead) can do everything
+set role authenticated; select t.as_user(:A, 'asha@example.in');
+select t.a($q$public.member_tier('11111111-1111-1111-1111-111111111111') = 'lead'$q$, 'the owner is a lead');
+delete from public.records where kind = 'case' and id = 'c-role';
+delete from public.records where kind = 'invoice' and id = 'i-role';
+reset role;
+select t.a($q$t.cnt('select count(*) from public.records where id in (''c-role'', ''i-role'')') = 0$q$, 'the owner can delete cases and invoices');
+-- a non-member sees nothing and can change nothing
+set role authenticated; select t.as_user(:O, 'owner@legalstaff.test');
+select t.a($q$public.member_tier('11111111-1111-1111-1111-111111111111') = 'none'$q$, 'someone outside the firm has no tier');
+reset role;
+
 \echo
 select 'RESULT', count(*) filter (where ok), count(*) filter (where not ok) from t.r;
 select 'FAIL: ' || name from t.r where not ok;

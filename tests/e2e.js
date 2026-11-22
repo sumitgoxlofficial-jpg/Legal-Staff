@@ -241,7 +241,7 @@ async function billing(o) {
   const { page } = o;
   await step('invoice: create, GST 18% added, numbered INV-<year>-001, in the CSV', async () => {
     await o.go('#/billing'); await o.click('+ New invoice');
-    await o.fill([['Description', 'Professional fees: drafting and appearance'], ['Amount before GST (₹)', '10000']]);
+    await o.fill([['Description', 'Professional fees: drafting and appearance'], ['Amount before GST (₹)', '10000'], ['GST', 'Add 18% GST (tax invoice)']]);
     await o.dclick('Create invoice'); await o.toast('Invoice created');
     await page.locator('.ls-print').waitFor();
     const t = await page.locator('[role=dialog]').innerText();
@@ -250,6 +250,16 @@ async function billing(o) {
     await o.closeDialog(); await o.go('#/billing');
     const d = await o.download(() => o.click('Export CSV')); eq(d.suggestedFilename(), 'invoices.csv');
     const csv = fs.readFileSync(await d.path(), 'utf8'); assert(csv.includes('"GST"') && csv.includes('1800'), 'CSV has the GST column: ' + csv.slice(0, 200));
+  });
+  await step('invoice: a firm with no GSTIN gets a plain invoice by default, with no GST added', async () => {
+    await o.go('#/billing'); await o.click('+ New invoice');
+    await o.fill([['Description', 'Consultation'], ['Amount before GST (₹)', '5000']]);
+    await o.dclick('Create invoice'); await o.toast('Invoice created');
+    await page.locator('.ls-print').waitFor();
+    const t = await page.locator('[role=dialog]').innerText();
+    assert(!/Tax invoice/.test(t) && !/GST @ 18%/.test(t), 'no GST and no "Tax invoice" without a GSTIN: ' + t.slice(0, 300));
+    assert(/5,000/.test(t) && !/5,900/.test(t), 'total is the fee only: ' + t.slice(0, 300));
+    await o.dclick('Delete'); await o.dclick('Delete invoice'); await o.toast('Invoice deleted');
   });
   await step('pricing: Solo, Professional and Firm are listed', async () => {
     await o.go('#/pricing'); await o.see('Solo'); await o.see('Professional'); await o.see('Firm');
