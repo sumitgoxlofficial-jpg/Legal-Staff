@@ -9,6 +9,7 @@ if [ -z "${SKIP_BROWSER:-}" ]; then
   run "node tests/sanitize.test.mjs" node tests/sanitize.test.mjs
   run "node tests/site-smoke.mjs" node tests/site-smoke.mjs
   run "node tests/e2e.js local" node tests/e2e.js local
+  run "node tests/directory-photos.test.mjs" node tests/directory-photos.test.mjs
   run "node tests/partner-ui/ui.test.mjs" node tests/partner-ui/ui.test.mjs
 fi
 exit $fail

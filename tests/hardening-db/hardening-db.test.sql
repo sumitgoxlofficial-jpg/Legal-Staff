@@ -365,6 +365,31 @@ select t.raises($q$update public.site_banner set starts_on = '2026-12-10', ends_
 select t.raises($q$insert into public.site_banner (id) values (2)$q$, '%site_banner_id_check%', 'there is only ever one banner');
 update public.site_banner set enabled = false, message = '', starts_on = null, ends_on = null where id = 1;
 
+-- ===== 0052: directory lite list + photos on demand ==========================================================
+\echo 0052 directory lite
+select t.as_user(null, null);
+insert into public.directory_applications (id, name, enr, council, year, city, email, mobile, user_id, status, paid_at, photo) values
+ ('APP-L1', 'Lite One', 'D/6001/2014', 'c', '2014', 'c', 'l1@example.in', '9000000061', null, 'verified', now(), 'data:image/jpeg;base64,AAAA'),
+ ('APP-L2', 'Lite Two', 'D/6002/2014', 'c', '2014', 'c', 'l2@example.in', '9000000062', null, 'verified', now(), ''),
+ ('APP-L3', 'Lite Three', 'D/6003/2014', 'c', '2014', 'c', 'l3@example.in', '9000000063', null, 'verified', null, 'data:image/jpeg;base64,BBBB'),
+ ('APP-L4', 'Lite Four', 'D/6004/2014', 'c', '2014', 'c', 'l4@example.in', '9000000064', null, 'pending', now(), 'data:image/jpeg;base64,CCCC');
+set role anon;
+select count(*) filter (where id = 'APP-L1') as l1, count(*) filter (where id in ('APP-L3', 'APP-L4')) as unl, count(*) filter (where id = 'APP-L1' and has_photo) as l1p, count(*) filter (where id = 'APP-L2' and not has_photo) as l2n from public.directory_profiles_lite() \gset
+select count(*) as ph_n, count(*) filter (where id = 'APP-L1' and photo = 'data:image/jpeg;base64,AAAA') as ph_l1, count(*) filter (where id in ('APP-L2', 'APP-L3', 'APP-L4')) as ph_bad from public.directory_photos(array['APP-L1', 'APP-L2', 'APP-L3', 'APP-L4']) \gset
+reset role;
+select t.a('(' || :l1 || ' = 1)', 'the lite list includes a listed profile');
+select t.a('(' || :unl || ' = 0)', 'the lite list never includes an unpaid or unverified profile');
+select t.a('(' || :l1p || ' = 1 and ' || :l2n || ' = 1)', 'the lite list says whether a photo exists, without sending it');
+select t.a($q$not exists (select 1 from information_schema.columns where table_name = 'directory_profiles_lite' and column_name = 'photo')$q$, 'the lite list has no photo column') ;
+select t.a('(' || :ph_n || ' = 1 and ' || :ph_l1 || ' = 1)', 'directory_photos returns the photo of a listed profile');
+select t.a('(' || :ph_bad || ' = 0)', 'directory_photos returns nothing for no-photo, unpaid or unverified profiles');
+select t.a($q$(select count(*) from public.directory_photos((select array_agg('APP-L1'::text) from generate_series(1, 30)))) <= 1$q$, 'a request for many ids is capped');
+select t.a($q$(select count(*) from public.directory_photos(null)) = 0$q$, 'a null list returns nothing');
+set role anon;
+select count(*) as dir_rows from public.directory_applications \gset
+reset role;
+select t.a('(' || :dir_rows || ' = 0)', 'anon still cannot read the applications table directly');
+
 \echo
 select 'RESULT', count(*) filter (where ok), count(*) filter (where not ok) from t.r;
 select 'FAIL: ' || name from t.r where not ok;

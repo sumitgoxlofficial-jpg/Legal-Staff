@@ -725,7 +725,7 @@ class Component extends DCLogic {
     cf: this.blankContact(), cfErr: {}, enquiries: [],
     app: this.blankApp(), appErr: {}, editingId: null, apps: [], mine: {}, viewId: null,
     profiles: [], pState: 'idle', pErr: '', busy: '', statusErr: '', lookupEnr: '', modal: null, more: {}, lookup: '', lookupMsg: '', rf: { profile: '', reason: '', details: '', email: '' }, rfErr: {}, rfDone: null,
-    vq: '', late: {}, lateErr: '', user: null, authErr: '', authBusy: false, pay: null, leads: [], photoMsg: '', linkMsg: '',
+    vq: '', late: {}, lateErr: '', user: null, authErr: '', authBusy: false, pay: null, leads: [], photoMsg: '', linkMsg: '', photos: {},
     compare: [], compareMsg: '', stats: {}, revSum: {}, reviews: [], rv: { rating: 0, body: '', name: '', msg: '', done: {} }
   };
   K = { apps: 'ls.directory.applications', mine: 'ls.directory.myApplications', enq: 'ls.directory.enquiries', rep: 'ls.directory.reports' };
@@ -804,10 +804,23 @@ class Component extends DCLogic {
     if (r.error) { this.setState({ rv: { ...v, msg: 'Your review could not be sent (' + this.errText(r.error) + ').' } }); return; }
     this.setState({ rv: { rating: 0, body: '', name: '', msg: '', done: { ...v.done, [p.id]: true } } });
   }
+  /* Photos are not part of the list: they are fetched for the cards on screen only, in one call, and remembered. */
+  wantPhotos(ids) {
+    const have = this._ph || (this._ph = new Set()), P = this.state.profiles || [];
+    const todo = (ids || []).filter(id => { const x = P.find(q => String(q.id) === String(id)); return x && x.has_photo && !x.photo && !have.has(String(id)); });
+    if (!todo.length || !this.sb()) return; todo.forEach(id => have.add(String(id)));
+    setTimeout(async () => {
+      const r = await this.call(this.sb().rpc('directory_photos', { p_ids: todo.slice(0, 12) }));
+      if (r.error || !Array.isArray(r.data)) { todo.forEach(id => have.delete(String(id))); return; }
+      const m = { ...this.state.photos }; r.data.forEach(x => { if (x && x.photo) m[String(x.id)] = x.photo; }); this.setState({ photos: m });
+      if (todo.length > 12) this.wantPhotos(todo.slice(12));
+    }, 0);
+  }
   async loadProfiles() {
     const sb = this.sb(); if (!sb) return;
     this.setState({ pState: 'loading', pErr: '' });
-    const r = await this.call(sb.rpc('directory_profiles'));
+    let r = await this.call(sb.rpc('directory_profiles_lite'));
+    if (r.error) r = await this.call(sb.rpc('directory_profiles'));   // database without migration 0052: the full list, photos included
     if (r.error || !Array.isArray(r.data)) { this.setState({ pState: 'error', pErr: this.errText(r.error || { message: 'Unexpected response' }) }); return; }
     this.setState({ pState: 'ready', profiles: r.data.filter(x => x && x.id != null) });
     const st = await this.call(sb.rpc('directory_response_stats'));
@@ -1143,7 +1156,7 @@ class Component extends DCLogic {
     const own = src.map(a => {
       const d = (this.sb() ? a.details : S.mine[a.id]) || {}, nm = String(a.name || 'Advocate');
       const parts = nm.split(/\s+/).filter(Boolean);
-      return { id: String(a.id), own: !!S.mine[a.id], sortKey: (parts[parts.length - 1] || nm) + ' ' + nm, ini: ((parts[0] || 'A')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase(), name: nm, photo: a.photo || '', verified: this.sb() ? !!a.verified : true, years: Math.max(0, new Date().getFullYear() - (+a.year || new Date().getFullYear())), stat: S.stats[String(a.id)] || null, rev: S.revSum[String(a.id)] || null,
+      return { id: String(a.id), own: !!S.mine[a.id], sortKey: (parts[parts.length - 1] || nm) + ' ' + nm, ini: ((parts[0] || 'A')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase(), name: nm, photo: a.photo || (S.photos && S.photos[String(a.id)]) || '', verified: this.sb() ? !!a.verified : true, years: Math.max(0, new Date().getFullYear() - (+a.year || new Date().getFullYear())), stat: S.stats[String(a.id)] || null, rev: S.revSum[String(a.id)] || null,
         state: councilState[a.council] || 'Other', city: a.city || d.city || '', district: d.district || '', enr: String(a.enr || ''), council: String(a.council || ''), year: String(a.year || ''),
         areas: Array.isArray(d.areas) ? d.areas : this.splitList(d.areas), courts: this.splitList(d.courts), langs: this.splitList(d.langs), quals: d.quals || '—', chamber: d.chamber || '—', verifiedOn: '' };
     });
@@ -1493,6 +1506,7 @@ class Component extends DCLogic {
       ];
     } else if (kind === 'compare') {
       const ppl = this.people(), sel2 = S.compare.map(id => ppl.find(p => p.id === id)).filter(Boolean);
+      this.wantPhotos(sel2.map(p => p.id));
       const [lst, lcity] = S.loc.split('|'), crit = !!(S.area || S.court || S.loc);
       eyebrow = 'Side by side · facts only'; title = 'Compare advocates';
       const th = { textAlign: 'left', padding: '10px 12px', fontSize: 12, color: '#5E5E5E', fontWeight: 600, verticalAlign: 'top', width: 130 }, td = { padding: '10px 12px', fontSize: 14, verticalAlign: 'top', overflowWrap: 'anywhere' };
@@ -1599,6 +1613,7 @@ class Component extends DCLogic {
     const base = this.baseSet(), list = this.filtered(base);
     const pages = Math.max(1, Math.ceil(list.length / this.PAGE)), page = Math.min(S.page, pages);
     const pageRows = list.slice((page - 1) * this.PAGE, page * this.PAGE);
+    this.wantPhotos(pageRows.map(p => p.id));
     const toggle = (key, v) => () => { const cur = this.state[key]; this.setState({ [key]: cur.indexOf(v) >= 0 ? cur.filter(x => x !== v) : cur.concat(v), page: 1 }); };
     const facet = (title, key, valuesOf, order) => {
       const counts = {}; base.forEach(p => uniq(valuesOf(p)).forEach(v => counts[v] = (counts[v] || 0) + 1));
@@ -1648,6 +1663,7 @@ class Component extends DCLogic {
       h('button', { type: 'button', onClick: clearAll, style: { marginTop: 6, height: 40, padding: '0 16px', border: '1px solid #0A0A0A', background: '#FFFFFF', borderRadius: 8, fontSize: 14, color: '#0A0A0A' } }, 'Clear search and filters'));
 
     /* ----- profile ----- */
+    if (S.screen === 'profile' && S.profileId) this.wantPhotos([S.profileId]);
     const P = all.find(p => p.id === S.profileId) || { id: '', photo: '', ini: '', name: '', state: '', city: '', district: '', enr: '', council: '', year: '', areas: [], courts: [], langs: [], quals: '', chamber: '', verifiedOn: '' };
     if (!P.id && s.profile) { s.profile = false; s.results = true; }
     const enq = S.enquiries.find(e => e.advocateId === P.id) || null;
