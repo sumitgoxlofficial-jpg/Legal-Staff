@@ -159,6 +159,8 @@
       snap = {}; return all.length;
     },
     /* Enterprise enquiries go to the same table as the website's contact form. */
+    /* The site-wide notice an administrator may switch on (plain text). Null when there is none or it cannot be read. */
+    async banner() { try { const r = await sb.rpc('site_banner'); return r.error ? null : (r.data || null); } catch (e) { return null; } },
     async contact(row) { ok(await sb.from('contact_requests').insert(Object.assign(row.source === 'app' ? { firm_id: firmId || null, user_id: uid || null } : {}, row))); },
     async refreshSub(d) { await subscription(d); },
     /* Owner only: starts (or, while it runs, switches) the firm's 7-day free trial. No payment is taken. */

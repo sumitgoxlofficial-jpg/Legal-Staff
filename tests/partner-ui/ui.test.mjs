@@ -27,7 +27,12 @@ async function ctxFor(label, viewport = { width: 1280, height: 900 }) {
   await p.addInitScript(() => { let cb; window.google = { accounts: { id: { initialize: (o) => { cb = o.callback; }, renderButton: (el) => { const b = document.createElement('button'); b.id = 'fake-google'; b.textContent = 'Continue with Google'; b.onclick = () => cb({ credential: window.__googleAs }); el.appendChild(b); } } } }; });
   return { c, p };
 }
-const overflow = (p) => p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+const overflow = async (p) => {
+  await p.evaluate(() => (document.fonts && document.fonts.ready) || null).catch(() => {}); await p.waitForTimeout(400);   // fonts and entrance animations settle before measuring
+  const r = await p.evaluate(() => { const W = window.innerWidth, wide = [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > W + 1 && getComputedStyle(e).position !== 'fixed').slice(0, 5).map(e => e.tagName.toLowerCase() + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\s+/).join('.') : '') + ' right=' + Math.round(e.getBoundingClientRect().right)); return { by: document.documentElement.scrollWidth - W, wide }; });
+  if (r.by > 1) console.log('  overflow ' + r.by + 'px at ' + new URL(p.url()).pathname + ' by: ' + r.wide.join(' | '));
+  return r.by;
+};
 async function otpLogin(p, email, emailSel, sendSel, codeSel, goSel) {
   await p.fill(emailSel, email); await p.click(sendSel); await p.waitForSelector(codeSel, { state: 'visible' });
   await p.fill(codeSel, '123456'); await p.click(goSel);

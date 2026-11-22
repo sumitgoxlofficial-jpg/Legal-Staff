@@ -125,3 +125,7 @@ Admin → firm → Team → "Delete account" (type their email). Same rules and 
 
 ### Partner UI test refreshed and back in the suite
 `tests/partner-ui/ui.test.mjs` was stale (the dashboard now shows KPI cards, the admin sidebar is grouped and a refused admin call carries a 403 status). Updated to match; it now passes 112 of 112 and runs in `tests/run-all.sh`. Also: partner documents can be accepted or rejected one by one (migration 0050).
+
+### Site banner (migration 0051) and billing wording
+Admin → Settings → Site banner: message (300 characters, plain text), colour, optional https link, optional start and end dates (India time), on/off; audited as `banner.save`. Everyone reads the live banner through `site_banner()`; the table itself is closed to the browser. The app shows it above the page with a dismiss (×) that lasts for the browser session. Needs migration 0051 and the `admin` function redeployed.
+Billing: plans are one-time payments for a fixed month or year with no automatic charge, so there is nothing to cancel mid-period; the Terms now say so (they wrongly said plans renew automatically) and that changing plan starts a new period with no pro-rata. Refunds stay a manual admin action. **The Terms text changed: please have it read by whoever advises you on legal wording.**

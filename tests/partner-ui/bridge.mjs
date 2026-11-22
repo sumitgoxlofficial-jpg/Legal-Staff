@@ -29,7 +29,7 @@ export function sql(q) {
 export function startDb() {
   D = mkdtempSync(join('/var/tmp', 'ls-uitest.'));
   if (isRoot) chmodSync(D, 0o777);
-  asPg(`${PGBIN}/initdb -D ${D}/data -A trust >/dev/null && ${PGBIN}/pg_ctl -D ${D}/data -o '-p ${PGPORT} -k ${D}' -l ${D}/log -w start >/dev/null`);
+  asPg(`${PGBIN}/initdb -U postgres -D ${D}/data -A trust >/dev/null && ${PGBIN}/pg_ctl -D ${D}/data -o '-p ${PGPORT} -k ${D}' -l ${D}/log -w start >/dev/null`);
   for (const f of [join(ROOT, 'tests/partner-db/stub.sql'), join(ROOT, 'supabase/migrations/0039_partner_network.sql'), join(ROOT, 'supabase/migrations/0041_partner_monthly_earnings.sql'), join(ROOT, 'supabase/migrations/0042_partner_instant_access.sql')]) psqlFile(f);
   return D;
 }
