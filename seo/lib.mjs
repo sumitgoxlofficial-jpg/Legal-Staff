@@ -241,8 +241,7 @@ ${app ? '' : bookingModal()}
 <script src="/config.js"></script>
 ${app ? '' : '<script src="/static/site.js" defer></script>'}
 <script src="/static/consent.js" defer></script>
-${scripts.filter(s => s !== '/static/consent.js').map(s => `<script src="${s}" defer></script>`).join('\n')}
-${app ? '' : '<script src="/static/ambient.js" defer></script>'}
+${scripts.filter(s => s !== '/static/consent.js').map(s => `<script src="${s}" defer></script>`).join('\n')}${app ? '' : '\n<script src="/static/ambient.js" defer></script>'}
 </body>
 </html>
 `;
