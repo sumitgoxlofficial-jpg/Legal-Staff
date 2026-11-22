@@ -9,4 +9,7 @@ jobs:
         with: { node-version: 22 }
       - run: npm i -g typescript playwright && npx playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y postgresql-16 || sudo apt-get install -y postgresql
-      - run: PGBIN=$(dirname $(ls /usr/lib/postgresql/*/bin/initdb | tail -1)) bash tests/run-all.sh
+      - run: |
+          export NODE_PATH=$(npm root -g)
+          export PGBIN=$(dirname $(ls /usr/lib/postgresql/*/bin/initdb | tail -1))
+          bash tests/run-all.sh
