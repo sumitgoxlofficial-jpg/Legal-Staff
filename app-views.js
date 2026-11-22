@@ -1101,7 +1101,7 @@
     const showList = () => run('list', () => LSB.drive.backups(), setList);
     const restore = b => confirmBox(app, 'Restore this backup?', `The firm's data for everyone is replaced with the backup from ${L.fmt(b.date)}. Anything added since then is lost. Export a backup first if you may need it.`, 'Restore', () => run('restore', () => LSB.drive.restore(b.id), x => {
       if (!x || x.v !== 2 || !Array.isArray(x.cases)) throw new Error('That file is not a Legal Staff backup.');
-      ['settings', 'chats', 'copilot', 'drafts', 'notes', 'research', 'adminStatus', 'adminNotes', 'session'].forEach(k => { x[k] = d[k]; }); app.replace(x, 'Backup restored from Google Drive'); }));
+      ['settings', 'chats', 'brain', 'copilot', 'drafts', 'notes', 'research', 'adminStatus', 'adminNotes', 'session'].forEach(k => { x[k] = d[k]; }); app.replace(x, 'Backup restored from Google Drive'); }));
     const head = h('div', { style: { fontSize: 13, color: K.mut, lineHeight: 1.55, paddingBottom: 10 } }, 'Keep your uploads and a daily backup in your own Google Drive. Everything is encrypted before it reaches Google and kept in a hidden folder that only Legal Staff can open, so it does not show in your Drive.');
     if (!st) return h(Card, { title: 'Google Drive storage' }, head, row('Checking the connection…', null, null));
     if (!st.configured) return h(Card, { title: 'Google Drive storage' }, head, row('Not available yet', 'Google Drive storage has not been switched on for Legal Staff. Uploads are kept in the firm\'s private storage.', null));
