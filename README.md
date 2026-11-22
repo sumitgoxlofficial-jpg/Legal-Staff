@@ -21,6 +21,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - Each page is a template plus a logic class, rendered by `support.js` on React 18 (bundled in `vendor/`).
 - `app-store.js` holds the app's data layer: storage, local accounts, the limitation calculator, order reading, and exports (ICS, CSV, DOCX).
 - `app-views.js` holds the module screens, dialogs and forms.
+- `app-brain.js` holds AI Case Brain: a chat assistant with saved chats (search, rename, archive, delete), file and image attachments (PDF, Word .docx, text, photos; scanned PDFs are read as images), voice typing (English or Hindi), ready-made tasks, and an optional link to one case so answers cite its records. Chats are private to each user.
 - `config.js` holds site settings such as the Google Client ID.
 
 ## Accounts and data

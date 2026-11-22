@@ -11,6 +11,7 @@
 <script src="app-practice.js"></script>
 <script src="app-backend.js"></script>
 <script src="app-views.js"></script>
+<script src="app-brain.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
@@ -99,6 +100,7 @@
 .ls-picker button{transition:transform .12s}.ls-picker button:hover{transform:scale(1.3) translateY(-2px)}
 .ls-send svg{transition:transform .35s cubic-bezier(.3,1.4,.5,1)}.ls-send.fly svg{transform:translate(14px,-14px) rotate(-12deg);opacity:0;transition:transform .35s ease-in,opacity .35s}
 @media (prefers-reduced-motion:reduce){.ls-chatbg::before,.ls-chatbg-pan,.ls-in-me,.ls-in-them,.ls-pill,.ls-picker,.ls-send svg{animation:none!important;transition:none!important}}
+.ls-brain-row .ls-brain-more{opacity:0;transition:opacity .12s}.ls-brain-row:hover .ls-brain-more,.ls-brain-more:focus-visible{opacity:1}.ls-brain-row:hover{background:#F0F0EF}@media (hover:none){.ls-brain-row .ls-brain-more{opacity:.7}}
 .ls-msg .ls-react{opacity:0;transition:opacity .12s}.ls-msg:hover .ls-react,.ls-react:focus-visible{opacity:1}@media (hover:none){.ls-msg .ls-react{opacity:.55}}
 .ls-art-flow{animation:ls-dash-flow 1.6s linear infinite}
 .ls-art-draw{--ls-len:120;stroke-dasharray:120;stroke-dashoffset:120;animation:ls-draw 1.4s var(--ls-ease) .3s forwards}
@@ -822,39 +824,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       </div>
     </sc-if>
 
-    <sc-if value="{{ s.brain }}" hint-placeholder-val="{{ false }}">
-      <div style="display:flex;flex-direction:column;gap:20px;max-width:920px;margin:0 auto;min-height:calc(100vh - 150px)">
-        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px">
-          <div>
-            <div style="font-size:13px;color:#5E5E5E">AI Case Brain</div>
-            <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">Ask about this case</h1>
-          </div>
-          <div style="font-size:13px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;padding:8px 12px">{{ brainScope }}</div>
-        </div>
-        <div style="flex:1;display:flex;flex-direction:column;gap:18px">
-          <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="2">
-            <div class="ls-msg" style="{{ m.wrap }}">
-              <div style="{{ m.bubble }}">{{ m.text }}</div>
-              {{ m.citesEl }}
-            </div>
-          </sc-for>
-          <div id="ls-chat-end">{{ chatEmpty }}</div>
-        </div>
-        <div style="position:sticky;bottom:0;background:#F5F5F4;padding:12px 0 4px;display:flex;flex-direction:column;gap:10px">
-          <div style="{{ sugRow }}">
-            <sc-for list="{{ suggestions }}" as="q" hint-placeholder-count="4">
-              <button class="ls-btn" onClick="{{ q.ask }}" style="white-space:nowrap;height:34px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13px;color:#0A0A0A">{{ q.label }}</button>
-            </sc-for>
-          </div>
-          <div style="display:flex;gap:10px;background:#FFFFFF;border:1px solid #C4C4C4;border-radius:12px;padding:8px 8px 8px 16px;align-items:center">
-            <input value="{{ draftQ }}" onChange="{{ setQ }}" onKeyDown="{{ qKey }}" placeholder="Ask about orders, issues, documents or arguments…" style="flex:1;border:0;outline:none;font-size:15px;min-width:0;background:transparent">
-            <button class="ls-btn" onClick="{{ sendQ }}" style="white-space:nowrap;height:36px;padding:0 18px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Ask</button>
-          </div>
-          <div style="font-size:12px;color:#5E5E5E">Answers come only from this case's documents and approved legal sources. Every claim has a citation.</div>
-        </div>
-      </div>
-    </sc-if>
-
     <sc-if value="{{ s.drafting }}" hint-placeholder-val="{{ false }}">
       <div style="display:flex;flex-direction:column;gap:20px;max-width:1320px">
         <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-end">
@@ -1093,7 +1062,7 @@ class Component extends DCLogic {
   db = LS.load();
   tplNames = ['Legal notice', 'Petition', 'Section 138 notice', 'Bail application', 'Affidavit', 'Written statement', 'Reply', 'Appeal', 'Revision', 'Agreement'];
   dirList = [];
-  state = { auth: LSB.on ? 'boot' : (this.db.session ? 'in' : 'login'), screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: '', promo: null, promoInput: '', promoErr: '' };
+  state = { auth: LSB.on ? 'boot' : (this.db.session ? 'in' : 'login'), screen: 'dashboard', param: '', tab: 'overview', panel: false, drawer: false, w: window.innerWidth, editDate: false, toast: '', caseFilter: 'all', caseQ: '', cycle: 'annual', plan: null, paid: false, gstin: '', gstErr: '', sel: 0, adminNote: '', calView: 'week', weekStart: '', daySel: '', dict: false, ver: 0, tpl: 2, q: '', cq: '', search: '', searchOpen: false, menu: null, modalOn: false, rev: 0, rev0: 0, brainCase: '', brainThread: '', promo: null, promoInput: '', promoErr: '' };
   SCREENS = ['dashboard', 'cases', 'case', 'orders', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin', 'workspace', 'causelist', 'ordersdate', 'ordersnotif', 'board', 'labels', 'courts', 'clients', 'documents', 'evidence', 'research', 'agents', 'team', 'chat', 'billing', 'portal', 'reports', 'settings'];
 
   componentDidMount() {
@@ -1211,34 +1180,8 @@ class Component extends DCLogic {
   openWeek(date) { this.setState({ weekStart: this.monday(date), daySel: date }); this.go('calendar'); }
   openDraft(i) { this.buf = null; this.setState({ tpl: i, ver: 0 }); this.go('drafting'); }
   monday(s) { const d = LS.parse(s), g = d.getDay(); return LS.addDays(s, g === 0 ? -6 : 1 - g); }
-  chat(id) { const d = this.db; if (!d.chats[id]) d.chats[id] = []; return d.chats[id]; }
-  ask(label) {
-    const id = (this.db.cases.find(x => x.id === this.state.brainCase) || this.db.cases[0] || {}).id;
-    if (!id) return this.toast('Add a case first, then ask about it.');
-    if (LSB.on && LSB.ai) return this.askAi(id, label);
-    this.mut(db => { const a = LS.answer(db, id, label); this.chat(id).push({ role: 'user', text: label }, Object.assign({ role: 'ai', text: a.text, cites: a.cites }, a.need ? { need: a.need } : null));
-      if (a.brief) { const nh = LSV.nextHearing(db, id); if (nh) nh.brief = true; } });
-    this.setState({ q: '' });
-    if (!LSV.reduced()) { clearTimeout(this.thT); this.setState({ thinking: id }); this.thT = setTimeout(() => this.setState({ thinking: '' }), 650); }
-    setTimeout(() => { const el = document.getElementById('ls-chat-end'); el && el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 50);
-  }
-  /* Real AI answer from the server, from this case's own records; source tags such as [Order 12.03.2026] become links.
-     If the AI cannot answer, the rule-based answer is shown instead, with the reason. */
-  askAi(id, label) {
-    if (this.aiBusy) return this.toast('Still answering the last question…'); this.aiBusy = true;
-    const hist = this.chat(id).slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
-    this.mut(db => { this.chat(id).push({ role: 'user', text: label }, { role: 'ai', text: '', cites: [] }); });
-    if (this.locked()) { this.aiBusy = false; return; }
-    this.setState({ q: '', thinking: id });
-    const scroll = () => setTimeout(() => { const el = document.getElementById('ls-chat-end'); el && el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 50); scroll();
-    const put = (text, cites, need) => this.mut(db => { const c = this.chat(id), m = c[c.length - 1]; if (m && m.role === 'ai' && !m.text) { m.text = text; m.cites = cites; if (need) m.need = need; } });
-    LSB.ai({ mode: 'brain', case_id: id, question: label, history: hist }).then(r => {
-      const tags = [...new Set((r.text.match(/\[([^\]\n]{3,60})\]/g) || []).map(t => t.slice(1, -1)).filter(t => /^(Order|Hearing|Case details|Documents|Tasks)/.test(t)))];
-      put(r.text, tags.length ? tags : ['AI answer from this case\'s records']);
-      this.db.sub.aiUsed = r.used;
-    }).catch(e => { const a = LS.answer(this.db, id, label); put('The AI could not answer (' + e.message + '). Here is the answer from the case details instead:\n\n' + a.text, a.cites, a.need); })
-      .finally(() => { this.aiBusy = false; this.setState({ thinking: '' }); scroll(); });
-  }
+  /* AI Case Brain (app-brain.js): a new chat on the chosen case, asked at once. */
+  ask(label) { LSV.brainAsk(this, label); }
   copilot(q) {
     const d = this.db, lc = q.toLowerCase(), T = LS.today(); let text = '', go = null;
     const named = d.cases.find(c => c.title.toLowerCase().split(/\s+v\.?\s+|\s+/).filter(w => w.length > 3).some(w => lc.includes(w)));
@@ -1340,7 +1283,7 @@ class Component extends DCLogic {
       position: mobile ? 'fixed' : 'sticky', left: 0, display: (!mobile || S.drawer) ? 'flex' : 'none', filter: st.sidebar === 'Ink' ? 'invert(1) hue-rotate(180deg)' : 'none', boxShadow: mobile ? '0 20px 60px rgba(32,30,29,.25)' : 'none' };
     const panelStyle = { width: mobile ? '100%' : 360, flexShrink: 0, background: '#FFFFFF', borderLeft: '1px solid #E5E5E5', display: 'flex', flexDirection: 'column', height: '100vh', top: 0, position: mobile ? 'fixed' : 'sticky', right: 0, zIndex: 55 };
     let scr = S.screen; if (scr === 'case' && !D.cases.some(x => x.id === S.param)) scr = 'cases'; if (scr === 'order' && !D.orders.some(x => x.id === S.param)) scr = 'orders';
-    const s = {}; ['dashboard', 'cases', 'case', 'order', 'calendar', 'limitation', 'brain', 'drafting', 'pricing', 'admin'].forEach(k => s[k] = scr === k);
+    const s = {}; ['dashboard', 'cases', 'case', 'order', 'calendar', 'limitation', 'drafting', 'pricing', 'admin'].forEach(k => s[k] = scr === k);
 
 
     const emptyPage = (kicker, title, text, btns) => h(V.Page, { kicker, title, max: 760 }, h(V.Card, null, h(V.Empty, { title: text[0], text: text[1], art: text[2] }), h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', paddingBottom: 12 } }, btns)));
@@ -1348,7 +1291,6 @@ class Component extends DCLogic {
     if (s.limitation && !LMS.length) { s.limitation = false; modView = h(V.Page, { kicker: 'Legal deadlines', title: 'Limitation tracker', sub: 'Saved calculations and deadlines', max: 900, actions: [h(V.Btn, { key: 1, onClick: () => V.addDeadline(this) }, '+ Add a deadline'), h(V.Btn, { key: 2, primary: true, onClick: () => V.newLim(this) }, 'New calculation')] },
       V.deadlinesCard(this)); }
     if (s.admin && !this.dirApps().length) { s.admin = false; modView = emptyPage('Directory moderation', 'Verification queue', LSB.on && !this.isAdmin ? ['Not available on this account', 'Only Legal Staff platform administrators can verify directory applications.'] : ['No applications yet', 'Applications submitted from the public advocate directory appear here for verification.'], [h('a', { key: 1, href: 'directory.html', style: { fontSize: 14 } }, 'Open the public directory')]); }
-    if (s.brain && !D.cases.length) { s.brain = false; modView = emptyPage('AI Case Brain', 'Ask about a case', ['No cases yet', 'Add a case with its orders and documents, then ask questions about it here.', 'chat'], [h(V.Btn, { key: 1, primary: true, onClick: () => V.newCase(this) }, '+ New case')]); }
     /* No plan, or the trial / paid period is over: only Subscription and Settings (backup export) stay open. */
     if (!acc.ok && !FREE_SCREENS.includes(scr)) { Object.keys(s).forEach(k => { s[k] = false; }); modView = h(V.PlanLock, { app: this, acc }); }
     else if (acc.ok && !LS.hasMod(acc, scr)) { Object.keys(s).forEach(k => { s[k] = false; }); modView = h(V.PlanUpgrade, { app: this, acc, mod: scr }); }
@@ -1444,20 +1386,6 @@ class Component extends DCLogic {
       deadlinesEl: V.deadlinesCard(this),
       changeEl: h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 } }, h(V.Btn, { small: true, onClick: () => V.newLim(this, LM.id) }, 'Edit calculation'), limFilled && LM.ready && !LM.approved && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.lims.find(x => x.id === LM.id).ready = ''; }) }, 'Change the certified-copy date'), LM.approved && h(V.Btn, { small: true, onClick: () => V.withdrawLim(this, LM.id) }, 'Withdraw approval')) };
     const fillMissing = () => { const v = limO.readyInput; if (!LS.valid(v)) return this.toast('Enter a valid date.'); if (v < LM.applied) return this.toast('The copy cannot be ready before it was applied for (' + LS.dmy(LM.applied) + ').'); if (v > T) return this.toast('That date is in the future.'); this.mut(db => { const l = db.lims.find(x => x.id === LM.id); if (l) l.ready = v; }); };
-
-    /* ---- brain ---- */
-    const bc = D.cases.find(x => x.id === S.brainCase) || D.cases[0] || { id: '' }, chat = bc.id ? this.chat(bc.id) : [];
-    const brainScope = h('span', { style: { display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }, h(V.Select, { value: bc.id, onChange: v => this.setState({ brainCase: v }), options: D.cases.map(x => [x.id, x.no + ' · ' + x.title]), style: { height: 34, fontSize: 13, maxWidth: 320 } }), h('span', null, `${D.docs.filter(x => x.caseId === bc.id).length} documents · ${D.orders.filter(x => x.caseId === bc.id).length} orders`), chat.length > 0 && h(V.Btn, { small: true, onClick: () => this.mut(db => { db.chats[bc.id] = []; }) }, 'Clear'));
-    const suggestions = ['Prepare a hearing brief', 'Summarise the case', 'What are the issues?', 'Who are the parties?', 'What arguments were raised?', 'What documents are missing?', 'What happened at the last hearing?'].map(label => ({ label, ask: () => this.ask(label) }));
-    const bOrders = D.orders.filter(o => o.caseId === bc.id), citeGo = t => { const m = /^Order (\d\d\.\d\d\.\d{4})/.exec(t), o = m && bOrders.find(x => LS.dmy(x.date) === m[1]);
-      if (o) return () => this.go('order', o.id); if (/^Case details/.test(t)) return () => V.caseDetails(this, bc.id, { 'Case details › Parties': 'pet', 'Case details › Issues': 'issues', 'Case details › Our arguments': 'ours', "Case details › Opponent's arguments": 'opp', 'Case details › Missing documents': 'missing', 'Case details › Summary': 'summary' }[t]);
-      if (/^Hearing/.test(t)) return () => this.go('case', bc.id, 'hearings'); if (t === 'Tasks') return () => this.go('case', bc.id); return () => this.go('case', bc.id, 'documents'); };
-    const citesEl = m => h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', maxWidth: '100%' } }, (m.cites || []).map((t, i) => h('button', { key: i, type: 'button', className: 'ls-cite', title: 'Open the source', onClick: citeGo(t), style: { fontSize: 12, background: '#F0F0EF', color: '#2B2B2B', border: 0, borderRadius: 8, padding: '2px 8px', textAlign: 'left', overflowWrap: 'anywhere' } }, t)),
-      m.need && V.NEED[m.need] && h(V.Btn, { small: true, primary: true, onClick: () => V.caseDetails(this, bc.id, V.NEED[m.need][0]) }, V.NEED[m.need][1]));
-    const thinking = !!S.thinking && S.thinking === bc.id;
-    const msgs = chat.map((m, i) => { const typing = thinking && m.role === 'ai' && i === chat.length - 1; return { text: typing ? h('span', { key: 't', className: 'ls-typing', role: 'status', 'aria-label': 'Preparing the answer', style: { color: '#8A8A8A', display: 'inline-flex', padding: '4px 0' } }, h('span'), h('span'), h('span')) : (m.role === 'ai' ? h('span', { key: 'a', className: 'ls-fade' }, m.text) : m.text), cites: typing ? [] : (m.cites || []), citesEl: typing ? null : citesEl(m),
-      wrap: { display: 'flex', flexDirection: 'column', gap: 8, alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' },
-      bubble: m.role === 'user' ? { background: '#0A0A0A', color: '#fff', borderRadius: 12, padding: '12px 16px', fontSize: 15, maxWidth: '80%' } : { background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: 12, padding: '18px 20px', fontSize: 15, lineHeight: 1.65, whiteSpace: 'pre-line', maxWidth: '92%', color: '#1A1A1A' } }; });
 
     /* ---- drafting ---- */
     const verName = (i, x) => { this.modal(() => h(V.Modal, { title: 'Name this version', onClose: () => this.modal(null) }, h(V.Form, { init: { label: x.label || '' }, submit: 'Save', onCancel: () => this.modal(null), fields: [{ k: 'label', label: 'Version name', ph: 'Sent to client, final, …' }], onSubmit: v => { this.mut(db => { const y = (db.drafts[S.tpl] || [])[i]; if (y) { y.label = v.label.trim(); V.logIt(db, `${this.tplNames[S.tpl]} draft version renamed by ${db.user.name}`); } }, 'Version renamed'); this.modal(null); } }))); };
@@ -1668,7 +1596,7 @@ class Component extends DCLogic {
       ],
       missingOpen: !limFilled, missingFilled: limFilled, fillMissing,
       derivation: lim.rows, approved: LM.approved && !lim.none, notApproved: !LM.approved && !lim.none, approve: () => V.approveLim(this, LM.id),
-      msgs, suggestions, sugRow: { display: 'flex', gap: 8, flexWrap: mobile ? 'nowrap' : 'wrap', overflowX: mobile ? 'auto' : 'visible', scrollbarWidth: 'none', paddingBottom: mobile ? 2 : 0 }, brainScope, chatEmpty: chat.length ? null : h('div', { className: 'ls-empty', style: { color: '#5E5E5E', fontSize: 14, padding: '24px 0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } }, h(V.Art, { name: 'chat', style: { width: 120, height: 'auto' } }), h('span', { style: { flex: '1 1 200px' } }, 'Ask a question about this case, or pick a suggestion below.')), draftQ: S.q, setQ: e => this.setState({ q: e.target.value }), sendQ: () => S.q.trim() && this.ask(S.q.trim()), qKey: e => { if (e.key === 'Enter' && S.q.trim()) this.ask(S.q.trim()); },
+     
       templates, versions, draft,
       toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate',
       dictLangSel: h('select', { 'aria-label': 'Dictation language', title: 'Dictation language', value: st.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: S.dict, onChange: e => { const v = e.target.value; this.mut(db => { db.settings.dictLang = v; }); }, style: { height: 34, border: '1px solid #E5E5E5', borderRadius: 8, background: '#FFFFFF', fontSize: 13.5, padding: '0 8px', color: '#0A0A0A' } }, h('option', { value: 'en-IN' }, 'English (India)'), h('option', { value: 'hi-IN' }, 'Hindi')),

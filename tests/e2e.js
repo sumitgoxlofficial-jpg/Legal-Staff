@@ -348,6 +348,35 @@ async function outcomes(o) {
     await page.locator('[role=dialog]', { hasText: 'Case details' }).waitFor();
     await o.closeDialog();
   });
+  await step('Case Brain chat: history, attach a file, rename, archive, delete', async () => {
+    await o.go('#/brain');
+    await page.locator('aside', { hasText: 'Hearing brief' }).first().waitFor();
+    await o.shot('brain-case-chat');
+    await page.locator('button', { hasText: 'New chat' }).first().click();
+    await o.see('How can I help');
+    await page.locator('select[aria-label="Case linked to this chat"]').selectOption('');
+    const file = path.join(SHOTS, 'notice.txt'); fs.mkdirSync(SHOTS, { recursive: true });
+    fs.writeFileSync(file, 'LEGAL NOTICE\nDated 01.11.2026. Pay Rs. 2,00,000 within 15 days.');
+    await o.chooseFile(() => page.locator('button[aria-label="Attach documents or images"]').click(), file);
+    await page.locator('text=notice.txt').first().waitFor();
+    await page.locator('textarea[aria-label="Message AI Case Brain"]').fill('Summarise this notice');
+    await o.shot('brain-compose');
+    await page.locator('button[aria-label="Send"]').click();
+    await page.locator('.ls-msg', { hasText: 'AI answers need the Legal Staff server' }).waitFor();
+    await page.locator('aside button', { hasText: 'Summarise this notice' }).first().waitFor();
+    eq(await page.evaluate(() => LS.load().brain.length), 2, 'two saved chats');
+    await page.locator('button[aria-label="Options for Summarise this notice"]').click();
+    await o.click('Rename');
+    await page.locator('input[aria-label="Chat name"]').fill('Notice from bank'); await page.keyboard.press('Enter');
+    await page.locator('aside button', { hasText: 'Notice from bank' }).first().waitFor();
+    await page.locator('button[aria-label="Options for Notice from bank"]').click();
+    await o.click('Archive'); await o.toast('Chat archived');
+    await page.locator('aside button', { hasText: /^Archived/ }).click();
+    await page.locator('aside button', { hasText: 'Notice from bank' }).first().waitFor();
+    await page.locator('button[aria-label="Options for Notice from bank"]').click();
+    await o.click('Delete'); await o.dclick('Delete chat'); await o.toast('Chat deleted');
+    eq(await page.evaluate(() => LS.load().brain.length), 1, 'one chat left');
+  });
 }
 
 async function exportsAndSearch(o) {
