@@ -86,12 +86,16 @@
   const MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12 };
   const okYmd = (y, m, d) => { if (y < 100) y += y < 70 ? 2000 : 1900; const t = new Date(y, m - 1, d); return t.getFullYear() === y && t.getMonth() === m - 1 && t.getDate() === d ? y + '-' + pad(m) + '-' + pad(d) : ''; };
   /* Indian exports write day first (31/01/2025). Month first is used only when the day-first reading is impossible. */
-  function date(v) {
+  /* Month first (03/04/2027 = 4 March) is used for ambiguous dates only while reading a column that shows it: some value has a
+     second part above 12 and none has a first part above 12. Set by inColumns() around the rows of one table. */
+  let MDY = false;
+  function date(v, mdy) {
+    if (mdy === undefined) mdy = MDY;
     const s = String(v == null ? '' : v).trim(); if (!s) return '';
     let m;
     if (/^\d{4,5}(\.\d+)?$/.test(s) && +s > 20000 && +s < 80000) { const t = new Date(Date.UTC(1899, 11, 30) + Math.floor(+s) * 864e5); return t.getUTCFullYear() + '-' + pad(t.getUTCMonth() + 1) + '-' + pad(t.getUTCDate()); }
     if ((m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/.exec(s))) return okYmd(+m[1], +m[2], +m[3]);
-    if ((m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/.exec(s))) return okYmd(+m[3], +m[2], +m[1]) || okYmd(+m[3], +m[1], +m[2]);
+    if ((m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/.exec(s))) return mdy ? okYmd(+m[3], +m[1], +m[2]) || okYmd(+m[3], +m[2], +m[1]) : okYmd(+m[3], +m[2], +m[1]) || okYmd(+m[3], +m[1], +m[2]);
     const mon = w => MON[w.toLowerCase()] || MON[w.slice(0, 3).toLowerCase()];
     if ((m = /^(\d{1,2})(?:st|nd|rd|th)?[\s\-/.,]+([A-Za-z]{3,9})\.?[\s\-/.,]+(\d{2,4})/.exec(s)) && mon(m[2])) return okYmd(+m[3], mon(m[2]), +m[1]);
     if ((m = /^([A-Za-z]{3,9})\.?[\s\-/.]+(\d{1,2})(?:st|nd|rd|th)?,?[\s\-/.]+(\d{2,4})/.exec(s)) && mon(m[1])) return okYmd(+m[3], mon(m[1]), +m[2]);
@@ -100,7 +104,8 @@
   function time(v) {
     const s = String(v == null ? '' : v).trim(); if (!s) return '';
     if (/^0?\.\d+$/.test(s)) { const mins = Math.round(+s * 1440); return pad(Math.floor(mins / 60) % 24) + ':' + pad(mins % 60); }
-    const m = /^(\d{1,2})(?:[:.](\d{2}))?(?::\d{2})?\s*([ap])?\.?\s*m?\.?$/i.exec(s);
+    const re = /^(\d{1,2})(?:[:.](\d{2}))?(?::\d{2})?\s*([ap])?\.?\s*m?\.?$/i, dt = /[\sT](\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?\s*(?:[ap]\.?m\.?)?)\s*(?:z|[+-]\d{2}:?\d{2})?$/i.exec(s);
+    const m = re.exec(s) || (dt && re.exec(dt[1].replace(/\.\d+$/, '')));
     if (!m || (m[2] == null && !m[3])) return '';
     let hh = +m[1]; const mm = +(m[2] || 0), ap = (m[3] || '').toLowerCase();
     if (ap === 'p' && hh < 12) hh += 12; if (ap === 'a' && hh === 12) hh = 0;
@@ -117,6 +122,8 @@
   const KINDS = {
     clients: { label: 'Clients', one: 'client', fields: [
       ['name', 'Client name', ['client', 'clientname', 'name', 'fullname', 'partyname', 'customer', 'customername', 'contactname', 'displayname', 'company', 'companyname'], 1],
+      ['first', 'First name (joined to the last name)', ['firstname', 'givenname', 'fname', 'first']],
+      ['last', 'Last name', ['lastname', 'surname', 'familyname', 'lname', 'last']],
       ['type', 'Type', ['type', 'clienttype', 'category', 'entitytype', 'individualcompany']],
       ['phone', 'Phone', ['phone', 'mobile', 'mobileno', 'mobilenumber', 'phoneno', 'phonenumber', 'contactno', 'contactnumber', 'whatsapp', 'cell', 'telephone']],
       ['email', 'Email', ['email', 'emailid', 'emailaddress', 'mail', 'eaddress']],
@@ -171,27 +178,60 @@
   };
   const ORDER = ['clients', 'cases', 'hearings', 'tasks', 'invoices'];
 
-  /* Which source column feeds each field: exact name first, then a known name inside a longer header ("Next Hearing Date (DD/MM)"). */
-  function guessMap(kind, headers) {
+  /* Column names in the exports of some widely used practice-management products, checked before the general names above.
+     Taken from how those products name their export columns; the wizard still shows every match for checking. */
+  const PRESETS = {
+    clio: { label: 'Clio', clients: { name: ['Name', 'Company'], first: ['First Name'], last: ['Last Name'], email: ['Primary Email Address', 'Email Address'], phone: ['Primary Phone Number', 'Phone Number'], city: ['Primary Address City', 'City'], address: ['Primary Address Street', 'Primary Address'] },
+      cases: { title: ['Description', 'Matter Description'], no: ['Matter Number', 'Display Number'], client: ['Client', 'Client Name'], team: ['Responsible Attorney', 'Originating Attorney'], stage: ['Status', 'Matter Stage'], filed: ['Open Date'], notes: ['Practice Area'] },
+      hearings: { case: ['Matter', 'Matter Number'], date: ['Start', 'Start Date', 'Start At'], time: ['Start', 'Start Time', 'Start At'], purpose: ['Summary', 'Subject', 'Name'], court: ['Location'], outcome: ['Description'], assignee: ['Attendees', 'Calendar Owner'] },
+      tasks: { t: ['Name', 'Task Name'], case: ['Matter'], due: ['Due Date', 'Due At'], who: ['Assignee', 'Assigned To'], done: ['Status', 'Completed'] },
+      invoices: { no: ['Bill Number', 'Invoice Number', 'Number'], date: ['Issue Date', 'Issued At'], amount: ['Subtotal', 'Total'], client: ['Client'], case: ['Matter', 'Matters'], paid: ['Status', 'State'], paidOn: ['Paid At', 'Paid Date'] } },
+    mycase: { label: 'MyCase', clients: { first: ['First Name'], last: ['Last Name'], name: ['Company', 'Company Name'], email: ['Email', 'Email Address'], phone: ['Mobile Phone', 'Cell Phone', 'Work Phone', 'Home Phone'], city: ['City'], address: ['Address', 'Address 1'] },
+      cases: { title: ['Case Name', 'Name'], no: ['Case Number', 'Case/Matter Number'], client: ['Contacts', 'Client', 'Contact'], team: ['Lead Attorney', 'Lead Lawyer', 'Originating Attorney'], stage: ['Case Stage', 'Stage', 'Status'], filed: ['Date Opened', 'Open Date'], notes: ['Description', 'Practice Area'] },
+      hearings: { case: ['Case', 'Case Name', 'Case/Matter'], date: ['Start Date', 'Start'], time: ['Start Time', 'Start'], purpose: ['Event Name', 'Name', 'Event Type'], court: ['Location'], outcome: ['Description'], assignee: ['Staff', 'Shared With'] },
+      tasks: { t: ['Task Name', 'Name'], case: ['Case', 'Case Name'], due: ['Due Date'], who: ['Assigned To', 'Assignees'], done: ['Completed', 'Status'] },
+      invoices: { no: ['Invoice #', 'Invoice Number', 'Number'], date: ['Invoice Date', 'Date'], amount: ['Subtotal', 'Total', 'Amount'], client: ['Contact', 'Billing Contact', 'Client'], case: ['Case', 'Case Name'], paid: ['Status'], paidOn: ['Paid Date', 'Last Payment Date'] } },
+    practicepanther: { label: 'PracticePanther', clients: { name: ['Display Name', 'Account Name', 'Name'], first: ['First Name'], last: ['Last Name'], email: ['Email', 'Primary Email'], phone: ['Mobile', 'Mobile Phone', 'Phone'], city: ['City'], address: ['Address', 'Street'] },
+      cases: { title: ['Matter Name', 'Name'], no: ['Matter Number', 'Number'], client: ['Account', 'Account Name', 'Contact'], team: ['Assigned To', 'Assigned Users', 'Originator'], stage: ['Status'], filed: ['Open Date', 'Opened'], notes: ['Notes', 'Practice Area'] },
+      hearings: { case: ['Matter', 'Matter Name'], date: ['Start Date', 'Start'], time: ['Start Time', 'Start'], purpose: ['Subject', 'Name'], court: ['Location'], outcome: ['Notes', 'Description'], assignee: ['Assigned To'] },
+      tasks: { t: ['Subject', 'Name'], case: ['Matter', 'Matter Name'], due: ['Due Date'], who: ['Assigned To'], done: ['Status', 'Completed'] },
+      invoices: { no: ['Invoice Number', 'Number'], date: ['Invoice Date', 'Date'], amount: ['Subtotal', 'Total'], client: ['Account', 'Account Name'], case: ['Matter', 'Matter Name'], paid: ['Status'], paidOn: ['Paid Date'] } }
+  };
+  /* Which source column feeds each field: the product's own names (preset) first, then exact general names, then a known name
+     inside a longer header ("Next Hearing Date (DD/MM)"). A column may feed both the date and the time ("Start" = date and time). */
+  function guessMap(kind, headers, preset) {
     const hk = headers.map(key), used = new Set(), map = {};
     const pick = test => { const i = hk.findIndex((x, j) => !used.has(j) && x && test(x)); if (i >= 0) used.add(i); return i; };
+    const pre = PRESETS[preset] && PRESETS[preset][kind];
+    if (pre) Object.keys(pre).forEach(f => { for (const name of pre[f]) { const i = hk.indexOf(key(name)); if (i >= 0 && (!used.has(i) || (f === 'time' && map.date === i))) { used.add(i); map[f] = i; break; } } });
+    KINDS[kind].fields.forEach(([k, , syn]) => { if (map[k] != null) return; const i = pick(x => syn.map(key).includes(x)); if (i >= 0) map[k] = i; });
     KINDS[kind].fields.forEach(([k, , syn]) => { const i = pick(x => syn.map(key).includes(x)); if (i >= 0) map[k] = i; });
     KINDS[kind].fields.forEach(([k, , syn]) => { if (map[k] != null) return; const i = pick(x => syn.map(key).some(s => s.length >= 4 && x.includes(s))); if (i >= 0) map[k] = i; });
+    if (kind === 'clients' && map.name == null && map.first == null) delete map.last;
     return map;
   }
   /* The kind a table most likely holds, from its name (sheet or JSON key) and how many headers each kind recognises. */
-  function guessKind(headers, name) {
+  function guessKind(headers, name, preset) {
     const n = key(name);
     const byName = [['invoice', 'invoices'], ['bill', 'invoices'], ['hearing', 'hearings'], ['diary', 'hearings'], ['calendar', 'hearings'], ['event', 'hearings'], ['task', 'tasks'], ['todo', 'tasks'], ['client', 'clients'], ['contact', 'clients'], ['customer', 'clients'], ['case', 'cases'], ['matter', 'cases']].find(([w]) => n.includes(w));
     if (byName) return byName[1];
-    const score = k => { const m = guessMap(k, headers); return KINDS[k].fields.reduce((a, [f, , , req]) => a + (m[f] != null ? (req ? 3 : 1) : 0), 0) - (KINDS[k].fields.some(([f, , , req]) => req && m[f] == null) ? 4 : 0); };
+    const score = k => { const m = guessMap(k, headers, preset); return KINDS[k].fields.reduce((a, [f, , , req]) => a + (m[f] != null ? (req ? 3 : 1) : 0), 0) - (KINDS[k].fields.some(([f, , , req]) => req && m[f] == null) ? 4 : 0); };
     return ORDER.slice().sort((a, b) => score(b) - score(a))[0];
   }
 
   /* ---------- turning rows into records ---------- */
+  const DATES = { cases: ['next', 'filed'], hearings: ['date'], tasks: ['due'], invoices: ['date', 'paidOn'], clients: [] };
+  function monthFirst(kind, map, rows) {
+    let dmy = 0, mdy = 0;
+    DATES[kind].filter(f => map[f] != null).forEach(f => rows.forEach(r => { const m = /^\s*(\d{1,2})[-/.](\d{1,2})[-/.]\d{2,4}/.exec(String(r[map[f]] == null ? '' : r[map[f]])); if (m) { if (+m[1] > 12) dmy++; if (+m[2] > 12) mdy++; } }));
+    return mdy > 0 && dmy === 0;
+  }
+  /* Runs fn with the table's date order in force. */
+  function inColumns(kind, map, rows, fn) { const was = MDY; MDY = monthFirst(kind, map, rows); try { return fn(); } finally { MDY = was; } }
   /* One mapped row → { v (values by field), err (message, or '') }. */
   function readRow(kind, map, row) {
     const v = {}; KINDS[kind].fields.forEach(([k]) => { v[k] = map[k] != null ? String(row[map[k]] == null ? '' : row[map[k]]).trim() : ''; });
+    if (kind === 'clients' && !v.name) v.name = [v.first, v.last].filter(Boolean).join(' ');
     if (kind === 'cases') { if (!v.no && v.cnr) v.no = cnrOf(v.cnr) || v.cnr; if (!v.title && v.no) v.title = v.opp ? v.no + ' · ' + v.opp : v.no; }
     const miss = KINDS[kind].fields.filter(([k, , , req]) => req && !v[k]).map(f => f[1]);
     if (miss.length) return { v, err: 'Missing ' + miss.join(', ').toLowerCase() };
@@ -221,7 +261,7 @@
     const fresh = new Set();   // hearings made in this run from a case's next date: a hearings sheet may add their time and purpose
     let live = db.cases.filter(c => c.status === 'active' || c.status === 'pending').length;
     const sorted = tables.slice().sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
-    sorted.forEach(t => t.rows.forEach((row, i) => {
+    sorted.forEach(t => inColumns(t.kind, t.map, t.rows, () => t.rows.forEach((row, i) => {
       const { v, err } = readRow(t.kind, t.map, row);
       if (err) return skip(t, i, err);
       if (t.kind === 'clients') {
@@ -266,7 +306,7 @@
           rep.added.invoices++;
         }
       }
-    }));
+    })));
     return rep;
   }
 
@@ -333,32 +373,40 @@
     invoices: [['Invoice number', 'Invoice date', 'Fee (before GST)', 'Client', 'Case number', 'Paid', 'Paid on', 'Description'], ['INV-2025-001', '01/12/2025', '25000', 'Ramesh Kumar', 'CWJC 1234/2025', 'Yes', '05/12/2025', 'Appearance fee']]
   };
 
-  window.LSI = { parseCsv, parseXlsx, readFile, fromJson, date, time, money, cnrOf, guessMap, guessKind, readRow, apply, imports, undoImport, matchDoc, docType, zipEntries, KINDS, ORDER, TEMPLATE };
+  /* A matching the firm made by hand, remembered in this browser for the next file with the same columns. */
+  const sig = (kind, head) => kind + '|' + head.map(key).join(',');
+  const MAPS = 'ls.import.maps';
+  const savedMap = (kind, head) => { try { const m = JSON.parse(localStorage.getItem(MAPS) || '{}')[sig(kind, head)]; return m && Object.values(m).every(i => i < head.length) ? m : null; } catch (e) { return null; } };
+  const saveMap = (kind, head, map) => { try { const all = JSON.parse(localStorage.getItem(MAPS) || '{}'); all[sig(kind, head)] = map; const ks = Object.keys(all); ks.slice(0, Math.max(0, ks.length - 50)).forEach(k => delete all[k]); localStorage.setItem(MAPS, JSON.stringify(all)); } catch (e) {} };
+
+  window.LSI = { parseCsv, parseXlsx, readFile, fromJson, date, time, money, cnrOf, guessMap, guessKind, readRow, apply, inColumns, monthFirst, PRESETS, savedMap, saveMap, imports, undoImport, matchDoc, docType, zipEntries, KINDS, ORDER, TEMPLATE };
 
   /* ---------- the screen (needs the app's views; absent under Node) ---------- */
   if (!window.React || !window.LSV) return;
   const V = window.LSV, L = window.LS, h = React.createElement, useState = React.useState, K = V.K, X = V.X, Btn = V.Btn, Modal = V.Modal, Chip = V.Chip;
   const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
-  const SOURCES = ['Another practice-management software', 'Excel / Google Sheets diary', 'Accounting or billing software', 'Something else'];
+  const SOURCES = [['other', 'Another practice-management software'], ['clio', 'Clio'], ['mycase', 'MyCase'], ['practicepanther', 'PracticePanther'], ['excel', 'Excel / Google Sheets diary'], ['accounts', 'Accounting or billing software'], ['else', 'Something else']];
+  const srcLabel = id => (SOURCES.find(x => x[0] === id) || SOURCES[0])[1];
   const STEPS = ['Where from', 'Add files', 'Match columns', 'Check and import'];
 
   function MigrateFlow({ app }) {
-    const [step, setStep] = useState(0), [source, setSource] = useState(SOURCES[0]), [tables, setTables] = useState([]), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [rep, setRep] = useState(null), [open, setOpen] = useState(0);
+    const [step, setStep] = useState(0), [source, setSource] = useState('other'), [tables, setTables] = useState([]), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [rep, setRep] = useState(null), [open, setOpen] = useState(0);
     const close = () => app.modal(null);
     const add = () => L.pickFile('.csv,.tsv,.txt,.xlsx,.xlsm,.xls,.json,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', true).then(async fs => {
       if (!fs.length) return; setBusy('Reading ' + plural(fs.length, 'file') + '…'); setErr('');
       const got = [], bad = [];
-      for (const f of fs) { try { (await readFile(f)).forEach(t => { if (t.rows.length < 2) return bad.push(t.name + ': no rows below the header'); const head = t.rows[0].map(String), kind = guessKind(head, t.hint || t.name); got.push({ id: L.uid('t'), name: t.name, head, rows: t.rows.slice(1), kind, map: guessMap(kind, head), on: true }); }); } catch (e) { bad.push(e.message || (f.name + ' could not be read')); } }
+      for (const f of fs) { try { (await readFile(f)).forEach(t => { if (t.rows.length < 2) return bad.push(t.name + ': no rows below the header'); const head = t.rows[0].map(String), kind = guessKind(head, t.hint || t.name, source), mem = savedMap(kind, head); got.push({ id: L.uid('t'), name: t.name, head, rows: t.rows.slice(1), kind, map: mem || guessMap(kind, head, source), mem: !!mem, on: true }); }); } catch (e) { bad.push(e.message || (f.name + ' could not be read')); } }
       setTables(ts => ts.concat(got)); setBusy(''); if (bad.length) setErr(bad.join(' · '));
     });
     const upd = (id, ch) => setTables(ts => ts.map(t => t.id === id ? Object.assign({}, t, ch) : t));
     const live = tables.filter(t => t.on);
-    const checked = live.map(t => { const res = t.rows.map(r => readRow(t.kind, t.map, r)); return { t, ok: res.filter(r => !r.err).length, bad: res.map((r, i) => r.err ? { row: i + 2, why: r.err } : null).filter(Boolean) }; });
+    const checked = live.map(t => { const res = inColumns(t.kind, t.map, t.rows, () => t.rows.map(r => readRow(t.kind, t.map, r))); return { t, ok: res.filter(r => !r.err).length, bad: res.map((r, i) => r.err ? { row: i + 2, why: r.err } : null).filter(Boolean) }; });
     const run = () => {
+      live.forEach(t => saveMap(t.kind, t.head, t.map));
       let r; const acc = L.access(app.db.sub), importId = L.uid('imp');
       app.mut(db => { r = apply(db, live.map(t => ({ kind: t.kind, map: t.map, rows: t.rows, name: t.name })), { uid: L.uid, today: L.today(), user: db.user.name, caseCap: acc.limits.cases, stages: window.LSP ? LSP.stages(db.firm) : [], importId });
         const n = Object.values(r.added).reduce((a, b) => a + b, 0);
-        V.logIt(db, `Imported from ${source.toLowerCase()} by ${db.user.name}: ` + ORDER.filter(k => r.added[k]).map(k => plural(r.added[k], KINDS[k].one)).join(', ') + (n ? '' : 'nothing new'), '', { importId }); }, null);
+        V.logIt(db, `Imported from ${PRESETS[source] ? srcLabel(source) : srcLabel(source).toLowerCase()} by ${db.user.name}: ` + ORDER.filter(k => r.added[k]).map(k => plural(r.added[k], KINDS[k].one)).join(', ') + (n ? '' : 'nothing new'), '', { importId }); }, null);
       if (r) setRep(Object.assign(r, { importId }));
     };
     const dl = k => L.csv('legal-staff-' + k + '-template.csv', TEMPLATE[k]);
@@ -386,11 +434,12 @@
     } else if (step === 0) {
       body = h(React.Fragment, null,
         note('Bring your clients, cases, hearing dates, tasks and invoices from the software or diary you use now. Export them from there as Excel (.xlsx) or CSV, then add the files here. The files are read in your browser and are not uploaded anywhere.'),
-        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } }, SOURCES.map(s => h('label', { key: s, style: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, border: '1px solid ' + (s === source ? K.ink : K.line), borderRadius: 10, padding: '10px 14px', cursor: 'pointer' } }, h('input', { type: 'radio', name: 'ls-src', checked: s === source, onChange: () => setSource(s) }), s))),
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } }, SOURCES.map(([s, lab]) => h('label', { key: s, style: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, border: '1px solid ' + (s === source ? K.ink : K.line), borderRadius: 10, padding: '10px 14px', cursor: 'pointer' } }, h('input', { type: 'radio', name: 'ls-src', checked: s === source, onChange: () => setSource(s) }), lab))),
         box(h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
           h('div', { style: { fontSize: 13.5, fontWeight: 600 } }, 'How to get your data out'),
-          note(source === SOURCES[1] ? 'In Excel: File → Save As → Excel Workbook (.xlsx) or CSV. In Google Sheets: File → Download → .xlsx or .csv. Keep one header row at the top of each sheet. One sheet per kind (Clients, Cases, Hearings…) works best.'
-            : source === SOURCES[2] ? 'Export your customers as a client list and your sales invoices as a report to Excel or CSV. The fee before GST is used as the invoice amount.'
+          note(PRESETS[source] ? `In ${srcLabel(source)}, export your contacts, matters (cases), calendar events, tasks and bills or invoices to CSV or Excel, from each screen's Export option or from its data-export settings. Add all the files in the next step. Columns are matched to ${srcLabel(source)}'s own names; check them in step 3, as exports can differ by version and settings.`
+            : source === 'excel' ? 'In Excel: File → Save As → Excel Workbook (.xlsx) or CSV. In Google Sheets: File → Download → .xlsx or .csv. Keep one header row at the top of each sheet. One sheet per kind (Clients, Cases, Hearings…) works best.'
+            : source === 'accounts' ? 'Export your customers as a client list and your sales invoices as a report to Excel or CSV. The fee before GST is used as the invoice amount.'
             : 'Most practice-management products have an Export, Download or Reports option on their cases (matters), clients (contacts), calendar and billing screens. Export each one to Excel or CSV. If yours only gives a JSON export, add that as it is. If it offers no export, ask its support for a copy of your data: you are entitled to it.'),
           h('div', { style: { fontSize: 13, color: K.mut } }, 'Documents too? ', h('button', { type: 'button', onClick: () => docs(app), style: { border: 0, background: 'none', padding: 0, color: K.ink, textDecoration: 'underline', cursor: 'pointer', fontSize: 13 } }, 'Bring a folder or ZIP of documents'), ' (import the cases first, so each file finds its case).'),
           h('div', { style: { fontSize: 13, color: K.mut } }, 'Or fill in a template: ', ORDER.map((k, i) => h(React.Fragment, { key: k }, i ? ' · ' : '', h('button', { type: 'button', onClick: () => dl(k), style: { border: 0, background: 'none', padding: 0, color: K.ink, textDecoration: 'underline', cursor: 'pointer', fontSize: 13 } }, KINDS[k].label)))))),
@@ -401,7 +450,7 @@
         tables.map(t => box(h('div', { style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' } },
           h('input', { type: 'checkbox', checked: t.on, 'aria-label': 'Import ' + t.name, onChange: e => upd(t.id, { on: e.target.checked }) }),
           h('div', { style: { flex: '1 1 200px', minWidth: 0 } }, h('div', { style: { fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, t.name), h('div', { style: { fontSize: 12.5, color: K.mut } }, plural(t.rows.length, 'row') + ' · ' + t.head.slice(0, 5).join(', ') + (t.head.length > 5 ? '…' : ''))),
-          sel(t.kind, k => upd(t.id, { kind: k, map: guessMap(k, t.head) }), ORDER.map(k => [k, KINDS[k].label]), 'What ' + t.name + ' holds'),
+          sel(t.kind, k => upd(t.id, { kind: k, map: savedMap(k, t.head) || guessMap(k, t.head, source), mem: !!savedMap(k, t.head) }), ORDER.map(k => [k, KINDS[k].label]), 'What ' + t.name + ' holds'),
           h(Btn, { small: true, danger: true, onClick: () => setTables(ts => ts.filter(x => x.id !== t.id)) }, 'Remove')), { key: t.id, opacity: t.on ? 1 : .55 })),
         h('div', null, h(Btn, { onClick: add, disabled: !!busy }, busy || (tables.length ? '+ Add another file' : '+ Choose files (Excel, CSV or JSON)'))),
         err && note(err, 'red'),
@@ -411,11 +460,11 @@
       const sample = i => t.rows.slice(0, 3).map(r => r[i]).filter(x => String(x || '').trim()).slice(0, 2).join(' · ');
       body = h(React.Fragment, null,
         live.length > 1 && h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, live.map((x, i) => h(Btn, { key: x.id, small: true, primary: x.id === t.id, onClick: () => setOpen(i) }, KINDS[x.kind].label + ' · ' + x.name.split(' · ').pop()))),
-        note('Which column of "' + t.name + '" holds each detail. Columns with familiar names are matched already; check them against the example values.'),
+        note(t.mem ? 'These columns are matched the way you matched a file with the same columns last time. Check them against the example values.' : 'Which column of "' + t.name + '" holds each detail. Columns with familiar names' + (PRESETS[source] ? ' and ' + srcLabel(source) + '\'s own names' : '') + ' are matched already; check them against the example values. Your matching is remembered for the next file like this.'),
         h('div', { style: { display: 'grid', gridTemplateColumns: 'minmax(130px,1fr) minmax(150px,1.3fr)', gap: '8px 12px', alignItems: 'center' } },
           KINDS[t.kind].fields.map(([k, label, , req]) => h(React.Fragment, { key: k },
             h('div', { style: { fontSize: 13.5 } }, label, req && h('span', { style: { color: K.red } }, ' *'), t.map[k] != null && h('div', { style: { fontSize: 12, color: K.mut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, sample(t.map[k]) || 'empty in the first rows')),
-            sel(t.map[k] == null ? '' : String(t.map[k]), x => upd(t.id, { map: Object.assign({}, t.map, { [k]: x === '' ? undefined : +x }) }), cols, label)))),
+            sel(t.map[k] == null ? '' : String(t.map[k]), x => upd(t.id, { mem: false, map: Object.assign({}, t.map, { [k]: x === '' ? undefined : +x }) }), cols, label)))),
         t.kind === 'cases' && note('A case needs a title and a number. With only one of them, the other is filled from it. Cases whose stage says disposed, decided or closed come in as disposed and do not count toward the plan\'s case limit.'),
         t.kind !== 'clients' && t.kind !== 'cases' && note('Rows are linked to a case by CNR, case number, file number or title, so import the cases in the same run or before.'),
         nav(() => setStep(1), () => open < live.length - 1 ? setOpen(open + 1) : setStep(3), open < live.length - 1 ? 'Next file' : 'Check the rows'));

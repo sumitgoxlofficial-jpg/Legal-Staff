@@ -182,4 +182,41 @@ await t('Documents: a ZIP is unpacked, folders kept in the path, system files sk
   assert.deepEqual(out.map(x => x.path), ['old-files/CS 12-2025/order.pdf', 'old-files/notes.txt']);
   assert.equal(out[0].file.type, 'application/pdf'); assert.equal(await out[1].file.text(), 'hello'); assert.deepEqual(bad, []);
 });
+
+await t('Presets: Clio, MyCase and PracticePanther column names, first and last names, date-time columns', () => {
+  const matters = ['Matter Number', 'Description', 'Client', 'Responsible Attorney', 'Status', 'Open Date', 'Practice Area'];
+  const m = I.guessMap('cases', matters, 'clio');
+  assert.deepEqual([m.no, m.title, m.client, m.team, m.stage, m.filed, m.notes], [0, 1, 2, 3, 4, 5, 6]);
+  const ev = ['Summary', 'Start', 'End', 'Matter', 'Location'], e = I.guessMap('hearings', ev, 'clio');
+  assert.deepEqual([e.purpose, e.date, e.time, e.case, e.court], [0, 1, 1, 3, 4]);
+  const contacts = ['First Name', 'Last Name', 'Email', 'Mobile Phone', 'City'], c = I.guessMap('clients', contacts, 'mycase');
+  assert.deepEqual([c.first, c.last, c.email, c.phone, c.city], [0, 1, 2, 3, 4]);
+  assert.equal(I.readRow('clients', c, ['Ramesh', 'Kumar', 'r@example.com', '98765 43210', 'Patna']).v.name, 'Ramesh Kumar');
+  assert.equal(I.readRow('clients', c, ['', '', '', '', '']).err, 'Missing client name');
+  // without a preset, general names still find first/last names
+  assert.deepEqual([I.guessMap('clients', ['First Name', 'Surname']).first, I.guessMap('clients', ['First Name', 'Surname']).last], [0, 1]);
+  assert.equal(I.guessMap('cases', ['Matter Name', 'Matter Number', 'Account', 'Assigned To'], 'practicepanther').client, 2);
+  assert.equal(I.time('2027-01-15 14:30:00'), '14:30'); assert.equal(I.time('01/15/2027 2:30 PM'), '14:30'); assert.equal(I.time('2027-01-15T09:05:00.000Z'), '09:05'); assert.equal(I.time('2027-01-15'), '');
+});
+await t('Dates: a column that is month first is read month first; Indian day-first stays the default', () => {
+  const map = { case: 0, date: 1 };
+  assert.equal(I.monthFirst('hearings', map, [['x', '01/15/2027'], ['x', '03/04/2027']]), true);
+  assert.equal(I.monthFirst('hearings', map, [['x', '15/01/2027'], ['x', '03/04/2027']]), false);
+  assert.equal(I.monthFirst('hearings', map, [['x', '03/04/2027']]), false);
+  const d = Object.assign(db(), {}); d.cases.push({ id: 'k', no: 'CS 1/2025', title: 'K', status: 'active' });
+  I.apply(d, [{ kind: 'hearings', map, rows: [['CS 1/2025', '01/15/2027'], ['CS 1/2025', '03/04/2027']] }], opts);
+  assert.deepEqual(d.hearings.map(h => h.date), ['2027-01-15', '2027-03-04']);
+  const d2 = db(); d2.cases.push({ id: 'k', no: 'CS 1/2025', title: 'K', status: 'active' });
+  I.apply(d2, [{ kind: 'hearings', map, rows: [['CS 1/2025', '03/04/2027']] }], opts);
+  assert.equal(d2.hearings[0].date, '2027-04-03');
+});
+await t('Remembered matching: a file with the same columns gets the matching made by hand last time', () => {
+  const store = {}; globalThis.localStorage = { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); } };
+  const head = ['Party', 'Reg', 'Forum'];
+  assert.equal(I.savedMap('cases', head), null);
+  I.saveMap('cases', head, { title: 0, no: 1, court: 2 });
+  assert.deepEqual(I.savedMap('cases', [' party ', 'REG', 'Forum']), { title: 0, no: 1, court: 2 });
+  assert.equal(I.savedMap('clients', head), null); assert.equal(I.savedMap('cases', ['Party', 'Reg']), null);
+  delete globalThis.localStorage;
+});
 console.log(n + ' tests passed');
