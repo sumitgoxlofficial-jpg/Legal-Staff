@@ -113,8 +113,72 @@
     if (!tid) return; app.setState({ brainThread: tid, brainCase: cid }); send(app, tid, label);
   }
 
+  /* ---------- look and motion (injected once; motion.css switches all animation off for reduced motion) ---------- */
+  (function css() {
+    if (document.getElementById('ls-brain-css')) return;
+    const st = document.createElement('style'); st.id = 'ls-brain-css';
+    st.textContent = [
+      '.lsb-stage{position:relative;isolation:isolate}',
+      '.lsb-bg{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}',
+      '.lsb-bg::before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(10,10,10,.10) 1px,transparent 1.4px);background-size:22px 22px;-webkit-mask-image:radial-gradient(ellipse 62% 55% at 50% 34%,#000 0%,transparent 72%);mask-image:radial-gradient(ellipse 62% 55% at 50% 34%,#000 0%,transparent 72%)}',
+      '.lsb-blob{position:absolute;width:420px;height:420px;border-radius:50%;background:radial-gradient(closest-side,rgba(150,150,150,.16),transparent);animation:lsb-blob 16s ease-in-out infinite;will-change:transform}',
+      '.lsb-blob.b{width:340px;height:340px;background:radial-gradient(closest-side,rgba(10,10,10,.05),transparent);animation-duration:21s;animation-direction:reverse}',
+      '.lsb-welcome{margin:auto;width:100%;max-width:820px;display:flex;flex-direction:column;align-items:center;text-align:center}',
+      '.lsb-orb{position:relative;width:76px;height:76px;margin:0 auto 18px;animation:lsb-pop .7s cubic-bezier(.34,1.56,.64,1) both}',
+      '.lsb-orb-core{position:absolute;inset:10px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#4A4A4A,#0A0A0A 70%);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(10,10,10,.25),inset 0 1px 0 rgba(255,255,255,.18)}',
+      '.lsb-orb-core img{animation:lsb-twinkle 3.2s ease-in-out infinite}',
+      '.lsb-orb::before,.lsb-orb::after{content:"";position:absolute;inset:10px;border-radius:50%;border:1px solid rgba(10,10,10,.35);animation:lsb-ring 2.8s cubic-bezier(.16,1,.3,1) infinite}',
+      '.lsb-orb::after{animation-delay:1.4s}',
+      '.lsb-orbit{position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(10,10,10,.18);animation:lsb-spin 14s linear infinite}',
+      '.lsb-orbit i{position:absolute;top:-3px;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#0A0A0A}',
+      '.lsb-title{animation:lsb-up .6s cubic-bezier(.2,.7,.2,1) .08s both}',
+      '.lsb-name{background:linear-gradient(90deg,#0A0A0A 0%,#0A0A0A 35%,#8E8E8E 50%,#0A0A0A 65%,#0A0A0A 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:lsb-shine 5s ease-in-out 1s infinite}',
+      '.lsb-sub{animation:lsb-up .6s cubic-bezier(.2,.7,.2,1) .16s both}',
+      '.lsb-pills{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;animation:lsb-up .6s cubic-bezier(.2,.7,.2,1) .24s both}',
+      '.lsb-pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.85);border:1px solid #E5E5E5;font-size:12.5px;color:#363636}',
+      '.lsb-pill b{width:6px;height:6px;border-radius:50%;background:#0A0A0A;opacity:.75}',
+      '.lsb-card{position:relative;text-align:left;background:rgba(255,255,255,.92);border:1px solid #E5E5E5;border-radius:14px;padding:16px;cursor:pointer;display:flex;gap:12px;align-items:flex-start;color:#0A0A0A;overflow:hidden;animation:lsb-up .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(.3s + var(--i,0) * 60ms);transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s,border-color .25s}',
+      '.lsb-card::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(10,10,10,.035) 50%,transparent 70%);transform:translateX(-100%);transition:transform .7s cubic-bezier(.2,.7,.2,1);pointer-events:none}',
+      '.lsb-card:hover{transform:translateY(-3px);border-color:#BDBDBD;box-shadow:0 14px 30px rgba(10,10,10,.08)}',
+      '.lsb-card:hover::after{transform:translateX(100%)}',
+      '.lsb-card:focus-visible{outline:2px solid #0A0A0A;outline-offset:2px}',
+      '.lsb-tile{width:38px;height:38px;flex-shrink:0;border-radius:10px;background:#F5F5F4;border:1px solid #EAEAEA;color:#0A0A0A;display:flex;align-items:center;justify-content:center;transition:background-color .25s,color .25s,transform .35s cubic-bezier(.34,1.56,.64,1)}',
+      '.lsb-card:hover .lsb-tile{background:#0A0A0A;color:#fff;border-color:#0A0A0A;transform:rotate(-6deg) scale(1.05)}',
+      '.lsb-go{position:absolute;right:12px;top:14px;color:#8A8A8A;opacity:0;transform:translateX(-6px);transition:opacity .2s,transform .25s}',
+      '.lsb-card:hover .lsb-go{opacity:1;transform:none;color:#0A0A0A}',
+      '.lsb-composer{transition:border-color .2s,box-shadow .25s}',
+      '.lsb-composer:focus-within{border-color:#0A0A0A!important;box-shadow:0 0 0 4px rgba(10,10,10,.06),0 8px 24px rgba(10,10,10,.08)!important}',
+      '.lsb-send:not(:disabled):hover{transform:scale(1.07)}',
+      '.lsb-send:not(:disabled){animation:lsb-pop .3s cubic-bezier(.34,1.56,.64,1)}',
+      '.lsb-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:26px 10px 10px;color:#5E5E5E;font-size:13px;line-height:1.5}',
+      '.lsb-empty svg .f1{animation:lsb-float 5s ease-in-out infinite}',
+      '.lsb-empty svg .f2{animation:lsb-float 5s ease-in-out -2.5s infinite}',
+      '.lsb-dot{width:7px;height:7px;border-radius:50%;background:#1F9D55;box-shadow:0 0 0 0 rgba(31,157,85,.5);animation:lsb-live 2.4s ease-out infinite}',
+      '.lsb-head-orb{width:30px;height:30px;border-radius:9px;background:radial-gradient(circle at 30% 25%,#4A4A4A,#0A0A0A 70%);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}',
+      '.lsb-ai-av{background:radial-gradient(circle at 30% 25%,#4A4A4A,#0A0A0A 70%)!important;color:#fff!important;border-color:#0A0A0A!important}',
+      '.lsb-ai-av.on{animation:lsb-breathe 1.6s ease-in-out infinite}',
+      '.lsb-think{display:inline-flex;align-items:center;gap:10px;font-size:13.5px;padding:4px 0}',
+      '.lsb-think em{font-style:normal;background:linear-gradient(90deg,#8A8A8A 0%,#8A8A8A 40%,#0A0A0A 50%,#8A8A8A 60%,#8A8A8A 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:lsb-shine 1.8s linear infinite}',
+      '.lsb-user{animation:lsb-in-r .35s cubic-bezier(.2,.7,.2,1) both}',
+      '@keyframes lsb-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}',
+      '@keyframes lsb-in-r{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}',
+      '@keyframes lsb-pop{0%{opacity:0;transform:scale(.6)}70%{opacity:1;transform:scale(1.06)}100%{transform:scale(1)}}',
+      '@keyframes lsb-ring{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.55);opacity:0}}',
+      '@keyframes lsb-spin{to{transform:rotate(360deg)}}',
+      '@keyframes lsb-twinkle{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}',
+      '@keyframes lsb-shine{0%{background-position:100% 0}100%{background-position:-150% 0}}',
+      '@keyframes lsb-blob{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(30px,-20px,0) scale(1.08)}}',
+      '@keyframes lsb-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}',
+      '@keyframes lsb-live{0%{box-shadow:0 0 0 0 rgba(31,157,85,.45)}100%{box-shadow:0 0 0 8px rgba(31,157,85,0)}}',
+      '@keyframes lsb-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}'
+    ].join('\n');
+    document.head.appendChild(st);
+  })();
+
   /* ---------- icons ---------- */
-  const PATH = { plus: 'M12 5v14 M5 12h14', clip: 'M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9', mic: 'M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z M5 11a7 7 0 0 0 14 0 M12 18v3', send: 'M12 19V5 M5 12l7-7 7 7', stop: 'M7 7h10v10H7z', dots: 'M5 12h.01 M12 12h.01 M19 12h.01', search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4', archive: 'M3 4h18v4H3z M5 8v12h14V8 M10 12h4', trash: 'M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13', pen: 'M4 20h4L19 9l-4-4L4 16z', copy: 'M8 8h12v12H8z M16 8V4H4v12h4', redo: 'M20 12a8 8 0 1 1-2.3-5.6 M20 4v5h-5', task: 'M9 11l3 3 8-8 M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11', doc: 'M14 3H6v18h12V7z M14 3v4h4', word: 'M14 3H6v18h12V7z M14 3v4h4 M9 12l1.5 5 1.5-4 1.5 4 1.5-5', menu: 'M4 6h16 M4 12h16 M4 18h16', x: 'M6 6l12 12 M18 6L6 18', back: 'M15 6l-6 6 6 6', spark: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', unarchive: 'M3 4h18v4H3z M5 8v12h14V8 M12 18v-6 M9 15l3-3 3 3', case: 'M3 7h18v13H3z M8 7V4h8v3' };
+  const PATH = { plus: 'M12 5v14 M5 12h14', clip: 'M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9', mic: 'M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z M5 11a7 7 0 0 0 14 0 M12 18v3', send: 'M12 19V5 M5 12l7-7 7 7', stop: 'M7 7h10v10H7z', dots: 'M5 12h.01 M12 12h.01 M19 12h.01', search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4', archive: 'M3 4h18v4H3z M5 8v12h14V8 M10 12h4', trash: 'M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13', pen: 'M4 20h4L19 9l-4-4L4 16z', copy: 'M8 8h12v12H8z M16 8V4H4v12h4', redo: 'M20 12a8 8 0 1 1-2.3-5.6 M20 4v5h-5', task: 'M9 11l3 3 8-8 M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11', doc: 'M14 3H6v18h12V7z M14 3v4h4', word: 'M14 3H6v18h12V7z M14 3v4h4 M9 12l1.5 5 1.5-4 1.5 4 1.5-5', menu: 'M4 6h16 M4 12h16 M4 18h16', x: 'M6 6l12 12 M18 6L6 18', back: 'M15 6l-6 6 6 6', spark: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', unarchive: 'M3 4h18v4H3z M5 8v12h14V8 M12 18v-6 M9 15l3-3 3 3', case: 'M3 7h18v13H3z M8 7V4h8v3', arrow: 'M5 12h14 M13 6l6 6-6 6' };
+  /* The Legal Staff mark, white on the dark AI badge. */
+  const Mark = ({ s }) => h('img', { src: 'assets/ls-mark-white.png', alt: '', width: s, height: s, draggable: false, style: { width: s, height: s, objectFit: 'contain', display: 'block' } });
   const Ic = ({ n, s }) => h('svg', { width: s || 18, height: s || 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: PATH[n] }));
   const iconBtn = (label, n, onClick, o) => h('button', Object.assign({ type: 'button', onClick, title: label, 'aria-label': label, className: 'ls-btn', style: Object.assign({ width: 36, height: 36, flexShrink: 0, borderRadius: 18, border: 0, background: 'transparent', color: K.txt, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' }, o && o.style) }, o && o.attrs), h(Ic, { n }));
 
@@ -217,7 +281,14 @@
       h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid ' + K.line, borderRadius: 10, padding: '0 10px', height: 36, color: K.mut } }, h(Ic, { n: 'search', s: 15 }), h('input', { value: q, onChange: e => setQ(e.target.value), placeholder: 'Search chats', 'aria-label': 'Search chats', style: { border: 0, outline: 'none', flex: 1, minWidth: 0, fontSize: 13.5, background: 'transparent' } })),
       h('div', { style: { display: 'flex', gap: 4, background: K.soft2, borderRadius: 9, padding: 3 } }, [[false, 'Chats'], [true, 'Archived' + (nArch ? ' (' + nArch + ')' : '')]].map(([v, l]) => h('button', { key: l, type: 'button', onClick: () => setShowArch(v), 'aria-pressed': showArch === v, style: { flex: 1, height: 28, border: 0, borderRadius: 7, fontSize: 12.5, cursor: 'pointer', background: showArch === v ? '#fff' : 'transparent', fontWeight: showArch === v ? 600 : 400, color: K.ink, boxShadow: showArch === v ? '0 1px 2px rgba(0,0,0,.08)' : 'none' } }, l))),
       h('div', { style: { flex: 1, minHeight: 0, overflowY: 'auto', margin: '0 -4px', padding: '0 4px' } },
-        !shown.length && h('div', { style: { fontSize: 13, color: K.mut, padding: '16px 6px', lineHeight: 1.5 } }, ql ? 'No chats match.' : showArch ? 'No archived chats. Archive a chat from its ⋯ menu to tidy the list without deleting it.' : 'Your chats will appear here.'),
+        !shown.length && (ql || showArch ? h('div', { style: { fontSize: 13, color: K.mut, padding: '16px 6px', lineHeight: 1.5 } }, ql ? 'No chats match.' : 'No archived chats. Archive a chat from its ⋯ menu to tidy the list without deleting it.')
+          : h('div', { className: 'lsb-empty' },
+              h('svg', { width: 120, height: 84, viewBox: '0 0 120 84', fill: 'none', 'aria-hidden': true },
+                h('g', { className: 'f1' }, h('rect', { x: 8, y: 10, width: 70, height: 30, rx: 12, fill: '#fff', stroke: '#D4D4D4' }), h('rect', { x: 20, y: 20, width: 40, height: 4, rx: 2, fill: '#D4D4D4' }), h('rect', { x: 20, y: 28, width: 26, height: 4, rx: 2, fill: '#E5E5E5' })),
+                h('g', { className: 'f2' }, h('rect', { x: 42, y: 46, width: 70, height: 30, rx: 12, fill: '#0A0A0A' }), h('rect', { x: 54, y: 56, width: 44, height: 4, rx: 2, fill: '#fff', fillOpacity: .8 }), h('rect', { x: 54, y: 64, width: 28, height: 4, rx: 2, fill: '#fff', fillOpacity: .45 }),
+                  h('path', { d: 'M104 40l1.6 4.4 4.4 1.6-4.4 1.6-1.6 4.4-1.6-4.4-4.4-1.6 4.4-1.6z', fill: '#0A0A0A' }))),
+              h('div', { style: { fontWeight: 600, color: K.ink, fontSize: 13.5 } }, 'No chats yet'),
+              h('div', null, 'Your conversations are saved here, grouped by day. Rename, archive or delete them from the ⋯ menu.'))),
         groups.map(([g, xs]) => h('div', { key: g, style: { marginBottom: 10 } }, h('div', { style: { fontSize: 11.5, fontWeight: 600, color: K.mut, padding: '6px 10px 4px' } }, g), xs.map(row)))));
 
     /* ---- conversation ---- */
@@ -225,42 +296,46 @@
     const lastAi = msgs.length && msgs[msgs.length - 1].role === 'ai' ? msgs.length - 1 : -1;
     const actBtn = (label, n, onClick) => h('button', { type: 'button', onClick, title: label, 'aria-label': label, className: 'ls-btn', style: { height: 28, border: 0, background: 'transparent', borderRadius: 7, padding: '0 8px', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: K.mut, cursor: 'pointer' } }, h(Ic, { n, s: 15 }), label);
     const bubble = (m, i) => m.role === 'user'
-      ? h('div', { key: i, className: 'ls-msg', style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 } },
+      ? h('div', { key: i, className: 'ls-msg lsb-user', style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 } },
           (m.files || []).length > 0 && h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '85%' } }, m.files.map((f, j) => fileChip(Object.assign({ key: j }, f)))),
-          h('div', { style: { background: K.soft2, color: K.ink, borderRadius: 18, padding: '10px 16px', fontSize: 15, lineHeight: 1.55, maxWidth: '85%', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, m.text))
+          h('div', { style: { background: K.ink, color: '#fff', borderRadius: '18px 18px 4px 18px', padding: '10px 16px', boxShadow: '0 4px 14px rgba(10,10,10,.12)', fontSize: 15, lineHeight: 1.55, maxWidth: '85%', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, m.text))
       : h('div', { key: i, className: 'ls-msg', style: { display: 'flex', gap: 12, alignItems: 'flex-start' } },
-          h('span', { style: { width: 30, height: 30, borderRadius: 15, border: '1px solid ' + K.line, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: K.ink } }, h(Ic, { n: 'spark', s: 16 })),
+          h('span', { className: 'lsb-ai-av' + (m.pending ? ' on' : ''), style: { width: 30, height: 30, borderRadius: 15, border: '1px solid ' + K.line, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: K.ink } }, h(Mark, { s: 16 })),
           h('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 } },
-            m.pending ? h('span', { className: 'ls-typing', role: 'status', 'aria-label': 'Preparing the answer', style: { color: '#8A8A8A', display: 'inline-flex', padding: '6px 0' } }, h('span'), h('span'), h('span'))
+            m.pending ? h('span', { className: 'lsb-think', role: 'status', 'aria-label': 'Preparing the answer' }, h('span', { className: 'ls-typing', style: { color: '#8A8A8A', display: 'inline-flex' } }, h('span'), h('span'), h('span')), h('em', null, C ? 'Reading the case records…' : 'Thinking…'))
               : h('div', { className: 'ls-fade', style: { fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', color: m.err ? K.red : '#1A1A1A' } }, m.text.replace(/\*\*/g, '')),
             !m.pending && (m.cites || []).length > 0 && h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' } }, m.cites.map((c, j) => { const go = citeGo(c); return go ? h('button', { key: j, type: 'button', className: 'ls-cite', title: 'Open the source', onClick: go, style: Object.assign({ cursor: 'pointer' }, chipS) }, c) : h('span', { key: j, style: chipS }, c); }),
               C && m.need && V.NEED[m.need] && h(V.Btn, { small: true, primary: true, onClick: () => V.caseDetails(app, C.id, V.NEED[m.need][0]) }, V.NEED[m.need][1])),
             !m.pending && m.text && !(m.err && m.text === 'Stopped.') && h('div', { style: { display: 'flex', gap: 2, flexWrap: 'wrap', marginLeft: -8 } },
               actBtn('Copy', 'copy', () => copy(m.text)), !m.err && actBtn('Add as task', 'task', () => asTask(m)), !m.err && actBtn('Word file', 'word', () => toWord(m)), i === lastAi && !busy && actBtn('Regenerate', 'redo', regen))));
     const name = String(d.user.title || d.user.name || '').replace(/^Adv\.?\s*/i, '').split(' ')[0];
-    const welcome = h('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 22, padding: '24px 4px', textAlign: 'center' } },
-      h('div', null, h('div', { style: { width: 48, height: 48, borderRadius: 24, border: '1px solid ' + K.line, background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 } }, h(Ic, { n: 'spark', s: 24 })),
-        h('h2', { style: { fontFamily: "'Instrument Sans',system-ui,sans-serif", fontWeight: 600, letterSpacing: '-.02em', fontSize: mobile ? 22 : 26, margin: 0 } }, 'How can I help' + (name ? ', ' + name : '') + '?'),
-        h('div', { style: { fontSize: 14, color: K.mut, marginTop: 6, maxWidth: 520 } }, C ? `This chat is linked to ${C.title}. Answers use its orders, hearings and case details, with links to the source.` : 'Ask anything, attach documents or photos, or give a task. Link a case at the top to ask about its records.')),
-      h('div', { style: { display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 10, width: '100%', maxWidth: 760 } }, (C ? [['Prepare a hearing brief', 'From the orders, hearings and case details', 'case', 'Prepare a hearing brief'], ...TASKS.slice(0, 5)] : TASKS).map(([label, sub, ic, prompt, needFile]) => h('button', { key: label, type: 'button', className: 'ls-btn ls-lift', onClick: () => { if (label === 'Prepare a hearing brief') { let tid = t && !t.archived ? t.id : newThread(app, caseId); if (!tid) return; app.setState({ brainThread: tid }); return send(app, tid, prompt); } setText(prompt); setTimeout(() => { const el = box.current; if (el) { el.focus(); el.setSelectionRange(prompt.length, prompt.length); } }, 20); if (needFile && !atts.length) pick(); },
-        style: { textAlign: 'left', background: '#fff', border: '1px solid ' + K.line, borderRadius: 12, padding: '14px 14px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'flex-start', color: K.ink } }, h('span', { style: { color: K.txt, marginTop: 1 } }, h(Ic, { n: ic, s: 18 })), h('span', { style: { minWidth: 0 } }, h('span', { style: { display: 'block', fontSize: 13.5, fontWeight: 600 } }, label), h('span', { style: { display: 'block', fontSize: 12.5, color: K.mut, marginTop: 2, lineHeight: 1.4 } }, sub))))));
+    const welcome = h('div', { className: 'lsb-welcome', key: 'w-' + (caseId || 'general'), style: { gap: mobile ? 18 : 24, padding: mobile ? '20px 4px' : '28px 8px' } },
+      h('div', null,
+        h('div', { className: 'lsb-orb', 'aria-hidden': true }, h('span', { className: 'lsb-orbit' }, h('i')), h('span', { className: 'lsb-orb-core' }, h(Mark, { s: 28 }))),
+        h('h2', { className: 'lsb-title', style: { fontFamily: "'Instrument Sans',system-ui,sans-serif", fontWeight: 600, letterSpacing: '-.025em', fontSize: mobile ? 24 : 32, lineHeight: 1.15, margin: 0 } }, 'How can I help', name ? [', ', h('span', { key: 'n', className: 'lsb-name' }, name)] : null, '?'),
+        h('div', { className: 'lsb-sub', style: { fontSize: 14.5, color: K.mut, marginTop: 8, maxWidth: 540, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.55 } }, C ? `This chat is linked to ${C.title}. Answers use its orders, hearings and case details, with links to the source.` : 'Ask anything, attach documents or photos, or give a task. Link a case at the top to ask about its records.')),
+      !mobile && h('div', { className: 'lsb-pills', 'aria-hidden': true }, (C ? ['Answers from this case', 'Links to the source', 'English · हिंदी'] : ['Reads PDF, Word and photos', 'Indian law: BNS, BNSS, CPC', 'English · हिंदी']).map(x => h('span', { key: x, className: 'lsb-pill' }, h('b'), x))),
+      h('div', { style: { display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 12, width: '100%', maxWidth: 780 } }, (C ? [['Prepare a hearing brief', 'From the orders, hearings and case details', 'case', 'Prepare a hearing brief'], ...TASKS.slice(0, 5)] : TASKS).map(([label, sub, ic, prompt, needFile], i) => h('button', { key: label, type: 'button', className: 'ls-btn lsb-card', style: { '--i': i }, onClick: () => { if (label === 'Prepare a hearing brief') { let tid = t && !t.archived ? t.id : newThread(app, caseId); if (!tid) return; app.setState({ brainThread: tid }); return send(app, tid, prompt); } setText(prompt); setTimeout(() => { const el = box.current; if (el) { el.focus(); el.setSelectionRange(prompt.length, prompt.length); } }, 20); if (needFile && !atts.length) pick(); } },
+        h('span', { className: 'lsb-tile' }, h(Ic, { n: ic, s: 18 })), h('span', { style: { minWidth: 0, paddingRight: 16 } }, h('span', { style: { display: 'block', fontSize: 14, fontWeight: 600 } }, label), h('span', { style: { display: 'block', fontSize: 12.5, color: K.mut, marginTop: 3, lineHeight: 1.45 } }, sub)), h('span', { className: 'lsb-go', 'aria-hidden': true }, h(Ic, { n: 'arrow', s: 16 }))))));
 
     const caseSel = h('select', { value: caseId || '', onChange: e => setCase(e.target.value), 'aria-label': 'Case linked to this chat', title: 'Link this chat to a case', style: { height: 34, maxWidth: mobile ? 170 : 300, border: '1px solid ' + K.line, borderRadius: 8, background: '#fff', fontSize: 13, padding: '0 8px', color: K.ink, minWidth: 0 } },
       h('option', { value: '' }, 'No case · general chat'), d.cases.map(c => h('option', { key: c.id, value: c.id }, (c.no ? c.no + ' · ' : '') + c.title)));
-    const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid ' + K.line, background: '#fff', minWidth: 0 } },
+    const head = h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid ' + K.line, background: '#fff', minWidth: 0 } },
       mobile && iconBtn('Show chats', 'menu', () => setSide(true)),
-      h('div', { style: { flex: 1, minWidth: 0 } }, h('div', { style: { fontSize: 14.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, t ? t.title : 'New chat'), t && t.archived && h('div', { style: { fontSize: 12, color: K.mut } }, 'Archived · restore it to keep chatting')),
+      !mobile && h('span', { className: 'lsb-head-orb', 'aria-hidden': true }, h(Mark, { s: 17 })),
+      h('div', { style: { flex: 1, minWidth: 0 } }, h('div', { style: { fontSize: 14.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, t ? t.title : 'New chat'),
+        h('div', { style: { fontSize: 12, color: K.mut, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 } }, t && t.archived ? 'Archived · restore it to keep chatting' : [h('span', { key: 'd', className: 'lsb-dot', 'aria-hidden': true }), h('span', { key: 't', style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, busy ? 'Thinking…' : C ? 'Linked to ' + C.title : 'AI Case Brain · general assistant')])),
       h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6, color: K.mut } }, !mobile && h(Ic, { n: 'case', s: 16 }), caseSel),
       C && !mobile && h('span', { style: { fontSize: 12, color: K.mut, whiteSpace: 'nowrap' } }, (n => n + (n === 1 ? ' doc' : ' docs'))(d.docs.filter(x => x.caseId === C.id).length) + ' · ' + (n => n + (n === 1 ? ' order' : ' orders'))(d.orders.filter(x => x.caseId === C.id).length)),
       t && iconBtn('New chat', 'plus', newChat, { style: { border: '1px solid ' + K.line, borderRadius: 8, width: 34, height: 34 } }));
 
     const canSend = !busy && !reading && (text.trim() || atts.length);
-    const composer = h('div', { style: { padding: mobile ? '8px 10px 12px' : '8px 20px 16px', background: '#fff' } },
+    const composer = h('div', { style: { padding: mobile ? '8px 10px 12px' : '10px 20px 16px', background: '#fff', borderTop: msgs.length ? '1px solid ' + K.soft2 : 0 } },
       h('div', { style: { maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 8 } },
         C && msgs.length > 0 && h('div', { style: { display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 2 } }, CASE_TASKS.map(l => h('button', { key: l, type: 'button', className: 'ls-btn', disabled: busy, onClick: () => t && send(app, t.id, l), style: { whiteSpace: 'nowrap', height: 30, padding: '0 12px', background: '#fff', border: '1px solid ' + K.line, borderRadius: 15, fontSize: 12.5, color: K.ink, cursor: 'pointer', flexShrink: 0 } }, l))),
         t && t.archived ? h('div', { style: { display: 'flex', justifyContent: 'center', gap: 10, padding: 10, border: '1px solid ' + K.line, borderRadius: 16, alignItems: 'center', flexWrap: 'wrap', fontSize: 13.5, color: K.mut } }, 'This chat is archived.', h(V.Btn, { small: true, primary: true, onClick: () => archive(t, false) }, 'Restore chat'))
         : h('div', { onDragOver: e => { e.preventDefault(); setDrag(true); }, onDragLeave: () => setDrag(false), onDrop: e => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); },
-            style: { border: '1px solid ' + (drag ? K.ink : '#C4C4C4'), borderRadius: 20, background: drag ? K.soft : '#fff', padding: '8px 8px 8px 8px', boxShadow: '0 2px 10px rgba(0,0,0,.05)', display: 'flex', flexDirection: 'column', gap: 6 } },
+            className: 'lsb-composer', style: { border: '1px solid ' + (drag ? K.ink : '#D4D4D4'), borderRadius: 20, background: drag ? K.soft : '#fff', padding: '8px 8px 8px 8px', boxShadow: '0 2px 10px rgba(0,0,0,.05)', display: 'flex', flexDirection: 'column', gap: 6 } },
           (atts.length > 0 || reading > 0) && h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', padding: '2px 4px 0' } }, atts.map(f => fileChip(f, () => setAtts(a => a.filter(x => x.key !== f.key)))), reading > 0 && h('span', { style: { fontSize: 12.5, color: K.mut, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 6px' } }, h('span', { className: 'ls-typing', style: { display: 'inline-flex' } }, h('span'), h('span'), h('span')), 'Reading file…')),
           h('textarea', { ref: box, value: text, rows: 1, 'aria-label': 'Message AI Case Brain', placeholder: listen ? 'Listening… speak now' : (C ? 'Ask about ' + C.title + ', or give a task…' : 'Message AI Case Brain…'),
             onChange: e => setText(e.target.value), onPaste: e => { const fs = [...(e.clipboardData && e.clipboardData.files || [])]; if (fs.length) { e.preventDefault(); addFiles(fs); } },
@@ -273,11 +348,12 @@
             h('select', { 'aria-label': 'Voice typing language', title: 'Voice typing language', value: d.settings.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: listen, onChange: e => { const v = e.target.value; app.mut(db => { db.settings.dictLang = v; }); }, style: { height: 30, border: 0, background: 'transparent', fontSize: 12.5, color: K.mut, cursor: 'pointer' } }, h('option', { value: 'en-IN' }, 'English'), h('option', { value: 'hi-IN' }, 'हिंदी')),
             iconBtn(listen ? 'Stop voice typing' : 'Voice typing', 'mic', toggleMic, { attrs: { 'aria-pressed': listen }, style: listen ? { background: K.redBg, color: K.red } : null }),
             busy ? iconBtn('Stop answering', 'stop', () => stop(app), { style: { background: K.ink, color: '#fff' } })
-              : iconBtn('Send', 'send', submit, { attrs: { disabled: !canSend }, style: { background: canSend ? K.ink : '#D4D4D4', color: '#fff', cursor: canSend ? 'pointer' : 'default' } }))),
+              : iconBtn('Send', 'send', submit, { attrs: { disabled: !canSend, className: 'ls-btn lsb-send', key: canSend ? 'on' : 'off' }, style: { background: canSend ? K.ink : '#D4D4D4', color: '#fff', cursor: canSend ? 'pointer' : 'default' } }))),
         h('div', { style: { fontSize: 11.5, color: K.mut, textAlign: 'center' } }, 'AI can make mistakes. Check facts, sections and citations before relying on them.' + (window.LSB && LSB.on && d.sub && d.sub.aiUsed != null ? ` · ${d.sub.aiUsed} AI credits used this month` : ''))));
 
     const convo = h('div', { style: { display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, background: '#fff' } }, head,
-      h('div', { style: { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' } },
+      h('div', { className: 'lsb-stage', style: { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' } },
+        !msgs.length && h('div', { className: 'lsb-bg', 'aria-hidden': true }, h('span', { className: 'lsb-blob', style: { left: '-8%', top: '-12%' } }), h('span', { className: 'lsb-blob b', style: { right: '-6%', bottom: '-10%' } })),
         msgs.length ? h('div', { style: { maxWidth: 800, width: '100%', margin: '0 auto', padding: mobile ? '16px 12px' : '24px 20px', display: 'flex', flexDirection: 'column', gap: 22 } }, msgs.map(bubble), h('div', { id: 'ls-brain-end' })) : welcome),
       composer);
 
