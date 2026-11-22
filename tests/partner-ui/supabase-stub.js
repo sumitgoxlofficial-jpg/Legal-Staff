@@ -35,7 +35,7 @@
         },
         functions: {
           invoke: function (name) {
-            if (name === 'admin') return email() === 'owner@legalstaff.test' ? Promise.resolve({ data: { messages: [], settings: {}, admins: [] }, error: null }) : Promise.resolve({ data: null, error: { message: 'This account is not a Legal Staff administrator.' } });
+            if (name === 'admin') return email() === 'owner@legalstaff.test' ? Promise.resolve({ data: { messages: [], settings: {}, admins: [] }, error: null }) : Promise.resolve({ data: null, error: { message: 'This account is not a Legal Staff administrator.', context: { status: 403, json: async () => ({ error: 'This account is not a Legal Staff administrator.' }) } } });
             return Promise.resolve({ data: null, error: { message: 'not available in the test' } });
           }
         },

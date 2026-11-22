@@ -232,6 +232,105 @@ set role authenticated; select t.as_user(:A, 'asha@example.in');
 select t.a($q$exists (select 1 from public.directory_my_applications() where id = 'APP-PAID-INFO')$q$, 'an advocate still sees their own unlisted application and its status');
 reset role;
 
+-- ===== 10. team roles are enforced in the database (migration 0048) =====
+update public.subscriptions set renews = current_date + 30 where firm_id = '11111111-1111-1111-1111-111111111111';
+insert into public.members (firm_id, user_id, email, name, role, status, is_owner) values ('11111111-1111-1111-1111-111111111111', :C, 'chitra@example.in', 'Chitra', 'Intern', 'Active', false) on conflict do nothing;
+insert into public.records (firm_id, kind, id, data) values
+  ('11111111-1111-1111-1111-111111111111', 'case', 'c-role', '{}'), ('11111111-1111-1111-1111-111111111111', 'task', 't-role', '{}'),
+  ('11111111-1111-1111-1111-111111111111', 'invoice', 'i-role', '{}'), ('11111111-1111-1111-1111-111111111111', 'log', 'l-role', '{}'), ('11111111-1111-1111-1111-111111111111', 'log', 'l-role2', '{}');
+select t.a($q$(select public.member_tier('11111111-1111-1111-1111-111111111111')) is null or true$q$, 'tier function exists');
+-- the Associate (Bina, role "Associate"): works, but cannot delete cases, clients or invoices
+set role authenticated; select t.as_user(:B, 'bina@example.in');
+select t.a($q$public.member_tier('11111111-1111-1111-1111-111111111111') = 'working'$q$, 'an Associate is a working member');
+select t.ok($q$insert into public.records (firm_id, kind, id, data) values ('11111111-1111-1111-1111-111111111111', 'invoice', 'i-assoc', '{}')$q$, 'an Associate can raise an invoice');
+delete from public.records where kind = 'case' and id = 'c-role';
+delete from public.records where kind = 'invoice' and id = 'i-role';
+delete from public.records where kind = 'task' and id = 't-role';
+reset role;
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''case'' and id = ''c-role''') = 1$q$, 'an Associate cannot delete a case');
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''invoice'' and id = ''i-role''') = 1$q$, 'an Associate cannot delete an invoice');
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''task'' and id = ''t-role''') = 0$q$, 'an Associate can delete a task');
+-- the Intern: no invoices, no deleting
+insert into public.records (firm_id, kind, id, data) values ('11111111-1111-1111-1111-111111111111', 'task', 't-role2', '{}');
+set role authenticated; select t.as_user(:C, 'chitra@example.in');
+select t.a($q$public.member_tier('11111111-1111-1111-1111-111111111111') = 'restricted'$q$, 'an Intern is restricted');
+select t.raises($q$insert into public.records (firm_id, kind, id, data) values ('11111111-1111-1111-1111-111111111111', 'invoice', 'i-intern', '{}')$q$, '%row-level security%', 'an Intern cannot raise an invoice');
+select t.ok($q$insert into public.records (firm_id, kind, id, data) values ('11111111-1111-1111-1111-111111111111', 'task', 't-intern', '{}')$q$, 'an Intern can add a task');
+update public.records set data = '{"x":1}' where kind = 'invoice' and id = 'i-role';
+delete from public.records where kind = 'task' and id = 't-role2';
+delete from public.records where kind = 'log' and id = 'l-role';
+reset role;
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''invoice'' and id = ''i-role'' and data = ''{"x":1}''') = 0$q$, 'an Intern cannot edit an invoice');
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''task'' and id = ''t-role2''') = 1$q$, 'an Intern cannot delete a task');
+select t.a($q$t.cnt('select count(*) from public.records where kind = ''log'' and id = ''l-role''') = 0$q$, 'anyone can trim the activity log');
+-- the owner (a lead) can do everything
+set role authenticated; select t.as_user(:A, 'asha@example.in');
+select t.a($q$public.member_tier('11111111-1111-1111-1111-111111111111') = 'lead'$q$, 'the owner is a lead');
+delete from public.records where kind = 'case' and id = 'c-role';
+delete from public.records where kind = 'invoice' and id = 'i-role';
+reset role;
+select t.a($q$t.cnt('select count(*) from public.records where id in (''c-role'', ''i-role'')') = 0$q$, 'the owner can delete cases and invoices');
+-- a non-member sees nothing and can change nothing
+set role authenticated; select t.as_user(:O, 'owner@legalstaff.test');
+select t.a($q$public.member_tier('11111111-1111-1111-1111-111111111111') = 'none'$q$, 'someone outside the firm has no tier');
+reset role;
+
+-- ===== 0049: erase_user_account ==========================================================================
+\echo 0049 account erase
+insert into public.firms (id, name, city, address, created_by) values ('77777777-7777-7777-7777-777777777771', 'Solo Firm', 'Delhi', 'x', '00000000-0000-0000-0000-0000000000e1'), ('77777777-7777-7777-7777-777777777772', 'Team Firm', 'Delhi', 'x', '00000000-0000-0000-0000-0000000000e2') on conflict do nothing;
+set session_replication_role = replica;
+insert into public.members (firm_id, user_id, email, name, role, status, is_owner) values
+ ('77777777-7777-7777-7777-777777777771', '00000000-0000-0000-0000-0000000000e1', 'solo@example.in', 'Solo', 'Managing Partner', 'Active', true),
+ ('77777777-7777-7777-7777-777777777772', '00000000-0000-0000-0000-0000000000e2', 'team@example.in', 'Team Owner', 'Managing Partner', 'Active', true),
+ ('77777777-7777-7777-7777-777777777772', '00000000-0000-0000-0000-0000000000e3', 'mate@example.in', 'Mate', 'Advocate', 'Active', false);
+set session_replication_role = origin;
+insert into public.records (firm_id, kind, id, data) values ('77777777-7777-7777-7777-777777777771', 'case', 'c-solo', '{}'), ('77777777-7777-7777-7777-777777777772', 'case', 'c-team', '{}');
+insert into public.directory_applications (id, name, enr, council, year, city, email, mobile, user_id, status, paid_at) values ('APP-E1', 'Solo Adv', 'D/4040/2015', 'c', '2015', 'c', 'solo@example.in', '9000000041', '00000000-0000-0000-0000-0000000000e1', 'verified', now());
+-- permissions
+set role authenticated; select t.as_user('00000000-0000-0000-0000-0000000000e1', 'solo@example.in');
+select t.raises($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e1')$q$, '%permission denied%', 'a signed-in user cannot call erase_user_account directly');
+reset role; set role anon;
+select t.raises($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e1')$q$, '%permission denied%', 'anon cannot call erase_user_account');
+reset role;
+-- from here the calls come from the service role (no signed-in user)
+select t.as_user(null, null);
+-- a firm with active colleagues blocks its owner
+select t.raises($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e2')$q$, '%still has other members%', 'an owner with colleagues must hand the firm over first');
+select t.a($q$t.cnt('select count(*) from public.records where id = ''c-team''') = 1$q$, 'nothing was erased when it refused');
+-- a colleague can leave without touching the firm
+select t.ok($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e3')$q$, 'a colleague can delete their account');
+select t.a($q$t.cnt('select count(*) from public.members where email = ''mate@example.in'' and user_id is null and status = ''Suspended''') = 1$q$, 'the colleague no longer belongs to the firm');
+select t.a($q$t.cnt('select count(*) from public.records where id = ''c-team''') = 1$q$, 'the firm and its records are untouched');
+-- a sole owner: the firm's practice data goes, the firm row and money records stay
+select t.a($q$(public.erase_user_account('00000000-0000-0000-0000-0000000000e1')->'firms')::text like '%77777777-7777-7777-7777-777777777771%'$q$, 'it reports which firm was erased');
+select t.a($q$t.cnt('select count(*) from public.records where id = ''c-solo''') = 0$q$, 'the sole owner''s records are erased');
+select t.a($q$t.cnt('select count(*) from public.firms where id = ''77777777-7777-7777-7777-777777777771''') = 1$q$, 'the firm row stays (payments reference it)');
+select t.a($q$t.cnt('select count(*) from public.directory_applications where id = ''APP-E1'' and status = ''rejected''') = 1$q$, 'the directory profile is taken off the public list');
+select t.a($q$t.cnt('select count(*) from public.directory_profiles() where id = ''APP-E1''') = 0$q$, 'and it no longer appears in the directory');
+select t.ok($q$select public.erase_user_account('00000000-0000-0000-0000-0000000000e1')$q$, 'running it twice is harmless');
+select t.raises($q$select public.erase_user_account(null)$q$, '%No user%', 'a missing user is refused');
+
+-- ===== 0050: partner document review =====================================================================
+\echo 0050 partner doc review
+create function t.doc(k text) returns uuid language sql security definer as $$ select id from public.partner_documents where kind = k and partner_id = (select id from public.partners where code = (select (array_agg(code order by created_at))[1] from public.partners)) limit 1 $$;
+create function t.kyc() returns text language sql security definer as $$ select kyc_status from public.partners where code = (select (array_agg(code order by created_at))[1] from public.partners) $$;
+select t.as_user(:A, 'asha@example.in'); set role authenticated;
+select t.raises($q$select public.admin_partner_doc_review(t.doc('pan'), 'rejected', 'blurry')$q$, '%permission%', 'an ordinary user cannot review partner documents');
+reset role; set role anon;
+select t.raises($q$select public.admin_partner_doc_review(t.doc('pan'), 'rejected', 'blurry')$q$, '%permission denied%', 'anon cannot review partner documents');
+reset role;
+select t.as_user(:O, 'owner@legalstaff.test'); set role authenticated;
+select t.raises($q$select public.admin_partner_doc_review(t.doc('pan'), 'rejected', '')$q$, '%Say why%', 'a rejection needs a reason');
+select t.raises($q$select public.admin_partner_doc_review(t.doc('pan'), 'maybe', 'x')$q$, '%accepted or rejected%', 'only accept or reject');
+select t.raises($q$select public.admin_partner_doc_review('00000000-0000-0000-0000-00000000ffff', 'accepted', '')$q$, '%not found%', 'an unknown document is refused');
+select t.ok($q$select public.admin_partner_doc_review(t.doc('bank_proof'), 'accepted', '')$q$, 'a document can be accepted');
+select t.a($q$t.kyc() = 'verified'$q$, 'accepting leaves KYC as it was');
+select t.ok($q$select public.admin_partner_doc_review(t.doc('pan'), 'rejected', 'The PAN card is not readable')$q$, 'a document can be rejected with a reason');
+reset role;
+select t.a($q$t.kyc() = 'submitted'$q$, 'rejecting the only PAN sends a verified KYC back for review');
+select t.a($q$t.cnt('select count(*) from public.partner_documents where status = ''rejected'' and note = ''The PAN card is not readable'' and reviewed_by = ''owner@legalstaff.test''') = 1$q$, 'the reason and the reviewer are recorded');
+select t.a($q$t.cnt('select count(*) from public.partner_audit_logs where action = ''partner.document_rejected''') = 1$q$, 'the review is in the audit log');
+
 \echo
 select 'RESULT', count(*) filter (where ok), count(*) filter (where not ok) from t.r;
 select 'FAIL: ' || name from t.r where not ok;

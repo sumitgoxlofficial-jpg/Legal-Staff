@@ -63,7 +63,14 @@ await t('suspending a team member works, is audited, and never touches the owner
   eq((await call('admin', { action: 'member_status', member_id: 'm1', status: 'Suspended' })).s, 400); eq(db.tables.members[0].status, 'Active');
   eq((await call('admin', { action: 'member_status', member_id: 'm2', status: 'Suspended' })).s, 200); eq(db.tables.members[1].status, 'Suspended'); eq(db.tables.admin_audit_log.at(-1).action, 'member.suspended');
   eq((await call('admin', { action: 'member_status', member_id: 'm2', status: 'Banned' })).s, 400); eq((await call('admin', { action: 'member_status', member_id: 'nope', status: 'Active' })).s, 404); });
-await t('a normal user cannot change members or administrators', async () => { fresh(); for (const a of ['member_status', 'admins_add', 'admins_remove', 'firm_members', 'dir_reports', 'dir_enquiries']) eq((await call('user', { action: a })).s, 403, a); });
+await t('deleting a person\'s account: needs the typed email, refuses when the database refuses, never an administrator, audited', async () => { fresh(); db.deletedUsers = [];
+  db.tables.members = [{ id: 'm2', firm_id: 'f1', email: 'j@x.in', is_owner: false, status: 'Active', user_id: 'u2' }, { id: 'm3', firm_id: 'f1', email: 'admin@x.in', is_owner: false, status: 'Active', user_id: 'u3' }, { id: 'm4', firm_id: 'f1', email: 'invited@x.in', is_owner: false, status: 'Invited', user_id: null }]; db.tables.super_admins = [{ email: 'owner@legalstaff.test' }, { email: 'admin@x.in' }]; db.rpcResults.erase_user_account = { firms: [] };
+  eq((await call('admin', { action: 'user_delete', member_id: 'm2', confirm: 'wrong@x.in' })).s, 400); eq(db.deletedUsers.length, 0); eq(db.rpcCalls.filter(x => x.name === 'erase_user_account').length, 0);
+  eq((await call('admin', { action: 'user_delete', member_id: 'm3', confirm: 'admin@x.in' })).s, 400); eq(db.deletedUsers.length, 0);
+  eq((await call('admin', { action: 'user_delete', member_id: 'm4', confirm: 'invited@x.in' })).s, 404);
+  db.rpcResults.erase_user_account = { __error: { code: 'P0001', message: 'You own a firm that still has other members.' } }; const rf = await call('admin', { action: 'user_delete', member_id: 'm2', confirm: 'j@x.in' }); eq(rf.s, 409); ok(/other members/.test(rf.error)); eq(db.deletedUsers.length, 0);
+  db.rpcResults.erase_user_account = { firms: [] }; const r = await call('admin', { action: 'user_delete', member_id: 'm2', confirm: ' J@x.in ' }); eq(r.s, 200); eq(db.deletedUsers, ['u2']); eq(db.tables.admin_audit_log.at(-1).action, 'user.delete'); });
+await t('a normal user cannot change members or administrators', async () => { fresh(); for (const a of ['user_delete', 'member_status', 'admins_add', 'admins_remove', 'firm_members', 'dir_reports', 'dir_enquiries']) eq((await call('user', { action: a })).s, 403, a); });
 await t('administrators: add (validated, audited), cannot remove yourself or the last one, can remove another', async () => { fresh();
   eq((await call('admin', { action: 'admins_add', email: 'not-an-email' })).s, 400);
   eq((await call('admin', { action: 'admins_remove', email: 'owner@legalstaff.test' })).s, 400);   // yourself

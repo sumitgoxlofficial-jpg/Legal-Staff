@@ -556,6 +556,7 @@ table tbody tr:hover{background:#FAFAF9}
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
               <span style="font-size:13px;background:#F0F0EF;color:#0A0A0A;border-radius:8px;padding:3px 12px;font-weight:500">{{ prof.verified }}</span>
               <span style="font-size:13px;background:#F5F5F4;color:#363636;border-radius:8px;padding:3px 12px">{{ prof.place }}</span>
+              {{ prof.share }}
             </div>
           </div>
         </div>
@@ -724,7 +725,7 @@ class Component extends DCLogic {
     cf: this.blankContact(), cfErr: {}, enquiries: [],
     app: this.blankApp(), appErr: {}, editingId: null, apps: [], mine: {}, viewId: null,
     profiles: [], pState: 'idle', pErr: '', busy: '', statusErr: '', lookupEnr: '', modal: null, more: {}, lookup: '', lookupMsg: '', rf: { profile: '', reason: '', details: '', email: '' }, rfErr: {}, rfDone: null,
-    vq: '', late: {}, lateErr: '', user: null, authErr: '', authBusy: false, pay: null, leads: [], photoMsg: '',
+    vq: '', late: {}, lateErr: '', user: null, authErr: '', authBusy: false, pay: null, leads: [], photoMsg: '', linkMsg: '',
     compare: [], compareMsg: '', stats: {}, revSum: {}, reviews: [], rv: { rating: 0, body: '', name: '', msg: '', done: {} }
   };
   K = { apps: 'ls.directory.applications', mine: 'ls.directory.myApplications', enq: 'ls.directory.enquiries', rep: 'ls.directory.reports' };
@@ -1191,6 +1192,13 @@ class Component extends DCLogic {
   go(screen) { this.nav({ screen }); }
   search(patch) { this.nav({ screen: 'results', page: 1, fDistrict: [], fCourt: [], fLang: [], fYears: [], fVer: [], ...patch }); }
   searchAll() { this.search({ q: '', loc: '', district: '', area: '', court: '' }); }
+  /* The shareable page /advocate/:id (server-rendered, with the right link preview); unchecked profiles are marked noindex there. */
+  async copyLink(id) {
+    const url = location.origin + '/advocate/' + encodeURIComponent(id); let done = false;
+    try { await navigator.clipboard.writeText(url); done = true; } catch (e) { try { const t = document.createElement('textarea'); t.value = url; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.select(); done = document.execCommand('copy'); t.remove(); } catch (e2) {} }
+    this.setState({ linkMsg: done ? 'Link copied' : url });
+    setTimeout(() => this.setState({ linkMsg: '' }), done ? 2200 : 9000);
+  }
   openProfile(id) { this.nav({ screen: 'profile', profileId: id, cf: this.blankContact(), cfErr: {}, reviews: [] }); this.loadReviews(id); }
   startApply() {
     try { window.LSEmailAttribution && window.LSEmailAttribution.registrationStarted(); } catch (e) {}
@@ -2001,7 +2009,7 @@ class Component extends DCLogic {
       people: pageRows.map((p, i) => ({ vbadge: p.verified ? h('span', { style: { fontSize: 12, background: '#E7F6EC', color: '#137333', borderRadius: 8, padding: '2px 10px', fontWeight: 600 } }, '✓ Documents verified') : h('span', { style: { fontSize: 12, background: '#F5F5F4', color: '#5E5E5E', borderRadius: 8, padding: '2px 10px', fontWeight: 500 } }, 'Not verified yet'), extra: cardExtra(p), avatar: avatar(p.photo, p.ini, 64, 22, p.name, p.verified), ini: p.ini, name: p.name, enr: p.enr, council: p.council, year: p.year, areas: p.areas.join(' · '), courts: p.courts.join(', '), langs: p.langs.join(', '), delay: 60 + i * 70, go: () => this.openProfile(p.id),
         you: p.own ? h('span', { style: { fontSize: 12, background: '#0A0A0A', color: '#fff', borderRadius: 8, padding: '2px 10px', fontWeight: 500 } }, 'Your profile') : null })),
       emptyState, pager,
-      prof: { extra: profExtra, avatar: avatar(P.photo, P.ini, 96, 34, P.name, P.verified), ini: P.ini, name: P.name, state: P.state, area0: P.areas[0] || 'All practice areas', place: [P.city, P.district && P.district !== P.city ? P.district + ' district' : ''].filter(Boolean).join(' · '),
+      prof: { share: h('button', { type: 'button', onClick: () => this.copyLink(P.id), 'aria-label': 'Copy a link to this profile', style: { fontSize: 13, background: '#fff', color: '#0A0A0A', border: '1px solid #D4D4D4', borderRadius: 8, padding: '3px 12px', fontWeight: 500, cursor: 'pointer' } }, S.linkMsg || 'Copy link'), extra: profExtra, avatar: avatar(P.photo, P.ini, 96, 34, P.name, P.verified), ini: P.ini, name: P.name, state: P.state, area0: P.areas[0] || 'All practice areas', place: [P.city, P.district && P.district !== P.city ? P.district + ' district' : ''].filter(Boolean).join(' · '),
         verified: P.verified ? 'Documents verified' : 'Not verified yet', checkNote: P.verified ? 'Documents checked by Legal Staff (not a Bar Council certificate)' : 'Documents not checked yet', enr: P.enr, council: P.council, year: P.year, areas: P.areas.join(', ') || '—', courts: P.courts.join('; ') || '—', langs: P.langs.join(', ') || '—', quals: P.quals, chamber: P.chamber,
         goAll: () => this.searchAll(), goState: () => this.search({ q: '', loc: P.state, district: '', court: '', area: '' }), goArea: () => this.search({ q: '', loc: P.state, district: '', court: '', area: P.areas[0] || '' }) },
       contactFields: [cfField('name', 'Your name', 'Full name'), cfField('contact', 'Phone or email', '+91 or email'), cfField('city', 'City', P.city || 'New Delhi'),
