@@ -221,3 +221,18 @@ When the court check (`court-sync`) finds a change, the hourly `notify` job tell
 5. Recipients must be reachable on WhatsApp. Business-initiated messages outside a 24-hour customer window must use an approved template, which is what this does. Meta bills per conversation; check their current price list.
 
 Without the secrets nothing is sent and the app says WhatsApp is not connected; email alerts still go out if Resend is set up. The function logic is tested with a fake WhatsApp and email endpoint (`tests/notify-court-alerts.test.mjs`); a real send has **not** been tested because no Meta account is connected yet.
+
+
+## Razorpay webhook, refunds and the payment ledger (migrations 0044, 0045)
+
+`functions/razorpay` now also receives Razorpay's webhook, so a payment counts even when the buyer closed the tab before the browser callback.
+
+1. Razorpay Dashboard > Settings > Webhooks > Add: URL `https://<project>.supabase.co/functions/v1/razorpay`, a secret of your choice, events **payment.captured, order.paid, payment.failed, refund.processed**.
+2. Add the same secret as the function secret `RAZORPAY_WEBHOOK_SECRET`. Without it the webhook answers 501 and nothing is applied.
+3. Redeploy `razorpay` and `admin` (JWT verification off, as before), then apply migrations 0044 and 0045.
+
+How it behaves: the signature is checked over the raw body; each event id is stored once in `payment_events` (a replay is ignored); the amount, currency and order notes are compared with our own order before anything is switched on; plan activation and directory listing are claim-guarded, so the browser callback and the webhook can both arrive and the payment still applies once. `payment.failed` marks the plan payment `failed`. `refund.processed` calls `apply_refund()`: a full plan refund ends the plan, a full listing-fee refund takes the profile down and reverses (or flags) the partner commission. Super Admin > Payments has a **Refund** button (full refund through the Razorpay API, applied the same way) and a "Needs a person" list for payments that could not be applied on their own (for example a second ₹49 payment for an already-listed profile).
+
+Every change made in the Super Admin console is written to `admin_audit_log` (append-only; Super Admin > Activity log).
+
+Migration 0044 also closes the legacy "first firm creator is a platform admin" path: `is_platform_admin()` now means Super Admin. The existing `platform_admins` row is left in place but is no longer consulted.

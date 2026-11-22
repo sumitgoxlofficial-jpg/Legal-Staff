@@ -94,7 +94,7 @@ function register() {
 }
 function login() {
   const body = authPage({ id: 'pn-login', title: 'Partner sign in', lead: 'Sign in with the Google account you applied with. No password to remember.', otherText: 'New here?', otherLabel: 'Apply to become a partner', otherHref: `${BASE}/register` });
-  return shell('Partner sign in', 'Sign in to your LegalStaff partner dashboard with Google.', `${BASE}/login`, body, ['/static/partners.js'], false, true);
+  return shell('Partner sign in', 'Sign in to your LegalStaff partner dashboard with Google.', `${BASE}/login`, body, ['/static/partners.js'], true, true);
 }
 
 
