@@ -3,7 +3,9 @@
 // 'groq_api_key', via public.groq_api_key()). Each call costs one AI credit, counted per firm per IST month against the
 // plan's allowance (Solo 200, Professional 1,000, Firm 5,000) by public.ai_take_credit(). Case answers use only that case's
 // own records, which are read here on the server for a member of the firm.
-// Callers: a signed-in member ({ firm_id, mode, question, case_id?, template?, history? }), or a health check
+// AI Case Brain is a chat: case_id is optional (a general chat), and a message may carry attachments (text read from PDFs,
+// Word files and text files in the browser: [{ name, text }]) and images (data URLs, read by a vision model when Groq has one).
+// Callers: a signed-in member ({ firm_id, mode, question, case_id?, template?, history?, attachments?, images? }), or a health check
 // ({ action: "selftest" } with x-cron-secret). Deploy with JWT verification off; it checks the caller itself.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -14,7 +16,7 @@ class Fail extends Error { status: number; constructor(msg: string, status = 400
 // Groq's model list changes over time, so the models are chosen from its live list: GROQ_MODEL if set, then the first
 // available of these preferences (large, capable chat models first), then any chat model it offers.
 const PREFER = [/gpt-oss-120b/, /llama-3\.3-70b/, /llama-4-maverick/, /kimi-k2/, /qwen3-32b/, /llama-4-scout/, /gpt-oss-20b/, /llama-3\.1-8b/];
-let models: string[] | null = null;
+let models: string[] | null = null, vision: string | null = null;
 async function pickModels(key: string) {
   if (models) return models;
   const r = await fetch("https://api.groq.com/openai/v1/models", { headers: { Authorization: "Bearer " + key } });
@@ -26,6 +28,7 @@ async function pickModels(key: string) {
   for (const re of PREFER) { const id = ids.find((x) => re.test(x)); if (id && !chosen.includes(id)) chosen.push(id); if (chosen.length >= 2) break; }
   for (const id of ids) { if (chosen.length >= 2) break; if (!chosen.includes(id)) chosen.push(id); }
   if (!chosen.length) throw new Fail("No AI model is available on the Groq account.", 502);
+  vision = ids.find((x) => /llama-4-scout/.test(x)) ?? ids.find((x) => /llama-4-maverick/.test(x)) ?? null;
   return (models = chosen);
 }
 const CREDITS: Record<string, number> = { Solo: 200, Professional: 1000, Firm: 5000 };
@@ -47,8 +50,9 @@ async function groqKey(admin: any) {
   if (!data) throw new Fail("AI is not set up yet: the Groq API key is missing.", 501);
   return data as string;
 }
-async function complete(key: string, messages: any[], maxTokens: number) {
-  const list = await pickModels(key);
+async function complete(key: string, messages: any[], maxTokens: number, needVision = false) {
+  let list = await pickModels(key);
+  if (needVision) { if (!vision) throw new Fail("Reading images is not available on the AI account right now. Attach a PDF or Word file instead.", 501); list = [vision]; }
   for (const [i, model] of list.entries()) {
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
       body: JSON.stringify({ model, messages, temperature: 0.2, max_tokens: maxTokens }) });
@@ -118,6 +122,7 @@ Deno.serve(async (req: Request) => {
     const question = String(body.question ?? "").trim().slice(0, 4000);
     if (!["brain", "research", "draft"].includes(mode)) throw new Fail("Unknown AI request.");
     if (!question) throw new Fail("Type a question first.");
+    if (mode === "brain" && caseId != null && typeof caseId !== "string") throw new Fail("Unknown case.");
     const { data: member } = await asUser.rpc("is_member", { f: firmId });
     if (!member) throw new Fail("You are not a member of this firm.", 403);
     const { data: access } = await asUser.rpc("firm_access", { f: firmId });
@@ -127,25 +132,47 @@ Deno.serve(async (req: Request) => {
     if (NEEDS_PRO[mode] && plan === "Solo") throw new Fail("This AI feature is part of the Professional plan. Upgrade to use it.", 402);
 
     // Build the request before spending a credit, so a bad case id costs nothing.
-    let messages: any[], maxTokens = 2500;
+    let messages: any[], maxTokens = 2500, needVision = false;
     if (mode === "research") {
       messages = [{ role: "system", content: RULES + `
 You are answering a general legal research question. Explain the law and procedure, name the statute and provision, and give practical steps. If you mention a judgment, give only ones you are sure exist, and add that the citation must be verified. End with one line starting "Verify:" that lists what the advocate should check in the bare act or a law database.` }, { role: "user", content: question }];
-    } else {
-      if (!caseId) throw new Fail("Choose a case first.");
-      const rec = await caseRecord(admin, firmId, caseId);
-      if (mode === "brain") {
-        const history = (Array.isArray(body.history) ? body.history : []).slice(-6).filter((m: any) => m && m.text)
-          .map((m: any) => ({ role: m.role === "user" ? "user" : "assistant", content: String(m.text).slice(0, 2000) }));
-        messages = [{ role: "system", content: RULES + `
-Answer questions about ONE case, using ONLY the case record below. Do not use outside facts about this case.
+    } else if (mode === "brain") {
+      const history = (Array.isArray(body.history) ? body.history : []).slice(-8).filter((m: any) => m && m.text)
+        .map((m: any) => ({ role: m.role === "user" ? "user" : "assistant", content: String(m.text).slice(0, 3000) }));
+      // Attached files, newest first, within a total budget so a long judgment cannot crowd out the question.
+      let budget = 48000; const att: string[] = [];
+      for (const a of (Array.isArray(body.attachments) ? body.attachments : []).slice(0, 12)) {
+        const name = String(a?.name ?? "file").replace(/[\[\]\n]/g, " ").slice(0, 120), text = String(a?.text ?? "").trim();
+        if (!text || budget <= 0) continue;
+        const part = text.slice(0, budget); budget -= part.length;
+        att.push(`[Attachment: ${name}]${part.length < text.length ? " (only the first part of this file is included)" : ""}\n${part}`);
+      }
+      const images = (Array.isArray(body.images) ? body.images : []).filter((u: any) => typeof u === "string" && /^data:image\/(png|jpe?g|webp);base64,/.test(u) && u.length < 1_500_000).slice(0, 4);
+      while (images.reduce((n: number, u: string) => n + u.length, 0) > 3_500_000) images.pop();  // Groq takes at most about 4 MB of images per request
+      if (images.length) needVision = true;
+      const rec = caseId ? await caseRecord(admin, firmId, caseId) : null;
+      const sys = RULES + `
+You are AI Case Brain, a chat assistant for an advocate's chamber. You answer questions, explain the law and procedure, read the documents and images the advocate attaches, and do tasks such as summarising, listing dates and deadlines, drafting notices, replies, applications and letters, preparing hearing briefs, translating (for example into Hindi) and checking a draft.
+When you draft a document, output the document text ready to edit, with placeholders in square brackets, such as [date of notice], for anything not known. Do not invent facts, amounts or dates.
+When you use a fact from an attached file, add its tag, for example [Attachment: notice.pdf].` + (rec ? `
+This chat is about ONE case. For facts about the case use ONLY the case record below and the attachments; do not use outside facts about this case.
 After each fact you take from the record, add its source tag exactly as written in the record, in square brackets, for example [Order 12.03.2026], [Hearing 04.02.2026] or [Case details › Issues].
 If the record does not contain what is asked, say so plainly and say what to add and where (for example "add the parties in Case details"). You may add general legal guidance, clearly marked as general guidance and not from the record.
 For a hearing brief, cover: background, parties, stage, issues, last order, last hearing, points to press, what to expect from the other side, and missing documents.
 
 CASE RECORD
-${rec.text}` }, ...history, { role: "user", content: question }];
-      } else {
+${rec.text}` : `
+No case is linked to this chat. If the advocate asks about one of their cases, say they can link the case from the case menu at the top of the chat.`) + (att.length ? `
+
+ATTACHED FILES
+${att.join("\n\n")}` : "");
+      const user = images.length ? [{ type: "text", text: question }, ...images.map((url: string) => ({ type: "image_url", image_url: { url } }))] : question;
+      messages = [{ role: "system", content: sys }, ...history, { role: "user", content: user }];
+      maxTokens = 4000;
+    } else {
+      if (!caseId) throw new Fail("Choose a case first.");
+      const rec = await caseRecord(admin, firmId, caseId);
+      {
         maxTokens = 5000;
         const kind = String(body.template ?? "document").slice(0, 80);
         messages = [{ role: "system", content: RULES + `
@@ -163,7 +190,7 @@ ${rec.text}` }, { role: "user", content: question }];
     if (used.data == null) throw new Fail(`Your firm has used all ${limit.toLocaleString("en-IN")} AI credits for this month on the ${plan} plan. Credits reset on the 1st, or upgrade for more.`, 402);
     const month = istMonth();
     let r;
-    try { r = await complete(await groqKey(admin), messages, maxTokens); }
+    try { r = await complete(await groqKey(admin), messages, maxTokens, needVision); }
     catch (e) { await admin.rpc("ai_refund_credit", { f: firmId, p_month: month }); throw e; }
     if (!r.text) { await admin.rpc("ai_refund_credit", { f: firmId, p_month: month }); throw new Fail("The AI gave an empty answer. Please try again.", 502); }
     return json({ text: r.text, used: used.data, limit, model: r.model });

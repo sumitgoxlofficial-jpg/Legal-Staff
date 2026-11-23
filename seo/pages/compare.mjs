@@ -46,7 +46,7 @@ function hubPage() {
   const crumbs = [{ name: 'Home', path: '/' }, { name: 'Compare', path }];
   const cards = `<div class="grid3">${comparisons.map((c, i) => `<a class="card ls-reveal ls-lift" style="--ls-delay:${i * 80}ms;text-decoration:none" href="/compare/${c.slug}"><span class="card-ic">${icon('scale', 22)}</span><h3>${esc(c.title)}</h3><p>${esc(c.navHint)}</p></a>`).join('')}</div>`;
   const body = `${hero({ kicker: 'Compare', title: 'How Legal Staff compares for Indian litigators', lead: 'Paper diaries, the eCourts app and enterprise legal ERPs — compared on time spent, missed-date risk, cost and fit for a chamber.', crumbs, source: 'Compare hub' })}
-${section({ title: 'All comparisons', inner: cards })}${ctaBand({ source: 'Compare hub CTA' })}`;
+${section({ title: 'All comparisons', inner: cards })}${section({ tone: 'tone-soft', kicker: 'Ready to move?', title: 'Bring your data with you', lead: 'Import clients, cases, hearing dates, tasks, invoices and case files from other software, an Excel diary or a ZIP of documents.', inner: '<a class="btn btn-dark" href="/switch-to-legal-staff">How switching works ' + icon('arrow', 16) + '</a>' })}${ctaBand({ source: 'Compare hub CTA' })}`;
   return { path, priority: 0.6, changefreq: 'monthly', html: page({ head: seoHead({ title: 'Compare Advocate Diary and Practice Management Options', description: 'Paper diaries vs Legal Staff, the eCourts app vs a full chamber workspace, and enterprise legal ERPs vs AI-first practice management — compared side by side.', path, jsonld: [ld.breadcrumb(crumbs), ld.itemList('Comparisons', comparisons.map(c => ({ name: c.navLabel, path: `/compare/${c.slug}` })))] }), body, active: 'compare' }) };
 }
 

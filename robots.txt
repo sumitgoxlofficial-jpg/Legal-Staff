@@ -8,5 +8,13 @@ Disallow: /sign
 Disallow: /sign.html
 Disallow: /supabase/
 Disallow: /seo/
+Disallow: /partners/dashboard
+Disallow: /partners/referrals
+Disallow: /partners/earnings
+Disallow: /partners/payouts
+Disallow: /partners/profile
+Disallow: /partners/resources
+Disallow: /partners/support
 
 Sitemap: https://legalstaff.in/sitemap.xml
+Sitemap: https://legalstaff.in/advocates-sitemap.xml

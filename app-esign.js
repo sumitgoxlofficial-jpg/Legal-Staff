@@ -1,251 +1,246 @@
-/* Legal Staff — electronic signing inside the AI Drafting Studio.
-   Everything here is reached from the Drafting Studio's own toolbar: Prepare for Signature (an in-editor mode where fields are placed on
-   the pages), Send for Signature (final preview, charges, confirm) and View Signing Status (signers, reminders, cancel, download, audit).
-   Every call goes to the server function 'esign' through LSB.esign; no key or secret is ever in the browser.
-   The signature made here is a SIMPLE electronic signature (typed or drawn). It is not Aadhaar eSign and not a DSC. */
+/* Legal Staff — E-Sign module.
+   What it does, all inside the app (no third party needed):
+   - Signature requests for a document in the case file, with one or more signers, in parallel or in a fixed order.
+   - Signing by drawing, typing or uploading a signature image, with an explicit consent and a signer confirmation.
+   - Document fraud prevention: the SHA-256 of the file is sealed when the request is made and checked again before every
+     signature; every event goes into a hash-chained audit trail; a Verify tool checks any file and any trail.
+   - A Certificate of completion (self-contained HTML, printable to PDF) with the signatures, the hashes and the full trail.
+   - Paperwork analytics: status, turnaround, ageing, and who is slow.
+   - Stamp details (state, amount, e-stamp certificate number) recorded against a request and printed on the certificate.
+   Not in here, because they need a licensed provider account and credentials: Aadhaar eSign through an ESP, NeSL, and buying
+   e-stamps. Those show as "not connected" and are never faked. The signing happens on the device in front of the signer. */
 (function () {
   'use strict';
-  const h = React.createElement, V = window.LSV, LSB = window.LSB, L = window.LS, K = V.K;
-  const { Btn, Modal, Chip, Select } = V;
-  const useState = React.useState, useEffect = React.useEffect, useRef = React.useRef, useLayoutEffect = React.useLayoutEffect;
-  const LABEL = { draft: 'Draft', prepared: 'Prepared for Signature', sent: 'Sent', viewed: 'Viewed', partial: 'Partially Signed', completed: 'Completed', declined: 'Declined', expired: 'Expired', cancelled: 'Cancelled', failed: 'Failed' };
-  const OPEN = ['sent', 'viewed', 'partial'];
-  const SIGNER_LABEL = { pending: 'Waiting for their turn', notified: 'Sent, not opened', viewed: 'Opened', signed: 'Signed', declined: 'Declined' };
-  const KINDS = [['signature', 'Signature', { w: .28, h: .07 }], ['initials', 'Initials', { w: .1, h: .045 }], ['date', 'Date', { w: .16, h: .03 }], ['name', 'Printed name', { w: .24, h: .03 }], ['designation', 'Designation', { w: .24, h: .03 }], ['text', 'Custom text', { w: .3, h: .03 }]];
-  const KIND_NAME = Object.fromEntries(KINDS.map(k => [k[0], k[1]]));
-  const ROLES = ['Advocate', 'Petitioner', 'Respondent', 'Client', 'Witness', 'Other'];
-  const COLORS = ['#1D4ED8', '#B45309', '#047857', '#9333EA', '#BE123C', '#0E7490'];
-  const NOTE = 'Typed and drawn signatures are simple electronic signatures. They are not Aadhaar eSign and not a Digital Signature Certificate (DSC).';
-  const uid = () => Math.random().toString(36).slice(2, 10);
-  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-  const when = iso => iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '';
-  const api = (a, b) => LSB.esign(a, b);
+  const V = window.LSV, L = window.LS; if (!V || !L) return;
+  const { h, K, X, Btn, Card, Page, Table, Modal, Form, Chip, Select } = V;
+  const { useState, useEffect, useRef } = React;
 
-  /* ---------- shared state: what the server allows, and each document's requests ---------- */
-  const store = { firm: '', cfg: null, cfgErr: '', lists: {}, subs: new Set(), v: 0 };
-  const bump = () => { store.v++; store.subs.forEach(f => f(store.v)); };
-  const useStore = () => { const [, set] = useState(0); useEffect(() => { store.subs.add(set); return () => { store.subs.delete(set); }; }, []); return store; };
-  const fresh = app => { if (store.firm !== app.db.firmId) { store.firm = app.db.firmId; store.cfg = null; store.lists = {}; store.cfgErr = ''; } };
-  async function loadCfg(app) { fresh(app); if (!LSB.on) { store.cfg = { offline: true }; return bump(); } try { store.cfg = await api('config'); store.cfgErr = ''; } catch (e) { store.cfgErr = e.message; } bump(); }
-  async function loadList(app, tpl) { fresh(app); if (!LSB.on) return; try { store.lists[tpl] = (await api('list', { draft_key: String(tpl) })).requests; } catch (e) { store.lists[tpl] = store.lists[tpl] || []; } bump(); }
-  const latest = tpl => (store.lists[tpl] || [])[0] || null;
-  const saveFile = (b64, name) => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([u], { type: 'application/pdf' })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
-  const snapshot = app => app.clean(app.ed ? app.ed.innerHTML : (app.buf != null ? app.buf : ''));
-  const firmOf = app => ({ firm_name: app.db.firm.name, firm_address: app.db.firm.address || app.db.firm.city || '' });
+  /* ---------- crypto ---------- */
+  const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  const sha = async data => { if (!(window.crypto && crypto.subtle)) throw new Error('This browser cannot compute secure hashes (it needs https).'); return hex(await crypto.subtle.digest('SHA-256', typeof data === 'string' ? new TextEncoder().encode(data) : data)); };
+  const fileHash = async blob => sha(await blob.arrayBuffer());
+  const short = x => (x || '').slice(0, 10) + '…' + (x || '').slice(-6);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const nowIso = () => new Date().toISOString();
+  const when = ts => { try { return new Date(ts).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ts; } };
 
-  /* ---------- small pieces ---------- */
-  const tone = s => s === 'completed' ? { bg: '#E7F6EC', fg: '#137333' } : ['declined', 'failed'].includes(s) ? { bg: '#FDECEA', fg: '#B42318' } : ['expired', 'cancelled'].includes(s) ? { bg: '#EDEDED', fg: '#5E5E5E' } : s === 'prepared' ? { bg: '#EEF2FF', fg: '#3730A3' } : { bg: '#FFF4D6', fg: '#8A5A00' };
-  const StatusChip = ({ status, text }) => { const t = tone(status); return h('span', { style: { fontSize: 12, fontWeight: 600, borderRadius: 6, padding: '3px 9px', whiteSpace: 'nowrap', background: t.bg, color: t.fg } }, text || LABEL[status] || status); };
-  const sTone = s => s === 'signed' ? 'completed' : s === 'declined' ? 'declined' : s === 'pending' ? 'cancelled' : 'sent';
-  const Notice = ({ children, red }) => h('div', { style: { fontSize: 12.5, lineHeight: 1.55, color: red ? K.red : K.txt, background: red ? K.redBg : '#F7F7F5', border: '1px solid ' + (red ? '#F4B8B1' : K.line), borderRadius: 8, padding: '9px 12px' } }, children);
-  const Lab = ({ t, children, style }) => h('label', { style: Object.assign({ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5, color: K.mut, minWidth: 0 }, style) }, t, children);
-  const inp = { height: 36, border: '1px solid ' + K.line, borderRadius: 8, padding: '0 10px', fontSize: 14, width: '100%', boxSizing: 'border-box', background: '#fff', color: K.ink };
-
-  /* ---------- the document pages, drawn from the server's layout, with signature fields on top ---------- */
-  function Page({ layout, index, fields, signers, ro, tool, sel, onPlace, onSel, onField, mini }) {
-    const ref = useRef(null), [w, setW] = useState(mini ? 200 : 600);
-    useLayoutEffect(() => { const el = ref.current; if (!el) return; const f = () => setW(el.getBoundingClientRect().width || 600); f(); let ro2; if (window.ResizeObserver) { ro2 = new ResizeObserver(f); ro2.observe(el); } else window.addEventListener('resize', f); return () => { ro2 ? ro2.disconnect() : window.removeEventListener('resize', f); }; }, []);
-    const pg = layout.pages[index], k = w / layout.pageW, pc = (v, d) => (100 * v / d) + '%';
-    const colorOf = key => COLORS[Math.max(0, signers.findIndex(s => s.key === key)) % COLORS.length];
-    const click = e => { if (ro || !tool || e.target.closest('[data-field]')) return; const r = ref.current.getBoundingClientRect(); onPlace(index + 1, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height); };
-    return h('div', { ref, 'data-pagebox': index + 1, onClick: click, style: { position: 'relative', width: '100%', aspectRatio: layout.pageW + ' / ' + layout.pageH, background: '#fff', border: '1px solid ' + K.line, borderRadius: 4, boxShadow: '0 1px 6px rgba(0,0,0,.06)', overflow: 'hidden', cursor: tool && !ro ? 'crosshair' : 'default', userSelect: 'none', flex: '0 0 auto' } },
-      pg.rules.map((r, i) => h('div', { key: 'r' + i, style: { position: 'absolute', left: pc(r.x1, layout.pageW), width: pc(r.x2 - r.x1, layout.pageW), top: pc(r.y, layout.pageH), height: Math.max(1, r.w * k), background: '#0A0A0A', pointerEvents: 'none' } })),
-      pg.lines.map((l, i) => h('div', { key: i, style: { position: 'absolute', left: pc(l.x, layout.pageW), top: pc(l.y - l.size * 0.84, layout.pageH), fontSize: l.size * k, lineHeight: 1.2, whiteSpace: 'pre', fontFamily: '"Times New Roman",Times,serif', color: '#1A1A1A', pointerEvents: 'none' } },
-        l.runs.map((r, j) => h('span', { key: j, style: { fontWeight: r.b ? 700 : 400, fontStyle: r.i ? 'italic' : 'normal', textDecoration: r.u ? 'underline' : 'none' } }, r.t)))),
-      h('div', { style: { position: 'absolute', left: 0, right: 0, bottom: pc(22, layout.pageH), textAlign: 'center', fontSize: 8 * k, color: '#8A8A8A', pointerEvents: 'none' } }, `Page ${index + 1} of ${layout.pages.length}`),
-      fields.filter(f => f.page === index + 1).map(f => h(Field, { key: f.key, f, color: colorOf(f.signer_key), who: (signers.find(s => s.key === f.signer_key) || {}).name || 'Signer', ro, selected: sel === f.key, onSel, onField, pageRef: ref, mini, k })));
+  /* ---------- audit trail: each entry's hash covers the one before it ---------- */
+  async function addAudit(env, who, act) {
+    const prev = env.audit.length ? env.audit[env.audit.length - 1].hash : 'GENESIS', ts = nowIso();
+    env.audit.push({ ts, who, act, prev, hash: await sha([prev, ts, who, act].join('|')) });
   }
-  function Field({ f, color, who, ro, selected, onSel, onField, pageRef, mini, k }) {
-    const drag = useRef(null);
-    const rect = () => pageRef.current.getBoundingClientRect();
-    const down = mode => e => { if (ro) return; e.stopPropagation(); e.preventDefault(); onSel(f.key); e.currentTarget.setPointerCapture(e.pointerId); drag.current = { mode, x0: e.clientX, y0: e.clientY, f0: { x: f.x, y: f.y, w: f.w, h: f.h } }; };
-    const move = e => { const d = drag.current; if (!d) return; const r = rect(), dx = (e.clientX - d.x0) / r.width, dy = (e.clientY - d.y0) / r.height;
-      if (d.mode === 'move') onField(f.key, { x: clamp(d.f0.x + dx, 0, 1 - f.w), y: clamp(d.f0.y + dy, 0, 1 - f.h) }); else onField(f.key, { w: clamp(d.f0.w + dx, .04, 1 - f.x), h: clamp(d.f0.h + dy, .02, 1 - f.y) }); };
-    const up = () => { drag.current = null; };
-    const key = e => { if (ro) return; const s = e.shiftKey ? .01 : .003; if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); onField(f.key, null); } else if (e.key === 'ArrowLeft') { e.preventDefault(); onField(f.key, { x: clamp(f.x - s, 0, 1 - f.w) }); } else if (e.key === 'ArrowRight') { e.preventDefault(); onField(f.key, { x: clamp(f.x + s, 0, 1 - f.w) }); } else if (e.key === 'ArrowUp') { e.preventDefault(); onField(f.key, { y: clamp(f.y - s, 0, 1 - f.h) }); } else if (e.key === 'ArrowDown') { e.preventDefault(); onField(f.key, { y: clamp(f.y + s, 0, 1 - f.h) }); } };
-    return h('div', { 'data-field': f.key, tabIndex: ro ? -1 : 0, role: 'button', 'aria-label': `${KIND_NAME[f.kind]} for ${who}`, onPointerDown: down('move'), onPointerMove: move, onPointerUp: up, onPointerCancel: up, onKeyDown: key, onFocus: () => !ro && onSel(f.key),
-      style: { position: 'absolute', left: (100 * f.x) + '%', top: (100 * f.y) + '%', width: (100 * f.w) + '%', height: (100 * f.h) + '%', boxSizing: 'border-box', border: (selected ? '2px solid ' : '1.5px dashed ') + color, background: color + '22', borderRadius: 4, cursor: ro ? 'default' : 'move', touchAction: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', outline: 'none', boxShadow: selected ? '0 0 0 3px ' + color + '33' : 'none' } },
-      !mini && h('span', { style: { fontSize: Math.max(9, Math.min(12.5, 11 * k * 1.2)), color, fontWeight: 600, padding: '0 4px', textAlign: 'center', lineHeight: 1.15, pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' } }, (f.label || KIND_NAME[f.kind]) + ' · ' + who),
-      !ro && selected && h('span', { onPointerDown: down('resize'), onPointerMove: move, onPointerUp: up, style: { position: 'absolute', right: -1, bottom: -1, width: 16, height: 16, background: color, borderRadius: '4px 0 4px 0', cursor: 'nwse-resize', touchAction: 'none' } }));
-  }
-
-  /* ---------- Prepare for Signature: pages with fields on the left, signers on the right, inside the editor ---------- */
-  function Prepare({ app, tpl, html, title, onExit, onSend }) {
-    useStore();
-    const cfg = store.cfg || {}, firm = firmOf(app);
-    const [st, setSt] = useState({ loading: true, err: '', layout: null, warnings: [], signers: [], fields: [], mode: 'parallel', requestId: '', dirty: false, note: '' });
-    const [tool, setTool] = useState(null), [sel, setSel] = useState(''), [active, setActive] = useState(''), [busy, setBusy] = useState(false), [problems, setProblems] = useState([]);
-    const S = (p) => setSt(s => Object.assign({}, s, typeof p === 'function' ? p(s) : p));
-    useEffect(() => { let dead = false; (async () => {
-      try {
-        const ex = latest(tpl); let loaded = null;
-        if (ex && ex.status === 'prepared') loaded = await api('get', { request_id: ex.id, html });
-        const r = await api('render', Object.assign({ html }, firm));
-        if (dead) return;
-        const signers = loaded ? loaded.signers.map(s => ({ key: s.id, name: s.name, email: s.email, phone: s.phone, role: s.role, sign_order: s.sign_order, required: s.required })) : [];
-        const fields = loaded ? loaded.fields.map(f => ({ key: f.id, kind: f.kind, page: f.page, x: +f.x, y: +f.y, w: +f.w, h: +f.h, signer_key: f.signer_id, required: f.required, label: f.label })) : [];
-        S({ loading: false, layout: r.layout, warnings: r.warnings, signers, fields, mode: loaded ? loaded.request.mode : 'parallel', requestId: loaded ? loaded.request.id : '', note: loaded && loaded.html_same === false ? 'The document text changed after you last prepared it. Check that every field is still where you want it.' : '' });
-        setActive(signers[0] ? signers[0].key : '');
-      } catch (e) { if (!dead) S({ loading: false, err: e.message }); }
-    })(); return () => { dead = true; }; }, []);
-    const colorOf = key => COLORS[Math.max(0, st.signers.findIndex(s => s.key === key)) % COLORS.length];
-    const touch = fn => S(s => Object.assign({ dirty: true }, fn(s)));
-    const addSigner = (o) => { const key = 's' + uid(); touch(s => ({ signers: s.signers.concat([Object.assign({ key, name: '', email: '', phone: '', role: 'Client', sign_order: s.signers.length + 1, required: true }, o)]) })); setActive(key); };
-    const upSigner = (key, p) => touch(s => ({ signers: s.signers.map(x => x.key === key ? Object.assign({}, x, p) : x) }));
-    const delSigner = key => { touch(s => ({ signers: s.signers.filter(x => x.key !== key), fields: s.fields.filter(f => f.signer_key !== key) })); if (active === key) setActive(''); };
-    const place = (page, x, y) => { if (!tool) return; const sg = active || (st.signers[0] || {}).key; if (!sg) { app.toast('Add a signer first, then place their fields.'); return; }
-      const size = KINDS.find(k => k[0] === tool)[2], f = { key: 'f' + uid(), kind: tool, page, w: size.w, h: size.h, x: clamp(x - size.w / 2, 0, 1 - size.w), y: clamp(y - size.h / 2, 0, 1 - size.h), signer_key: sg, required: true, label: '' };
-      touch(s => ({ fields: s.fields.concat([f]) })); setSel(f.key); setTool(null); };
-    const upField = (key, p) => touch(s => ({ fields: p === null ? s.fields.filter(f => f.key !== key) : s.fields.map(f => f.key === key ? Object.assign({}, f, p) : f) }));
-    const body = (strict) => ({ request_id: st.requestId || undefined, draft_key: String(tpl), title, html, mode: st.mode, signers: st.signers.map(s => Object.assign({}, s, { sign_order: st.mode === 'parallel' ? 1 : s.sign_order })), fields: st.fields, draftOnly: !strict });
-    const save = async (strict) => { setBusy(true); setProblems([]); try { const r = await api('prepare_save', Object.assign(body(strict), firm)); S({ requestId: r.request_id, dirty: false }); await loadList(app, tpl); return r; } catch (e) { setProblems(e.problems || [e.message]); app.toast(e.message); return null; } finally { setBusy(false); } };
-    const exit = () => { if (st.dirty && !window.confirm('Leave without saving your signature fields?')) return; onExit(); };
-    if (st.loading) return h('section', { style: { gridColumn: 'span 3', background: '#fff', border: '1px solid ' + K.line, borderRadius: 12, padding: 40, textAlign: 'center', color: K.mut } }, 'Preparing the document pages…');
-    if (st.err) return h('section', { style: { gridColumn: 'span 3', background: '#fff', border: '1px solid ' + K.line, borderRadius: 12, padding: 28, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' } }, h(Notice, { red: true }, st.err), h(Btn, { onClick: onExit }, 'Back to the editor'));
-    const selF = st.fields.find(f => f.key === sel), nPages = st.layout.pages.length;
-    const chip = (on, c) => ({ border: '1.5px solid ' + c, background: on ? c : '#fff', color: on ? '#fff' : c, borderRadius: 999, padding: '5px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' });
-    return h('section', { style: { gridColumn: 'span 3', display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 } },
-      h('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: '#fff', border: '1px solid ' + K.line, borderRadius: 12, padding: '12px 16px' } },
-        h('div', { style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' } }, h(StatusChip, { status: 'prepared' }), h('span', { style: { fontSize: 14, fontWeight: 600 } }, 'Preparing “' + title + '” for signature'), h('span', { style: { fontSize: 12.5, color: K.mut } }, nPages + ' page' + (nPages > 1 ? 's' : '') + ' · ' + st.fields.length + ' field' + (st.fields.length === 1 ? '' : 's') + (st.dirty ? ' · unsaved changes' : ''))),
-        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(Btn, { onClick: exit, disabled: busy }, 'Back to editor'), h(Btn, { onClick: () => save(false).then(r => r && app.toast('Preparation saved')), disabled: busy }, 'Save'), h(Btn, { primary: true, disabled: busy, onClick: async () => { const r = await save(true); if (r) onSend(); } }, busy ? 'Saving…' : 'Review and send'))),
-      st.warnings.map((w, i) => h(Notice, { key: i, red: true }, w)), st.note && h(Notice, null, st.note), problems.length > 0 && h(Notice, { red: true }, h('b', null, 'Fix before sending: '), problems.join(' ')),
-      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,320px),1fr))', gap: 16, alignItems: 'start' } },
-        h('div', { style: { gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 } },
-          h('div', { style: { position: 'sticky', top: 0, zIndex: 5, background: '#FAFAF9', padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 8 } },
-            h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } }, h('span', { style: { fontSize: 12, fontWeight: 600, color: K.mut, textTransform: 'uppercase', letterSpacing: '.05em' } }, 'Place for'),
-              st.signers.length ? st.signers.map(s => h('button', { key: s.key, type: 'button', onClick: () => setActive(s.key), style: chip((active || st.signers[0].key) === s.key, colorOf(s.key)) }, s.name || 'Signer')) : h('span', { style: { fontSize: 13, color: K.mut } }, 'Add a signer on the right first')),
-            h('div', { style: { display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 } }, KINDS.map(([k, label]) => h('button', { key: k, type: 'button', onClick: () => setTool(tool === k ? null : k), 'aria-pressed': tool === k, style: { border: '1px solid ' + (tool === k ? K.ink : K.line), background: tool === k ? K.ink : '#fff', color: tool === k ? '#fff' : K.ink, borderRadius: 8, padding: '7px 12px', fontSize: 13.5, whiteSpace: 'nowrap', cursor: 'pointer' } }, '+ ' + label))),
-            h('div', { style: { fontSize: 12.5, color: K.mut } }, tool ? 'Now tap or click where the ' + KIND_NAME[tool].toLowerCase() + ' should go on the page.' : 'Choose a field type, then tap the page. Leave a little room under a signature: the “Authenticated through Legal Staff”, name and date stamp is printed there. Drag a field to move it, drag its corner to resize, press Delete to remove it.'),
-            selF && h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', background: '#fff', border: '1px solid ' + K.line, borderRadius: 8, padding: '8px 10px' } },
-              h('b', { style: { fontSize: 13 } }, KIND_NAME[selF.kind]),
-              h('select', { 'aria-label': 'Signer for this field', value: selF.signer_key, onChange: e => upField(selF.key, { signer_key: e.target.value }), style: Object.assign({}, inp, { width: 'auto', height: 32 }) }, st.signers.map(s => h('option', { key: s.key, value: s.key }, s.name || 'Signer'))),
-              h('label', { style: { fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' } }, 'Page', h('input', { type: 'number', min: 1, max: nPages, value: selF.page, onChange: e => upField(selF.key, { page: clamp(+e.target.value || 1, 1, nPages) }), style: Object.assign({}, inp, { width: 60, height: 32 }) })),
-              selF.kind === 'text' || selF.kind === 'designation' ? h('input', { 'aria-label': 'Label shown to the signer', placeholder: 'Label for the signer', value: selF.label, onChange: e => upField(selF.key, { label: e.target.value }), style: Object.assign({}, inp, { width: 170, height: 32 }) }) : null,
-              h('label', { style: { fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' } }, h('input', { type: 'checkbox', checked: selF.required, onChange: e => upField(selF.key, { required: e.target.checked }) }), 'Required'),
-              h(Btn, { small: true, danger: true, onClick: () => { upField(selF.key, null); setSel(''); } }, 'Remove'))),
-          st.layout.pages.map((_, i) => h(Page, { key: i, layout: st.layout, index: i, fields: st.fields, signers: st.signers, tool, sel, onPlace: place, onSel: setSel, onField: (key, p) => { upField(key, p); if (p === null) setSel(''); } }))),
-        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0, position: 'sticky', top: 0 } },
-          h('div', { style: { background: '#fff', border: '1px solid ' + K.line, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 } },
-            h('div', { style: { fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: '#6B6B6B', fontWeight: 600 } }, 'How they sign'),
-            h('div', { style: { display: 'flex', gap: 6 } }, [['parallel', 'Together'], ['sequential', 'One by one']].map(([m, l]) => h('button', { key: m, type: 'button', onClick: () => touch(() => ({ mode: m })), 'aria-pressed': st.mode === m, style: { flex: 1, border: '1px solid ' + (st.mode === m ? K.ink : K.line), background: st.mode === m ? K.ink : '#fff', color: st.mode === m ? '#fff' : K.ink, borderRadius: 8, padding: '8px 6px', fontSize: 13.5, cursor: 'pointer' } }, l))),
-            h('div', { style: { fontSize: 12.5, color: K.mut } }, st.mode === 'parallel' ? 'Everyone gets the link at once and signs in any order.' : 'Signers get the link in the order below; each is invited when the earlier ones have signed. Give two people the same number to let them sign together.')),
-          st.signers.map((s, i) => h('div', { key: s.key, style: { background: '#fff', border: '1px solid ' + K.line, borderLeft: '4px solid ' + colorOf(s.key), borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 } },
-            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } }, h('b', { style: { fontSize: 13.5 } }, 'Signer ' + (i + 1)), h(Btn, { small: true, danger: true, onClick: () => delSigner(s.key) }, 'Remove')),
-            h(Lab, { t: 'Full name' }, h('input', { value: s.name, onChange: e => upSigner(s.key, { name: e.target.value }), autoComplete: 'off', style: inp })),
-            h(Lab, { t: 'Email address' }, h('input', { type: 'email', value: s.email, onChange: e => upSigner(s.key, { email: e.target.value }), autoComplete: 'off', style: inp })),
-            h(Lab, { t: 'Mobile number' }, h('input', { type: 'tel', inputMode: 'tel', value: s.phone, onChange: e => upSigner(s.key, { phone: e.target.value }), placeholder: '10 digits or +91…', autoComplete: 'off', style: inp })),
-            h('div', { style: { display: 'flex', gap: 8 } },
-              h(Lab, { t: 'Role', style: { flex: 1 } }, h('select', { value: s.role, onChange: e => upSigner(s.key, { role: e.target.value }), style: inp }, ROLES.map(r => h('option', { key: r }, r)))),
-              st.mode === 'sequential' && h(Lab, { t: 'Order', style: { width: 70 } }, h('input', { type: 'number', min: 1, max: 50, value: s.sign_order, onChange: e => upSigner(s.key, { sign_order: clamp(+e.target.value || 1, 1, 50) }), style: inp }))),
-            h('label', { style: { fontSize: 13, display: 'flex', gap: 8, alignItems: 'center' } }, h('input', { type: 'checkbox', checked: s.required, onChange: e => upSigner(s.key, { required: e.target.checked }) }), s.required ? 'Required: the document is complete only when they sign' : 'Optional signer'),
-            h('div', { style: { fontSize: 12, color: K.mut } }, st.fields.filter(f => f.signer_key === s.key).length + ' field(s) placed'))),
-          h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h(Btn, { onClick: () => addSigner({}) }, '+ Add signer'), !st.signers.some(s => s.email === (app.db.user.email || '').toLowerCase()) && app.db.user.email && h(Btn, { onClick: () => addSigner({ name: (app.db.user.name || '').replace(/^Adv\.?\s*/i, ''), email: (app.db.user.email || '').toLowerCase(), phone: app.db.user.phone || '', role: 'Advocate' }) }, '+ Add myself')),
-          h(Notice, null, NOTE))));
-  }
-
-  /* ---------- Send for Signature: final preview, charges, confirm ---------- */
-  function SendDialog({ app, tpl, html, title: t0 }) {
-    useStore(); const cfg = store.cfg || {};
-    const [d, setD] = useState(null), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
-    const [title, setTitle] = useState(t0), [msg, setMsg] = useState(''), [days, setDays] = useState(cfg.default_expiry_days || 14), [ack, setAck] = useState(false);
-    useEffect(() => { let dead = false; const ex = latest(tpl); if (!ex || ex.status !== 'prepared') { setErr('Prepare the document for signature first.'); return; }
-      api('get', { request_id: ex.id, layout: 1, html }).then(r => { if (!dead) { setD(r); setTitle(r.request.title || t0); } }).catch(e => !dead && setErr(e.message)); return () => { dead = true; }; }, []);
-    const close = () => app.modal(null);
-    const priced = cfg.pricing_mode === 'credits', cost = priced ? cfg.credits_per_document : 0, freeLeft = Math.max(0, (cfg.free_per_month || 0) - (cfg.free_used_month || 0));
-    const way = !priced || cost === 0 ? { ok: true, text: 'No charge for this document.' } : freeLeft > 0 ? { ok: true, text: `Uses one of your ${cfg.free_per_month} free documents this month (${freeLeft} left).` } : cfg.free_trial_left > 0 ? { ok: true, text: `Uses one of your free trial documents (${cfg.free_trial_left} left).` } : cfg.balance >= cost ? { ok: true, text: `Uses ${cost} signing credit${cost > 1 ? 's' : ''}. Balance ${cfg.balance} → ${cfg.balance - cost}.` } : { ok: false, text: `Needs ${cost} signing credit${cost > 1 ? 's' : ''}; your firm has ${cfg.balance || 0}.` };
-    const limited = cfg.month_limit > 0 && cfg.month_used >= cfg.month_limit;
-    const send = async () => { setBusy(true); setErr(''); try { const r = await api('send', { request_id: d.request.id, title: title.trim(), message: msg, expires_in_days: +days }); await loadList(app, tpl); await loadCfg(app); app.modal(null); app.toast(r.email_failed && r.email_failed.length ? 'Sent, but could not email ' + r.email_failed.join(', ') : 'Sent for signature. Signers have been emailed.'); openStatus(app, tpl); }
-      catch (e) { setErr(e.message); if (e.message) loadCfg(app); setBusy(false); } };
-    const buy = i => { const p = cfg.packs[i]; V.upiPay(app, { create: () => LSB.upi.esignCreate(i), name: p.credits + ' signing credits', doneText: `paid. ${p.credits} signing credits have been added to your firm.`, onPaid: () => loadCfg(app), after: () => openSend(app, tpl) }); };
-    if (!d) return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } }, err ? h(Notice, { red: true }, err) : h('div', { style: { color: K.mut } }, 'Loading…'), h('div', { style: { display: 'flex', justifyContent: 'flex-end' } }, h(Btn, { onClick: close }, 'Close')));
-    const R = d.request, lay = R.layout, sg = d.signers.map(s => ({ key: s.id, name: s.name })), fl = d.fields.map(f => ({ key: f.id, kind: f.kind, page: f.page, x: +f.x, y: +f.y, w: +f.w, h: +f.h, signer_key: f.signer_id, label: f.label }));
-    const stale = d.html_same === false;
-    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
-      stale && h(Notice, { red: true }, 'The document was edited after it was prepared. The signers will receive the prepared version below. To include your latest edits, go back and use Prepare for Signature again.'),
-      h(Lab, { t: 'Document title' }, h('input', { value: title, maxLength: 200, onChange: e => setTitle(e.target.value), style: inp })),
-      h(Lab, { t: 'Message to the signers (optional)' }, h('textarea', { value: msg, rows: 3, maxLength: 2000, onChange: e => setMsg(e.target.value), placeholder: 'e.g. Please sign the agreement before Friday.', style: Object.assign({}, inp, { height: 'auto', padding: 10, resize: 'vertical' }) })),
-      h(Lab, { t: 'Link expires after' }, h('select', { value: days, onChange: e => setDays(e.target.value), style: inp }, [1, 3, 7, 14, 30, 60, 90, 180, 365].filter(n => n <= (cfg.max_expiry_days || 90)).map(n => h('option', { key: n, value: n }, n + (n === 1 ? ' day' : ' days'))))),
-      h('div', { style: { border: '1px solid ' + K.line, borderRadius: 10, overflow: 'hidden' } }, h('div', { style: { padding: '8px 12px', background: '#F7F7F5', fontSize: 12, fontWeight: 600, color: K.mut } }, `Signers (${R.mode === 'sequential' ? 'one by one' : 'together'})`),
-        d.signers.map(s => h('div', { key: s.id, style: { padding: '9px 12px', borderTop: '1px solid ' + K.line, fontSize: 13.5, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' } },
-          R.mode === 'sequential' && h('b', null, s.sign_order + '.'), h('b', null, s.name), h('span', { style: { color: K.mut } }, s.role + (s.required ? '' : ' · optional')), h('span', null, s.email), h('span', { style: { color: K.mut } }, s.phone), h('span', { style: { color: K.mut } }, d.fields.filter(f => f.signer_id === s.id).length + ' field(s)')))),
-      h('div', null, h('div', { style: { fontSize: 12, fontWeight: 600, color: K.mut, marginBottom: 6 } }, 'Signature positions'), h('div', { style: { display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6 } }, lay.pages.map((_, i) => h('div', { key: i, style: { width: 150, flex: '0 0 auto' } }, h(Page, { layout: lay, index: i, fields: fl, signers: sg, ro: true, mini: true }))))),
-      h(Notice, { red: !way.ok || limited }, limited ? `Your firm has reached its limit of ${cfg.month_limit} documents this month.` : way.text),
-      !way.ok && !limited && (cfg.owner && cfg.packs && cfg.packs.length ? h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, cfg.packs.map((p, i) => h(Btn, { key: i, onClick: () => buy(i) }, `Buy ${p.credits} credits · ${L.inr(p.price_paise / 100)}`))) : h('div', { style: { fontSize: 13, color: K.mut } }, cfg.owner ? 'No credit packs are on sale yet. Contact Legal Staff.' : 'Ask your firm owner to buy signing credits.')),
-      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } }, (cfg.legal || []).map((x, i) => h('div', { key: i, style: { fontSize: 12, color: K.mut, lineHeight: 1.5 } }, '• ' + x))),
-      h('label', { style: { display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13.5 } }, h('input', { type: 'checkbox', checked: ack, onChange: e => setAck(e.target.checked), style: { marginTop: 3 } }), 'I understand this is a simple electronic signature, not Aadhaar eSign or a DSC, and that this document may be signed this way.'),
-      err && h(Notice, { red: true }, err),
-      h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' } }, h(Btn, { onClick: close, disabled: busy }, 'Cancel'), h(Btn, { primary: true, onClick: send, disabled: busy || !ack || !way.ok || limited || !title.trim() }, busy ? 'Sending…' : 'Confirm and send')));
-  }
-
-  /* ---------- View Signing Status ---------- */
-  function StatusPanel({ app, tpl }) {
-    useStore();
-    const [sel, setSel] = useState(''), [d, setD] = useState(null), [busy, setBusy] = useState(''), [err, setErr] = useState(''), [showAudit, setShowAudit] = useState(false);
-    const list = store.lists[tpl] || [], cur = list.find(r => r.id === sel) || list[0];
-    const load = async () => { if (!cur) return; try { const r = await api('get', { request_id: cur.id }); setD(r); setErr(''); } catch (e) { setErr(e.message); } };
-    useEffect(() => { loadList(app, tpl); }, []);
-    useEffect(() => { setD(null); load(); if (!cur || !OPEN.includes(cur.status)) return; const t = setInterval(() => { loadList(app, tpl); load(); }, 20000); return () => clearInterval(t); }, [cur && cur.id, cur && cur.status]);
-    const run = async (what, fn, ok) => { setBusy(what); setErr(''); try { const r = await fn(); if (ok) app.toast(typeof ok === 'function' ? ok(r) : ok); await loadList(app, tpl); await load(); } catch (e) { setErr(e.message); } setBusy(''); };
-    if (!cur) return h('div', null, h(Notice, null, 'This document has not been sent for signature yet. Use Prepare for Signature, then Send for Signature.'), h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 12 } }, h(Btn, { onClick: () => app.modal(null) }, 'Close')));
-    const R = d ? d.request : cur, S = d ? d.signers : cur.signers || [], open = OPEN.includes(R.status), can = d ? d.can_manage : false;
-    const dl = which => run('dl' + which, async () => { const r = await api('download', { request_id: R.id, which }); saveFile(r.pdf, r.filename); }, null);
-    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
-      list.length > 1 && h('select', { value: cur.id, onChange: e => { setSel(e.target.value); setD(null); }, style: inp, 'aria-label': 'Earlier requests for this document' }, list.map(r => h('option', { key: r.id, value: r.id }, `${LABEL[r.status]} · ${r.title} · ${when(r.created_at)}`))),
-      h('div', { style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' } }, h(StatusChip, { status: R.status }), h('b', { style: { fontSize: 15 } }, R.title)),
-      h('div', { style: { fontSize: 12.5, color: K.mut, lineHeight: 1.7 } }, R.sent_at ? 'Sent ' + when(R.sent_at) + ' by ' + (R.creator_name || '') : 'Not sent yet', R.expires_at && OPEN.includes(R.status) ? ' · expires ' + when(R.expires_at) : '', R.completed_at ? ' · completed ' + when(R.completed_at) : '', R.cancelled_at ? ' · cancelled ' + when(R.cancelled_at) : ''),
-      R.error && R.status !== 'completed' && h(Notice, { red: true }, R.error),
-      h('div', { style: { border: '1px solid ' + K.line, borderRadius: 10, overflow: 'hidden' } },
-        S.map(s => h('div', { key: s.id, style: { padding: '11px 14px', borderTop: '1px solid ' + K.line, display: 'flex', flexDirection: 'column', gap: 4 } },
-          h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }, R.mode === 'sequential' && h('b', null, s.sign_order + '.'), h('b', { style: { fontSize: 14 } }, s.name), h('span', { style: { color: K.mut, fontSize: 13 } }, s.role + (s.required ? '' : ' · optional')), h(StatusChip, { status: sTone(s.status), text: SIGNER_LABEL[s.status] }), open && can && ['notified', 'viewed'].includes(s.status) && h(Btn, { small: true, disabled: !!busy, onClick: () => run('r' + s.id, () => api('remind', { request_id: R.id, signer_id: s.id }), 'Reminder sent to ' + s.email) }, busy === 'r' + s.id ? '…' : 'Remind')),
-          h('div', { style: { fontSize: 12.5, color: K.mut } }, s.email + (s.phone ? ' · ' + s.phone : '')),
-          h('div', { style: { fontSize: 12.5, color: K.txt } }, [s.notified_at && 'Invited ' + when(s.notified_at), s.viewed_at && 'opened ' + when(s.viewed_at), s.signed_at && 'signed ' + when(s.signed_at), s.declined_at && 'declined ' + when(s.declined_at), s.reminders && s.reminders + ' reminder(s)'].filter(Boolean).join(' · ') || 'Not invited yet'),
-          s.pending && h('div', { style: { fontSize: 12.5, color: s.status === 'declined' ? K.red : '#8A5A00' } }, s.pending)))),
-      err && h(Notice, { red: true }, err),
-      h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
-        open && can && h(Btn, { disabled: !!busy, onClick: () => run('rem', () => api('remind', { request_id: R.id }), r => 'Reminder sent to ' + r.sent.join(', ')) }, busy === 'rem' ? '…' : 'Send reminders'),
-        open && can && h(Btn, { danger: true, disabled: !!busy, onClick: () => { if (window.confirm('Cancel this signing request? Every signing link stops working immediately.')) run('cancel', () => api('cancel', { request_id: R.id }), 'Request cancelled'); } }, 'Cancel request'),
-        R.status === 'completed' && h(Btn, { primary: true, disabled: !!busy, onClick: () => dl('signed') }, busy === 'dlsigned' ? '…' : 'Download signed PDF'),
-        R.original_path !== '' && R.sent_at && h(Btn, { disabled: !!busy, onClick: () => dl('original') }, 'Original'),
-        R.sent_at && h(Btn, { disabled: !!busy, onClick: () => run('ver', () => api('verify', { request_id: R.id }), r => r.ok ? 'Integrity verified: the documents and the audit trail are unchanged.' : 'WARNING: a stored document or the audit trail does not match its record.') }, busy === 'ver' ? '…' : 'Verify integrity'),
-        h(Btn, { onClick: () => setShowAudit(!showAudit) }, showAudit ? 'Hide audit trail' : 'Audit trail'), h(Btn, { onClick: () => { loadList(app, tpl); load(); } }, 'Refresh')),
-      showAudit && d && h('div', { style: { maxHeight: 220, overflowY: 'auto', border: '1px solid ' + K.line, borderRadius: 8, padding: '8px 12px', fontSize: 12, lineHeight: 1.7, color: K.txt } }, d.events.map(e => h('div', { key: e.id }, h('span', { style: { color: K.mut } }, when(e.at) + ' · '), h('b', null, e.type.replace(/_/g, ' ')), ' · ' + e.actor + (e.ip ? ' · ' + e.ip : '')))),
-      R.status === 'completed' && h(Notice, null, NOTE));
-  }
-
-  /* ---------- entry points used by the Drafting Studio ---------- */
-  function openStatus(app, tpl) { app.modal(() => h(Modal, { title: 'Signing status', sub: app.tplNames[tpl], onClose: () => app.modal(null), width: 640 }, h(StatusPanel, { app, tpl }))); }
-  function openSend(app, tpl) {
-    const html = snapshot(app), title = app.tplNames[tpl] === 'Section 138 notice' ? 'Legal notice, s.138 NI Act' : app.tplNames[tpl];
-    app.modal(() => h(Modal, { title: 'Send for signature', sub: 'Final preview', onClose: () => app.modal(null), width: 660 }, h(SendDialog, { app, tpl, html, title })));
-  }
-  function gate(app) {
-    const c = store.cfg;
-    if (!LSB.on) { V.infoBox(app, 'Electronic signing needs the online workspace', 'Sign in to a Legal Staff firm workspace to send documents for signature. Signing is not available when the app runs without a server.'); return false; }
-    if (!c) { app.toast('Checking electronic signing…'); loadCfg(app); return false; }
-    if (!c.enabled) { V.infoBox(app, 'Electronic signing is not switched on', 'Legal Staff has not switched on electronic signing yet. It will appear here as soon as it is available.'); return false; }
-    if (!c.plan_ok) { V.infoBox(app, 'Electronic signing is a Professional feature', 'Electronic signing is part of the Professional plan, like the Drafting Studio. Upgrade from Pricing to use it.'); return false; }
+  async function auditOk(env) {
+    let prev = 'GENESIS';
+    for (const a of env.audit || []) { if (a.prev !== prev || a.hash !== await sha([a.prev, a.ts, a.who, a.act].join('|'))) return false; prev = a.hash; }
     return true;
   }
-  const LSE = {
-    open(app, tpl) { if (!gate(app)) return; const html = snapshot(app); if (!html.trim()) return app.toast('The document is empty.'); app.esMode = { tpl, html, id: Date.now() }; app.setState(s => ({ esn: (s.esn || 0) + 1 })); },
-    close(app) { app.esMode = null; app.setState(s => ({ esn: (s.esn || 0) + 1 })); },
-    send(app, tpl) { if (!gate(app)) return; const r = latest(tpl); if (!r || r.status !== 'prepared') { V.infoBox(app, 'Prepare the document first', 'Use Prepare for Signature to add the signers and place the signature fields. Then come back to Send for Signature.'); return; } openSend(app, tpl); },
-    status(app, tpl) { if (!LSB.on) return gate(app); openStatus(app, tpl); },
-    /* The three toolbar buttons and the status chip. */
-    Bar: ({ app, tpl }) => { useStore(); useEffect(() => { loadCfg(app); }, [app.db.firmId]); useEffect(() => { loadList(app, tpl); }, [tpl, app.db.firmId]);
-      const r = latest(tpl), base = { className: 'ls-btn', style: { whiteSpace: 'nowrap', height: 36, padding: '0 14px', background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: 8, fontSize: 13.5, color: '#0A0A0A' } };
-      return h(React.Fragment, null, h('button', Object.assign({ type: 'button', onClick: () => LSE.open(app, tpl) }, base), 'Prepare for Signature'), h('button', Object.assign({ type: 'button', onClick: () => LSE.send(app, tpl) }, base), 'Send for Signature'), h('button', Object.assign({ type: 'button', onClick: () => LSE.status(app, tpl) }, base), 'View Signing Status')); },
-    Chip: ({ app, tpl }) => { useStore(); const r = latest(tpl); return h(StatusChip, { status: r ? r.status : 'draft' }); },
-    /* Right-hand card of the editor: the document's signing status at a glance. */
-    Card: ({ app, tpl }) => { useStore(); const r = latest(tpl); if (!LSB.on || !store.cfg || !store.cfg.enabled) return null;
-      return h('div', { style: { background: '#FFFFFF', border: '1px solid #E5E5E5', borderRadius: 12, padding: 20 } },
-        h('div', { style: { fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: '#6B6B6B', fontWeight: 600, marginBottom: 10 } }, 'Electronic signature'),
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 } }, h(StatusChip, { status: r ? r.status : 'draft' }), r && h('span', { style: { fontSize: 12.5, color: K.mut } }, when(r.created_at))),
-        r ? (r.signers || []).map(s => h('div', { key: s.id, style: { display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, padding: '4px 0', alignItems: 'center' } }, h('span', { style: { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' } }, s.name), h(StatusChip, { status: sTone(s.status), text: s.status === 'pending' ? 'Waiting' : s.status === 'notified' ? 'Sent' : SIGNER_LABEL[s.status] }))) : h('div', { style: { fontSize: 13, color: K.mut } }, 'Prepare this document, add signers and send it. The status shows here.'),
-        h('div', { style: { marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' } }, r && h(Btn, { small: true, onClick: () => LSE.status(app, tpl) }, 'Details'), r && r.status === 'completed' && h(Btn, { small: true, primary: true, onClick: () => api('download', { request_id: r.id }).then(x => saveFile(x.pdf, x.filename)).catch(e => app.toast(e.message)) }, 'Download signed PDF'))); },
-    /* The in-editor preparation mode. */
-    Pane: ({ app, tpl, mode, title }) => h(Prepare, { key: mode.id, app, tpl, html: mode.html, title, onExit: () => LSE.close(app), onSend: () => { LSE.close(app); openSend(app, tpl); } }),
-    store, loadCfg, loadList
-  };
-  window.LSE = LSE;
+  const sealOf = env => sha([env.hash, ...env.signers.map(s => (s.sigHash || '') + '@' + (s.signedAt || '')), env.audit.length ? env.audit[env.audit.length - 1].hash : ''].join('|'));
+
+  /* ---------- state of a request ---------- */
+  const status = e => e.status === 'sent' && e.expires && e.expires < L.today() ? 'expired' : e.status;
+  const TONE = { draft: 'grey', sent: 'ink', completed: 'ink', declined: 'red', voided: 'grey', expired: 'red' };
+  const LABEL = { draft: 'Draft', sent: 'Out for signature', completed: 'Completed', declined: 'Declined', voided: 'Cancelled', expired: 'Expired' };
+  /* Whose turn it is: everyone pending (parallel), or only the first pending signer (in order). */
+  const canSign = (e, s) => status(e) === 'sent' && s.status === 'pending' && (e.order !== 'sequential' || e.signers.find(x => x.status === 'pending') === s);
+  const docsWithFile = d => d.docs.filter(x => x.file && x.kind !== 'evidence');
+  const driveOn = app => !!(window.LSB && LSB.on && app.driveSt && app.driveSt.configured && app.driveSt.connected);
+  /* The sealed copy lives under its own id, so editing or deleting the case document cannot change what was signed. */
+  const storeCopy = (app, id, f) => !(window.LSB && LSB.on) ? L.files.put(id, f) : driveOn(app) ? LSB.drive.upload(id, f).then(dr => dr) : LSB.upload(id, f).then(() => null);
+  const readCopy = (e) => (window.LSB && LSB.on ? (e.drive ? LSB.drive.download(e.drive) : LSB.download(e.fileId, e.fileName)) : L.files.get(e.fileId));
+  const caseTitle = (d, id) => (d.cases.find(c => c.id === id) || {}).title || 'Not linked';
+  const envOf = (app, id) => (app.db.esign || []).find(x => x.id === id);
+  /* Run an async change on a request, then save it. The request is edited on the live record so the app's usual save and sync applies. */
+  async function change(app, id, fn, msg) {
+    const e = envOf(app, id); if (!e) return;
+    const copy = JSON.parse(JSON.stringify(e)); await fn(copy);
+    app.mut(db => { const i = db.esign.findIndex(x => x.id === id); if (i >= 0) db.esign[i] = copy; }, msg);
+  }
+
+  /* ---------- signature pad ---------- */
+  function Pad({ onChange }) {
+    const ref = useRef(null), st = useRef({ on: false, any: false });
+    useEffect(() => { const c = ref.current, x = c.getContext('2d'); x.lineWidth = 2.6; x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#0A0A0A'; }, []);
+    const pt = ev => { const c = ref.current, r = c.getBoundingClientRect(); return [(ev.clientX - r.left) * c.width / r.width, (ev.clientY - r.top) * c.height / r.height]; };
+    const down = ev => { ev.preventDefault(); ref.current.setPointerCapture && ref.current.setPointerCapture(ev.pointerId); const x = ref.current.getContext('2d'), [px, py] = pt(ev); x.beginPath(); x.moveTo(px, py); x.lineTo(px + .01, py + .01); x.stroke(); st.current.on = true; };
+    const move = ev => { if (!st.current.on) return; const x = ref.current.getContext('2d'), [px, py] = pt(ev); x.lineTo(px, py); x.stroke(); st.current.any = true; };
+    const up = () => { if (!st.current.on) return; st.current.on = false; onChange(st.current.any ? ref.current.toDataURL('image/png') : ''); };
+    const clear = () => { const c = ref.current; c.getContext('2d').clearRect(0, 0, c.width, c.height); st.current.any = false; onChange(''); };
+    return h('div', null, h('canvas', { ref, width: 600, height: 200, onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerLeave: up, style: { width: '100%', height: 150, border: '1px dashed ' + K.line, borderRadius: 10, background: '#fff', touchAction: 'none', cursor: 'crosshair', display: 'block' }, 'aria-label': 'Signature pad. Draw your signature here.' }),
+      h('div', { style: { marginTop: 8 } }, h(Btn, { small: true, onClick: clear }, 'Clear')));
+  }
+  /* Typed signature, rendered to a picture so every method yields the same kind of image. */
+  function typed(name) {
+    const c = document.createElement('canvas'); c.width = 600; c.height = 200; const x = c.getContext('2d'); x.fillStyle = '#0A0A0A'; x.textBaseline = 'middle';
+    let size = 84; do { x.font = `italic ${size}px "Snell Roundhand","Segoe Script","Brush Script MT",cursive`; size -= 4; } while (x.measureText(name).width > 560 && size > 24);
+    x.fillText(name, 20, 105); return c.toDataURL('image/png');
+  }
+  const readImg = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'), k = Math.min(1, 600 / i.width, 200 / i.height); c.width = Math.round(i.width * k); c.height = Math.round(i.height * k); c.getContext('2d').drawImage(i, 0, 0, c.width, c.height); res(c.toDataURL('image/png')); }; i.onerror = () => rej(new Error('That is not an image.')); i.src = r.result; }; r.onerror = () => rej(r.error); r.readAsDataURL(f); });
+
+  /* ---------- signing ---------- */
+  function SignModal({ app, id, sid }) {
+    const e = envOf(app, id), s = e && e.signers.find(x => x.id === sid);
+    const [mode, setMode] = useState('draw'), [img, setImg] = useState(''), [name, setName] = useState(s ? s.name : ''), [conf, setConf] = useState(''), [ok, setOk] = useState(false), [busy, setBusy] = useState(false), [err, setErr] = useState('');
+    const [chk, setChk] = useState({ state: 'checking' });
+    useEffect(() => { let on = true; (async () => { try { const f = await readCopy(e); if (!f) return on && setChk({ state: 'missing' }); const hh = await fileHash(f); on && setChk({ state: hh === e.hash ? 'ok' : 'bad', now: hh }); } catch (x) { on && setChk({ state: 'error', msg: x.message }); } })(); return () => { on = false; }; }, []);
+    if (!e || !s) return null;
+    const pic = mode === 'type' ? (name.trim() ? typed(name.trim()) : '') : img;
+    const submit = async () => {
+      setErr('');
+      if (chk.state !== 'ok') return setErr('The document cannot be verified, so it cannot be signed.');
+      if (!pic) return setErr('Add a signature first.');
+      if (conf.trim().toLowerCase() !== (s.email || '').toLowerCase()) return setErr('Type the signer\'s email address exactly as it was entered on the request.');
+      if (!ok) return setErr('Tick the consent box to continue.');
+      setBusy(true);
+      try {
+        await change(app, id, async c => {
+          const sg = c.signers.find(x => x.id === sid); if (!canSign(c, sg)) throw new Error('This request is no longer waiting for this signer.');
+          sg.status = 'signed'; sg.signedAt = nowIso(); sg.sig = pic; sg.sigHash = await sha(pic); sg.method = mode; sg.docHashAtSigning = chk.now;
+          await addAudit(c, sg.name, `Signed (${mode === 'draw' ? 'drawn' : mode === 'type' ? 'typed' : 'uploaded'} signature) · document hash verified ${short(chk.now)}`);
+          if (c.signers.every(x => x.status === 'signed')) { c.status = 'completed'; c.completedAt = nowIso(); await addAudit(c, 'System', 'All signers have signed. Request completed and sealed'); c.seal = await sealOf(c); }
+        }, 'Signature recorded');
+        app.modal(null);
+      } catch (x) { setErr(x.message || 'Could not sign.'); setBusy(false); }
+    };
+    const tab = (k, l) => h('button', { type: 'button', onClick: () => setMode(k), style: { border: '1px solid ' + (mode === k ? K.ink : K.line), background: mode === k ? K.ink : '#fff', color: mode === k ? '#fff' : K.ink, borderRadius: 8, height: 32, padding: '0 12px', fontSize: 13 } }, l);
+    return h(Modal, { title: 'Sign: ' + e.title, sub: `Signing as ${s.name}${s.role ? ' · ' + s.role : ''}`, onClose: () => app.modal(null), width: 560 },
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+        h('div', { style: { border: '1px solid ' + (chk.state === 'ok' ? K.line : '#F4B8B1'), background: chk.state === 'ok' ? K.soft : K.redBg, borderRadius: 10, padding: '10px 12px', fontSize: 13, lineHeight: 1.5 } },
+          chk.state === 'checking' && 'Checking the document against its sealed fingerprint…',
+          chk.state === 'ok' && h('span', null, h('b', null, 'Document verified. '), 'This file is identical to the one sent for signature. ', h('span', { style: { color: K.mut } }, 'SHA-256 ' + short(e.hash))),
+          chk.state === 'bad' && h('span', { style: { color: K.red } }, h('b', null, 'Document has been changed. '), 'The file no longer matches the fingerprint sealed when this request was made. Signing is blocked. Cancel this request and start a new one.'),
+          chk.state === 'missing' && h('span', { style: { color: K.red } }, 'The sealed copy of the document is not available here, so it cannot be verified or signed.'),
+          chk.state === 'error' && h('span', { style: { color: K.red } }, chk.msg)),
+        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, tab('draw', 'Draw'), tab('type', 'Type'), tab('upload', 'Upload image'), h('button', { type: 'button', disabled: true, title: 'Aadhaar eSign is coming soon.', style: { border: '1px solid ' + K.line, background: K.soft, color: K.mut, borderRadius: 8, height: 32, padding: '0 12px', fontSize: 13, cursor: 'not-allowed' } }, 'Aadhaar eSign · Coming soon')),
+        mode === 'draw' && h(Pad, { onChange: setImg }),
+        mode === 'type' && h('div', null, h('input', { value: name, onChange: ev => setName(ev.target.value), placeholder: 'Type your full name', style: X.input }), pic && h('img', { src: pic, alt: 'Typed signature preview', style: { width: '100%', maxHeight: 120, objectFit: 'contain', border: '1px dashed ' + K.line, borderRadius: 10, marginTop: 8, background: '#fff' } })),
+        mode === 'upload' && h('div', null, h(Btn, { onClick: () => L.pickFile('image/*').then(fs => fs[0] && readImg(fs[0]).then(setImg).catch(x => setErr(x.message))) }, img ? 'Choose a different image' : 'Choose signature image'), img && h('img', { src: img, alt: 'Signature preview', style: { width: '100%', maxHeight: 120, objectFit: 'contain', border: '1px dashed ' + K.line, borderRadius: 10, marginTop: 8, background: '#fff' } })),
+        h('label', { style: { fontSize: 13 } }, 'Confirm the signer\'s email address', h('input', { value: conf, onChange: ev => setConf(ev.target.value), placeholder: s.email, autoComplete: 'off', style: Object.assign({}, X.input, { marginTop: 6 }) })),
+        h('label', { style: { display: 'flex', gap: 8, fontSize: 13, lineHeight: 1.5, alignItems: 'flex-start' } }, h('input', { type: 'checkbox', checked: ok, onChange: ev => setOk(ev.target.checked), style: { marginTop: 3 } }), 'I have read the document and agree to sign it electronically. I understand this is an electronic signature under the Information Technology Act, 2000, and that the time and document fingerprint are recorded.'),
+        err && h('div', { role: 'alert', style: { color: K.red, fontSize: 13 } }, err),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'), h(Btn, { primary: true, disabled: busy || chk.state !== 'ok', onClick: submit }, busy ? 'Signing…' : 'Sign document'))));
+  }
+
+  /* ---------- certificate of completion ---------- */
+  function certificate(d, e) {
+    const sg = e.signers.map(s => `<tr><td>${esc(s.name)}<br><small>${esc(s.email)}${s.role ? ' · ' + esc(s.role) : ''}</small></td><td>${s.status === 'signed' ? `<img src="${s.sig}" alt="signature" style="height:60px">` : esc(s.status)}</td><td>${s.signedAt ? esc(when(s.signedAt)) : '—'}<br><small>${esc(s.method || '')}</small></td><td class="m">${esc(s.docHashAtSigning || '')}</td></tr>`).join('');
+    const au = e.audit.map((a, i) => `<tr><td>${i + 1}</td><td>${esc(when(a.ts))}</td><td>${esc(a.who)}</td><td>${esc(a.act)}</td><td class="m">${esc(a.hash.slice(0, 16))}</td></tr>`).join('');
+    const st = e.stamp && (e.stamp.state || e.stamp.amount || e.stamp.cert) ? `<h2>Stamp details (recorded by the sender, not verified by Legal Staff)</h2><p>State: ${esc(e.stamp.state || '—')} · Amount: ${esc(e.stamp.amount ? '₹' + e.stamp.amount : '—')} · Certificate / UIN: ${esc(e.stamp.cert || '—')}</p>` : '';
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Certificate of completion · ${esc(e.title)}</title><style>body{font:14px/1.5 system-ui,sans-serif;color:#0A0A0A;max-width:880px;margin:32px auto;padding:0 20px}h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:26px 0 8px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:8px;text-align:left;vertical-align:top;font-size:13px}small{color:#666}.m{font:11px ui-monospace,monospace;word-break:break-all}.ok{display:inline-block;border:1px solid #0A0A0A;border-radius:6px;padding:2px 8px;font-size:12px}@media print{body{margin:0}}</style></head><body>
+<h1>Certificate of completion</h1><p><span class="ok">${e.status === 'completed' ? 'COMPLETED' : esc((LABEL[status(e)] || '').toUpperCase())}</span> · generated ${esc(when(nowIso()))} · ${esc(d.firm.name || 'Legal Staff')}</p>
+<h2>Document</h2><table><tr><td>Title</td><td>${esc(e.title)}</td></tr><tr><td>File</td><td>${esc(e.fileName)} (${esc(L.size(e.size || 0))})</td></tr><tr><td>Case</td><td>${esc(caseTitle(d, e.caseId))}</td></tr><tr><td>Sent by / on</td><td>${esc(e.createdBy)} · ${esc(when(e.created))}</td></tr><tr><td>Signing order</td><td>${e.order === 'sequential' ? 'One after another' : 'Any order'}</td></tr><tr><td>Document SHA-256</td><td class="m">${esc(e.hash)}</td></tr>${e.seal ? `<tr><td>Seal SHA-256</td><td class="m">${esc(e.seal)}</td></tr>` : ''}</table>
+<h2>Signers</h2><table><tr><th>Signer</th><th>Signature</th><th>Signed at</th><th>Document hash seen when signing</th></tr>${sg}</table>${st}
+<h2>Audit trail (each line's fingerprint includes the line before it)</h2><table><tr><th>#</th><th>Time</th><th>By</th><th>Event</th><th>Fingerprint</th></tr>${au}</table>
+<p><small>To verify: compute the SHA-256 of the original file and compare it to the document hash above, or use Verify on the E-Sign page in Legal Staff. Signatures here are electronic signatures captured in the app; they are not Aadhaar eSign or digital signature certificates unless stated in the trail.</small></p></body></html>`;
+  }
+
+  /* ---------- new request ---------- */
+  function NewRequest({ app }) {
+    const d = app.db, docs = docsWithFile(d);
+    const [src, setSrc] = useState(docs[0] ? docs[0].id : 'upload'), [file, setFile] = useState(null), [title, setTitle] = useState(''), [caseId, setCaseId] = useState((d.cases[0] || {}).id || ''), [order, setOrder] = useState('parallel');
+    const [days, setDays] = useState('7'), [signers, setSigners] = useState([{ name: '', email: '', role: '' }]), [stamp, setStamp] = useState({ state: '', amount: '', cert: '' }), [err, setErr] = useState(''), [busy, setBusy] = useState(false);
+    const setS = (i, k, v) => setSigners(signers.map((s, j) => j === i ? Object.assign({}, s, { [k]: v }) : s));
+    const go = async () => {
+      setErr('');
+      if (!title.trim()) return setErr('Give the request a title.');
+      const ss = signers.map(s => ({ name: s.name.trim(), email: s.email.trim(), role: s.role.trim() }));
+      if (!ss.length || ss.some(s => !s.name || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s.email))) return setErr('Every signer needs a name and a valid email address.');
+      if (new Set(ss.map(s => s.email.toLowerCase())).size !== ss.length) return setErr('Two signers have the same email address.');
+      if (!(+days >= 1 && +days <= 365)) return setErr('Expiry must be between 1 and 365 days.');
+      let blob = null, name = '';
+      if (src === 'upload') { if (!file) return setErr('Choose the file to be signed.'); blob = file; name = file.name; }
+      else { const doc = d.docs.find(x => x.id === src); try { blob = await (window.LSB && LSB.on ? (doc.drive ? LSB.drive.download(doc.drive) : LSB.download(doc.id, doc.file)) : L.files.get(doc.id)); } catch (x) { blob = null; } if (!blob) return setErr('That document\'s file could not be read.'); name = doc.file; }
+      setBusy(true);
+      try {
+        const id = L.uid('es'), fileId = id + '-f', hash = await fileHash(blob), dup = (d.esign || []).find(x => x.hash === hash && ['sent', 'completed'].includes(x.status));
+        if (dup && !window.confirm(`This exact file is already in "${dup.title}" (${LABEL[status(dup)]}). Send it again?`)) return setBusy(false);
+        const drive = await storeCopy(app, fileId, blob);
+        const env = { id, title: title.trim(), caseId, fileId, ...(drive ? { drive } : {}), fileName: name, size: blob.size, hash, created: nowIso(), createdBy: d.user.name, status: 'sent', order, expires: L.addDays(L.today(), +days), signers: ss.map((s, i) => Object.assign(s, { id: id + '-s' + i, status: 'pending' })), stamp, audit: [] };
+        await addAudit(env, d.user.name, `Request created for ${ss.length} signer${ss.length > 1 ? 's' : ''}. Document sealed with SHA-256 ${short(hash)}`);
+        await addAudit(env, d.user.name, 'Sent for signature' + (order === 'sequential' ? ' (in order)' : ''));
+        app.mut(db => { db.esign = db.esign || []; db.esign.unshift(env); V.logIt(db, `E-sign request "${env.title}" sent by ${db.user.name}`, caseId); }, 'Request created');
+        app.modal(null);
+      } catch (x) { setErr(x.message || 'Could not create the request.'); setBusy(false); }
+    };
+    const lab = (t, c) => h('label', { style: { fontSize: 13, flex: '1 1 200px' } }, t, c);
+    return h(Modal, { title: 'New signature request', sub: 'The document is fingerprinted now. Any later change to it blocks signing.', onClose: () => app.modal(null), width: 640 },
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+        lab('Document', h('select', { value: src, onChange: ev => setSrc(ev.target.value), style: Object.assign({}, X.input, { marginTop: 6 }) }, docs.map(x => h('option', { key: x.id, value: x.id }, x.name + ' (' + x.file + ')')), h('option', { value: 'upload' }, 'Upload a new file…'))),
+        src === 'upload' && h('div', null, h(Btn, { onClick: () => L.pickFile().then(fs => { if (fs[0]) { setFile(fs[0]); if (!title) setTitle(fs[0].name.replace(/\.[^.]+$/, '')); } }) }, file ? 'Change file' : 'Choose file'), file && h('span', { style: { marginLeft: 10, fontSize: 13, color: K.mut } }, file.name + ' · ' + L.size(file.size))),
+        h('div', { style: { display: 'flex', gap: 14, flexWrap: 'wrap' } }, lab('Title', h('input', { value: title, onChange: ev => setTitle(ev.target.value), placeholder: 'Ex. Settlement agreement', style: Object.assign({}, X.input, { marginTop: 6 }) })), lab('Case', h('select', { value: caseId, onChange: ev => setCaseId(ev.target.value), style: Object.assign({}, X.input, { marginTop: 6 }) }, h('option', { value: '' }, 'Not linked'), d.cases.map(c => h('option', { key: c.id, value: c.id }, c.title))))),
+        h('div', { style: { fontSize: 13, fontWeight: 600 } }, 'Signers'),
+        signers.map((s, i) => h('div', { key: i, style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } }, order === 'sequential' && h('span', { style: { width: 20, color: K.mut, fontSize: 13 } }, i + 1 + '.'), h('input', { value: s.name, onChange: ev => setS(i, 'name', ev.target.value), placeholder: 'Full name', style: Object.assign({}, X.input, { flex: '1 1 140px' }) }), h('input', { value: s.email, onChange: ev => setS(i, 'email', ev.target.value), placeholder: 'Email', style: Object.assign({}, X.input, { flex: '1 1 170px' }) }), h('input', { value: s.role, onChange: ev => setS(i, 'role', ev.target.value), placeholder: 'Role (optional)', style: Object.assign({}, X.input, { flex: '1 1 110px' }) }), signers.length > 1 && h(Btn, { small: true, onClick: () => setSigners(signers.filter((_, j) => j !== i)) }, 'Remove'))),
+        signers.length < 20 && h('div', null, h(Btn, { small: true, onClick: () => setSigners([...signers, { name: '', email: '', role: '' }]) }, '+ Add signer')),
+        h('div', { style: { display: 'flex', gap: 14, flexWrap: 'wrap' } }, lab('Signing order', h('select', { value: order, onChange: ev => setOrder(ev.target.value), style: Object.assign({}, X.input, { marginTop: 6 }) }, h('option', { value: 'parallel' }, 'Any order'), h('option', { value: 'sequential' }, 'One after another'))), lab('Expires in (days)', h('input', { value: days, onChange: ev => setDays(ev.target.value), inputMode: 'numeric', style: Object.assign({}, X.input, { marginTop: 6 }) }))),
+        h('div', { style: { fontSize: 13, fontWeight: 600 } }, 'Stamp details (optional)'),
+        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, h('input', { value: stamp.state, onChange: ev => setStamp({ ...stamp, state: ev.target.value }), placeholder: 'State', style: Object.assign({}, X.input, { flex: '1 1 120px' }) }), h('input', { value: stamp.amount, onChange: ev => setStamp({ ...stamp, amount: ev.target.value.replace(/[^\d.]/g, '') }), placeholder: 'Stamp duty paid (₹)', style: Object.assign({}, X.input, { flex: '1 1 120px' }) }), h('input', { value: stamp.cert, onChange: ev => setStamp({ ...stamp, cert: ev.target.value }), placeholder: 'E-stamp certificate / UIN', style: Object.assign({}, X.input, { flex: '1 1 160px' }) })),
+        h('div', { style: { fontSize: 12, color: K.mut } }, 'Recorded as you enter it and printed on the certificate. Legal Staff does not buy or verify stamps.'),
+        err && h('div', { role: 'alert', style: { color: K.red, fontSize: 13 } }, err),
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Cancel'), h(Btn, { primary: true, disabled: busy, onClick: go }, busy ? 'Sealing…' : 'Send for signature'))));
+  }
+
+  /* ---------- request detail ---------- */
+  function Detail({ app, id }) {
+    const e = envOf(app, id), [tr, setTr] = useState(null); useEffect(() => { if (e) auditOk(e).then(setTr); }, [e && e.audit.length]);
+    if (!e) return null; const d = app.db, st = status(e);
+    const act = (fn, msg) => fn().then(() => msg && app.toast(msg)).catch(x => app.toast(x.message || 'Failed'));
+    const cancel = () => V.confirmBox(app, 'Cancel this request?', 'Signers will no longer be able to sign it. Signatures already given stay in the record.', 'Cancel request', () => act(() => change(app, id, async c => { c.status = 'voided'; await addAudit(c, d.user.name, 'Request cancelled'); }, 'Request cancelled')));
+    const decline = s => { const r = window.prompt(`Record that ${s.name} declined to sign. Reason (optional):`); if (r === null) return; act(() => change(app, id, async c => { const sg = c.signers.find(x => x.id === s.id); sg.status = 'declined'; sg.declineReason = r; c.status = 'declined'; await addAudit(c, sg.name, 'Declined to sign' + (r ? ': ' + r : '')); }, 'Recorded')); };
+    const remind = s => act(async () => { await change(app, id, async c => { await addAudit(c, d.user.name, `Reminder sent to ${s.name}`); }); const b = encodeURIComponent(`Hello ${s.name},\n\nPlease sign "${e.title}"${e.expires ? ' before ' + L.dmy(e.expires) : ''}.\n\nRegards,\n${d.user.name}`); window.open(`mailto:${s.email}?subject=${encodeURIComponent('Signature needed: ' + e.title)}&body=${b}`); });
+    return h(Modal, { title: e.title, sub: `${caseTitle(d, e.caseId)} · ${e.fileName}`, onClose: () => app.modal(null), width: 720 },
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } }, h(Chip, { tone: TONE[st] }, LABEL[st]), e.expires && st === 'sent' && h('span', { style: { fontSize: 13, color: K.mut } }, 'Expires ' + L.dmy(e.expires)), tr !== null && h(Chip, { tone: tr ? 'ink' : 'red' }, tr ? 'Audit trail intact' : 'Audit trail altered')),
+        h('div', { style: { fontSize: 12, color: K.mut, wordBreak: 'break-all' } }, 'Document SHA-256: ', h('code', null, e.hash)),
+        e.signers.map((s, i) => h('div', { key: s.id, style: { display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', border: '1px solid ' + K.line, borderRadius: 10, padding: '10px 12px' } },
+          h('div', null, h('div', { style: { fontSize: 14, fontWeight: 500 } }, (e.order === 'sequential' ? i + 1 + '. ' : '') + s.name, s.role ? ' · ' + s.role : ''), h('div', { style: { fontSize: 12.5, color: K.mut } }, s.email + (s.signedAt ? ' · signed ' + when(s.signedAt) : s.status === 'declined' ? ' · declined' + (s.declineReason ? ': ' + s.declineReason : '') : ''))),
+          h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } }, s.status === 'signed' ? h(React.Fragment, null, h('img', { src: s.sig, alt: 'Signature of ' + s.name, style: { height: 36, maxWidth: 120, objectFit: 'contain' } }), h(Chip, null, 'Signed')) : s.status === 'declined' ? h(Chip, { tone: 'red' }, 'Declined') : h(React.Fragment, null, h(Chip, { tone: 'grey' }, canSign(e, s) ? 'Waiting' : st === 'sent' ? 'Waiting for earlier signer' : 'Pending'), canSign(e, s) && h(Btn, { small: true, primary: true, onClick: () => app.modal(() => h(SignModal, { app, id, sid: s.id })) }, 'Sign now'), canSign(e, s) && h(Btn, { small: true, onClick: () => remind(s) }, 'Remind'), canSign(e, s) && h(Btn, { small: true, onClick: () => decline(s) }, 'Mark declined'))))),
+        h('div', null, h('div', { style: { fontSize: 13, fontWeight: 600, marginBottom: 6 } }, 'Audit trail'), h('div', { style: { maxHeight: 190, overflowY: 'auto', fontSize: 12.5, border: '1px solid ' + K.line, borderRadius: 10 } }, e.audit.map((a, i) => h('div', { key: i, style: { padding: '7px 12px', borderBottom: i < e.audit.length - 1 ? '1px solid ' + K.line : 0 } }, h('span', { style: { color: K.mut } }, when(a.ts) + ' · '), h('b', { style: { fontWeight: 500 } }, a.who), ' · ' + a.act)))),
+        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' } },
+          h(Btn, { onClick: () => act(async () => { const f = await readCopy(e); if (!f) throw new Error('The sealed copy is not available.'); L.download(e.fileName, f); }) }, 'Download original'),
+          h(Btn, { onClick: () => L.download('Certificate - ' + e.title.replace(/[^\w\- ]+/g, '') + '.html', new Blob([certificate(d, e)], { type: 'text/html' })) }, 'Certificate'),
+          st === 'sent' && h(Btn, { danger: true, onClick: cancel }, 'Cancel request'))));
+  }
+
+  /* ---------- verify any file against the sealed requests ---------- */
+  function VerifyModal({ app }) {
+    const [res, setRes] = useState(null), [busy, setBusy] = useState(false);
+    const run = async () => { const fs = await L.pickFile(); if (!fs[0]) return; setBusy(true); try { const hh = await fileHash(fs[0]), hits = (app.db.esign || []).filter(x => x.hash === hh); const rows = []; for (const x of hits) rows.push({ x, trail: await auditOk(x), seal: x.seal ? await sealOf(x) === x.seal : null }); setRes({ name: fs[0].name, hash: hh, rows }); } catch (x) { setRes({ error: x.message }); } setBusy(false); };
+    return h(Modal, { title: 'Verify a document', sub: 'Pick any file. Its SHA-256 fingerprint is compared to every sealed request in your firm.', onClose: () => app.modal(null), width: 560 },
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } }, h('div', null, h(Btn, { primary: true, disabled: busy, onClick: run }, busy ? 'Checking…' : 'Choose file to verify')),
+        res && res.error && h('div', { style: { color: K.red, fontSize: 13 } }, res.error),
+        res && !res.error && h('div', { style: { fontSize: 13.5, lineHeight: 1.55 } }, h('div', { style: { color: K.mut, fontSize: 12, wordBreak: 'break-all' } }, res.name + ' · ' + res.hash),
+          res.rows.length ? res.rows.map(r => h('div', { key: r.x.id, style: { border: '1px solid ' + K.line, borderRadius: 10, padding: '10px 12px', marginTop: 8 } }, h('b', null, 'Matches: '), r.x.title, ' · ' + LABEL[status(r.x)], h('div', { style: { fontSize: 12.5, color: K.mut } }, 'Audit trail ' + (r.trail ? 'intact' : 'ALTERED') + (r.seal === null ? '' : ' · Seal ' + (r.seal ? 'valid' : 'INVALID'))))) : h('div', { style: { marginTop: 8, color: K.red } }, 'No match. This file is not the sealed document of any request in your firm. It may have been altered, or it is a different file.'))));
+  }
+
+  /* ---------- analytics ---------- */
+  const Stat = ({ label, value, note, red }) => h('div', { style: Object.assign({}, X.card, { padding: '16px 18px', flex: '1 1 150px' }) }, h('div', { style: { fontSize: 12.5, color: K.mut } }, label), h('div', { style: { fontSize: 24, fontWeight: 600, color: red ? K.red : K.ink, marginTop: 4 } }, value), note && h('div', { style: { fontSize: 12, color: K.mut, marginTop: 2 } }, note));
+  const hrs = ms => ms < 36e5 ? Math.max(1, Math.round(ms / 6e4)) + ' min' : ms < 864e5 ? (ms / 36e5).toFixed(1) + ' h' : (ms / 864e5).toFixed(1) + ' days';
+  function analytics(list) {
+    const by = s => list.filter(e => status(e) === s), done = by('completed'), open = by('sent');
+    const times = done.map(e => new Date(e.completedAt) - new Date(e.created)).filter(x => x >= 0), avg = times.length ? times.reduce((a, b) => a + b, 0) / times.length : 0;
+    const closed = list.filter(e => ['completed', 'declined', 'expired', 'voided'].includes(status(e))).length;
+    const oldest = open.length ? Math.max(...open.map(e => Date.now() - new Date(e.created))) : 0;
+    const slow = {}; open.forEach(e => e.signers.forEach(s => { if (s.status === 'pending') slow[s.name] = (slow[s.name] || 0) + 1; }));
+    return { total: list.length, done: done.length, open: open.length, declined: by('declined').length, expired: by('expired').length, avg, rate: closed ? Math.round(100 * done.length / closed) : null, oldest, slow: Object.entries(slow).sort((a, b) => b[1] - a[1]).slice(0, 5) };
+  }
+
+  function ESign({ app }) {
+    const d = app.db, list = d.esign || [], [f, setF] = useState('all'), [q, setQ] = useState(''), A = analytics(list);
+    const rows = list.filter(e => (f === 'all' || status(e) === f) && (!q || (e.title + e.fileName + e.signers.map(s => s.name + s.email).join(' ')).toLowerCase().includes(q.toLowerCase())));
+    const cols = [
+      { label: 'Request', w: 'minmax(220px,2fr)', get: e => h('span', null, e.title, h('span', { style: { display: 'block', fontSize: 12, color: K.mut, fontWeight: 400 } }, caseTitle(d, e.caseId) + ' · ' + e.fileName)) },
+      { label: 'Signed', w: '90px', get: e => e.signers.filter(s => s.status === 'signed').length + ' of ' + e.signers.length },
+      { label: 'Status', w: '150px', get: e => h(Chip, { tone: TONE[status(e)] }, LABEL[status(e)]) },
+      { label: 'Sent', w: '110px', get: e => L.dayMon(e.created.slice(0, 10)) },
+      { label: '', w: '220px', get: e => h('span', { style: { display: 'inline-flex', gap: 6 } }, h(Btn, { small: true, onClick: () => app.modal(() => h(Detail, { app, id: e.id })) }, 'Open'), h(Btn, { small: true, onClick: () => L.download('Certificate - ' + e.title.replace(/[^\w\- ]+/g, '') + '.html', new Blob([certificate(d, e)], { type: 'text/html' })) }, 'Certificate')) }
+    ];
+    const prov = [['Aadhaar eSign', 'Signing with Aadhaar OTP through an eSign Service Provider (ESP).'], ['NeSL', 'National e-Governance Services Limited: e-sign and e-stamp for financial documents, with repository storage.'], ['E-stamping', 'Buying and affixing state e-stamp duty.']];
+    return h(Page, { art: 'documents', kicker: 'Practice', title: 'E-Sign', sub: `${A.open} out for signature · ${A.done} completed`, actions: [h(Select, { key: 0, value: f, onChange: setF, options: [['all', 'All requests'], ...Object.keys(LABEL).map(k => [k, LABEL[k]])] }), h('input', { key: 1, value: q, onChange: ev => setQ(ev.target.value), placeholder: 'Search requests', style: Object.assign({}, X.input, { width: 'min(220px,100%)' }) }), h(Btn, { key: 2, onClick: () => app.modal(() => h(VerifyModal, { app })) }, 'Verify a file'), h(Btn, { key: 3, primary: true, onClick: () => d.cases.length ? app.modal(() => h(NewRequest, { app })) : app.toast('Add a case first.') }, '+ New request')] },
+      h('div', { style: { display: 'flex', gap: 12, flexWrap: 'wrap' } }, h(Stat, { label: 'Requests', value: A.total }), h(Stat, { label: 'Waiting for signature', value: A.open, note: A.oldest ? 'Oldest ' + hrs(A.oldest) : '' }), h(Stat, { label: 'Completion rate', value: A.rate == null ? '—' : A.rate + '%', note: 'of closed requests' }), h(Stat, { label: 'Average turnaround', value: A.avg ? hrs(A.avg) : '—', note: 'send to last signature' }), h(Stat, { label: 'Declined or expired', value: A.declined + A.expired, red: A.declined + A.expired > 0 })),
+      A.slow.length > 0 && h(Card, { title: 'Paperwork waiting on' }, h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, A.slow.map(([n, c]) => h(Chip, { key: n }, n + ' · ' + c)))),
+      h(Table, { cols, rows, min: 780, empty: { title: 'No signature requests', text: 'Send a document from a case for signature. It is fingerprinted, signed, and sealed with a certificate.' } }),
+      h(Card, { title: 'Coming soon' }, h('div', { style: { fontSize: 13, color: K.mut, marginBottom: 10 } }, 'These are coming soon. Signing in the app (drawn, typed or uploaded signature) works today.'), prov.map(([n, t]) => h('div', { key: n, style: { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderTop: '1px solid ' + K.line, fontSize: 13.5 } }, h('span', null, h('b', { style: { fontWeight: 500 } }, n), h('span', { style: { display: 'block', fontSize: 12.5, color: K.mut } }, t)), h(Chip, { tone: 'grey' }, 'Coming soon')))));
+  }
+
+  V.MODULES.esign = ESign;
+  V.esign = { sha, fileHash, addAudit, auditOk, sealOf, status, canSign, analytics, certificate, typed };
 })();

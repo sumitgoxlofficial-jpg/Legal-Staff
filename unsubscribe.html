@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Unsubscribe | Legal Staff</title>
+<link rel="icon" type="image/png" href="/assets/ls-favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="/config.js"></script>
+<style>
+  :root { --ink:#0A0A0A; --mut:#5E5E5E; --line:#E5E5E5; --good:#137333; --bad:#B42318; }
+  * { box-sizing:border-box; } body { margin:0; background:#fff; color:var(--ink); font:16px/1.6 'Instrument Sans',system-ui,-apple-system,sans-serif; }
+  main { max-width:480px; margin:0 auto; padding:56px 20px; } .brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; margin-bottom:36px; } .brand img { width:28px; height:29px; }
+  h1 { font-size:24px; letter-spacing:-.02em; margin:0 0 10px; } p { color:var(--mut); margin:0 0 20px; } .box { border:1px solid var(--line); border-radius:14px; padding:26px; }
+  button { height:44px; padding:0 22px; border-radius:10px; border:1px solid var(--ink); background:var(--ink); color:#fff; font:inherit; font-weight:600; cursor:pointer; } button:disabled { opacity:.5; cursor:default; }
+  a { color:var(--ink); } .ok { color:var(--good); font-weight:600; } .err { color:var(--bad); } small { color:var(--mut); }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><img src="/assets/ls-mark-black.png" alt="">Legal Staff</div>
+  <div class="box" id="box" aria-live="polite"><p>Loading…</p></div>
+  <p style="margin-top:18px"><small>Essential service messages about an account you hold (such as receipts or security notices) are separate and are not affected. Questions? Write to the address on <a href="/privacy">our privacy notice</a>.</small></p>
+</main>
+<script>
+(function () {
+  var box = document.getElementById('box'), t = new URLSearchParams(location.search).get('t') || '', cfg = window.LS_CONFIG || {};
+  var url = cfg.supabaseUrl ? cfg.supabaseUrl.replace(/\/$/, '') + '/functions/v1/email-marketing?action=unsub&t=' + encodeURIComponent(t) : '';
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function done(email) { box.innerHTML = '<h1>You are unsubscribed</h1><p class="ok">' + esc(email) + ' will not receive any more marketing email from Legal Staff.</p><p>This takes effect immediately. If this was a mistake, simply ignore this page: we will not email you again unless you ask us to.</p>'; }
+  function fail(msg) { box.innerHTML = '<h1>We could not do that</h1><p class="err">' + esc(msg) + '</p>'; }
+  if (!t || !url) return fail('This unsubscribe link is not valid.');
+  fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+    if (j.error) return fail(j.error);
+    if (j.unsubscribed) return done(j.email);
+    box.innerHTML = '<h1>Unsubscribe from Legal Staff emails</h1><p>Stop marketing email to <b>' + esc(j.email) + '</b>?</p><button id="go">Yes, unsubscribe me</button>';
+    document.getElementById('go').onclick = function (e) {
+      e.target.disabled = true; e.target.textContent = 'Unsubscribing…';
+      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: t }) }).then(function (r) { return r.json(); })
+        .then(function (k) { k.error ? fail(k.error) : done(k.email); }).catch(function () { fail('Network problem. Please try again.'); });
+    };
+  }).catch(function () { fail('Network problem. Please try again.'); });
+})();
+</script>
+<script src="/static/ambient.js" defer></script>
+</body>
+</html>

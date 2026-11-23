@@ -9,6 +9,6 @@ cleanup() { stop="$PGBIN/pg_ctl -D $D/data -m immediate stop >/dev/null 2>&1"; i
 trap cleanup EXIT
 P="psql -h $D -p $PORT -U postgres -qAt"
 $P -v ON_ERROR_STOP=1 -f "$HERE/stub.sql" >/dev/null
-$P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0024_esign.sql" >/dev/null && echo "migration applies"
-$P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0024_esign.sql" >/dev/null && echo "migration re-applies"
+$P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0053_esign_in_editor.sql" >/dev/null && echo "migration applies"
+$P -v ON_ERROR_STOP=1 -f "$ROOT/supabase/migrations/0053_esign_in_editor.sql" >/dev/null && echo "migration re-applies"
 $P -f "$HERE/esign-db.test.sql" 2>&1 | grep -v '^$' | sed 's/^psql:[^ ]* NOTICE:  //'
