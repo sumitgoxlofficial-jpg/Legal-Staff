@@ -236,3 +236,43 @@ How it behaves: the signature is checked over the raw body; each event id is sto
 Every change made in the Super Admin console is written to `admin_audit_log` (append-only; Super Admin > Activity log).
 
 Migration 0044 also closes the legacy "first firm creator is a platform admin" path: `is_platform_admin()` now means Super Admin. The existing `platform_admins` row is left in place but is no longer consulted.
+
+## Electronic signing (functions/esign)
+
+Reached only from the Drafting Studio toolbar (Prepare for Signature, Send for Signature, View Signing Status) and from the signer's link `https://legalstaff.in/sign#<token>`. There is no separate signing module.
+
+### What signature this makes (and does not)
+
+The built-in provider makes a **simple electronic signature**: a typed or drawn signature, with the signer's consent, a one-time code sent to their email, and a hash-chained audit trail. It is **not Aadhaar eSign and not a Digital Signature Certificate (DSC)**, and the app, the emails and the certificate say so. Aadhaar eSign, DSC and other regulated methods must come from an authorised provider (an eSign Service Provider or a certifying authority) through an adapter in `PROVIDERS` in `functions/esign/index.ts`; none is installed. Limits shown to lawyers before they send: documents in the First Schedule to the IT Act, 2000 (will, trust, power of attorney, sale of immovable property) cannot be e-signed; affidavits, vakalatnamas and court filings may need wet ink or a DSC; stamp duty and registration are unaffected. This is information, not legal advice.
+
+### Providers (replaceable)
+
+| Provider | Status |
+| --- | --- |
+| `native` | Installed. No third-party cost except email. |
+| `docuseal` (self-hosted) | **Evaluated, adapter not installed.** From its GitHub README (read when this was built): AGPLv3 with an additional term that the DocuSeal attribution stays in the user interface; "API and Webhooks for integrations" is listed among the free features; **embedded signing form, white-label, automated reminders, SMS identity verification, user roles, SSO and template-from-PDF/HTML APIs are listed as Pro (paid) features**. DocuSeal's own pricing and API pages could not be read, so the price of Pro, any per-document cloud price and whether Aadhaar eSign or DSC is supported are **not verified**. Do not assume production API or embedding is free: confirm the licence and price, then add an adapter. Never call a paid-only endpoint without a licence. |
+
+An adapter must give: send a document with fields to named signers, report status, cancel, and return the signed PDF and its audit data. Provider credentials are stored write-only in Vault (`esign_provider_<name>`) from the admin panel; they never reach the browser.
+
+### Set-up, in order
+
+1. Apply `migrations/0053_esign_in_editor.sql` (needs `pg_cron`, `pg_net`, Vault, and `cron_secret` from migration 0003). Check the project address in the last two statements.
+2. Deploy `functions/` and `esign` with JWT verification off. Deploy `razorpay` and `billing` again (signing credits use them).
+3. Secrets: `RESEND_API_KEY` and `EMAIL_FROM` (links and codes are emailed; the Super Admin cannot switch signing on without them), `APP_URL` (default `https://legalstaff.in`). Optional `ESIGN_FONT_URL` and `ESIGN_FONT_BOLD_URL`: a Unicode TrueType font (for example Noto Sans, with Devanagari) so Hindi and other scripts appear in the signing copy; without it the PDF uses standard fonts, shows `₹` as `Rs.` and other non-Latin characters as `?`, and the lawyer is warned while preparing.
+4. Sign in to `/admin` → **E-Signing**: switch signing on, set pricing, packs, free documents and limits. Nothing is priced by default and signing is off.
+
+### Flow and states
+
+Draft (no request) → Prepared for Signature → Sent → Viewed → Partially Signed → Completed; or Declined, Expired, Cancelled. Sequential signing invites the next order group when the earlier required signers have signed (optional signers never hold anyone up); parallel invites everyone at once. A required signer who declines ends the request and kills the other links. A link works until the request's expiry; the 15-minute job expires overdue requests, starts waiting signers and finishes any signed PDF that failed.
+
+### Security
+
+- Link tokens: 256-bit random, only the SHA-256 is stored; a reminder or re-invite replaces the token (the old link stops). Signers see nothing of the document until they enter the 6-digit code emailed to them (10 minutes, 5 tries, 30 s between sends; the Super Admin can switch this off). The session issued after the code lasts 2 hours.
+- Documents (original and signed PDF) are encrypted with AES-256-GCM, one key per firm derived from a master key in Vault (`esign_master_key`), before they reach Storage. The `esign` bucket has no policies. **Losing that Vault key makes every stored signing document unreadable: never delete or rotate it without re-encrypting.**
+- Firm isolation: the function takes the firm from a verified membership and filters every query by it; the tables also have row level security so members can read only their firm's rows, and never the token, code or signature columns.
+- Audit trail: `esign_events` is append-only and hash-chained in the database (each row stores the hash of the previous one; updates and deletes are refused). "Verify integrity" re-hashes the stored PDFs and re-computes the chain. The signed PDF ends with a certificate listing the signers, consent, IPs, timestamps, the original document's SHA-256 and the chain head.
+- Backup and recovery: the database is covered by Supabase backups; a nightly job keeps a second encrypted copy of each completed PDF under `backup/` in the bucket (Supabase Storage objects are not part of database backups). **Restore** (admin) rebuilds a lost original from the backup copy, or re-renders it from the stored snapshot and writes it only if the SHA-256 matches the recorded one.
+
+### Billing
+
+Super Admin settings: pricing `free` or `credits`, credits per document, credit packs (credits and price, set by the Super Admin), free documents per firm per month, one-time free trial documents, per-firm monthly document limit, per-firm override or block. A send uses this month's free documents first, then the one-time free ones, then credits; the charge is taken atomically (`esign_charge`) and returned if sending fails. The lawyer sees the charge before sending. Credits are bought by the firm owner through **Razorpay Standard Checkout** (`functions/razorpay`, action `esign-create-order`; the existing `verify-payment` action and the webhook add the credits only after the payment is verified, once per payment, through `esign_add_credits`), invoiced and emailed by `functions/billing` as "Electronic signing credits". Credits are also recorded in `esign_ledger`. Refunds of a credit purchase are not wired to remove credits: handle them by hand (E-Signing admin tab, or SQL). Provider expense is the cost per document you enter for a provider, shown in **E-Signing → Provider usage and expenses**.

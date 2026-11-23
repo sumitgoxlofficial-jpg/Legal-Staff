@@ -15,6 +15,7 @@
 <script src="app-templates.js"></script>
 <script src="app-brain.js"></script>
 <script src="app-esign.js"></script>
+<script src="app-signing.js"></script>
 <script src="app-sign.js"></script>
 <script src="app-demo.js"></script>
 <script src="app-import.js"></script>
@@ -859,6 +860,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B6B6B;font-weight:600">AI Drafting Studio · {{ draft.group }}</div>
             <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">{{ draft.title }}</h1>
             <div style="font-size:13.5px;color:#5E5E5E;margin-top:4px">{{ draft.law }}</div>
+            <div style="margin-top:8px">{{ draft.esChip }}</div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <span style="display:inline-flex;gap:6px;align-items:center">{{ dictLangSel }}<button onClick="{{ toggleDict }}" style="{{ dictBtn }}">{{ dictLabel }}</button></span>
@@ -866,10 +868,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             {{ draft.saveBtn }}
             <button class="ls-btn" onClick="{{ draft.docx }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Export DOCX</button>
             <button class="ls-btn" onClick="{{ draft.pdf }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Export PDF</button>
+            {{ draft.esBar }}
           </div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;align-items:start">
           {{ draft.picker }}
+          <div style="{{ esWrapStyle }}">
           {{ draft.sheet }}
           <section style="display:flex;flex-direction:column;gap:16px">
             {{ draft.about }}
@@ -887,7 +891,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               </sc-for>
             </div>
             {{ draft.audit }}
+            {{ draft.esCard }}
           </section>
+          </div>
+          {{ esPane }}
         </div>
       </div>
     </sc-if>
@@ -1461,6 +1468,11 @@ class Component extends DCLogic {
     draft.audit = LSG.auditCard(dv);
     draft.picker = h(LST.Picker, { app: this, sel: S.tpl, onPick: i => { this.buf = null; this.setState({ tpl: i, ver: 0 }); } });
     draft.about = h(LST.About, { i: S.tpl });
+    /* ---- electronic signing for outside signers (app-signing.js): toolbar buttons, status chip and card, and the in-editor preparation mode ---- */
+    if (this.esMode && this.esMode.tpl !== S.tpl) this.esMode = null;
+    const esMode = this.esMode || null, esOk = !!(window.LSE && LSB.on);
+    draft.esBar = esOk ? h(LSE.Bar, { app: this, tpl: S.tpl }) : null; draft.esChip = esOk ? h(LSE.Chip, { app: this, tpl: S.tpl }) : null; draft.esCard = esOk ? h(LSE.Card, { app: this, tpl: S.tpl }) : null;
+    const esPane = esMode && esOk ? h(LSE.Pane, { app: this, tpl: S.tpl, mode: esMode, title: draft.title }) : null, esWrapStyle = { display: esMode ? 'none' : 'contents' };
 
     /* ---- pricing ---- */
     const cycles = [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14, background: S.cycle === k ? '#0A0A0A' : 'transparent', color: S.cycle === k ? '#fff' : '#363636' } }));
@@ -1656,7 +1668,7 @@ class Component extends DCLogic {
       missingOpen: !limFilled, missingFilled: limFilled, fillMissing,
       derivation: lim.rows, approved: LM.approved && !lim.none, notApproved: !LM.approved && !lim.none, approve: () => V.approveLim(this, LM.id),
      
-      versions, draft,
+      versions, draft, esPane, esWrapStyle,
       toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate',
       dictLangSel: h('select', { 'aria-label': 'Dictation language', title: 'Dictation language', value: st.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: S.dict, onChange: e => { const v = e.target.value; this.mut(db => { db.settings.dictLang = v; }); }, style: { height: 34, border: '1px solid #E5E5E5', borderRadius: 8, background: '#FFFFFF', fontSize: 13.5, padding: '0 8px', color: '#0A0A0A' } }, h('option', { value: 'en-IN' }, 'English (India)'), h('option', { value: 'hi-IN' }, 'Hindi')),
       dictBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, border: S.dict ? '1px solid #B42318' : '1px solid #E5E5E5', background: S.dict ? '#FDECEA' : '#FFFFFF', color: S.dict ? '#B42318' : '#0A0A0A' },

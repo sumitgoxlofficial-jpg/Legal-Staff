@@ -63,6 +63,9 @@ function taxSplit(totalPaise: number, sellerState: string, buyerState: string) {
 const fmtDate = (iso: string) => new Date(Date.parse(iso.length === 10 ? iso + "T00:00:00+05:30" : iso)).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 /** Helvetica in a PDF covers Windows-1252 only: keep those characters and replace the rest. */
 const pdfSafe = (s: unknown) => String(s ?? "").replace(/₹/g, "Rs.").replace(/[^\x20-\x7E\xA0-\xFF–—‘’“”•…]/g, "?");
+/** Plan payments read "<plan> plan"; a one-time purchase of e-signing credits (cycle "once") reads as it is named. */
+const pl = (d: any) => d.cycle === "once" ? d.plan : `${d.plan} plan`;
+const cyc = (d: any) => d.cycle === "once" ? "One-time purchase" : d.cycle === "annual" ? "Annual" : "Monthly";
 const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as Record<string, string>)[c]);
 
 /** Builds the invoice data for a paid payment (what gets stored and printed). */
@@ -77,12 +80,12 @@ async function buildInvoice(admin: any, p: any, s: any) {
   const sellerState = (s.seller_gstin || "").slice(0, 2) || s.seller_state_code || "";
   const buyerState = buyerGstin.slice(0, 2) || sellerState;
   const t = { taxable: p.amount_paise, gst: 0, intra: true, cgst: 0, sgst: 0, igst: 0 };   // no GST is charged
-  const list = Math.round(listPrice(p.plan, p.cycle, p.seats) * 100);
+  const list = p.kind === "esign" ? p.amount_paise : Math.round(listPrice(p.plan, p.cycle, p.seats) * 100);
   return {
     seller: { name: s.seller_name || "Legal Staff", address: s.seller_address || "", gstin: s.seller_gstin || "", pan: s.seller_pan || "", email: s.seller_email || "", phone: s.seller_phone || "", state: STATES[sellerState] ?? "", stateCode: sellerState },
     buyer: { name: firm?.name ?? "", address: [firm?.address, firm?.city].filter(Boolean).join(", "), gstin: buyerGstin, email, state: STATES[buyerState] ?? "", stateCode: buyerState },
     plan: p.plan, cycle: p.cycle, sac: s.sac_code || "",
-    period: sub ? { from: sub.since, to: sub.renews } : null,
+    period: sub && p.kind !== "esign" ? { from: sub.since, to: sub.renews } : null,
     list, promo: p.promo_code || "", adjust: t.taxable - list,   // negative: discount; small positive: unique-amount paise
     ...t, total: p.amount_paise,
     paidAt: p.paid_at, method: p.method === "promo" ? "Promo code" : p.method === "razorpay" ? "Razorpay" : "UPI", utr: p.utr || "", orderNo: p.order_no || "",
@@ -169,10 +172,10 @@ async function invoicePdf(inv: any) {
   T("DESCRIPTION", cx.desc, y, { size: 7.5, bold: true, color: mut }); T("SAC", cx.sac, y, { size: 7.5, bold: true, color: mut });
   T("PERIOD", cx.per, y, { size: 7.5, bold: true, color: mut }); T("AMOUNT (INR)", cx.amt, y, { size: 7.5, bold: true, color: mut, right: true });
   y -= 30;
-  T(`Legal Staff ${d.plan} plan`, cx.desc, y, { size: 10.5, bold: true });
+  T(`Legal Staff ${pl(d)}`, cx.desc, y, { size: 10.5, bold: true });
   T(d.sac || "-", cx.sac, y); T(d.period ? fmtDate(d.period.from) + " –" : "-", cx.per, y, { size: 9 });
   T(inr(d.list), cx.amt, y, { right: true });
-  y -= 13; T(`${d.cycle === "annual" ? "Annual" : "Monthly"} subscription · software as a service`, cx.desc, y, { size: 9, color: mut });
+  y -= 13; T(`${d.cycle === "once" ? "Electronic signing credits" : (d.cycle === "annual" ? "Annual" : "Monthly") + " subscription"} · software as a service`, cx.desc, y, { size: 9, color: mut });
   if (d.period) T(fmtDate(d.period.to), cx.per, y, { size: 9 });
   y -= 18; hr(y); y -= 18;
 
@@ -208,10 +211,10 @@ async function emailInvoice(admin: any, inv: any, to: string) {
   const key = Deno.env.get("RESEND_API_KEY"), from = Deno.env.get("EMAIL_FROM");
   if (!key || !from || !to) throw new Fail("Email is not set up.", 501);
   const d = inv.data, pdf = await invoicePdf(inv), FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-  const rows: [string, string][] = [["Plan", `${d.plan} · ${d.cycle === "annual" ? "Annual" : "Monthly"}`], ...(d.period ? [["Valid", `${fmtDate(d.period.from)} – ${fmtDate(d.period.to)}`] as [string, string]] : []),
+  const rows: [string, string][] = [["Plan", `${d.plan} · ${cyc(d)}`], ...(d.period ? [["Valid", `${fmtDate(d.period.from)} – ${fmtDate(d.period.to)}`] as [string, string]] : []),
     ["Amount paid", "₹" + inr(d.total)], ["Invoice", inv.invoice_no], ["Paid by", d.method + (d.utr ? " · ref " + d.utr : "")], ...(d.promo ? [["Promo code", d.promo] as [string, string]] : [])];
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Your Legal Staff invoice</title></head>
-<body style="margin:0;padding:0;background:#F4F4F2"><div style="display:none;max-height:0;overflow:hidden;opacity:0">Payment received: ${esc(d.plan)} plan, ₹${esc(inr(d.total))}. Your invoice ${esc(inv.invoice_no)} is attached.</div>
+<body style="margin:0;padding:0;background:#F4F4F2"><div style="display:none;max-height:0;overflow:hidden;opacity:0">Payment received: ${esc(pl(d))}, ₹${esc(inr(d.total))}. Your invoice ${esc(inv.invoice_no)} is attached.</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F4F4F2"><tr><td align="center" style="padding:28px 12px">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px">
 <tr><td style="padding:0 4px 16px"><a href="${SITE}" style="text-decoration:none"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
@@ -219,7 +222,7 @@ async function emailInvoice(admin: any, inv: any, to: string) {
 <td valign="middle" style="font:700 18px/1 ${FONT};letter-spacing:-.02em;color:#0A0A0A">Legal Staff</td></tr></table></a></td></tr>
 <tr><td style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:30px 30px 26px">
 <div style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#137333;padding-bottom:8px">Payment received</div>
-<div style="font:700 22px/1.3 ${FONT};letter-spacing:-.02em;color:#0A0A0A;padding-bottom:14px">Your ${esc(d.plan)} plan is active</div>
+<div style="font:700 22px/1.3 ${FONT};letter-spacing:-.02em;color:#0A0A0A;padding-bottom:14px">Your ${esc(pl(d))} ${d.cycle === "once" ? "have been added" : "is active"}</div>
 <p style="margin:0 0 16px;font:15px/1.6 ${FONT};color:#363636">Thank you${d.buyer.name ? ", " + esc(d.buyer.name) : ""}. We have received your payment. Your invoice is attached as a PDF for your records.</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.map(([k, v]) => `<tr><td style="padding:11px 14px 11px 0;border-top:1px solid #EDEDED;width:120px;font:600 13px/1.4 ${FONT};color:#6B6B6B;white-space:nowrap">${esc(k)}</td><td style="padding:11px 0;border-top:1px solid #EDEDED;font:15px/1.45 ${FONT};color:#0A0A0A">${esc(v)}</td></tr>`).join("")}</table>
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:22px"><tr><td style="border-radius:8px;background:#0A0A0A"><a href="${SITE}/app" style="display:inline-block;padding:12px 22px;font:600 14px/1 ${FONT};color:#FFFFFF;text-decoration:none;border-radius:8px">Open Legal Staff</a></td></tr></table>
@@ -227,9 +230,9 @@ async function emailInvoice(admin: any, inv: any, to: string) {
 </td></tr>
 <tr><td style="padding:18px 6px 0;font:12px/1.6 ${FONT};color:#8A8A8A;text-align:center"><a href="${SITE}" style="color:#5E5E5E;text-decoration:none;font-weight:600">Legal Staff</a> · Practice management for Indian advocates<br>You received this because you paid for a Legal Staff plan.<br><a href="${SITE}/privacy" style="color:#8A8A8A">Privacy</a> · <a href="${SITE}/refund-policy" style="color:#8A8A8A">Refunds</a></td></tr>
 </table></td></tr></table></body></html>`;
-  const text = `Payment received — your ${d.plan} plan is active.\n\n` + rows.map(([k, v]) => `${k}: ${v}`).join("\n") + `\n\nYour invoice is attached as a PDF.\n${SITE}/app`;
+  const text = `Payment received — your ${pl(d)} ${d.cycle === "once" ? "have been added" : "is active"}.\n\n` + rows.map(([k, v]) => `${k}: ${v}`).join("\n") + `\n\nYour invoice is attached as a PDF.\n${SITE}/app`;
   const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [to], ...(d.seller.email ? { reply_to: d.seller.email } : {}), subject: `Invoice ${inv.invoice_no}: Legal Staff ${d.plan} plan, ₹${inr(d.total)}`, html, text, attachments: [{ filename: fileName(inv), content: b64(pdf) }] }) });
+    body: JSON.stringify({ from, to: [to], ...(d.seller.email ? { reply_to: d.seller.email } : {}), subject: `Invoice ${inv.invoice_no}: Legal Staff ${pl(d)}, ₹${inr(d.total)}`, html, text, attachments: [{ filename: fileName(inv), content: b64(pdf) }] }) });
   if (!r.ok) throw new Fail("Could not send the invoice email: " + (await r.text()).slice(0, 200), 502);
   await admin.from("invoices").update({ emailed_to: to, emailed_at: new Date().toISOString() }).eq("id", inv.id);
 }
@@ -240,7 +243,7 @@ async function alertOwner(admin: any, inv: any) {
   const to = s?.alert_email || s?.seller_email, key = Deno.env.get("RESEND_API_KEY"), from = Deno.env.get("EMAIL_FROM");
   if (!to || !key || !from) return;
   const d = inv.data, FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-  const rows: [string, string][] = [["Amount", "₹" + inr(d.total)], ["Firm", d.buyer.name || "-"], ["Buyer", d.buyer.email || "-"], ["Plan", `${d.plan} · ${d.cycle === "annual" ? "Annual" : "Monthly"}`],
+  const rows: [string, string][] = [["Amount", "₹" + inr(d.total)], ["Firm", d.buyer.name || "-"], ["Buyer", d.buyer.email || "-"], ["Plan", `${d.plan} · ${cyc(d)}`],
     ...(d.period ? [["Period", `${fmtDate(d.period.from)} – ${fmtDate(d.period.to)}`] as [string, string]] : []), ["Invoice", inv.invoice_no], ["Paid by", d.method + (d.utr ? " · ref " + d.utr : "")], ...(d.promo ? [["Promo code", d.promo] as [string, string]] : [])];
   const html = `<!doctype html><html><body style="margin:0;padding:24px 12px;background:#F4F4F2"><table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #E5E5E5;border-radius:12px"><tr><td style="padding:26px 28px">
 <div style="font:600 11px/1.4 ${FONT};letter-spacing:.08em;text-transform:uppercase;color:#137333;padding-bottom:8px">New payment</div>

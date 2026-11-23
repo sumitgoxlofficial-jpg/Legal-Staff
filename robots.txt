@@ -4,6 +4,8 @@ Disallow: /app
 Disallow: /app.html
 Disallow: /admin
 Disallow: /admin.html
+Disallow: /sign
+Disallow: /sign.html
 Disallow: /supabase/
 Disallow: /seo/
 Disallow: /partners/dashboard

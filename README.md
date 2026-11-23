@@ -7,6 +7,7 @@ Static site for the Legal Staff practice-management product. No build step and n
 | Landing | `index.html` |
 | Advocate directory | `directory.html` |
 | App | `app.html` |
+| Signing page (for signers, no account) | `sign.html` |
 
 ## Run locally
 
@@ -25,6 +26,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - `app-sign.js` holds the Drafting Studio extras: eStamp record, electronic signatures, fill-details automation, sealing (SHA-256) and audit trail.
 - `app-templates.js` is the Drafting Studio's template library: 80 Indian court, criminal, family, arbitration, consumer, conveyancing, contract, affidavit and office templates in 12 groups, each with its law, forum and a check-before-filing list. Saved drafts are keyed by a template's position, so templates are only ever added at the end.
 - `app-import.js` moves a firm's data in from other software: clients, cases, hearings, tasks and invoices from Excel (.xlsx and old .xls), CSV or JSON exports, plus documents from files, a folder or a ZIP, with column matching, a row check, linking and duplicate skipping. It runs in the browser; files are not uploaded.
+- `app-signing.js` holds the electronic-signing screens inside the Drafting Studio for outside signers (see `supabase/README.md`); `app-esign.js` is the older case-file E-Sign module.
 - `config.js` holds site settings such as the Google Client ID.
 
 ## Accounts and data

@@ -90,3 +90,16 @@ Known stale: `node tests/partner-ui/ui.test.mjs` passes 63 of 64 and then fails 
 
 | `node tests/advocate-page.test.mjs` | The crawlable advocate page and sitemap function with the directory RPC mocked: real head tags and JSON-LD, markup escaped, unchecked profiles `noindex` and out of the sitemap, malformed ids never reach the database, no contact data in the page. |
 | `node tests/directory-notify.test.mjs` | The directory-verify sweep announcing new contact requests: once each, names and topics only, nothing for unpaid or rejected profiles, retried when the email fails, cron secret only. |
+
+## Electronic signing
+
+First `(cd tests && npm install)` (test-only dependencies: `pdf-lib`, `@pdf-lib/fontkit`).
+
+| Command | What it proves |
+| --- | --- |
+| `node tests/esign-logic.test.mjs` | Pure logic: HTML to pages, layout, validation, sequential and parallel turns, status rules, tokens, codes, PNG checks, wording. |
+| `node tests/esign-engine.test.mjs` | The real `supabase/functions/esign` code with real PDF generation on an in-memory database and fake email: single, multiple, sequential and parallel signing, decline, expiry, cancel, reminders, email codes, double submit, charging and credits, firm isolation, audit tampering, encryption at rest, backup and restore, Super Admin controls. Needs `tsc`. |
+| `bash tests/esign-db/run.sh` | Migration `0024_esign.sql` on a real PostgreSQL 16: re-runnable, the hash chain, append-only events, tamper detection, atomic charging and refunds, row level security. |
+| `node tests/esign-e2e.mjs` | The real `app.html`, `sign.html` and `admin.html` in Chromium against the real function (a local stand-in for Supabase): prepare, place fields by tap and drag, send, sign on a phone with a drawn signature, status, download, verify, admin settings. `SHOTS=dir` saves screenshots. |
+
+**Not tested:** real email delivery (Resend), a real Supabase project, Aadhaar eSign or DSC (not offered), DocuSeal (no adapter), a real Razorpay payment of credits (the order creation is new code; the credit grant itself is tested), Hindi and other scripts in the PDF with a Unicode font, and desktop browsers other than Chromium.

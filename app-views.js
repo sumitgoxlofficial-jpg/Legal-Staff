@@ -1561,7 +1561,7 @@
           : h('div', { style: { display: 'flex', flexDirection: 'column' } }, invs.map(i => h('div', { key: i.id, style: { display: 'grid', gridTemplateColumns: 'minmax(130px,1fr) minmax(90px,.8fr) minmax(150px,1.4fr) minmax(80px,.7fr) auto', gap: 12, alignItems: 'center', padding: '10px 0', borderTop: '1px solid ' + K.line, fontSize: 13.5 } },
               h('span', { style: { fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }, i.invoice_no),
               h('span', { style: { color: K.mut } }, L.fmt(istDay(i.issued_at))),
-              h('span', null, `${i.plan} · ${i.cycle === 'annual' ? 'Annual' : 'Monthly'}`, i.period && h('span', { style: { color: K.mut } }, ' · ' + L.fmt(i.period.from) + ' – ' + L.fmt(i.period.to))),
+              h('span', null, `${i.plan} · ${i.cycle === 'once' ? 'One-time' : i.cycle === 'annual' ? 'Annual' : 'Monthly'}`, i.period && h('span', { style: { color: K.mut } }, ' · ' + L.fmt(i.period.from) + ' – ' + L.fmt(i.period.to))),
               h('span', { style: { fontVariantNumeric: 'tabular-nums', fontWeight: 600 } }, rupees(i.total)),
               h('span', { style: { display: 'flex', gap: 6 } },
                 h(Btn, { small: true, disabled: !!busy, onClick: () => act('dl' + i.id, () => downloadInvoice(i.id)) }, busy === 'dl' + i.id ? '…' : 'PDF'),
@@ -1835,6 +1835,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { storeFile, dropFile, driveOn, caseOpts, CourtAdmin, VerificationPanel, verifyBadge, verifyNow, portalBox, autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, razorpayPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { infoBox, X, storeFile, dropFile, driveOn, caseOpts, CourtAdmin, VerificationPanel, verifyBadge, verifyNow, portalBox, autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, razorpayPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();

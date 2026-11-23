@@ -4,6 +4,7 @@
 //                            marks the payment paid, activates the plan and issues the invoice. A mismatch changes nothing (400).
 // Secrets (Edge Functions -> Secrets, never in the repository or the browser): RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET.
 // Also: "promo" / "dir-promo" (price after a promo code) and free orders (a 100%-off code activates straight away, no payment taken).
+// "esign-create-order" sells e-signing credit packs (esign_settings.packs); the same verify-payment and webhook paths add the credits.
 // This is the only way plan and directory-fee money is received: there is no own UPI QR code any more.
 // POST with an x-razorpay-signature header is the Razorpay WEBHOOK (secret RAZORPAY_WEBHOOK_SECRET; point Razorpay at this function's URL and tick
 // payment.captured, order.paid, payment.failed, refund.processed). The browser callback is a convenience; the webhook is what makes a payment
@@ -153,6 +154,19 @@ async function activate(admin: any, p: any, paymentId: string | null, by = "razo
   const { data: claimed } = await admin.from("payments").update({ status: "paid", utr: paymentId, gateway_payment_id: paymentId, confirmed_by: by, paid_at: new Date().toISOString() })
     .eq("id", p.id).eq("status", "created").select("id");
   if (!claimed?.length) return false;              // already confirmed (a repeated verify call)
+  if (p.kind === "esign") {                        // e-signing credits (migration 0053): add them to the firm's wallet once per payment; the plan is not touched
+    const { error: ce } = await admin.rpc("esign_add_credits", { p_firm: p.firm_id, p_n: p.esign_credits, p_kind: "purchase", p_payment: p.id, p_note: "Razorpay order " + p.gateway_order_id, p_by: p.user_id });
+    if (ce) {   // never leave a payment marked paid with no credits behind it: put it back so a retry or the webhook can finish the job
+      console.error("esign credits", ce.message);
+      await admin.from("payments").update({ status: "created", paid_at: null }).eq("id", p.id);
+      throw new Fail("Your payment was received but the credits could not be added yet. They will be added automatically; if not, contact support.", 500);
+    }
+    try {
+      await fetch(Deno.env.get("SUPABASE_URL") + "/functions/v1/billing", { method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "issue", payment_id: p.id }), signal: AbortSignal.timeout(25000) });
+    } catch (e) { console.error("invoice", e); }
+    return true;
+  }
   const { data: cur } = await admin.from("subscriptions").select("*").eq("firm_id", p.firm_id).maybeSingle();
   let start = Date.now();
   if (cur?.status === "trialing" && cur.trial_ends) start = Math.max(start, Date.parse(cur.trial_ends));
@@ -298,6 +312,28 @@ Deno.serve(async (req: Request) => {
       if (!r.ok || !order.id) { console.error("razorpay order", r.status, JSON.stringify(order)); throw new Fail("Razorpay could not create the order. Please try again.", 500); }
 
       const { error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: body.plan, cycle: body.cycle, seats, amount_paise: price.total, gstin: g, method: "razorpay", order_no: receipt, gateway_order_id: order.id, status: "created", promo_code: promo?.code ?? null, discount_paise: price.discount });
+      if (error) { console.error(error); throw new Fail("Could not create the payment.", 500); }
+      return json({ order_id: order.id, amount: order.amount, currency: order.currency, receipt, key_id: keyId });
+    }
+
+    // ---- e-signing credits: a pack the Super Admin set in esign_settings.packs. Verified by "verify-payment" like a plan payment. ----
+    if (action === "esign-create-order") {
+      const { data: owner } = await asUser.rpc("is_owner", { f: firmId });
+      if (!owner) throw new Fail("Only the firm owner can buy signing credits.", 403);
+      const { data: es } = await admin.from("esign_settings").select("enabled,pricing_mode,packs").eq("id", 1).single();
+      const pack = (es?.packs ?? [])[Number(body.pack)];
+      if (!es?.enabled || es.pricing_mode !== "credits" || !pack) throw new Fail("That credit pack is not available.");
+      const amount = Math.round(Number(pack.price_paise)), credits = Math.round(Number(pack.credits));
+      if (!(amount >= MIN_PAISE) || !(credits >= 1)) throw new Fail("That credit pack is not available.");
+      needKeys();
+      const receipt = "LS" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+      const r = await fetch("https://api.razorpay.com/v1/orders", { method: "POST", signal: AbortSignal.timeout(15000),
+        headers: { Authorization: auth, "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, currency: "INR", receipt, notes: { kind: "esign", firm_id: String(firmId), credits: String(credits) } }) });
+      const order = await r.json().catch(() => ({}));
+      if (r.status === 401) { console.error("razorpay auth failed"); throw new Fail("Razorpay rejected our credentials. The payment gateway needs to be reconfigured.", 401); }
+      if (!r.ok || !order.id) { console.error("razorpay esign order", r.status, JSON.stringify(order)); throw new Fail("Razorpay could not create the order. Please try again.", 500); }
+      const { error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: "E-signature credits (" + credits + ")", cycle: "once", kind: "esign", esign_credits: credits, amount_paise: amount, method: "razorpay", order_no: receipt, gateway_order_id: order.id, status: "created" });
       if (error) { console.error(error); throw new Fail("Could not create the payment.", 500); }
       return json({ order_id: order.id, amount: order.amount, currency: order.currency, receipt, key_id: keyId });
     }

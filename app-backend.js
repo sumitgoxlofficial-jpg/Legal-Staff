@@ -51,7 +51,7 @@
   }
   async function subscription(d) {
     const s = ok(await sb.from('subscriptions').select('*').eq('firm_id', firmId).maybeSingle());
-    const pays = ok(await sb.from('payments').select('plan,cycle,amount_paise,paid_at').eq('firm_id', firmId).eq('status', 'paid').order('paid_at', { ascending: false }));
+    const pays = ok(await sb.from('payments').select('plan,cycle,amount_paise,paid_at').eq('firm_id', firmId).eq('status', 'paid').order('paid_at', { ascending: false })).filter(p => p.cycle !== 'once');   /* signing-credit purchases are not plans */
     const month = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 7);
     const au = (await sb.from('ai_usage').select('used').eq('firm_id', firmId).eq('month', month).maybeSingle()).data;
     d.sub = { aiUsed: au ? au.used : 0, plan: s ? s.plan : '', cycle: s ? s.cycle : 'annual', status: s ? s.status : '', seats: s ? s.seats || null : null, since: s ? s.since : '', renews: s ? s.renews : '', trialEnds: s && s.trial_ends ? s.trial_ends : '', history: pays.map(p => ({ plan: p.plan + ' · ' + (p.cycle === 'annual' ? 'Annual' : 'Monthly'), total: window.LS.inr(p.amount_paise / 100), date: (p.paid_at || '').slice(0, 10) })) };
@@ -193,8 +193,13 @@
     razorpay: {
       createOrder: (plan, cycle, gstin, promo, users) => B.fn('razorpay', { action: 'create-order', firm_id: firmId, plan, cycle, gstin, promo: promo || '', users }),
       promo: (plan, cycle, promo, users) => B.fn('razorpay', { action: 'promo', firm_id: firmId, plan, cycle, promo, users }),
-      verify: r => B.fn('razorpay', { action: 'verify-payment', firm_id: firmId, razorpay_order_id: r.razorpay_order_id, razorpay_payment_id: r.razorpay_payment_id, razorpay_signature: r.razorpay_signature })
+      verify: r => B.fn('razorpay', { action: 'verify-payment', firm_id: firmId, razorpay_order_id: r.razorpay_order_id, razorpay_payment_id: r.razorpay_payment_id, razorpay_signature: r.razorpay_signature }),
+      /* Signing credits (functions/razorpay, e-sign actions): the order is made for a pack the Super Admin set; the credits are added only after the payment is verified. */
+      esignOrder: pack => B.fn('razorpay', { action: 'esign-create-order', firm_id: firmId, pack }),
+      esignVerify: r => B.fn('razorpay', { action: 'verify-payment', firm_id: firmId, razorpay_order_id: r.razorpay_order_id, razorpay_payment_id: r.razorpay_payment_id, razorpay_signature: r.razorpay_signature })
     },
+    /* Electronic signing (server function 'esign'): everything for members goes through it; the browser never holds a key. */
+    esign: (action, body) => B.fn('esign', Object.assign({ action, firm_id: firmId }, body || {})),
     /* Team chat: the firm's group chat ('team') and one-to-one chats ('dm:<uid>:<uid>'), live through Supabase Realtime. */
     chat: {
       me: () => uid,
