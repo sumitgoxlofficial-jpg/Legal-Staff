@@ -6,7 +6,7 @@
 // Also: "promo" / "dir-promo" (price after a promo code) and free orders (a 100%-off code activates straight away, no payment taken).
 // "esign-create-order" sells e-signing credit packs (esign_settings.packs); the same verify-payment and webhook paths add the credits.
 // This is the only way plan and directory-fee money is received: there is no own UPI QR code any more.
-// POST with an x-razorpay-signature header is the Razorpay WEBHOOK (secret RAZORPAY_WEBHOOK_SECRET; point Razorpay at this function's URL and tick
+// POST with an x-razorpay-signature header is the Razorpay WEBHOOK (secret RAZORPAY_WEBHOOK_SECRET, or the Vault secret 'razorpay_webhook_secret' (migration 0055); point Razorpay at this function's URL and tick
 // payment.captured, order.paid, payment.failed, refund.processed). The browser callback is a convenience; the webhook is what makes a payment
 // count when the tab was closed. Both paths run the same claim-guarded activation, so a payment is never applied twice. Every event is kept in payment_events.
 // Deploy with JWT verification off; it checks every caller itself.
@@ -103,7 +103,8 @@ async function listDirectory(admin: any, order: any, paymentId: string, by = "ra
 
 /** The webhook: signature over the RAW body, replay-proof by event id, amount and ownership re-checked against our own records. */
 async function webhook(admin: any, req: Request, auth: string, keyId: string, keySecret: string) {
-  const secret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") ?? "";
+  let secret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") ?? "";
+  if (!secret) { const { data: vs } = await admin.rpc("razorpay_webhook_secret"); secret = String(vs ?? ""); }   // migration 0055: the same secret may be kept in Vault
   if (!secret) return json({ error: "Webhook secret is not configured." }, 501);
   const raw = await req.text(), sig = (req.headers.get("x-razorpay-signature") ?? "").toLowerCase();
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
