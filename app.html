@@ -11,6 +11,7 @@
 <script src="app-practice.js"></script>
 <script src="app-backend.js"></script>
 <script src="app-views.js"></script>
+<script src="app-esign.js"></script>
 <script src="support.js"></script>
 </head>
 <body>
@@ -861,6 +862,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           <div>
             <div style="font-size:13px;color:#5E5E5E">AI Drafting Studio</div>
             <h1 style="font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;letter-spacing:-.025em;font-size:24px;margin:6px 0 0">{{ draft.title }}</h1>
+            <div style="margin-top:8px">{{ draft.esChip }}</div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <span style="display:inline-flex;gap:6px;align-items:center">{{ dictLangSel }}<button onClick="{{ toggleDict }}" style="{{ dictBtn }}">{{ dictLabel }}</button></span>
@@ -868,6 +870,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
             {{ draft.saveBtn }}
             <button class="ls-btn" onClick="{{ draft.docx }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#FFFFFF;border:1px solid #E5E5E5;border-radius:8px;font-size:13.5px;color:#0A0A0A">Export DOCX</button>
             <button class="ls-btn" onClick="{{ draft.pdf }}" style="white-space:nowrap;height:36px;padding:0 14px;background:#0A0A0A;color:#fff;border:0;border-radius:8px;font-size:13.5px">Export PDF</button>
+            {{ draft.esBar }}
           </div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;align-items:start">
@@ -877,6 +880,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
               <button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
             </sc-for>
           </section>
+          <div style="{{ esWrapStyle }}">
           <section style="background:#FFFFFF;border:1px solid #E5E5E5;border-radius:12px;padding:48px 52px;position:relative;overflow:hidden;grid-column:span 2;min-width:0;font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;line-height:1.8;color:#1A1A1A">
             <div contenteditable="false" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:16px;margin-bottom:20px;border-bottom:2px solid #0A0A0A;position:relative"><div style="line-height:1.4"><div style="font-size:20px;font-weight:600">{{ firmName }}</div><div style="font-size:13px;color:#5E5E5E">Advocates · {{ firmAddress }}</div></div><span style="display:flex;align-items:center;gap:6px;white-space:nowrap"><img src="assets/ls-mark-black.png" alt="" style="height:20px;display:block"><span style="font-weight:600;font-size:14px;letter-spacing:-.02em;line-height:1;color:#0A0A0A">Legal Staff</span></span></div>
             {{ draft.body }}
@@ -895,7 +899,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
                 <div style="display:flex;align-items:center;gap:6px;border-top:1px solid #E5E5E5"><button onClick="{{ v.go }}" style="{{ v.style }}"><span style="font-weight:500">{{ v.v }}</span><span style="color:#5E5E5E;font-size:12px">{{ v.meta }}</span></button>{{ v.act }}</div>
               </sc-for>
             </div>
+            {{ draft.esCard }}
           </section>
+          </div>
+          {{ esPane }}
         </div>
       </div>
     </sc-if>
@@ -1480,6 +1487,11 @@ class Component extends DCLogic {
       saveBtn: h(V.Btn, { onClick: () => { const html = this.clean(this.ed ? this.ed.innerHTML : liveHtml); this.buf = null; this.mut(db => { (db.drafts[S.tpl] = db.drafts[S.tpl] || []).unshift({ at: T + ' ' + LS.nowHM(), by: 'you', html }); V.logIt(db, `${db.user.name} saved ${this.tplNames[S.tpl]} draft (v${db.drafts[S.tpl].length + 1})`); }, 'Version saved'); this.setState({ ver: 0 }); } }, 'Save version'),
       docx: () => { if (!this.ed) return; LS.docx(draft.title.replace(/[^\w]+/g, '-') + '.docx', [[{ t: D.firm.name, b: true }], [{ t: 'Advocates · ' + D.firm.address }], ...LS.htmlToRuns(this.ed)]); this.toast('DOCX downloaded'); },
       pdf: () => { const sec = this.ed && this.ed.closest('section'); if (!sec) return; sec.classList.add('ls-print'); const done = () => { sec.classList.remove('ls-print'); window.removeEventListener('afterprint', done); }; window.addEventListener('afterprint', done); window.print(); } };
+    /* ---- electronic signing (app-esign.js): toolbar buttons, status chip, status card, and the in-editor preparation mode ---- */
+    if (this.esMode && this.esMode.tpl !== S.tpl) this.esMode = null;
+    const esMode = this.esMode || null, esOk = !!(window.LSE && LSB.on);
+    draft.esBar = esOk ? h(LSE.Bar, { app: this, tpl: S.tpl }) : null; draft.esChip = esOk ? h(LSE.Chip, { app: this, tpl: S.tpl }) : null; draft.esCard = esOk ? h(LSE.Card, { app: this, tpl: S.tpl }) : null;
+    const esPane = esMode && esOk ? h(LSE.Pane, { app: this, tpl: S.tpl, mode: esMode, title: draft.title }) : null, esWrapStyle = { display: esMode ? 'none' : 'contents' };
 
     /* ---- pricing ---- */
     const cycles = [['monthly', 'Monthly'], ['annual', 'Annual · 2 months free']].map(([k, label]) => ({ label, go: () => this.setState({ cycle: k }), style: { border: 0, borderRadius: 8, whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14, background: S.cycle === k ? '#0A0A0A' : 'transparent', color: S.cycle === k ? '#fff' : '#363636' } }));
@@ -1669,7 +1681,7 @@ class Component extends DCLogic {
       missingOpen: !limFilled, missingFilled: limFilled, fillMissing,
       derivation: lim.rows, approved: LM.approved && !lim.none, notApproved: !LM.approved && !lim.none, approve: () => V.approveLim(this, LM.id),
       msgs, suggestions, sugRow: { display: 'flex', gap: 8, flexWrap: mobile ? 'nowrap' : 'wrap', overflowX: mobile ? 'auto' : 'visible', scrollbarWidth: 'none', paddingBottom: mobile ? 2 : 0 }, brainScope, chatEmpty: chat.length ? null : h('div', { className: 'ls-empty', style: { color: '#5E5E5E', fontSize: 14, padding: '24px 0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } }, h(V.Art, { name: 'chat', style: { width: 120, height: 'auto' } }), h('span', { style: { flex: '1 1 200px' } }, 'Ask a question about this case, or pick a suggestion below.')), draftQ: S.q, setQ: e => this.setState({ q: e.target.value }), sendQ: () => S.q.trim() && this.ask(S.q.trim()), qKey: e => { if (e.key === 'Enter' && S.q.trim()) this.ask(S.q.trim()); },
-      templates, versions, draft,
+      templates, versions, draft, esPane, esWrapStyle,
       toggleDict: () => this.dictate(), dictLabel: S.dict ? '● Listening… tap to stop' : 'Dictate',
       dictLangSel: h('select', { 'aria-label': 'Dictation language', title: 'Dictation language', value: st.dictLang === 'hi-IN' ? 'hi-IN' : 'en-IN', disabled: S.dict, onChange: e => { const v = e.target.value; this.mut(db => { db.settings.dictLang = v; }); }, style: { height: 34, border: '1px solid #E5E5E5', borderRadius: 8, background: '#FFFFFF', fontSize: 13.5, padding: '0 8px', color: '#0A0A0A' } }, h('option', { value: 'en-IN' }, 'English (India)'), h('option', { value: 'hi-IN' }, 'Hindi')),
       dictBtn: { height: 34, padding: '0 12px', borderRadius: 8, fontSize: 13.5, border: S.dict ? '1px solid #B42318' : '1px solid #E5E5E5', background: S.dict ? '#FDECEA' : '#FFFFFF', color: S.dict ? '#B42318' : '#0A0A0A' },

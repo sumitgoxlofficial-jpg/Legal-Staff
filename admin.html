@@ -133,7 +133,7 @@
   }
 
   // ---------- layout ----------
-  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['settings', 'Settings']];
+  const TABS = [['overview', 'Overview'], ['firms', 'Firms & users'], ['payments', 'Payments'], ['coupons', 'Coupons'], ['support', 'Support'], ['expenses', 'Expenses'], ['esign', 'E-Signing'], ['settings', 'Settings']];
   function shell() {
     root.innerHTML = `<header class="top"><div class="wrap">
         <div class="brand"><img src="assets/ls-mark-black.png" alt="">Legal Staff <small>Admin</small></div>
@@ -347,6 +347,67 @@
       </tbody></table></div></div>`;
     p.querySelector('#ad').onsubmit = async ev => { ev.preventDefault(); try { await api('expense_add', { spent_on: p.querySelector('#dd').value, label: p.querySelector('#lb').value, amount: p.querySelector('#am').value }); toast('Expense added'); go('expenses'); } catch (e) { p.querySelector('#er').textContent = e.message; } };
     p.querySelectorAll('[data-id]').forEach(b => b.onclick = async () => { if (!confirm('Delete this expense?')) return; await api('expense_delete', { id: b.dataset.id }); go('expenses'); });
+  };
+
+
+  // ---------- electronic signing (functions/esign): switches, providers, prices, limits, activity, failures, provider cost ----------
+  async function esapi(action, body = {}) {
+    const r = await sb.functions.invoke('esign', { body: Object.assign({ action }, body) });
+    if (r.error) { let m = r.error.message; try { const j = await r.error.context.json(); if (j && j.error) m = j.error; } catch (e) {} throw new Error(m); }
+    return r.data;
+  }
+  const ES_LABEL = { draft: 'Draft', prepared: 'Prepared', sent: 'Sent', viewed: 'Viewed', partial: 'Partially signed', completed: 'Completed', declined: 'Declined', expired: 'Expired', cancelled: 'Cancelled', failed: 'Failed' };
+  const esChip = s => `<span class="chip ${s === 'completed' ? 'c-good' : ['declined', 'failed'].includes(s) ? 'c-bad' : ['expired', 'cancelled', 'prepared'].includes(s) ? 'c-mut' : 'c-warn'}">${ES_LABEL[s] || esc(s)}</span>`;
+  VIEWS.esign = async p => {
+    const [g, act, bad, use, wal, firmsR] = await Promise.all([esapi('admin_get'), esapi('admin_activity', { limit: 60 }), esapi('admin_failed'), esapi('admin_usage'), esapi('admin_firm'), api('firms')]);
+    const s = g.settings, pr = g.providers;
+    const num = (id, label, v, extra = '') => `<label class="f">${label}<input id="${id}" type="number" min="0" step="any" value="${esc(v)}" ${extra}></label>`;
+    p.innerHTML = `<h1>E-Signing</h1><p class="sub">Electronic signing inside the AI Drafting Studio. The built-in provider makes a <b>simple electronic signature</b> (typed or drawn). It is not Aadhaar eSign and not a DSC.</p>
+      ${g.email_ready ? '' : '<div class="card err" style="margin-bottom:14px">Email is not set up (RESEND_API_KEY and EMAIL_FROM are missing on the functions). Signing links and codes are sent by email, so signing cannot be switched on until it is.</div>'}
+      <div class="card"><div class="strong" style="margin-bottom:10px">Switches, pricing and limits</div>
+        <div class="row" style="gap:20px;margin-bottom:12px"><label class="row small" style="gap:7px"><input id="en" type="checkbox" style="width:auto;height:auto" ${s.enabled ? 'checked' : ''}><b>Electronic signing is on</b></label>
+          <label class="row small" style="gap:7px"><input id="otp" type="checkbox" style="width:auto;height:auto" ${s.require_otp ? 'checked' : ''}>Signers confirm their email with a code</label></div>
+        <div class="two"><label class="f">Pricing<select id="pm"><option value="free">Free for all firms</option><option value="credits">Signing credits</option></select></label>${num('cpd', 'Credits one document uses', s.credits_per_document)}</div>
+        <div class="two">${num('fpm', 'Free documents per firm every month', s.free_per_month)}${num('ftd', 'Free trial documents per firm (once)', s.free_trial_documents)}</div>
+        <div class="two">${num('mdm', 'Documents per firm per month (0 = no limit)', s.max_documents_per_month)}${num('msg', 'Signers per document', s.max_signers)}</div>
+        <div class="two">${num('mfl', 'Fields per document', s.max_fields)}${num('dex', 'Default link expiry (days)', s.default_expiry_days)}</div>
+        <div class="two">${num('mex', 'Longest link expiry (days)', s.max_expiry_days)}<div></div></div>
+        <div class="strong small" style="margin:6px 0">Credit packs on sale (no price is built in)</div><div id="packs"></div>
+        <div class="row" style="margin-top:8px"><button class="btn sm" id="addp">+ Add pack</button></div>
+        <div class="err" id="er1" style="margin-top:8px"></div><div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn pri" id="sv">Save</button></div></div>
+      <div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:4px">Providers</div><div class="muted small" style="margin-bottom:10px">Only a provider with an installed adapter can be active. Credentials are write-only: they go into Vault and are never shown again.</div>
+        <label class="f" style="max-width:340px">Active provider<select id="ap">${Object.entries(pr).map(([k, x]) => `<option value="${k}" ${x.available ? '' : 'disabled'} ${s.active_provider === k ? 'selected' : ''}>${esc(x.name)}${x.available ? '' : ' (adapter not installed)'}</option>`).join('')}</select></label>
+        <div class="tscroll"><table><thead><tr><th>Provider</th><th>Signature it makes</th><th>Enabled</th><th class="num">Cost per document (₹)</th><th>Credential</th></tr></thead><tbody>${Object.entries(pr).map(([k, x]) => `<tr data-p="${k}"><td><div class="strong">${esc(x.name)}</div><div class="muted small" style="max-width:260px;white-space:normal">${esc(x.note)}</div></td><td class="small" style="white-space:normal;max-width:220px">${esc(x.signature)}</td>
+          <td><input class="pen" type="checkbox" style="width:auto;height:auto" ${x.enabled !== false && x.available ? 'checked' : ''} ${x.available ? '' : 'disabled'}></td><td class="num"><input class="pco" type="number" min="0" step="any" style="width:90px" value="${((x.cost_per_document_paise || 0) / 100)}"></td>
+          <td>${x.credential ? `<div class="row"><input class="pcr" type="password" autocomplete="off" placeholder="${x.credential_saved ? 'saved: type to replace' : 'API key or token'}" style="width:170px"><button class="btn sm pcs">Save</button>${x.credential_saved ? '<button class="btn sm pcx">Clear</button>' : ''}</div>` : '<span class="muted small">none needed</span>'}</td></tr>`).join('')}</tbody></table></div></div>
+      <div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:10px">Firm credits and limits</div>
+        <div class="row" style="margin-bottom:10px"><select id="gf" style="min-width:220px">${firmsR.firms.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><input id="gc" type="number" min="1" placeholder="Credits" style="width:100px"><input id="gn" placeholder="Note" style="width:180px"><button class="btn pri sm" id="gg">Grant credits</button></div>
+        <div class="err" id="er2"></div>
+        <div class="tscroll"><table><thead><tr><th>Firm</th><th class="num">Credits</th><th class="num">Free trial used</th><th class="num">Monthly limit</th><th>Blocked</th><th></th></tr></thead><tbody>${wal.wallets.map(w => `<tr data-f="${w.firm_id}"><td>${esc(w.firm)}</td><td class="num">${w.credits}</td><td class="num">${w.free_trial_used}</td><td class="num"><input class="wl" type="number" min="0" style="width:80px" placeholder="default" value="${w.monthly_limit ?? ''}"></td><td><input class="wb" type="checkbox" style="width:auto;height:auto" ${w.blocked ? 'checked' : ''}></td><td><button class="btn sm ws">Save</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">No firm has used signing yet.</td></tr>'}</tbody></table></div></div>
+      <div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:10px">Provider usage and expenses</div>
+        <div class="tscroll"><table><thead><tr><th>Month</th><th>Provider</th><th class="num">Documents</th><th class="num">Failures</th><th class="num">Cost</th></tr></thead><tbody>${use.usage.map(u => `<tr><td>${esc(u.month)}</td><td>${esc(u.provider)}</td><td class="num">${u.documents}</td><td class="num">${u.failures}</td><td class="num">${rs(u.cost_paise)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No signing activity yet.</td></tr>'}</tbody></table></div>
+        <div class="muted small" style="margin-top:8px">Credit sales: ${use.credit_sales.orders} order(s), ${use.credit_sales.credits} credits, ${rs(use.credit_sales.revenue_paise)}. Provider cost is what you enter above per document; set it to what the provider really charges.</div></div>
+      <div class="card" style="margin-top:14px"><div class="strong" style="margin-bottom:10px">Failed signing requests</div>
+        <div class="tscroll"><table><thead><tr><th>When</th><th>Firm</th><th>Document</th><th>Status</th><th>Problem</th></tr></thead><tbody>${bad.requests.map(r => `<tr><td>${dt(r.error_at)}</td><td>${esc(r.firm)}</td><td>${esc(r.title)}</td><td>${esc(ES_LABEL[r.status] || r.status)}</td><td style="white-space:normal;max-width:380px">${esc(r.error)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No failed requests.</td></tr>'}</tbody></table></div>
+        ${bad.provider_failures.length ? `<div class="muted small" style="margin-top:8px">${bad.provider_failures.length} failed provider call(s) recorded, latest: ${esc(bad.provider_failures[0].note)}</div>` : ''}</div>
+      <div class="card" style="margin-top:14px"><div class="row between" style="margin-bottom:10px"><div class="strong">Signing activity</div><div class="muted small">${Object.entries(act.by_status).map(([k, v]) => `${ES_LABEL[k] || k}: ${v}`).join(' · ') || 'Nothing yet'}</div></div>
+        <div class="tscroll"><table><thead><tr><th>Created</th><th>Firm</th><th>Document</th><th>Status</th><th>Signers</th><th>Paid with</th></tr></thead><tbody>${act.requests.map(r => `<tr><td>${dt(r.created_at)}</td><td>${esc(r.firm)}</td><td>${esc(r.title)}</td><td>${esLabelChip(r.status)}</td><td class="muted small">${esc(r.creator_name || '')}</td><td class="small">${r.charge ? esc(r.charge.via) : '—'}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Nothing yet.</td></tr>'}</tbody></table></div></div>`;
+    function esLabelChip(x) { return esChip(x); }
+    p.querySelector('#pm').value = s.pricing_mode;
+    const packs = p.querySelector('#packs'), addPack = (c = '', r = '') => { const d = document.createElement('div'); d.className = 'row'; d.style.marginBottom = '6px'; d.innerHTML = `<input class="pc" type="number" min="1" placeholder="Credits" value="${c}" style="width:110px"><input class="pr" type="number" min="1" step="any" placeholder="Price ₹" value="${r}" style="width:120px"><button class="btn sm">Remove</button>`; d.querySelector('button').onclick = () => d.remove(); packs.append(d); };
+    (s.packs || []).forEach(k => addPack(k.credits, k.price_paise / 100)); p.querySelector('#addp').onclick = () => addPack();
+    const v = id => p.querySelector('#' + id).value;
+    p.querySelector('#sv').onclick = async () => {
+      const prov = {}; p.querySelectorAll('tr[data-p]').forEach(tr => { prov[tr.dataset.p] = { enabled: tr.querySelector('.pen').checked, cost_per_document_rupees: tr.querySelector('.pco').value || 0 }; });
+      const body = { enabled: p.querySelector('#en').checked, require_otp: p.querySelector('#otp').checked, pricing_mode: v('pm'), credits_per_document: v('cpd'), free_per_month: v('fpm'), free_trial_documents: v('ftd'), max_documents_per_month: v('mdm'), max_signers: v('msg'), max_fields: v('mfl'), default_expiry_days: v('dex'), max_expiry_days: v('mex'),
+        packs: [...packs.children].map(d => ({ credits: d.querySelector('.pc').value, price_rupees: d.querySelector('.pr').value })).filter(k => k.credits || k.price_rupees), active_provider: v('ap'), providers: prov };
+      try { await esapi('admin_save', { settings: body }); toast('Saved'); go('esign'); } catch (e) { p.querySelector('#er1').textContent = e.message; }
+    };
+    p.querySelectorAll('tr[data-p]').forEach(tr => { const k = tr.dataset.p, inp = tr.querySelector('.pcr');
+      if (tr.querySelector('.pcs')) tr.querySelector('.pcs').onclick = async () => { if (!inp.value.trim()) return toast('Type the credential first'); try { await esapi('admin_secret', { provider: k, value: inp.value.trim() }); toast('Credential saved'); go('esign'); } catch (e) { toast(e.message); } };
+      if (tr.querySelector('.pcx')) tr.querySelector('.pcx').onclick = async () => { if (!confirm('Remove the saved credential?')) return; try { await esapi('admin_secret', { provider: k, value: '' }); toast('Credential removed'); go('esign'); } catch (e) { toast(e.message); } }; });
+    p.querySelector('#gg').onclick = async () => { try { const r = await esapi('admin_grant', { firm_id: v('gf'), credits: v('gc'), note: v('gn') }); toast('Granted. Balance ' + r.balance); go('esign'); } catch (e) { p.querySelector('#er2').textContent = e.message; } };
+    p.querySelectorAll('tr[data-f] .ws').forEach(b => b.onclick = async () => { const tr = b.closest('tr'); try { await esapi('admin_limit', { firm_id: tr.dataset.f, monthly_limit: tr.querySelector('.wl').value, blocked: tr.querySelector('.wb').checked }); toast('Saved'); } catch (e) { toast(e.message); } });
   };
 
   VIEWS.settings = async p => {

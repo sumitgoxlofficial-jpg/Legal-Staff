@@ -106,6 +106,11 @@ async function activate(admin: any, p: any, utr: string | null, by: string) {
   const { data: claimed } = await admin.from("payments").update({ status: "paid", utr, confirmed_by: by, paid_at: new Date().toISOString() })
     .eq("id", p.id).eq("status", "created").select("id");
   if (!claimed?.length) return false;              // already confirmed by the other route
+  if (p.kind === "esign") {                        // e-signing credits: add them to the firm's wallet (once per payment), no plan change
+    await admin.rpc("esign_add_credits", { p_firm: p.firm_id, p_n: p.esign_credits, p_kind: "purchase", p_payment: p.id, p_note: "UPI order " + p.order_no, p_by: p.user_id });
+    await issueInvoice(p.id);
+    return true;
+  }
   const { data: cur } = await admin.from("subscriptions").select("*").eq("firm_id", p.firm_id).maybeSingle();
   let start = Date.now();
   if (cur?.status === "trialing" && cur.trial_ends) start = Math.max(start, Date.parse(cur.trial_ends));
@@ -282,6 +287,25 @@ Deno.serve(async (req: Request) => {
       const orderNo = "LS" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
       const amount = basePaise + k;
       const { error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: body.plan, cycle: body.cycle, seats, amount_paise: amount, gstin: g, method: "upi", order_no: orderNo, status: "created", promo_code: promo?.code ?? null, discount_paise: price.discount });
+      if (error) throw new Fail("Could not create the payment.", 500);
+      return json({ order_no: orderNo, amount, upi_id: s.upi_id, payee: s.payee_name, link: upiLink(s, orderNo, amount), expires_at: new Date(Date.now() + OPEN_MINUTES * 60e3).toISOString() });
+    }
+
+    // ---- e-signing credits: a pack set by the Super Admin (esign_settings.packs), paid by UPI like a plan ----
+    if (action === "esign_create") {
+      if (!s.upi_enabled || !s.upi_id) throw new Fail("UPI payments are not switched on yet.", 501);
+      const { data: owner } = await asUser.rpc("is_owner", { f: firmId });
+      if (!owner) throw new Fail("Only the firm owner can buy signing credits.", 403);
+      const { data: es } = await admin.from("esign_settings").select("enabled,pricing_mode,packs").eq("id", 1).single();
+      const pack = (es?.packs ?? [])[Number(body.pack)];
+      if (!es?.enabled || es.pricing_mode !== "credits" || !pack) throw new Fail("That credit pack is not available.");
+      const basePaise = Math.round(Number(pack.price_paise));
+      const { data: open } = await admin.from("payments").select("amount_paise").eq("method", "upi").eq("status", "created")
+        .gte("amount_paise", basePaise).lt("amount_paise", basePaise + 100).gte("created_at", new Date(Date.now() - LATE_HOURS * 3600e3).toISOString());
+      const k = pickOffset(basePaise, (open ?? []).map((r: any) => r.amount_paise));
+      if (k < 0) throw new Fail("Too many UPI payments are waiting right now. Please try again in a few minutes.", 503);
+      const orderNo = "LS" + crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase(), amount = basePaise + k;
+      const { error } = await admin.from("payments").insert({ firm_id: firmId, user_id: user.id, plan: "E-signature credits (" + pack.credits + ")", cycle: "once", kind: "esign", esign_credits: pack.credits, amount_paise: amount, method: "upi", order_no: orderNo, status: "created" });
       if (error) throw new Fail("Could not create the payment.", 500);
       return json({ order_no: orderNo, amount, upi_id: s.upi_id, payee: s.payee_name, link: upiLink(s, orderNo, amount), expires_at: new Date(Date.now() + OPEN_MINUTES * 60e3).toISOString() });
     }

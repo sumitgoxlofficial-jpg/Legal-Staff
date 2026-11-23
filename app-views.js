@@ -1544,7 +1544,7 @@
           : h('div', { style: { display: 'flex', flexDirection: 'column' } }, invs.map(i => h('div', { key: i.id, style: { display: 'grid', gridTemplateColumns: 'minmax(130px,1fr) minmax(90px,.8fr) minmax(150px,1.4fr) minmax(80px,.7fr) auto', gap: 12, alignItems: 'center', padding: '10px 0', borderTop: '1px solid ' + K.line, fontSize: 13.5 } },
               h('span', { style: { fontWeight: 600, fontVariantNumeric: 'tabular-nums' } }, i.invoice_no),
               h('span', { style: { color: K.mut } }, L.fmt(istDay(i.issued_at))),
-              h('span', null, `${i.plan} · ${i.cycle === 'annual' ? 'Annual' : 'Monthly'}`, i.period && h('span', { style: { color: K.mut } }, ' · ' + L.fmt(i.period.from) + ' – ' + L.fmt(i.period.to))),
+              h('span', null, `${i.plan} · ${i.cycle === 'once' ? 'One-time' : i.cycle === 'annual' ? 'Annual' : 'Monthly'}`, i.period && h('span', { style: { color: K.mut } }, ' · ' + L.fmt(i.period.from) + ' – ' + L.fmt(i.period.to))),
               h('span', { style: { fontVariantNumeric: 'tabular-nums', fontWeight: 600 } }, rupees(i.total)),
               h('span', { style: { display: 'flex', gap: 6 } },
                 h(Btn, { small: true, disabled: !!busy, onClick: () => act('dl' + i.id, () => downloadInvoice(i.id)) }, busy === 'dl' + i.id ? '…' : 'PDF'),
@@ -1557,7 +1557,7 @@
       const [st, setSt] = useState({ phase: 'creating' }), [qr, setQr] = useState(''), [left, setLeft] = useState(0);
       React.useEffect(() => {
         let dead = false, poll = null, tick = null;
-        LSB.upi.create(o.plan, o.cycle, o.gstin, o.promo, o.users).then(r => {
+        (o.create ? o.create() : LSB.upi.create(o.plan, o.cycle, o.gstin, o.promo, o.users)).then(r => {
           if (dead) return;
           if (r.free) { setSt({ phase: 'paid', r, x: { confirmed_by: 'promo' } }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); return; }
           setSt({ phase: 'waiting', r });
@@ -1567,7 +1567,7 @@
           tick = setInterval(() => setLeft(Math.max(0, Math.round((end - Date.now()) / 1000))), 1000);
           const check = () => LSB.upi.status(r.order_no).then(x => {
             if (dead) return;
-            if (x.status === 'paid') { clearInterval(poll); clearInterval(tick); setSt({ phase: 'paid', r, x }); LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); }
+            if (x.status === 'paid') { clearInterval(poll); clearInterval(tick); setSt({ phase: 'paid', r, x }); if (o.onPaid) o.onPaid(); else LSB.refreshSub(app.db).then(() => app.setState(s => ({ rev: s.rev + 1 }))).catch(() => {}); }
             else if (Date.now() > end) { clearInterval(poll); clearInterval(tick); setSt({ phase: 'expired', r }); }
           }).catch(() => {});
           poll = setInterval(check, 4000);
@@ -1580,16 +1580,16 @@
       if (st.phase === 'paid') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', textAlign: 'center', padding: '10px 0' } },
         h('div', { className: 'ls-pop', style: { width: 58, height: 58, borderRadius: 29, background: '#E7F6EC', color: '#137333', fontSize: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 8px #F3FBF5' } }, '✓'),
         h('div', { style: { fontSize: 18, fontWeight: 600 } }, 'Payment received'),
-        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `${amt} for the ${o.name} plan (${o.cycleLabel}). Your plan is active.`),
+        h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, o.doneText ? `${amt} ${o.doneText}` : `${amt} for the ${o.name} plan (${o.cycleLabel}). Your plan is active.`),
         st.x.utr && h('div', { style: { fontSize: 12.5, color: K.mut } }, 'UPI reference ' + st.x.utr + ' · order ' + r.order_no),
         h(PaidInvoice, { orderNo: r.order_no }),
-        h(Btn, { primary: true, onClick: () => { app.modal(null); app.go('dashboard'); } }, 'Go to dashboard'));
+        h(Btn, { primary: true, onClick: () => { app.modal(null); if (!o.doneText) app.go('dashboard'); if (o.after) o.after(); } }, o.doneText ? 'Done' : 'Go to dashboard'));
       if (st.phase === 'expired') return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
         h('div', { style: { fontSize: 14, color: K.txt, lineHeight: 1.6 } }, `This payment window has closed. If you already paid ${amt}, it is still confirmed automatically within 24 hours and your plan turns on by itself. If you have not paid, start again.`),
         h('div', { style: { fontSize: 12.5, color: K.mut } }, 'Order ' + r.order_no),
         h('div', { style: { display: 'flex', gap: 10, justifyContent: 'flex-end' } }, h(Btn, { onClick: () => app.modal(null) }, 'Close')));
       return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', textAlign: 'center' } },
-        h('div', { style: { fontSize: 13, color: K.mut } }, `${o.name} plan · ${o.cycleLabel}`),
+        h('div', { style: { fontSize: 13, color: K.mut } }, o.cycleLabel && !o.doneText ? `${o.name} plan · ${o.cycleLabel}` : o.name),
         h('div', null, h('div', { style: { fontSize: 12, color: K.mut, textTransform: 'uppercase', letterSpacing: '.06em' } }, 'Pay exactly'), h('div', { style: { fontSize: 30, fontWeight: 700, letterSpacing: '-.02em' } }, amt)),
         h('div', { style: { width: 220, height: 220, border: '1px solid ' + K.line, borderRadius: 12, padding: 8, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }, dangerouslySetInnerHTML: qr ? { __html: qr.replace('<svg ', '<svg width="100%" height="100%" ') } : undefined }, qr ? undefined : h('span', { style: { fontSize: 13, color: K.mut } }, 'Loading QR…')),
         h('div', { style: { fontSize: 13.5, color: K.txt } }, 'Scan with any UPI app: GPay, PhonePe, Paytm, BHIM'),
@@ -1824,6 +1824,6 @@
     return out.slice(0, 9);
   }
 
-  window.LSV = { CourtAdmin, VerificationPanel, verifyBadge, verifyNow, portalBox, autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, upiPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
+  window.LSV = { infoBox, X, CourtAdmin, VerificationPanel, verifyBadge, verifyNow, portalBox, autoCheck, applyNext, labelsOf, labelChips, LabelChip, delLabel, FirmMark, COURTS, courtPic, Avatar, editPhoto, removePhoto, upiPay, SubPanel, aiDraft, maybeAskDrive, PlanCard, PlanLock, PlanUpgrade, planName, planSub, choosePlan, overLimit, h, K, X, Art, art, artFor, reduced, countUp, CountUp, LoginStage, Boot, Btn, Chip, Card, Page, Table, Modal, Form, Toggle, Empty, Line, Drop, Item, Select, LoginForm, MODULES, TaskRow, caseOf, clientOf, clashes, nextHearing, alerts, logIt, newCase, importCnr, addTask, addHearing, uploadDoc, openDoc, addOrder, help, onboard, newLim, addDeadline, confirmBox, searchAll, gstOf, overdue, openTasks,
     can, OUTCOMES, isAdj, IconBtn, infoBox, needsOutcome, outcomeChip, hearingActs, recordOutcome, delHearing, delCase, delTask, editDoc, delDoc, docActs, tagLine, editOrder, delOrder, editInvoice, delInvoice, delDeadline, delLim, deadlinesCard, limList, approveLim, withdrawLim, markDone, syncDeadline, briefAt, BRIEF_TIMES, delDraft, caseDetails, detailsView, draftSummary, NEED };
 })();

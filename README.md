@@ -7,6 +7,7 @@ Static site for the Legal Staff practice-management product. No build step and n
 | Landing | `index.html` |
 | Advocate directory | `directory.html` |
 | App | `app.html` |
+| Signing page (for signers, no account) | `sign.html` |
 
 ## Run locally
 
@@ -21,6 +22,7 @@ Then open <http://localhost:8000/>. Any static host works; publish the repositor
 - Each page is a template plus a logic class, rendered by `support.js` on React 18 (bundled in `vendor/`).
 - `app-store.js` holds the app's data layer: storage, local accounts, the limitation calculator, order reading, and exports (ICS, CSV, DOCX).
 - `app-views.js` holds the module screens, dialogs and forms.
+- `app-esign.js` holds the electronic-signing screens inside the Drafting Studio (see `supabase/README.md`).
 - `config.js` holds site settings such as the Google Client ID.
 
 ## Accounts and data

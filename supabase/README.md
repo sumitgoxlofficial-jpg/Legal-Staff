@@ -18,6 +18,8 @@
 | `functions/ai` | Real AI for AI Case Brain, AI Legal Research and AI Drafting Studio through Groq; picks the best model from Groq's live list; counts AI credits per firm per month by plan (deploy with JWT verification off; it checks the caller itself) |
 | `functions/upi-pay` | Pay by UPI straight to the operator's UPI ID, no gateway: creates orders with a unique amount, confirms them automatically by Paytm for Business order status, bank 'credited' SMS from an SMS-forwarder phone, or forwarded bank alert emails, applies promo codes, then activates the plan (deploy with JWT verification off; it checks every caller itself) |
 | `functions/billing` | Invoices for plan payments: numbers them, emails the PDF to the buyer, lists, downloads and re-sends them (deploy with JWT verification off) |
+| `migrations/0024_esign.sql` | Electronic signing: settings, requests, signers, fields, the hash-chained audit trail, credit wallets and ledger, provider usage, the private `esign` bucket, Vault keys, the 15-minute sweep and nightly backup jobs |
+| `functions/esign` | Electronic signing in the AI Drafting Studio and the signing page (`sign.html`): prepare, send, remind, cancel, status, download, verify; the signer's link, email code, signature and decline; the schedule; the Super Admin controls. Deploy the whole `functions/` folder (it imports `_shared/esign-logic.js`), with JWT verification off |
 | `functions/drive` | Encrypted storage in each user's own Google Drive: uploads and nightly backups, encrypted with AES-256-GCM (a key per firm) and kept in the Drive's hidden app folder (deploy with JWT verification off; it checks the caller itself) |
 
 ## Current project
@@ -152,3 +154,43 @@ Rotate from the admin panel (Vault) with no code change or redeploy; if you use 
 ### What is and is not covered
 
 Coverage comes from the provider's published list (Supreme Court, High Courts, district courts, and 14 tribunal and commission types) and is recorded in `provider_capabilities`. **Tested live (17 Nov 2026): case detail for one Delhi High Court case and one Delhi district-court case, plus authentication, the free calls and the error codes** (`verified_at` is set only for those; migration 0023). Refresh, tribunals, the Supreme Court and other states are **not** tested yet: see `tests/README.md`. Cases registered only by case, filing or diary number are routed to manual review, because the provider looks cases up by CNR (tribunal CNRs are minted by the provider). Public court data is information, not a certified copy.
+
+## Electronic signing (functions/esign)
+
+Reached only from the Drafting Studio toolbar (Prepare for Signature, Send for Signature, View Signing Status) and from the signer's link `https://legalstaff.in/sign#<token>`. There is no separate signing module.
+
+### What signature this makes (and does not)
+
+The built-in provider makes a **simple electronic signature**: a typed or drawn signature, with the signer's consent, a one-time code sent to their email, and a hash-chained audit trail. It is **not Aadhaar eSign and not a Digital Signature Certificate (DSC)**, and the app, the emails and the certificate say so. Aadhaar eSign, DSC and other regulated methods must come from an authorised provider (an eSign Service Provider or a certifying authority) through an adapter in `PROVIDERS` in `functions/esign/index.ts`; none is installed. Limits shown to lawyers before they send: documents in the First Schedule to the IT Act, 2000 (will, trust, power of attorney, sale of immovable property) cannot be e-signed; affidavits, vakalatnamas and court filings may need wet ink or a DSC; stamp duty and registration are unaffected. This is information, not legal advice.
+
+### Providers (replaceable)
+
+| Provider | Status |
+| --- | --- |
+| `native` | Installed. No third-party cost except email. |
+| `docuseal` (self-hosted) | **Evaluated, adapter not installed.** From its GitHub README (read when this was built): AGPLv3 with an additional term that the DocuSeal attribution stays in the user interface; "API and Webhooks for integrations" is listed among the free features; **embedded signing form, white-label, automated reminders, SMS identity verification, user roles, SSO and template-from-PDF/HTML APIs are listed as Pro (paid) features**. DocuSeal's own pricing and API pages could not be read, so the price of Pro, any per-document cloud price and whether Aadhaar eSign or DSC is supported are **not verified**. Do not assume production API or embedding is free: confirm the licence and price, then add an adapter. Never call a paid-only endpoint without a licence. |
+
+An adapter must give: send a document with fields to named signers, report status, cancel, and return the signed PDF and its audit data. Provider credentials are stored write-only in Vault (`esign_provider_<name>`) from the admin panel; they never reach the browser.
+
+### Set-up, in order
+
+1. Apply `migrations/0024_esign.sql` (needs `pg_cron`, `pg_net`, Vault, and `cron_secret` from migration 0003). Check the project address in the last two statements.
+2. Deploy `functions/` and `esign` with JWT verification off. Deploy `upi-pay` and `billing` again (signing credits use them).
+3. Secrets: `RESEND_API_KEY` and `EMAIL_FROM` (links and codes are emailed; the Super Admin cannot switch signing on without them), `APP_URL` (default `https://legalstaff.in`). Optional `ESIGN_FONT_URL` and `ESIGN_FONT_BOLD_URL`: a Unicode TrueType font (for example Noto Sans, with Devanagari) so Hindi and other scripts appear in the signing copy; without it the PDF uses standard fonts, shows `₹` as `Rs.` and other non-Latin characters as `?`, and the lawyer is warned while preparing.
+4. Sign in to `/admin` → **E-Signing**: switch signing on, set pricing, packs, free documents and limits. Nothing is priced by default and signing is off.
+
+### Flow and states
+
+Draft (no request) → Prepared for Signature → Sent → Viewed → Partially Signed → Completed; or Declined, Expired, Cancelled. Sequential signing invites the next order group when the earlier required signers have signed (optional signers never hold anyone up); parallel invites everyone at once. A required signer who declines ends the request and kills the other links. A link works until the request's expiry; the 15-minute job expires overdue requests, starts waiting signers and finishes any signed PDF that failed.
+
+### Security
+
+- Link tokens: 256-bit random, only the SHA-256 is stored; a reminder or re-invite replaces the token (the old link stops). Signers see nothing of the document until they enter the 6-digit code emailed to them (10 minutes, 5 tries, 30 s between sends; the Super Admin can switch this off). The session issued after the code lasts 2 hours.
+- Documents (original and signed PDF) are encrypted with AES-256-GCM, one key per firm derived from a master key in Vault (`esign_master_key`), before they reach Storage. The `esign` bucket has no policies. **Losing that Vault key makes every stored signing document unreadable: never delete or rotate it without re-encrypting.**
+- Firm isolation: the function takes the firm from a verified membership and filters every query by it; the tables also have row level security so members can read only their firm's rows, and never the token, code or signature columns.
+- Audit trail: `esign_events` is append-only and hash-chained in the database (each row stores the hash of the previous one; updates and deletes are refused). "Verify integrity" re-hashes the stored PDFs and re-computes the chain. The signed PDF ends with a certificate listing the signers, consent, IPs, timestamps, the original document's SHA-256 and the chain head.
+- Backup and recovery: the database is covered by Supabase backups; a nightly job keeps a second encrypted copy of each completed PDF under `backup/` in the bucket (Supabase Storage objects are not part of database backups). **Restore** (admin) rebuilds a lost original from the backup copy, or re-renders it from the stored snapshot and writes it only if the SHA-256 matches the recorded one.
+
+### Billing
+
+Super Admin settings: pricing `free` or `credits`, credits per document, credit packs (credits and price, set by the Super Admin), free documents per firm per month, one-time free trial documents, per-firm monthly document limit, per-firm override or block. A send uses this month's free documents first, then the one-time free ones, then credits; the charge is taken atomically (`esign_charge`) and returned if sending fails. The lawyer sees the charge before sending. Credits are bought by the firm owner by UPI like a plan (`upi-pay` action `esign_create`; confirmation, UTR matching and the invoice work as for plans; Razorpay was removed in migration 0014, so there is no card payment). Credits are also recorded in `esign_ledger`. Provider expense is the cost per document you enter for a provider, shown in **E-Signing → Provider usage and expenses**.
