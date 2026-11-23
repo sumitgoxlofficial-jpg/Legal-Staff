@@ -9,6 +9,8 @@
 <meta name="color-scheme" content="light">
 <link rel="icon" href="assets/ls-favicon.png">
 <style>
+@font-face{font-family:"Pinyon Script";src:url(assets/fonts/pinyon-script-latin-400-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Great Vibes";src:url(assets/fonts/great-vibes-latin-400-normal.woff2) format("woff2");font-display:swap}
 :root{--ink:#0A0A0A;--mut:#5E5E5E;--line:#E5E5E5;--soft:#F5F5F4;--red:#B42318;--redbg:#FDECEA;--green:#137333;--greenbg:#E7F6EC;--blue:#1D4ED8}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -122,10 +124,11 @@ details summary{cursor:pointer;color:var(--mut);font-size:13.5px}
   }
 
   // ---- drawing and typing signatures ----
-  var FONTS = [['Handwriting', '"Segoe Script","Brush Script MT","Lucida Handwriting","Snell Roundhand","Apple Chancery",cursive', 'italic 400'], ['Classic', 'Georgia,"Times New Roman",serif', 'italic 400'], ['Formal', '"Times New Roman",Times,serif', 'italic 700']];
+  var FONTS = [['Script', '"Pinyon Script","Snell Roundhand","Apple Chancery",cursive', '400'], ['Flourish', '"Great Vibes","Brush Script MT",cursive', '400'], ['Classic', 'Georgia,"Times New Roman",serif', 'italic 400']];
+  try { FONTS.slice(0, 2).forEach(function (f) { document.fonts.load('40px ' + f[1].split(',')[0]); }); } catch (e) { }
   function textPng(text, fontIdx, w, h) {
     var c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d'), f = FONTS[fontIdx]; x.fillStyle = '#0A0A0A'; x.textBaseline = 'middle'; x.textAlign = 'center';
-    var size = Math.floor(h * .62); do { x.font = f[2] + ' ' + size + 'px ' + f[1]; size -= 2; } while (x.measureText(text).width > w * .94 && size > 10);
+    var size = Math.floor(h * .72); do { x.font = f[2] + ' ' + size + 'px ' + f[1]; size -= 2; } while (x.measureText(text).width > w * .94 && size > 10);
     x.fillText(text, w / 2, h / 2); return c.toDataURL('image/png');
   }
   function Pad() {
@@ -203,7 +206,7 @@ details summary{cursor:pointer;color:var(--mut);font-size:13.5px}
     }
     // panel
     var typedIn = el('input', { type: 'text', value: st.typed, maxlength: 80, 'aria-label': 'Type your full name', oninput: function () { st.typed = typedIn.value; refresh(); } }), iniIn = el('input', { type: 'text', value: st.ini, maxlength: 4, 'aria-label': 'Your initials', oninput: function () { st.ini = iniIn.value; refresh(); } });
-    var typeBox = el('div', null, el('label', { class: 'f' }, el('span', null, 'Type your full name'), typedIn), el('div', { class: 'fonts', role: 'group', 'aria-label': 'Style' }, FONTS.map(function (f, i) { var b = el('button', { type: 'button', 'aria-pressed': i === 0, style: { font: f[2] + ' 19px ' + f[1] }, onclick: function () { st.font = i; fb.forEach(function (x, j) { x.setAttribute('aria-pressed', j === i); }); refresh(); } }, d.signer.name.split(' ')[0]); return b; })));
+    var typeBox = el('div', null, el('label', { class: 'f' }, el('span', null, 'Type your full name'), typedIn), el('div', { class: 'fonts', role: 'group', 'aria-label': 'Style' }, FONTS.map(function (f, i) { var b = el('button', { type: 'button', 'aria-pressed': i === 0, style: { font: f[2] + ' 24px ' + f[1] }, onclick: function () { st.font = i; fb.forEach(function (x, j) { x.setAttribute('aria-pressed', j === i); }); refresh(); } }, d.signer.name.split(' ')[0]); return b; })));
     var fb = Array.prototype.slice.call(typeBox.querySelectorAll('.fonts button'));
     var drawBox = el('div', { style: { display: 'none' } }, pad.node, el('button', { type: 'button', class: 'btn', style: { marginTop: 8, minHeight: 38 }, onclick: function () { pad.clear(); } }, 'Clear'));
     pad.onchange(refresh);
@@ -218,7 +221,7 @@ details summary{cursor:pointer;color:var(--mut);font-size:13.5px}
         el('div', { class: 'note', style: { marginTop: 12 } }, d.signature_note), el('details', { style: { marginTop: 10 } }, el('summary', null, 'Things to know before signing'), el('ul', { class: 'small', style: { paddingLeft: 18 } }, d.notices.map(function (n) { return el('li', null, n); })))));
     var head = el('div', { style: { marginBottom: 14 } }, el('h1', null, d.title), el('div', { class: 'mut' }, (d.sender ? d.sender + ' · ' : '') + (d.firm || '') + (d.expires_at ? ' · sign before ' + when(d.expires_at) : '')), d.message ? el('div', { class: 'note', style: { marginTop: 10, whiteSpace: 'pre-wrap' } }, d.message) : null);
     show(head, el('div', { class: 'layout' }, pages, panel), d.state === 'wait' ? '' : el('div', { class: 'bar' }, el('div', { class: 't' }, mine.length + ' item' + (mine.length === 1 ? '' : 's') + ' to sign'), barBtn));
-    if (d.state !== 'wait') refresh();
+    if (d.state !== 'wait') { refresh(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { Promise.all(FONTS.slice(0, 2).map(function (f) { return document.fonts.load('40px ' + f[1].split(',')[0]); })).then(refresh, refresh); }); }
     mine.forEach(function (f) { var n = fieldEls[f.id]; n.addEventListener('click', function () { document.getElementById('signpanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }); });
   }
 

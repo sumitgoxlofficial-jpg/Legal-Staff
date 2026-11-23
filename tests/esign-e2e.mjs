@@ -145,6 +145,18 @@ await t('the lawyer sees Completed in the editor, downloads the signed PDF and v
   const path = await d.path(); ok(readFileSync(path).subarray(0, 5).toString() === '%PDF-', 'a real PDF');
   await page.getByRole('button', { name: 'Verify integrity' }).click(); await page.waitForSelector('text=Integrity verified'); await page.getByRole('button', { name: 'Audit trail' }).click(); await page.getByText('signed pdf created').waitFor(); await shot(page, '9-status-completed');
 });
+await t('typed script signature with the "Authenticated through" stamp ends up in the signed PDF', async () => {
+  const mcall = async (body) => { const r = await handler(new Request('http://fn', { method: 'POST', headers: { authorization: 'Bearer ' + TOKEN }, body: JSON.stringify({ firm_id: FIRM, ...body }) })); return r.json(); };
+  const html = '<h1>NDA</h1><p>The parties agree to keep everything confidential.</p>';
+  const pr = await mcall({ action: 'prepare_save', html, title: 'NDA', draft_key: '5', firm_name: 'Rao & Co', firm_address: 'Delhi', mode: 'parallel', signers: [{ key: 'a', name: 'Savitri Koparde', email: 'savitri@x.in', phone: '9876543210', role: 'Client', sign_order: 1, required: true }], fields: [{ kind: 'signature', page: 1, x: .1, y: .3, w: .28, h: .07, signer_key: 'a' }] });
+  ok(pr.request_id, JSON.stringify(pr)); const sd = await mcall({ action: 'send', request_id: pr.request_id, title: 'NDA', expires_in_days: 7 }); ok(sd.ok, JSON.stringify(sd));
+  const link = emails.filter((e) => e.to === 'savitri@x.in' && /Please sign/.test(e.subject)).pop().text.match(/sign#([\w-]{43})/)[1];
+  const q = await phone.newPage(); await q.goto(BASE + '/sign#' + link); await q.getByRole('button', { name: 'Email me a code' }).click(); await q.waitForFunction(() => document.body.innerText.includes('We emailed'));
+  await q.getByLabel('6-digit code').fill(emails.filter((e) => /signing code/.test(e.subject)).pop().text.match(/(\d{6})/)[1]); await q.getByRole('button', { name: 'Open the document' }).click(); await q.waitForSelector('.page');
+  await q.waitForFunction(() => document.fonts.check('40px "Pinyon Script"')); await q.waitForTimeout(300); await shot(q, '12-phone-typed'); await q.getByRole('checkbox').last().check(); await q.getByRole('button', { name: 'Sign the document' }).click(); await q.waitForSelector('text=All done');
+  const dl = await mcall({ action: 'download', request_id: pr.request_id }); if (SHOTS) writeFileSync(join(SHOTS, 'signed-typed.pdf'), Buffer.from(dl.pdf, 'base64'));
+  const txt = Buffer.from(dl.pdf, 'base64').toString('latin1'); ok(txt.includes('/Subtype /Image'));
+});
 await t('Super Admin tab: configure pricing and packs, store a provider credential write-only, see activity and usage', async () => {
   const a = await ctx.newPage(); const aerr = []; a.on('pageerror', (e) => aerr.push(e.message)); a.on('dialog', (d) => d.accept());
   await a.goto(BASE + '/admin#esign', { waitUntil: 'domcontentloaded' }); await a.waitForSelector('text=Electronic signing inside the AI Drafting Studio', { timeout: 20000 }).catch(async (e) => { await shot(a, 'admin-fail'); throw new Error((await a.locator('body').innerText()).slice(0, 400)); });

@@ -123,10 +123,13 @@ async function signedPdf(req: any, original: Uint8Array, signers: any[], fields:
     const page = pdf.getPage(fd.page - 1), { width: W, height: H } = page.getSize(), bx = fd.x * W, bw = fd.w * W, bh = fd.h * H, by = H - fd.y * H - bh;
     if (fd.kind === "signature" || fd.kind === "initials") {
       const dataUrl = fd.kind === "signature" ? s.signature?.png : s.signature?.initials_png; if (!dataUrl) continue;
-      const im = await img(s.id + fd.kind, dataUrl), sc = Math.min(bw / im.width, (bh - 7) / im.height), w = im.width * sc, hh = im.height * sc;
-      page.drawImage(im, { x: bx + (bw - w) / 2, y: by + 7 + ((bh - 7) - hh) / 2, width: w, height: hh });
-      page.drawLine({ start: { x: bx, y: by + 6.5 }, end: { x: bx + bw, y: by + 6.5 }, thickness: 0.4, color: rgb(0.5, 0.5, 0.5) });
-      page.drawText(L.winSafe(`e-signed by ${s.name} · ${L.istDate(Date.parse(s.signed_at))}`).text.slice(0, 80), { x: bx, y: by + 1, size: 5.5, font: h.reg, color: rgb(0.4, 0.4, 0.4) });
+      const im = await img(s.id + fd.kind, dataUrl), sc = Math.min(bw / im.width, bh / im.height), w = im.width * sc, hh = im.height * sc;
+      page.drawImage(im, { x: bx + (bw - w) / 2, y: by + (bh - hh) / 2, width: w, height: hh });
+      page.drawLine({ start: { x: bx, y: by }, end: { x: bx + bw, y: by }, thickness: 0.4, color: rgb(0.55, 0.55, 0.6) });
+      if (fd.kind === "signature") {   // the stamp under the signature: who authenticated it, the signer, the time
+        const ref = String(s.id).replace(/-/g, "").toUpperCase(), lines = [`Authenticated through Legal Staff (${ref})`, s.name, `Date: ${L.istStamp(Date.parse(s.signed_at))}`];
+        lines.forEach((t, i) => page.drawText(L.winSafe(t).text.slice(0, 90), { x: bx, y: by - 8 - i * 7.5, size: 6, font: h.reg, color: rgb(0.1, 0.1, 0.1) }));
+      }
     } else if (fd.value) {
       const txt = f.unicode ? fd.value : L.winSafe(fd.value).text; let size = Math.min(11, bh * 0.7); const font = f.reg;
       while (size > 5 && font.widthOfTextAtSize(txt, size) > bw) size -= 0.5;
